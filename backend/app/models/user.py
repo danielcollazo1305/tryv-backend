@@ -21,5 +21,6 @@ class User(Base):
 
     subscription_status = Column(String, default="inactive")  # 'active' | 'inactive' | 'trial'
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
