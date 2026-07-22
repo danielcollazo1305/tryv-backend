@@ -7,6 +7,7 @@ from app.models.challenge import Challenge  # noqa: F401
 from app.models.meal import Meal  # noqa: F401
 from app.models.run import Run  # noqa: F401
 from app.models.smartwatch import SmartwatchData  # noqa: F401
+from app.models.social import Follow, Post  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401
 from app.models.trainer import Trainer  # noqa: F401
 from app.models.user import User  # noqa: F401
