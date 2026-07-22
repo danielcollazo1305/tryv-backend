@@ -1,10 +1,10 @@
 """
 Cliente Claude compartilhado entre os servicos que fazem chamadas a API
-(analise de refeicoes, e futuramente geracao de plano de treino).
+(analise de refeicoes, geracao de plano de treino).
 """
-import os
-
 import anthropic
+
+from app.core.config import settings
 
 MODEL = "claude-opus-4-8"
 
@@ -16,5 +16,5 @@ def get_client() -> anthropic.Anthropic:
     estiver configurada ainda (ex: rodando localmente sem .env preenchido)."""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     return _client
