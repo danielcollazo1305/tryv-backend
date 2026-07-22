@@ -1,0 +1,19 @@
+from fastapi import FastAPI
+
+from app.core.config import settings
+from app.core.database import Base, engine
+from app.routers import auth, meals, users
+
+# Cria as tabelas no banco (em produção, usar Alembic para migrations)
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title=settings.app_name)
+
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(meals.router)
+
+
+@app.get("/")
+def health_check():
+    return {"status": "ok", "app": settings.app_name}
