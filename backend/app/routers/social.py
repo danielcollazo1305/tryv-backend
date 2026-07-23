@@ -399,7 +399,8 @@ def get_feed(
     current_user: User = Depends(get_current_user),
 ):
     """Posts publicos de qualquer usuario + posts (publicos ou privados) de
-    quem o usuario logado segue, mais recentes primeiro."""
+    quem o usuario logado segue + todos os posts (publicos e privados) do
+    proprio usuario logado, mais recentes primeiro."""
     following_ids = (
         db.query(Follow.following_id)
         .filter(Follow.follower_id == current_user.id)
@@ -409,7 +410,13 @@ def get_feed(
     rows = (
         db.query(Post, User.name)
         .join(User, Post.user_id == User.id)
-        .filter(or_(Post.visibility == "public", Post.user_id.in_(following_ids)))
+        .filter(
+            or_(
+                Post.visibility == "public",
+                Post.user_id.in_(following_ids),
+                Post.user_id == current_user.id,
+            )
+        )
         .order_by(Post.created_at.desc())
         .offset(offset)
         .limit(limit)
