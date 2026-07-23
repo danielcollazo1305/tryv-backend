@@ -26,6 +26,8 @@ class PostOut(BaseModel):
     visibility: str
     reference_id: uuid.UUID | None = None
     created_at: datetime
+    likes_count: int
+    comments_count: int
 
 
 class FollowOut(BaseModel):
@@ -36,6 +38,29 @@ class FollowOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class LikeOut(BaseModel):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CommentCreate(BaseModel):
+    content: str
+
+
+class CommentOut(BaseModel):
+    id: uuid.UUID
+    post_id: uuid.UUID
+    user_id: uuid.UUID
+    author: str
+    content: str
+    created_at: datetime
 
 
 class UserBrief(BaseModel):

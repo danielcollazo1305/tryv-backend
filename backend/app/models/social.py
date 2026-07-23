@@ -36,3 +36,28 @@ class Follow(Base):
     following_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_like_post_user"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    content = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
