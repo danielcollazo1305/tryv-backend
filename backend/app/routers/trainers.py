@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -8,10 +9,33 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.trainer import Trainer
 from app.models.user import User
-from app.schemas.trainer import TrainerOut, TrainerRegister, TrainerUpdate
+from app.schemas.trainer import (
+    StripeOnboardingOut,
+    StripeStatusOut,
+    TrainerOut,
+    TrainerRegister,
+    TrainerUpdate,
+)
+from app.services.stripe_client import get_client
 
 router = APIRouter(prefix="/trainers", tags=["trainers"])
 logger = logging.getLogger(__name__)
+
+# Placeholder ate existir um app/web real para o professor voltar depois do
+# onboarding hospedado pelo Stripe. O Stripe exige URLs validas aqui, mas so
+# usa refresh_url/return_url para redirecionar o navegador do professor.
+_STRIPE_ONBOARDING_REFRESH_URL = "https://tryv.app/trainer/stripe-onboarding/refresh"
+_STRIPE_ONBOARDING_RETURN_URL = "https://tryv.app/trainer/stripe-onboarding/return"
+
+
+def _get_my_trainer(db: Session, current_user: User) -> Trainer:
+    trainer = db.query(Trainer).filter(Trainer.user_id == current_user.id).first()
+    if not trainer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario nao esta cadastrado como professor",
+        )
+    return trainer
 
 
 @router.post("/register", response_model=TrainerOut, status_code=status.HTTP_201_CREATED)
@@ -44,13 +68,7 @@ def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    trainer = db.query(Trainer).filter(Trainer.user_id == current_user.id).first()
-    if not trainer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario nao esta cadastrado como professor",
-        )
-    return trainer
+    return _get_my_trainer(db, current_user)
 
 
 @router.patch("/me", response_model=TrainerOut)
@@ -59,12 +77,7 @@ def update_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    trainer = db.query(Trainer).filter(Trainer.user_id == current_user.id).first()
-    if not trainer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario nao esta cadastrado como professor",
-        )
+    trainer = _get_my_trainer(db, current_user)
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(trainer, field, value)
@@ -72,6 +85,75 @@ def update_my_profile(
     db.commit()
     db.refresh(trainer)
     return trainer
+
+
+@router.post("/me/stripe-onboarding", response_model=StripeOnboardingOut, status_code=status.HTTP_201_CREATED)
+def create_stripe_onboarding_link(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Cria (se ainda nao existir) a conta Stripe Connect Express do professor
+    e retorna o link de onboarding hospedado pelo Stripe — o backend nunca
+    coleta dados bancarios/documentos diretamente.
+    """
+    trainer = _get_my_trainer(db, current_user)
+    client = get_client()
+
+    try:
+        if not trainer.stripe_account_id:
+            account = client.accounts.create({
+                "type": "express",
+                "email": current_user.email,
+                "capabilities": {
+                    "card_payments": {"requested": True},
+                    "transfers": {"requested": True},
+                },
+            })
+            trainer.stripe_account_id = account.id
+            db.commit()
+
+        account_link = client.account_links.create({
+            "account": trainer.stripe_account_id,
+            "refresh_url": _STRIPE_ONBOARDING_REFRESH_URL,
+            "return_url": _STRIPE_ONBOARDING_RETURN_URL,
+            "type": "account_onboarding",
+        })
+    except stripe.StripeError as e:
+        logger.error("Falha ao criar onboarding Stripe (trainer_id=%s): %s", trainer.id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Nao foi possivel iniciar o onboarding com o Stripe, tente novamente",
+        )
+
+    return StripeOnboardingOut(onboarding_url=account_link.url)
+
+
+@router.get("/me/stripe-status", response_model=StripeStatusOut)
+def get_stripe_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    trainer = _get_my_trainer(db, current_user)
+
+    if not trainer.stripe_account_id:
+        return StripeStatusOut(stripe_account_id=None)
+
+    try:
+        account = get_client().accounts.retrieve(trainer.stripe_account_id)
+    except stripe.StripeError as e:
+        logger.error("Falha ao consultar status Stripe (trainer_id=%s): %s", trainer.id, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Nao foi possivel consultar o status da conta Stripe, tente novamente",
+        )
+
+    return StripeStatusOut(
+        stripe_account_id=account.id,
+        details_submitted=bool(account.details_submitted),
+        charges_enabled=bool(account.charges_enabled),
+        payouts_enabled=bool(account.payouts_enabled),
+    )
 
 
 @router.get("/", response_model=list[TrainerOut])

@@ -28,3 +28,14 @@ class TrainerOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StripeOnboardingOut(BaseModel):
+    onboarding_url: str
+
+
+class StripeStatusOut(BaseModel):
+    stripe_account_id: str | None = None
+    details_submitted: bool = False
+    charges_enabled: bool = False
+    payouts_enabled: bool = False
