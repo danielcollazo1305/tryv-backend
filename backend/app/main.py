@@ -3,7 +3,18 @@ from fastapi import FastAPI
 from app import models  # noqa: F401 — garante que Base.metadata conheça todas as tabelas
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.routers import auth, meals, runs, smartwatch, social, trainers, users, workout_plans
+from app.routers import (
+    auth,
+    meals,
+    runs,
+    smartwatch,
+    social,
+    trainer_subscriptions,
+    trainers,
+    users,
+    webhooks,
+    workout_plans,
+)
 
 # Cria as tabelas no banco (em produção, usar Alembic para migrations)
 Base.metadata.create_all(bind=engine)
@@ -17,7 +28,9 @@ app.include_router(workout_plans.router)
 app.include_router(smartwatch.router)
 app.include_router(runs.router)
 app.include_router(trainers.router)
+app.include_router(trainer_subscriptions.router)
 app.include_router(social.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/")
