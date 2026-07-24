@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.database import Base, engine
 from app.routers import (
     auth,
+    challenges,
     meals,
     runs,
     smartwatch,
@@ -31,6 +32,7 @@ app.include_router(trainers.router)
 app.include_router(trainer_subscriptions.router)
 app.include_router(social.router)
 app.include_router(webhooks.router)
+app.include_router(challenges.router)
 
 
 @app.get("/")
