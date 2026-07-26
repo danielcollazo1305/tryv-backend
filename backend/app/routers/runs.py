@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.heart_rate import HeartRateSample
 from app.models.run import Run
 from app.models.user import User
-from app.schemas.run import RunCreate, RunOut, RunSummaryOut
+from app.schemas.run import RunCreate, RunDetailOut, RunOut, RunSummaryOut
 from app.services.run_calculator import (
     calculate_avg_pace_seconds_per_km,
     calculate_calories_burned,
@@ -100,12 +101,7 @@ def summary(
     )
 
 
-@router.get("/{run_id}", response_model=RunOut)
-def get_run(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+def _get_run_or_404(db: Session, current_user: User, run_id: str) -> Run:
     try:
         parsed_id = uuid.UUID(run_id)
     except ValueError:
@@ -119,3 +115,38 @@ def get_run(
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Corrida nao encontrada")
     return run
+
+
+def _heart_rate_stats(
+    db: Session, current_user: User, start: datetime, end: datetime
+) -> tuple[float | None, int | None]:
+    """Media e maxima de BPM entre start..end — calculado sob demanda, nunca armazenado."""
+    bpms = [
+        row.bpm
+        for row in db.query(HeartRateSample.bpm)
+        .filter(
+            HeartRateSample.user_id == current_user.id,
+            HeartRateSample.recorded_at >= start,
+            HeartRateSample.recorded_at <= end,
+        )
+        .all()
+    ]
+    if not bpms:
+        return None, None
+    return sum(bpms) / len(bpms), max(bpms)
+
+
+@router.get("/{run_id}", response_model=RunDetailOut)
+def get_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = _get_run_or_404(db, current_user, run_id)
+    heart_rate_avg, heart_rate_max = _heart_rate_stats(db, current_user, run.started_at, run.finished_at)
+
+    return RunDetailOut(
+        **RunOut.model_validate(run).model_dump(),
+        heart_rate_avg=heart_rate_avg,
+        heart_rate_max=heart_rate_max,
+    )

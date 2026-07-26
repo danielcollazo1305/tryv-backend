@@ -50,6 +50,13 @@ class RunOut(BaseModel):
         from_attributes = True
 
 
+class RunDetailOut(RunOut):
+    """Usado so em GET /runs/{id} — FC calculada sob demanda a partir das
+    amostras de HeartRateSample dentro da janela started_at..finished_at."""
+    heart_rate_avg: float | None = None
+    heart_rate_max: int | None = None
+
+
 class RunSummaryOut(BaseModel):
     start_date: datetime
     end_date: datetime
