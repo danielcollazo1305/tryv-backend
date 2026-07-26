@@ -4,6 +4,7 @@ from app import models  # noqa: F401 — garante que Base.metadata conheça toda
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.routers import (
+    activities,
     auth,
     challenges,
     meals,
@@ -33,6 +34,7 @@ app.include_router(trainer_subscriptions.router)
 app.include_router(social.router)
 app.include_router(webhooks.router)
 app.include_router(challenges.router)
+app.include_router(activities.router)
 
 
 @app.get("/")

@@ -47,25 +47,80 @@ def calculate_avg_pace_seconds_per_km(distance_meters: float, duration_seconds: 
     return duration_seconds / (distance_meters / 1000)
 
 
+def _run_met(speed_m_per_min: float) -> float:
+    """Equacao de corrida do ACSM para piso plano: VO2 = 0.2*v + 3.5 ml/kg/min, MET = VO2/3.5."""
+    return 1 + (0.2 * speed_m_per_min) / 3.5
+
+
+def _walk_met(speed_m_per_min: float) -> float:
+    """Equacao de caminhada do ACSM (coeficiente menor que a de corrida): VO2 = 0.1*v + 3.5."""
+    return 1 + (0.1 * speed_m_per_min) / 3.5
+
+
+def _bike_met(speed_kmh: float) -> float:
+    """Faixas de velocidade para ciclismo do Compendium of Physical Activities."""
+    if speed_kmh < 16:
+        return 4.0
+    if speed_kmh < 19:
+        return 6.8
+    if speed_kmh < 22:
+        return 8.0
+    if speed_kmh < 25:
+        return 10.0
+    if speed_kmh < 30:
+        return 12.0
+    return 15.8
+
+
+# Funcoes de MET baseadas em velocidade (recebem velocidade em m/min).
+_SPEED_BASED_MET_M_PER_MIN = {
+    "run": _run_met,
+    "walk": _walk_met,
+}
+
+# MET fixo para modalidades sem pace relevante — seja porque tipicamente
+# nao tem GPS (natacao em piscina, luta), seja porque velocidade nao reflete
+# intensidade real (HIIT e feito em intervalos parados/variados). Valores de
+# referencia do Compendium of Physical Activities.
+_FLAT_MET_BY_ACTIVITY = {
+    "swim": 6.0,   # nado livre, esforco moderado
+    "fight": 10.3,  # boxe/artes marciais, treino
+    "hiit": 8.0,   # circuito de alta intensidade
+    "other": 5.0,  # generico, esforco moderado
+}
+
+
+def calculate_met(activity_type: str, distance_meters: float, duration_seconds: int) -> float:
+    """
+    MET estimado para a atividade. Corrida e caminhada usam as equacoes do
+    ACSM baseadas na velocidade (mais rapido = MET mais alto); ciclismo usa
+    faixas de velocidade do Compendium; as demais modalidades usam um MET
+    fixo representativo (ver _FLAT_MET_BY_ACTIVITY).
+    """
+    if duration_seconds > 0 and activity_type in _SPEED_BASED_MET_M_PER_MIN:
+        speed_m_per_min = (distance_meters / duration_seconds) * 60
+        return _SPEED_BASED_MET_M_PER_MIN[activity_type](speed_m_per_min)
+
+    if duration_seconds > 0 and activity_type == "bike":
+        speed_kmh = (distance_meters / duration_seconds) * 3.6
+        return _bike_met(speed_kmh)
+
+    return _FLAT_MET_BY_ACTIVITY.get(activity_type, _FLAT_MET_BY_ACTIVITY["other"])
+
+
 def calculate_calories_burned(
+    activity_type: str,
     distance_meters: float,
     duration_seconds: int,
     weight_kg: float | None,
 ) -> float | None:
     """
-    Estima calorias via MET, com o MET variando conforme o pace: quanto
-    mais rapida a corrida, maior o gasto por minuto. Usa a equacao de
-    corrida do ACSM para VO2 em piso plano (VO2 = 0.2 * velocidade em
-    m/min + 3.5 ml/kg/min), convertida para MET (MET = VO2 / 3.5).
-
-    Retorna None se nao houver peso disponivel para o calculo ou se a
-    duracao for zero.
+    Estima calorias via MET (ver calculate_met). Retorna None se nao houver
+    peso disponivel para o calculo ou se a duracao for zero.
     """
     if not weight_kg or duration_seconds <= 0:
         return None
 
-    speed_m_per_min = (distance_meters / duration_seconds) * 60
-    met = 1 + (0.2 * speed_m_per_min) / 3.5
-
+    met = calculate_met(activity_type, distance_meters, duration_seconds)
     duration_hours = duration_seconds / 3600
     return met * weight_kg * duration_hours

@@ -36,10 +36,11 @@ def create_run(
     duration_seconds = calculate_duration_seconds(payload.started_at, payload.finished_at)
     avg_pace = calculate_avg_pace_seconds_per_km(distance_meters, duration_seconds)
     weight_kg = payload.user_weight_kg or current_user.weight
-    calories = calculate_calories_burned(distance_meters, duration_seconds, weight_kg)
+    calories = calculate_calories_burned(payload.activity_type, distance_meters, duration_seconds, weight_kg)
 
     run = Run(
         user_id=current_user.id,
+        activity_type=payload.activity_type,
         route_points=[point.model_dump(mode="json") for point in payload.route_points],
         distance_meters=distance_meters,
         duration_seconds=duration_seconds,

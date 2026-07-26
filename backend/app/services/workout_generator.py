@@ -51,7 +51,22 @@ _SYSTEM_PROMPT = (
     "objetivo, nivel de experiencia, dias disponiveis por semana e "
     "equipamento informado. Distribua os exercicios de forma equilibrada "
     "entre os dias e evite sobrecarregar o mesmo grupo muscular em dias "
-    "consecutivos."
+    "consecutivos.\n\n"
+    "O objetivo pode ser um objetivo tradicional de academia (emagrecimento, "
+    "hipertrofia, resistencia) ou uma modalidade esportiva especifica "
+    "(corrida, ciclismo, natacao, luta/artes marciais, caminhada, HIIT, "
+    "etc.). Adapte a ESTRUTURA do plano ao tipo de atividade em vez de "
+    "assumir sempre um treino de musculacao:\n"
+    "- Luta/artes marciais: monte rounds e tecnicas (golpes, combinacoes, "
+    "sparring, defesa) em vez de series convencionais.\n"
+    "- Natacao: monte series de nado com distancia e estilo (ex: '4x100m "
+    "crawl').\n"
+    "- Corrida, ciclismo, caminhada, HIIT: inclua intervalos de intensidade "
+    "e volume apropriados (ex: tiros, blocos de recuperacao).\n"
+    "Os campos 'sets' e 'reps' de cada exercicio sao flexiveis — use-os "
+    "para representar o que fizer mais sentido na modalidade (numero de "
+    "rounds/series de nado e sua duracao/distancia, ou series/repeticoes "
+    "tradicionais de musculacao)."
 )
 
 
