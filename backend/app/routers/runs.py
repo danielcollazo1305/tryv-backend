@@ -2,6 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 
+import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +11,9 @@ from app.core.deps import get_current_user
 from app.models.heart_rate import HeartRateSample
 from app.models.run import Run
 from app.models.user import User
+from app.schemas.activity_insight import ActivityInsightOut
 from app.schemas.run import RunCreate, RunDetailOut, RunOut, RunSummaryOut
+from app.services.activity_insight import generate_activity_insight
 from app.services.run_calculator import (
     calculate_avg_pace_seconds_per_km,
     calculate_calories_burned,
@@ -150,3 +153,33 @@ def get_run(
         heart_rate_avg=heart_rate_avg,
         heart_rate_max=heart_rate_max,
     )
+
+
+@router.get("/{run_id}/insight", response_model=ActivityInsightOut)
+def get_run_insight(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Interpretacao da corrida via IA, gerada sob demanda (nao e salva)."""
+    run = _get_run_or_404(db, current_user, run_id)
+    heart_rate_avg, heart_rate_max = _heart_rate_stats(db, current_user, run.started_at, run.finished_at)
+
+    activity_data = {
+        "activity_type": run.activity_type,
+        "duration_seconds": run.duration_seconds,
+        "distance_meters": run.distance_meters,
+        "avg_pace_seconds_per_km": run.avg_pace_seconds_per_km,
+        "calories_burned": run.calories_burned,
+        "heart_rate_avg": heart_rate_avg,
+        "heart_rate_max": heart_rate_max,
+    }
+
+    try:
+        return generate_activity_insight(activity_data)
+    except (anthropic.APIError, ValueError) as e:
+        logger.error("Falha ao gerar insight de corrida (run_id=%s): %s", run.id, e)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Nao foi possivel gerar a interpretacao desta atividade, tente novamente",
+        )
