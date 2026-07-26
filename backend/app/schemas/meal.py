@@ -17,6 +17,7 @@ class MealAnalysisOut(BaseModel):
 
 class MealCreate(BaseModel):
     photo_url: str | None = None
+    description: str | None = None
     calories: float | None = None
     protein: float | None = None
     carbs: float | None = None
@@ -27,6 +28,7 @@ class MealOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     photo_url: str | None = None
+    description: str | None = None
     calories: float | None = None
     protein: float | None = None
     carbs: float | None = None

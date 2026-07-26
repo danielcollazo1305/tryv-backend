@@ -14,6 +14,7 @@ class Meal(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     photo_url = Column(String, nullable=True)
+    description = Column(String, nullable=True)
     calories = Column(Float, nullable=True)
     protein = Column(Float, nullable=True)
     carbs = Column(Float, nullable=True)

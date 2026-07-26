@@ -25,7 +25,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Tryv precisa acessar suas fotos para voce anexar uma foto da refeicao.",
+          "cameraPermission": "O Tryv precisa acessar a camera para voce fotografar sua refeicao."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
