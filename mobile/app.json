@@ -32,6 +32,12 @@
           "photosPermission": "O Tryv precisa acessar suas fotos para voce anexar uma foto da refeicao.",
           "cameraPermission": "O Tryv precisa acessar a camera para voce fotografar sua refeicao."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Tryv precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada."
+        }
       ]
     ],
     "experiments": {

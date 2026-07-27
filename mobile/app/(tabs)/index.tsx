@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
@@ -40,15 +41,17 @@ export default function HomeScreen() {
         </View>
       </Card>
 
-      <Card style={styles.placeholderCard}>
-        <View style={styles.placeholderIconWrap}>
-          <Ionicons name="flame" size={24} color={colors.accent} />
-        </View>
-        <Text style={styles.cardTitle}>Ultima atividade</Text>
-        <Text style={styles.placeholderText}>
-          Suas corridas, treinos e refeicoes registradas vao aparecer aqui.
-        </Text>
-      </Card>
+      <Pressable onPress={() => router.push('/activity')}>
+        <Card style={styles.placeholderCard}>
+          <View style={styles.placeholderIconWrap}>
+            <Ionicons name="flame" size={24} color={colors.accent} />
+          </View>
+          <Text style={styles.cardTitle}>Atividades</Text>
+          <Text style={styles.placeholderText}>
+            Registre uma corrida, pedalada ou atividade manual e veja seu historico aqui.
+          </Text>
+        </Card>
+      </Pressable>
     </ScrollView>
   );
 }
