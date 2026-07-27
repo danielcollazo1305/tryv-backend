@@ -17,10 +17,11 @@ import { Button } from '@/components/Button';
 import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
+import { uploadMedia } from '@/services/media';
 import { PostVisibility, createPost } from '@/services/social';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-type Stage = 'picking' | 'compose' | 'saving';
+type Stage = 'picking' | 'compose' | 'uploading' | 'saving';
 
 const VISIBILITY_OPTIONS: { value: PostVisibility; label: string }[] = [
   { value: 'public', label: 'Publico' },
@@ -75,13 +76,24 @@ export default function NewPostScreen() {
 
   const handlePublish = async () => {
     if (!imageUri) return;
-    setStage('saving');
     setError(null);
+
+    setStage('uploading');
+    let mediaUrl: string;
+    try {
+      mediaUrl = await uploadMedia(imageUri, 'posts');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
+      setStage('compose');
+      return;
+    }
+
+    setStage('saving');
     try {
       await createPost({
         type: 'photo',
         caption: caption.trim() || undefined,
-        media_url: imageUri,
+        media_url: mediaUrl,
         visibility,
       });
       router.back();
@@ -116,7 +128,7 @@ export default function NewPostScreen() {
           </View>
         )}
 
-        {(stage === 'compose' || stage === 'saving') && (
+        {(stage === 'compose' || stage === 'uploading' || stage === 'saving') && (
           <View style={styles.composeContainer}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.preview} />}
 
@@ -137,12 +149,16 @@ export default function NewPostScreen() {
               onChange={setVisibility}
             />
 
-            <Button label="Publicar" onPress={handlePublish} loading={stage === 'saving'} />
+            <Button
+              label={stage === 'uploading' ? 'Enviando foto...' : 'Publicar'}
+              onPress={handlePublish}
+              loading={stage === 'uploading' || stage === 'saving'}
+            />
             <Button
               label="Trocar foto"
               variant="secondary"
               onPress={handleRetry}
-              disabled={stage === 'saving'}
+              disabled={stage === 'uploading' || stage === 'saving'}
             />
           </View>
         )}

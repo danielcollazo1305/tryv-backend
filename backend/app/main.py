@@ -8,6 +8,7 @@ from app.routers import (
     auth,
     challenges,
     heart_rate,
+    media,
     meals,
     runs,
     smartwatch,
@@ -37,6 +38,7 @@ app.include_router(webhooks.router)
 app.include_router(challenges.router)
 app.include_router(activities.router)
 app.include_router(heart_rate.router)
+app.include_router(media.router)
 
 
 @app.get("/")

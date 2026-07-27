@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
 
+    # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_s3_bucket: str = "tryv-media-2026"
+    aws_s3_region: str = "sa-east-1"
+
     class Config:
         env_file = ".env"
 

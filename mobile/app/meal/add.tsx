@@ -18,9 +18,10 @@ import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
+import { uploadMedia } from '@/services/media';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-type Stage = 'picking' | 'analyzing' | 'reviewing' | 'saving';
+type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   alta: 'Confianca alta',
@@ -91,12 +92,23 @@ export default function AddMealScreen() {
   };
 
   const handleConfirm = async () => {
-    if (!analysis) return;
-    setStage('saving');
+    if (!analysis || !imageUri) return;
     setError(null);
+
+    setStage('uploading');
+    let photoUrl: string;
+    try {
+      photoUrl = await uploadMedia(imageUri, 'meals');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
+      setStage('reviewing');
+      return;
+    }
+
+    setStage('saving');
     try {
       await createMeal({
-        photo_url: imageUri,
+        photo_url: photoUrl,
         description: analysis.description,
         calories: Number(calories) || 0,
         protein: Number(protein) || 0,
@@ -150,7 +162,7 @@ export default function AddMealScreen() {
           </View>
         )}
 
-        {(stage === 'reviewing' || stage === 'saving') && analysis && (
+        {(stage === 'reviewing' || stage === 'uploading' || stage === 'saving') && analysis && (
           <View style={styles.reviewContainer}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
 
@@ -164,12 +176,16 @@ export default function AddMealScreen() {
             <TextField label="Carboidrato (g)" keyboardType="decimal-pad" value={carbs} onChangeText={setCarbs} />
             <TextField label="Gordura (g)" keyboardType="decimal-pad" value={fat} onChangeText={setFat} />
 
-            <Button label="Confirmar" onPress={handleConfirm} loading={stage === 'saving'} />
+            <Button
+              label={stage === 'uploading' ? 'Enviando foto...' : 'Confirmar'}
+              onPress={handleConfirm}
+              loading={stage === 'uploading' || stage === 'saving'}
+            />
             <Button
               label="Tirar outra foto"
               variant="secondary"
               onPress={handleRetry}
-              disabled={stage === 'saving'}
+              disabled={stage === 'uploading' || stage === 'saving'}
             />
           </View>
         )}
