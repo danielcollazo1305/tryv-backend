@@ -28,6 +28,7 @@ class PostOut(BaseModel):
     created_at: datetime
     likes_count: int
     comments_count: int
+    is_liked_by_me: bool = False
 
 
 class FollowOut(BaseModel):

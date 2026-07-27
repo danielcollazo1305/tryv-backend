@@ -21,7 +21,13 @@ from app.schemas.social import (
 router = APIRouter(tags=["social"])
 
 
-def _post_out(post: Post, author_name: str, likes_count: int = 0, comments_count: int = 0) -> PostOut:
+def _post_out(
+    post: Post,
+    author_name: str,
+    likes_count: int = 0,
+    comments_count: int = 0,
+    is_liked_by_me: bool = False,
+) -> PostOut:
     return PostOut(
         id=post.id,
         user_id=post.user_id,
@@ -34,6 +40,7 @@ def _post_out(post: Post, author_name: str, likes_count: int = 0, comments_count
         created_at=post.created_at,
         likes_count=likes_count,
         comments_count=comments_count,
+        is_liked_by_me=is_liked_by_me,
     )
 
 
@@ -48,8 +55,10 @@ def _comment_out(comment: Comment, author_name: str) -> CommentOut:
     )
 
 
-def _post_counts(db: Session, post_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict[str, int]]:
-    """Conta curtidas e comentarios de varios posts de uma vez (evita N+1)."""
+def _post_counts(
+    db: Session, post_ids: list[uuid.UUID], current_user_id: uuid.UUID | None = None
+) -> dict[uuid.UUID, dict[str, int | bool]]:
+    """Conta curtidas/comentarios e marca se current_user_id curtiu cada post — tudo de uma vez (evita N+1)."""
     if not post_ids:
         return {}
 
@@ -65,8 +74,20 @@ def _post_counts(db: Session, post_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict
         .group_by(Comment.post_id)
         .all()
     )
+    liked_post_ids: set[uuid.UUID] = set()
+    if current_user_id is not None:
+        liked_post_ids = {
+            row[0]
+            for row in db.query(Like.post_id)
+            .filter(Like.post_id.in_(post_ids), Like.user_id == current_user_id)
+            .all()
+        }
     return {
-        post_id: {"likes": likes.get(post_id, 0), "comments": comments.get(post_id, 0)}
+        post_id: {
+            "likes": likes.get(post_id, 0),
+            "comments": comments.get(post_id, 0),
+            "liked": post_id in liked_post_ids,
+        }
         for post_id in post_ids
     }
 
@@ -145,8 +166,8 @@ def get_post(
         # Mesma resposta de "nao encontrado" — nao revela que o post existe.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
 
-    counts = _post_counts(db, [post.id]).get(post.id, {"likes": 0, "comments": 0})
-    return _post_out(post, author_name, counts["likes"], counts["comments"])
+    counts = _post_counts(db, [post.id], current_user.id).get(post.id, {"likes": 0, "comments": 0, "liked": False})
+    return _post_out(post, author_name, counts["likes"], counts["comments"], counts["liked"])
 
 
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -190,9 +211,15 @@ def list_user_posts(
         query = query.filter(Post.visibility == "public")
 
     posts = query.order_by(Post.created_at.desc()).all()
-    counts = _post_counts(db, [post.id for post in posts])
+    counts = _post_counts(db, [post.id for post in posts], current_user.id)
     return [
-        _post_out(post, target_user.name, counts[post.id]["likes"], counts[post.id]["comments"])
+        _post_out(
+            post,
+            target_user.name,
+            counts[post.id]["likes"],
+            counts[post.id]["comments"],
+            counts[post.id]["liked"],
+        )
         for post in posts
     ]
 
@@ -423,8 +450,14 @@ def get_feed(
         .all()
     )
 
-    counts = _post_counts(db, [post.id for post, _ in rows])
+    counts = _post_counts(db, [post.id for post, _ in rows], current_user.id)
     return [
-        _post_out(post, author_name, counts[post.id]["likes"], counts[post.id]["comments"])
+        _post_out(
+            post,
+            author_name,
+            counts[post.id]["likes"],
+            counts[post.id]["comments"],
+            counts[post.id]["liked"],
+        )
         for post, author_name in rows
     ]
