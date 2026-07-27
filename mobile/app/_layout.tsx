@@ -35,6 +35,7 @@ function RootNavigator() {
         <Stack.Screen name="activity/index" />
         <Stack.Screen name="activity/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/[id]" />
+        <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="(auth)" />
