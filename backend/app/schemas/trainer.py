@@ -18,6 +18,7 @@ class TrainerUpdate(BaseModel):
 class TrainerOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
+    user_name: str
     cref_number: str
     cref_verified: bool
     bio: str | None = None

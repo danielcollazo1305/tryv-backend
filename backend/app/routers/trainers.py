@@ -38,6 +38,25 @@ def _get_my_trainer(db: Session, current_user: User) -> Trainer:
     return trainer
 
 
+def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None) -> TrainerOut:
+    """TrainerOut inclui user_name, que nao existe na tabela trainers — busca
+    (ou reaproveita, se ja veio de um join) o nome do usuario associado."""
+    if user_name is None:
+        user_name = db.query(User.name).filter(User.id == trainer.user_id).scalar() or ""
+    return TrainerOut(
+        id=trainer.id,
+        user_id=trainer.user_id,
+        user_name=user_name,
+        cref_number=trainer.cref_number,
+        cref_verified=trainer.cref_verified,
+        bio=trainer.bio,
+        price=trainer.price,
+        active=trainer.active,
+        platform_fee_percent=trainer.platform_fee_percent,
+        created_at=trainer.created_at,
+    )
+
+
 @router.post("/register", response_model=TrainerOut, status_code=status.HTTP_201_CREATED)
 def register(
     payload: TrainerRegister,
@@ -60,7 +79,7 @@ def register(
     db.add(trainer)
     db.commit()
     db.refresh(trainer)
-    return trainer
+    return _to_trainer_out(db, trainer, user_name=current_user.name)
 
 
 @router.get("/me", response_model=TrainerOut)
@@ -68,7 +87,8 @@ def get_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _get_my_trainer(db, current_user)
+    trainer = _get_my_trainer(db, current_user)
+    return _to_trainer_out(db, trainer, user_name=current_user.name)
 
 
 @router.patch("/me", response_model=TrainerOut)
@@ -84,7 +104,7 @@ def update_my_profile(
 
     db.commit()
     db.refresh(trainer)
-    return trainer
+    return _to_trainer_out(db, trainer, user_name=current_user.name)
 
 
 @router.post("/me/stripe-onboarding", response_model=StripeOnboardingOut, status_code=status.HTTP_201_CREATED)
@@ -159,12 +179,14 @@ def get_stripe_status(
 @router.get("/", response_model=list[TrainerOut])
 def list_trainers(db: Session = Depends(get_db)):
     """Lista publica — so professores verificados e ativos aparecem na busca."""
-    return (
-        db.query(Trainer)
+    rows = (
+        db.query(Trainer, User.name)
+        .join(User, Trainer.user_id == User.id)
         .filter(Trainer.cref_verified.is_(True), Trainer.active.is_(True))
         .order_by(Trainer.created_at.desc())
         .all()
     )
+    return [_to_trainer_out(db, trainer, user_name=user_name) for trainer, user_name in rows]
 
 
 @router.get("/{trainer_id}", response_model=TrainerOut)
@@ -175,8 +197,9 @@ def get_trainer(trainer_id: str, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
 
-    trainer = (
-        db.query(Trainer)
+    row = (
+        db.query(Trainer, User.name)
+        .join(User, Trainer.user_id == User.id)
         .filter(
             Trainer.id == parsed_id,
             Trainer.cref_verified.is_(True),
@@ -184,9 +207,10 @@ def get_trainer(trainer_id: str, db: Session = Depends(get_db)):
         )
         .first()
     )
-    if not trainer:
+    if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
-    return trainer
+    trainer, user_name = row
+    return _to_trainer_out(db, trainer, user_name=user_name)
 
 
 @router.patch("/{trainer_id}/verify", response_model=TrainerOut)
@@ -211,4 +235,4 @@ def verify_trainer(
     trainer.cref_verified = True
     db.commit()
     db.refresh(trainer)
-    return trainer
+    return _to_trainer_out(db, trainer)

@@ -36,6 +36,10 @@ function RootNavigator() {
         <Stack.Screen name="activity/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trainers/index" />
+        <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trainers/register" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trainers/me" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="(auth)" />
