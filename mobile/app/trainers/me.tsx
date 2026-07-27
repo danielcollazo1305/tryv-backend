@@ -6,8 +6,10 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ChallengeCard } from '@/components/ChallengeCard';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
+import { Challenge, listTrainerChallenges } from '@/services/challenges';
 import {
   StripeStatus,
   Trainer,
@@ -22,6 +24,7 @@ import { colors, spacing, typography } from '@/constants/theme';
 export default function TrainerDashboardScreen() {
   const [trainer, setTrainer] = useState<Trainer | null>(null);
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +44,7 @@ export default function TrainerDashboardScreen() {
       setStripeStatus(stripeData);
       setBio(trainerData.bio ?? '');
       setPrice(String(trainerData.price));
+      setChallenges(await listTrainerChallenges(trainerData.id));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu painel.'));
     } finally {
@@ -197,6 +201,18 @@ export default function TrainerDashboardScreen() {
                 </>
               )}
             </Card>
+
+            <View style={styles.challengesSection}>
+              <View style={styles.challengesHeader}>
+                <Text style={styles.editTitle}>Meus desafios</Text>
+                <Button label="Criar desafio" variant="secondary" onPress={() => router.push('/challenges/new')} />
+              </View>
+              {challenges.length === 0 ? (
+                <Text style={styles.bio}>Nenhum desafio criado ainda.</Text>
+              ) : (
+                challenges.map((challenge) => <ChallengeCard key={challenge.id} challenge={challenge} />)
+              )}
+            </View>
           </>
         )}
       </ScrollView>
@@ -231,4 +247,7 @@ const styles = StyleSheet.create({
   bioInput: { minHeight: 110, textAlignVertical: 'top' },
   price: { ...typography.h3, color: colors.accent },
   bio: { ...typography.bodySecondary },
+
+  challengesSection: { gap: spacing.sm },
+  challengesHeader: { gap: spacing.sm },
 });

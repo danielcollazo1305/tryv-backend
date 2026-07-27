@@ -6,7 +6,9 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ChallengeCard } from '@/components/ChallengeCard';
 import { getApiErrorMessage } from '@/services/api';
+import { Challenge, listTrainerChallenges } from '@/services/challenges';
 import { Trainer, formatPriceBRL, getTrainer, subscribeToTrainer } from '@/services/trainers';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -16,6 +18,8 @@ export default function TrainerProfileScreen() {
   const [trainer, setTrainer] = useState<Trainer | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
 
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
@@ -38,6 +42,15 @@ export default function TrainerProfileScreen() {
     useCallback(() => {
       fetchTrainer();
     }, [fetchTrainer])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      listTrainerChallenges(id)
+        .then(setChallenges)
+        .catch(() => {});
+    }, [id])
   );
 
   const handleSubscribe = async () => {
@@ -103,6 +116,15 @@ export default function TrainerProfileScreen() {
             )}
 
             <Button label="Assinar" onPress={handleSubscribe} loading={subscribing} />
+
+            {challenges.length > 0 && (
+              <View style={styles.challengesSection}>
+                <Text style={styles.sectionTitle}>Desafios</Text>
+                {challenges.map((challenge) => (
+                  <ChallengeCard key={challenge.id} challenge={challenge} />
+                ))}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -146,4 +168,7 @@ const styles = StyleSheet.create({
 
   infoCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   infoText: { ...typography.bodySecondary, flex: 1 },
+
+  challengesSection: { gap: spacing.sm, marginTop: spacing.md },
+  sectionTitle: { ...typography.h3 },
 });

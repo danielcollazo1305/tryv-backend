@@ -44,6 +44,8 @@ function RootNavigator() {
         <Stack.Screen name="social/[userId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/post/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/comments/[postId]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="challenges/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="challenges/new" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="(auth)" />
