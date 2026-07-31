@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -11,11 +11,21 @@ import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
+import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
 import { colors, radius, spacing, typography } from '@/constants/theme';
+
+type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
+
+function monthLabel(year: number, month: number): string {
+  const label = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
+
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: 'rolling' });
 
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,13 +41,49 @@ export default function HomeScreen() {
     setLoading(true);
     setError(null);
     try {
-      setSummary(await getHomeSummary('30d'));
+      const params =
+        viewMode.type === 'month'
+          ? { month: `${viewMode.year}-${String(viewMode.month).padStart(2, '0')}` }
+          : { period: '30d' };
+      setSummary(await getHomeSummary(params));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu resumo.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [viewMode]);
+
+  const goToPreviousMonth = () => {
+    if (viewMode.type === 'rolling') {
+      const now = new Date();
+      setViewMode({ type: 'month', year: now.getFullYear(), month: now.getMonth() + 1 });
+      return;
+    }
+    let { year, month } = viewMode;
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+    setViewMode({ type: 'month', year, month });
+  };
+
+  const goToNextMonth = () => {
+    if (viewMode.type === 'rolling') return;
+    const now = new Date();
+    let { year, month } = viewMode;
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    // Passou do mes atual — volta pra visao "ultimos 30 dias" (nao ha "futuro" pra ver).
+    if (year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1)) {
+      setViewMode({ type: 'rolling' });
+    } else {
+      setViewMode({ type: 'month', year, month });
+    }
+  };
 
   const fetchInsight = useCallback(async () => {
     setInsightLoading(true);
@@ -61,6 +107,11 @@ export default function HomeScreen() {
       fetchInsight();
     }, [fetchInsight])
   );
+
+  // Sinal explicito, alem do foco de navegacao: voltar de uma tela modal (ex:
+  // /weight/new) nem sempre dispara o evento de foco do tab de forma
+  // confiavel em todo dispositivo — isso garante o recarregamento mesmo assim.
+  useEffect(() => subscribeToDashboardChanges(fetchSummary), [fetchSummary]);
 
   const weightChangeLabel =
     summary?.weight_change_kg != null
@@ -88,13 +139,36 @@ export default function HomeScreen() {
       )}
       {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
 
+      <View style={styles.monthSelector}>
+        <Pressable onPress={goToPreviousMonth} hitSlop={8} style={styles.monthArrow}>
+          <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
+        </Pressable>
+        <Text style={styles.monthLabel}>
+          {viewMode.type === 'rolling' ? 'Ultimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
+        </Text>
+        <Pressable
+          onPress={goToNextMonth}
+          hitSlop={8}
+          style={styles.monthArrow}
+          disabled={viewMode.type === 'rolling'}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={viewMode.type === 'rolling' ? colors.textMuted : colors.textSecondary}
+          />
+        </Pressable>
+      </View>
+
       {!!error && <Text style={styles.error}>{error}</Text>}
       {loading && <ActivityIndicator color={colors.accent} style={styles.loading} />}
 
       {!loading && summary && (
         <>
           <Card style={styles.statsCard}>
-            <Text style={styles.cardTitle}>Ultimos 30 dias</Text>
+            <Text style={styles.cardTitle}>
+              {viewMode.type === 'rolling' ? 'Ultimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
+            </Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{weightChangeLabel}</Text>
@@ -164,6 +238,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  monthArrow: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthLabel: { ...typography.body, fontWeight: '600', minWidth: 140, textAlign: 'center' },
   error: { color: colors.danger, textAlign: 'center' },
   loading: { marginTop: spacing.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing.xs },

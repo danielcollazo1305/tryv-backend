@@ -5,6 +5,7 @@ import { Link } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
+import { createWeightLog, toDateString } from '@/services/weightLogs';
 import { colors, spacing, typography } from '@/constants/theme';
 
 export default function RegisterScreen() {
@@ -13,6 +14,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [weight, setWeight] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,9 +37,22 @@ export default function RegisterScreen() {
       await register(name.trim(), email.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nao foi possivel criar a conta.');
-    } finally {
       setLoading(false);
+      return;
     }
+
+    // Peso e opcional e best-effort: a conta ja foi criada com sucesso, entao
+    // uma falha aqui (raro) nao deve travar o usuario na tela de cadastro —
+    // ele so nao comeca com um ponto no historico, e pode registrar depois.
+    const weightValue = Number(weight);
+    if (weightValue > 0) {
+      try {
+        await createWeightLog({ weight_kg: weightValue, logged_at: toDateString(new Date()) });
+      } catch {
+        // silencioso de proposito
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -69,6 +84,13 @@ export default function RegisterScreen() {
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           placeholder="********"
+        />
+        <TextField
+          label="Peso atual em kg (opcional)"
+          keyboardType="decimal-pad"
+          value={weight}
+          onChangeText={setWeight}
+          placeholder="Ex: 78.5"
         />
 
         {!!error && <Text style={styles.error}>{error}</Text>}

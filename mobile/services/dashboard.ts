@@ -27,8 +27,15 @@ export interface HomeSummary {
   calorie_summary: CalorieSummary | null;
 }
 
-export async function getHomeSummary(period = '30d'): Promise<HomeSummary> {
-  const response = await api.get<HomeSummary>('/dashboard/home-summary', { params: { period } });
+export interface HomeSummaryParams {
+  /** "Nd" (ex: "30d") — janela deslizante terminando hoje. Ignorado se "month" for informado. */
+  period?: string;
+  /** Mes civil no formato "YYYY-MM" — tem prioridade sobre "period" quando informado. */
+  month?: string;
+}
+
+export async function getHomeSummary(params: HomeSummaryParams = { period: '30d' }): Promise<HomeSummary> {
+  const response = await api.get<HomeSummary>('/dashboard/home-summary', { params });
   return response.data;
 }
 

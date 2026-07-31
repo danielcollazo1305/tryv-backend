@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
 import { createWeightLog, toDateString } from '@/services/weightLogs';
+import { notifyDashboardChanged } from '@/utils/dashboardEvents';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 function formatDate(date: Date): string {
@@ -37,6 +38,7 @@ export default function NewWeightLogScreen() {
     setError(null);
     try {
       await createWeightLog({ weight_kg: Number(weight), logged_at: toDateString(date) });
+      notifyDashboardChanged();
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel registrar o peso.'));
