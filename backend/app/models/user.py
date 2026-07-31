@@ -18,6 +18,7 @@ class User(Base):
     weight = Column(Float, nullable=True)  # kg
     height = Column(Float, nullable=True)  # cm
     goal = Column(String, nullable=True)  # 'emagrecimento' | 'hipertrofia' | 'resistencia' etc.
+    daily_calorie_goal = Column(Float, nullable=True)  # meta de kcal/dia, definida manualmente pelo usuario
 
     subscription_status = Column(String, default="inactive")  # 'active' | 'inactive' | 'trial'
     is_active = Column(Boolean, default=True)

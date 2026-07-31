@@ -7,6 +7,7 @@ from app.routers import (
     activities,
     auth,
     challenges,
+    dashboard,
     heart_rate,
     media,
     meals,
@@ -17,6 +18,7 @@ from app.routers import (
     trainers,
     users,
     webhooks,
+    weight_logs,
     workout_plans,
 )
 
@@ -43,6 +45,8 @@ app.include_router(challenges.router)
 app.include_router(activities.router)
 app.include_router(heart_rate.router)
 app.include_router(media.router)
+app.include_router(weight_logs.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/")
