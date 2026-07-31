@@ -27,6 +27,33 @@ uvicorn app.main:app --reload
 
 5. Acessar a documentação automática (Swagger) em: `http://localhost:8000/docs`
 
+## Migrations (Alembic)
+
+O schema do banco é versionado via [Alembic](https://alembic.sqlalchemy.org/). A partir de agora, **toda mudança de schema (nova tabela, nova coluna, alteração de tipo, etc.) deve passar por uma migration — nunca mais por `ALTER TABLE`/`CREATE TABLE` manual direto no banco.** `Base.metadata.create_all()` (em `app/main.py`) continua rodando no startup só por conveniência em ambiente local novo, mas o controle de verdade do schema é o Alembic.
+
+Comandos do dia a dia (sempre rodando dentro de `backend/`, com o venv ativado):
+
+```bash
+# 1. Depois de mudar um model em app/models/*.py, gerar a migration:
+alembic revision --autogenerate -m "descricao curta da mudanca"
+
+# 2. SEMPRE revisar o arquivo gerado em alembic/versions/ antes de aplicar —
+#    autogenerate erra silenciosamente em alguns casos (ex: renomear coluna
+#    vira "drop + add", alteracoes de enum/check constraint nem sempre sao
+#    detectadas corretamente).
+
+# 3. Aplicar a migration (local e em qualquer outro ambiente):
+alembic upgrade head
+
+# Desfazer a ultima migration aplicada, se precisar:
+alembic downgrade -1
+
+# Ver a revisao atual do banco conectado:
+alembic current
+```
+
+`alembic/env.py` já esta configurado pra puxar a `DATABASE_URL` de `app/core/config.py` (mesma configuração usada pelo resto do app, lida do `.env`) e o `target_metadata` de `app.models` (todos os models já importados ali) — não precisa editar `alembic.ini` nem `env.py` para rodar os comandos acima em outro ambiente, só apontar o `.env` daquele ambiente pro banco certo.
+
 ## O que já funciona
 - `POST /auth/register` — criar conta
 - `POST /auth/login` — login, retorna JWT

@@ -12,3 +12,4 @@ python-multipart==0.0.12
 anthropic==0.117.1
 stripe==10.12.0
 boto3==1.43.56
+alembic==1.18.5

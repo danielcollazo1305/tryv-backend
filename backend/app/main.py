@@ -20,7 +20,11 @@ from app.routers import (
     workout_plans,
 )
 
-# Cria as tabelas no banco (em produção, usar Alembic para migrations)
+# Convivio com Alembic: cria tabelas que ainda nao existem, para facilitar
+# rodar o projeto num banco local vazio pela primeira vez. Isso NAO substitui
+# migrations — qualquer mudanca de schema (nova coluna, tabela, etc.) deve
+# ser feita via "alembic revision --autogenerate" + "alembic upgrade head"
+# (ver README.md), nunca so editando o model e confiando neste create_all.
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.app_name)
