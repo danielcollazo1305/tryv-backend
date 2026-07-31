@@ -5,10 +5,12 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
+import { InsightCard } from '@/components/InsightCard';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
+import { DailyInsight, getDailyInsight } from '@/services/insights';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 export default function HomeScreen() {
@@ -18,6 +20,12 @@ export default function HomeScreen() {
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // O insight tem seu proprio ciclo de carregamento, independente do resto
+  // do dashboard — pode demorar mais (gera via IA na primeira vez do dia) e
+  // uma falha nele nao deve travar o resto da Home.
+  const [insight, setInsight] = useState<DailyInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(true);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -31,10 +39,27 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const fetchInsight = useCallback(async () => {
+    setInsightLoading(true);
+    try {
+      setInsight(await getDailyInsight());
+    } catch {
+      setInsight(null);
+    } finally {
+      setInsightLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       fetchSummary();
     }, [fetchSummary])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchInsight();
+    }, [fetchInsight])
   );
 
   const weightChangeLabel =
@@ -55,6 +80,13 @@ export default function HomeScreen() {
           <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
         </Pressable>
       </View>
+
+      {insightLoading && (
+        <View style={styles.insightLoading}>
+          <ActivityIndicator size="small" color={colors.accent} />
+        </View>
+      )}
+      {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
 
       {!!error && <Text style={styles.error}>{error}</Text>}
       {loading && <ActivityIndicator color={colors.accent} style={styles.loading} />}
@@ -134,6 +166,7 @@ const styles = StyleSheet.create({
   },
   error: { color: colors.danger, textAlign: 'center' },
   loading: { marginTop: spacing.lg },
+  insightLoading: { alignItems: 'flex-start', paddingVertical: spacing.xs },
   statsCard: { gap: spacing.md },
   cardTitle: { ...typography.h3 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
