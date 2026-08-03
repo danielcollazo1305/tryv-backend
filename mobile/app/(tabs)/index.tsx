@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
 import { InsightCard } from '@/components/InsightCard';
 import { ReadinessCard } from '@/components/ReadinessCard';
+import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
@@ -216,6 +217,8 @@ export default function HomeScreen() {
           </Text>
         </Card>
       </Pressable>
+
+      <TrainersHighlight />
     </ScrollView>
   );
 }
