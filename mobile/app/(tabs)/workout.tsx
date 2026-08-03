@@ -92,6 +92,18 @@ export default function WorkoutScreen() {
 
       {selectedDay && <WorkoutDayCard day={selectedDay} />}
 
+      {selectedDay && (
+        <Button
+          label="Concluir esse treino"
+          onPress={() =>
+            router.push({
+              pathname: '/workout-plan/share',
+              params: { day: JSON.stringify(selectedDay) },
+            })
+          }
+        />
+      )}
+
       <Button label="Gerar novo plano" variant="secondary" onPress={() => router.push('/workout-plan/generate')} />
     </ScrollView>
   );

@@ -12,6 +12,8 @@ export interface WorkoutDay {
   day: string;
   focus: string;
   exercises: WorkoutExercise[];
+  estimated_duration_minutes?: number | null;
+  estimated_calories?: number | null;
 }
 
 export interface WorkoutPlanData {
