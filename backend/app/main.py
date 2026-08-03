@@ -12,6 +12,7 @@ from app.routers import (
     insights,
     media,
     meals,
+    readiness,
     runs,
     smartwatch,
     social,
@@ -49,6 +50,7 @@ app.include_router(media.router)
 app.include_router(weight_logs.router)
 app.include_router(dashboard.router)
 app.include_router(insights.router)
+app.include_router(readiness.router)
 
 
 @app.get("/")

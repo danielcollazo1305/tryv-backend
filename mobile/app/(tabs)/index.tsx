@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
 import { InsightCard } from '@/components/InsightCard';
+import { ReadinessCard } from '@/components/ReadinessCard';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
@@ -131,6 +132,8 @@ export default function HomeScreen() {
           <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
         </Pressable>
       </View>
+
+      <ReadinessCard />
 
       {insightLoading && (
         <View style={styles.insightLoading}>

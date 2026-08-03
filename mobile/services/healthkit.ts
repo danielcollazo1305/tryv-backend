@@ -181,7 +181,8 @@ const ASLEEP_VALUES = new Set<CategoryValueSleepAnalysis>([
   CategoryValueSleepAnalysis.asleepREM,
 ]);
 
-async function fetchLastNightSleepHours(): Promise<number | null> {
+/** Exportada tambem isoladamente (alem de compor fetchHealthSummary) para o Score de Prontidao, que so precisa do sono. */
+export async function fetchLastNightSleepHours(): Promise<number | null> {
   const since = daysAgo(32 / 24);
   const samples = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
     filter: { date: { startDate: since } },
