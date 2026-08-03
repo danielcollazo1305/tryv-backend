@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Card } from '@/components/Card';
+import { HealthSummaryCard } from '@/components/HealthSummaryCard';
 import { getApiErrorMessage } from '@/services/api';
 import {
   ACTIVITY_TYPE_ICONS,
@@ -104,10 +105,11 @@ export default function ActivitiesScreen() {
             <View style={styles.headerRow}>
               <Text style={styles.title}>Minhas atividades</Text>
               <Pressable style={styles.healthButton} onPress={() => router.push('/activity/healthkit')} hitSlop={8}>
-                <Ionicons name="heart" size={16} color={colors.accent} />
-                <Text style={styles.healthButtonText}>Apple Health</Text>
+                <Ionicons name="download-outline" size={16} color={colors.accent} />
+                <Text style={styles.healthButtonText}>Importar treinos</Text>
               </Pressable>
             </View>
+            <HealthSummaryCard />
             {!!error && <Text style={styles.error}>{error}</Text>}
             {loading && <ActivityIndicator color={colors.accent} style={styles.loading} />}
           </View>

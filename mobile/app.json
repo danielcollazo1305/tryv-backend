@@ -52,7 +52,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "O Tryv acessa seus treinos do Apple Health para importar automaticamente atividades como natacao, corrida e ciclismo.",
+          "NSHealthShareUsageDescription": "O Tryv acessa seus dados do Apple Health (treinos, passos, distancia, frequencia cardiaca, calorias ativas e sono) para mostrar seu resumo de atividade e importar treinos automaticamente.",
           "background": false
         }
       ],

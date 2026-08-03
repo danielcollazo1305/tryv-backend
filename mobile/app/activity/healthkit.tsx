@@ -109,7 +109,7 @@ export default function HealthKitImportScreen() {
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Apple Health</Text>
+        <Text style={styles.title}>Importar treinos</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={26} color={colors.textSecondary} />
         </Pressable>
