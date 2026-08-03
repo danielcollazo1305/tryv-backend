@@ -36,6 +36,7 @@ import {
   getManualActivityInsight,
   getRunInsight,
 } from '@/services/activities';
+import { fetchRecentHeartRateBpm } from '@/services/healthkit';
 import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -43,6 +44,9 @@ import { colors, radius, spacing, typography } from '@/constants/theme';
 // pinga a cada ~4s, mas o professor acompanhando nao precisa de mais que
 // isso; throttle evita chamadas de rede desnecessarias.
 const LIVE_UPDATE_THROTTLE_MS = 5000;
+// Uma leitura de FC mais velha que isso nao e mostrada como "ao vivo" —
+// melhor omitir do que enganar o professor com um numero de minutos atras.
+const LIVE_HEART_RATE_MAX_AGE_MS = 2 * 60 * 1000;
 
 type Stage = 'select' | 'tracking' | 'manual-form' | 'saving' | 'result';
 
@@ -129,19 +133,32 @@ export default function NewActivityScreen() {
     if (now - lastLiveUpdateAtRef.current < LIVE_UPDATE_THROTTLE_MS) return;
     lastLiveUpdateAtRef.current = now;
 
+    const activityId = liveActivityIdRef.current;
     const last = routePoints[routePoints.length - 1];
     const elapsed = Math.floor((now - startedAt.getTime()) / 1000);
     const pace = liveDistanceMeters > 0 ? elapsed / (liveDistanceMeters / 1000) : null;
 
-    updateLiveActivity(liveActivityIdRef.current, {
-      lat: last.lat,
-      lng: last.lng,
-      distance_meters: liveDistanceMeters,
-      elapsed_seconds: elapsed,
-      pace_seconds_per_km: pace,
-    }).catch(() => {
-      // silencioso de proposito — ver comentario no ref acima
-    });
+    (async () => {
+      // Melhor esforco: so vem algo aqui se o usuario tiver Apple Watch (ou
+      // outro dispositivo companion) gravando ativamente por perto — o
+      // iPhone sozinho nao tem sensor de FC nem fonte alternativa via
+      // HealthKit, entao isso fica null na pratica na maioria dos treinos.
+      const heartRate =
+        Platform.OS === 'ios' ? await fetchRecentHeartRateBpm(LIVE_HEART_RATE_MAX_AGE_MS).catch(() => null) : null;
+
+      try {
+        await updateLiveActivity(activityId, {
+          lat: last.lat,
+          lng: last.lng,
+          distance_meters: liveDistanceMeters,
+          elapsed_seconds: elapsed,
+          pace_seconds_per_km: pace,
+          heart_rate_bpm: heartRate ?? undefined,
+        });
+      } catch {
+        // silencioso de proposito — ver comentario no ref acima
+      }
+    })();
   }, [routePoints, trackingActive, startedAt, liveDistanceMeters]);
 
   // Garante que o GPS pare de ser rastreado se o usuario sair da tela sem finalizar.

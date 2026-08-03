@@ -15,6 +15,7 @@ import {
   isHealthKitAvailable,
   requestHealthKitPermissions,
 } from '@/services/healthkit';
+import { syncRecentHeartRate } from '@/services/heartRateSync';
 import { colors, metricColors, radius, spacing, typography } from '@/constants/theme';
 
 // So guarda "o usuario ja passou pelo fluxo de conectar" — nao revela se
@@ -57,6 +58,10 @@ export function HealthSummaryCard() {
     try {
       setSummary(await fetchHealthSummary());
       setStatus('ready');
+      // Fire-and-forget: alimenta o Score de Prontidao e o Live Activity com
+      // FC real, sem atrasar nem arriscar o card por causa disso (tem seu
+      // proprio throttle interno, ver services/heartRateSync.ts).
+      syncRecentHeartRate().catch(() => {});
     } catch {
       if (!isRetry) {
         // Logo apos autorizar (ou ao reabrir a tela), o HealthKit as vezes
