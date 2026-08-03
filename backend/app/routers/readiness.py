@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import require_pro_subscription
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
 from app.models.readiness_score import ReadinessScore
@@ -139,7 +139,7 @@ def get_today_readiness(
         None, ge=0, le=24, description="Horas de sono da ultima noite, vindas do HealthKit (mobile) — o backend nao tem acesso direto a isso."
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_pro_subscription),
 ):
     """
     Calcula (e re-calcula a cada chamada, sobrescrevendo o registro do dia)

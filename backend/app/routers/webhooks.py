@@ -23,12 +23,17 @@ _STRIPE_TO_INTERNAL_STATUS = {
 
 
 def _handle_checkout_completed(db: Session, session: dict) -> None:
+    """
+    Trata tanto o checkout do Tryv Pro (assinatura da plataforma) quanto o
+    de professor (marketplace) — a metadata e quem diferencia: presenca de
+    trainer_id = assinatura de professor; ausencia = Tryv Pro.
+    """
     metadata = session.get("metadata") or {}
     trainer_id = metadata.get("trainer_id")
     student_user_id = metadata.get("student_user_id") or session.get("client_reference_id")
     stripe_subscription_id = session.get("subscription")
 
-    if not (trainer_id and student_user_id and stripe_subscription_id):
+    if not (student_user_id and stripe_subscription_id):
         logger.error(
             "checkout.session.completed sem metadata esperada (session_id=%s)",
             session.get("id"),
@@ -45,8 +50,8 @@ def _handle_checkout_completed(db: Session, session: dict) -> None:
 
     db.add(Subscription(
         user_id=uuid.UUID(student_user_id),
-        type="trainer_addon",
-        trainer_id=uuid.UUID(trainer_id),
+        type="trainer_addon" if trainer_id else "base",
+        trainer_id=uuid.UUID(trainer_id) if trainer_id else None,
         stripe_subscription_id=stripe_subscription_id,
         status="active",
     ))

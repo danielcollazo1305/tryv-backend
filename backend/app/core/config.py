@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+    # Price ID do plano Tryv Pro (R$49/mes, preco fixo criado uma vez no
+    # Stripe) — diferente da assinatura de professor, que monta o preco
+    # dinamicamente porque cada profissional define o proprio valor.
+    stripe_pro_price_id: str = ""
 
     # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
     aws_access_key_id: str = ""

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_pro_subscription
 from app.models.meal import Meal
 from app.models.user import User
 from app.schemas.meal import MealAnalysisOut, MealCreate, MealOut
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @router.post("/analyze", response_model=MealAnalysisOut)
 async def analyze(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_pro_subscription),
 ):
     """
     Analisa uma foto de refeicao e retorna calorias/macros estimados.

@@ -17,6 +17,7 @@ from app.routers import (
     runs,
     smartwatch,
     social,
+    subscriptions,
     trainer_subscriptions,
     trainers,
     users,
@@ -53,6 +54,7 @@ app.include_router(dashboard.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
 app.include_router(live_activities.router)
+app.include_router(subscriptions.router)
 
 
 @app.get("/")

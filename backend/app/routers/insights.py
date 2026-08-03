@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import require_pro_subscription
 from app.models.daily_insight import DailyInsight
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
@@ -148,7 +148,7 @@ def _generate_and_upsert(db: Session, current_user: User) -> DailyInsight:
 @router.post("/generate", response_model=DailyInsightOut, status_code=status.HTTP_201_CREATED)
 def generate_today_insight(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_pro_subscription),
 ):
     """Gera (ou regenera) o insight de hoje — sobrescreve o registro do dia em vez de duplicar."""
     return _generate_and_upsert(db, current_user)
@@ -157,7 +157,7 @@ def generate_today_insight(
 @router.get("/daily", response_model=DailyInsightOut)
 def get_daily_insight(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_pro_subscription),
 ):
     today = date.today()
     existing = (

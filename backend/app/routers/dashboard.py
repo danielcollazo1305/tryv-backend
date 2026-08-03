@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import require_pro_subscription
 from app.core.period import parse_period_days
 from app.models.manual_activity import ManualActivity
 from app.models.meal import Meal
@@ -53,7 +53,7 @@ def get_home_summary(
         None, description="Mes civil no formato YYYY-MM — se informado, tem prioridade sobre period"
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_pro_subscription),
 ):
     start_date, end_date, days_total, period_label = _resolve_window(period, month)
     start_datetime = datetime.combine(start_date, datetime.min.time())
