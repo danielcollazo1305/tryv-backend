@@ -3,6 +3,7 @@ import {
   getMostRecentQuantitySample,
   isHealthDataAvailable,
   queryCategorySamples,
+  queryQuantitySamples,
   queryStatisticsCollectionForQuantity,
   queryStatisticsForQuantity,
   queryWorkoutSamples,
@@ -169,6 +170,46 @@ async function fetchHeartRateSummary(since: Date): Promise<HealthSummary['heartR
     mostRecentAt: mostRecent ? mostRecent.endDate.toISOString() : null,
     average7dBpm: stats.averageQuantity ? Math.round(stats.averageQuantity.quantity) : null,
   };
+}
+
+export interface HeartRateSamplePoint {
+  bpm: number;
+  recordedAt: string;
+}
+
+/**
+ * Amostras BRUTAS de FC (nao agregadas) desde a data informada, ordenadas da
+ * mais antiga pra mais nova — usadas pra sincronizar com o backend
+ * (POST /heart-rate/sync). Diferente de fetchHeartRateSummary (que so
+ * resume "ultima leitura" + "media"), aqui precisamos de cada amostra
+ * individual com seu proprio horario.
+ */
+export async function fetchHeartRateSamplesSince(sinceDate: Date): Promise<HeartRateSamplePoint[]> {
+  const samples = await queryQuantitySamples('HKQuantityTypeIdentifierHeartRate', {
+    filter: { date: { startDate: sinceDate } },
+    limit: 500,
+    ascending: true,
+    unit: 'count/min',
+  });
+  return samples.map((sample) => ({
+    bpm: Math.round(sample.quantity),
+    recordedAt: sample.endDate.toISOString(),
+  }));
+}
+
+/**
+ * Leitura mais recente de FC, so retornada se tiver no maximo maxAgeMs de
+ * idade — usada durante uma atividade ao vivo, onde mostrar uma leitura de
+ * horas atras como se fosse "agora" seria enganoso pro professor
+ * acompanhando. Sem Apple Watch (ou outro dispositivo companion gravando
+ * ativamente), isso praticamente sempre retorna null durante o treino — o
+ * iPhone sozinho nao tem sensor de FC nem fonte alternativa via HealthKit.
+ */
+export async function fetchRecentHeartRateBpm(maxAgeMs: number): Promise<number | null> {
+  const sample = await getMostRecentQuantitySample('HKQuantityTypeIdentifierHeartRate', 'count/min');
+  if (!sample) return null;
+  if (Date.now() - sample.endDate.getTime() > maxAgeMs) return null;
+  return Math.round(sample.quantity);
 }
 
 // "Dormindo" cobre os 3 estagios especificos (core/deep/REM) e o generico
