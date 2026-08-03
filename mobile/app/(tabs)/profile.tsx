@@ -129,6 +129,19 @@ export default function ProfileScreen() {
         )}
       </Card>
 
+      <Pressable style={styles.optionWrap} onPress={() => router.push('/subscriptions/pro')}>
+        <Card style={styles.optionCard}>
+          <View style={styles.optionIconWrap}>
+            <Ionicons name="star" size={20} color={colors.accent} />
+          </View>
+          <View style={styles.optionInfo}>
+            <Text style={styles.optionTitle}>Tryv Pro</Text>
+            <Text style={styles.optionSubtitle}>Insights, prontidao, IA e mais</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Card>
+      </Pressable>
+
       <Pressable style={styles.optionWrap} onPress={() => router.push('/trainers')}>
         <Card style={styles.optionCard}>
           <View style={styles.optionIconWrap}>
