@@ -24,7 +24,7 @@ export interface Meal {
 export interface MealCreatePayload {
   photo_url?: string | null;
   description?: string | null;
-  calories?: number | null;
+  calories: number;
   protein?: number | null;
   carbs?: number | null;
   fat?: number | null;

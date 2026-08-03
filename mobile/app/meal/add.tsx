@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
 import { Button } from '@/components/Button';
+import { ChoiceGroup } from '@/components/ChoiceGroup';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
@@ -22,6 +23,7 @@ import { uploadMedia } from '@/services/media';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
+type Mode = 'photo' | 'manual';
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   alta: 'Confianca alta',
@@ -29,7 +31,21 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   baixa: 'Confianca baixa',
 };
 
+const MODE_OPTIONS: { value: Mode; label: string }[] = [
+  { value: 'photo', label: 'Foto' },
+  { value: 'manual', label: 'Manual' },
+];
+
+/** null = vazio (campo opcional), undefined = preenchido mas invalido. */
+function parseOptionalNonNegative(text: string): number | null | undefined {
+  if (!text.trim()) return null;
+  const value = Number(text.replace(',', '.'));
+  return Number.isNaN(value) || value < 0 ? undefined : value;
+}
+
 export default function AddMealScreen() {
+  const [mode, setMode] = useState<Mode>('photo');
+
   const [stage, setStage] = useState<Stage>('picking');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<MealAnalysis | null>(null);
@@ -39,6 +55,14 @@ export default function AddMealScreen() {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+
+  const [manualDescription, setManualDescription] = useState('');
+  const [manualWeight, setManualWeight] = useState('');
+  const [manualCalories, setManualCalories] = useState('');
+  const [manualProtein, setManualProtein] = useState('');
+  const [manualCarbs, setManualCarbs] = useState('');
+  const [manualFat, setManualFat] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
 
   const runAnalysis = async (uri: string) => {
     setImageUri(uri);
@@ -129,6 +153,53 @@ export default function AddMealScreen() {
     setError(null);
   };
 
+  const handleSaveManual = async () => {
+    setError(null);
+
+    const trimmedDescription = manualDescription.trim();
+    if (!trimmedDescription) {
+      setError('Descreva o alimento.');
+      return;
+    }
+
+    const caloriesValue = Number(manualCalories.replace(',', '.'));
+    if (!manualCalories.trim() || Number.isNaN(caloriesValue) || caloriesValue < 0) {
+      setError('Informe um valor valido de calorias.');
+      return;
+    }
+
+    const proteinValue = parseOptionalNonNegative(manualProtein);
+    const carbsValue = parseOptionalNonNegative(manualCarbs);
+    const fatValue = parseOptionalNonNegative(manualFat);
+    if (proteinValue === undefined || carbsValue === undefined || fatValue === undefined) {
+      setError('Proteina, carboidrato e gordura devem ser numeros validos (0 ou mais).');
+      return;
+    }
+
+    // Peso/quantidade e so uma referencia visual pro usuario — nao entra em
+    // nenhum calculo, entao basta anexar ao texto da descricao em vez de
+    // criar uma coluna nova so pra isso.
+    const trimmedWeight = manualWeight.trim();
+    const description = trimmedWeight ? `${trimmedDescription} (${trimmedWeight})` : trimmedDescription;
+
+    setManualSaving(true);
+    try {
+      await createMeal({
+        photo_url: null,
+        description,
+        calories: caloriesValue,
+        protein: proteinValue,
+        carbs: carbsValue,
+        fat: fatValue,
+      });
+      router.back();
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
@@ -139,9 +210,13 @@ export default function AddMealScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {(mode === 'manual' || stage === 'picking') && !manualSaving && (
+          <ChoiceGroup label="Como registrar" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+        )}
+
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        {stage === 'picking' && (
+        {mode === 'photo' && stage === 'picking' && (
           <View style={styles.pickButtons}>
             <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
               <Ionicons name="camera" size={28} color={colors.accent} />
@@ -154,7 +229,7 @@ export default function AddMealScreen() {
           </View>
         )}
 
-        {stage === 'analyzing' && (
+        {mode === 'photo' && stage === 'analyzing' && (
           <View style={styles.centered}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
             <ActivityIndicator size="large" color={colors.accent} style={styles.analyzingSpinner} />
@@ -162,7 +237,7 @@ export default function AddMealScreen() {
           </View>
         )}
 
-        {(stage === 'reviewing' || stage === 'uploading' || stage === 'saving') && analysis && (
+        {mode === 'photo' && (stage === 'reviewing' || stage === 'uploading' || stage === 'saving') && analysis && (
           <View style={styles.reviewContainer}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
 
@@ -187,6 +262,53 @@ export default function AddMealScreen() {
               onPress={handleRetry}
               disabled={stage === 'uploading' || stage === 'saving'}
             />
+          </View>
+        )}
+
+        {mode === 'manual' && (
+          <View style={styles.reviewContainer}>
+            <TextField
+              label="Descricao do alimento"
+              placeholder="Ex: Peito de frango grelhado"
+              value={manualDescription}
+              onChangeText={setManualDescription}
+            />
+            <TextField
+              label="Peso/quantidade (opcional)"
+              placeholder="Ex: 150g"
+              value={manualWeight}
+              onChangeText={setManualWeight}
+            />
+            <TextField
+              label="Calorias (kcal)"
+              placeholder="Ex: 250"
+              keyboardType="decimal-pad"
+              value={manualCalories}
+              onChangeText={setManualCalories}
+            />
+            <TextField
+              label="Proteina (g) — opcional"
+              placeholder="Ex: 40"
+              keyboardType="decimal-pad"
+              value={manualProtein}
+              onChangeText={setManualProtein}
+            />
+            <TextField
+              label="Carboidrato (g) — opcional"
+              placeholder="Ex: 0"
+              keyboardType="decimal-pad"
+              value={manualCarbs}
+              onChangeText={setManualCarbs}
+            />
+            <TextField
+              label="Gordura (g) — opcional"
+              placeholder="Ex: 6"
+              keyboardType="decimal-pad"
+              value={manualFat}
+              onChangeText={setManualFat}
+            />
+
+            <Button label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
           </View>
         )}
       </ScrollView>
