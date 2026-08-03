@@ -25,6 +25,21 @@ export const colors = {
   black: '#000000',
 } as const;
 
+/**
+ * Cores de destaque por tipo de dado de saude (inspirado no app Saude da
+ * Apple, que usa uma cor por metrica) — tons escolhidos pra combinar com o
+ * roxo/violeta principal do Tryv em vez de reproduzir as cores literais da
+ * Apple. Usadas so no card de Apple Health (HealthMetricRow), nao no resto
+ * do app.
+ */
+export const metricColors = {
+  steps: '#F5A524',
+  distance: '#38BDF8',
+  energy: '#FB7185',
+  heartRate: '#F87171',
+  sleep: '#818CF8',
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -66,6 +81,6 @@ export const typography = {
   button: { fontSize: 16, fontWeight: '700' as const, color: colors.white },
 } as const;
 
-export const theme = { colors, spacing, radius, typography };
+export const theme = { colors, spacing, radius, typography, metricColors };
 
 export default theme;

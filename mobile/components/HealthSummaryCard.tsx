@@ -4,16 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 
 import { Card } from '@/components/Card';
+import { HealthMetricRow } from '@/components/HealthMetricRow';
+import { HealthWeeklyBarChart } from '@/components/HealthWeeklyBarChart';
 import { formatDistanceKm } from '@/services/activities';
 import {
+  fetchActiveEnergyLast7Days,
   fetchHealthSummary,
+  fetchStepsLast7Days,
   HealthSummary,
   isHealthKitAvailable,
   requestHealthKitPermissions,
 } from '@/services/healthkit';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors, metricColors, radius, spacing, typography } from '@/constants/theme';
 
-const CONNECTED_KEY = 'healthkit_connected';
+// So guarda "o usuario ja passou pelo fluxo de conectar" — nao revela se
+// cada tipo de dado foi de fato autorizado (o HealthKit nao expoe isso por
+// privacidade), so evita mostrar o card de "Conectar" de novo a cada abertura
+// do app depois que o usuario ja decidiu uma vez. Exportada porque outros
+// consumidores de HealthKit (ex: ReadinessCard) tambem precisam saber se o
+// usuario ja passou por esse fluxo, sem duplicar o proprio fluxo de conexao.
+export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
 
 function formatHeartRateDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', {
@@ -73,7 +83,7 @@ export function HealthSummaryCard() {
           setStatus('unavailable');
           return;
         }
-        const alreadyConnected = (await SecureStore.getItemAsync(CONNECTED_KEY)) === 'true';
+        const alreadyConnected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
         if (alreadyConnected) {
           await loadSummary();
         } else {
@@ -90,7 +100,7 @@ export function HealthSummaryCard() {
     try {
       const granted = await requestHealthKitPermissions();
       if (granted) {
-        await SecureStore.setItemAsync(CONNECTED_KEY, 'true');
+        await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
         await loadSummary();
       }
     } catch {
@@ -155,46 +165,49 @@ export function HealthSummaryCard() {
   return (
     <Card style={styles.summaryCard}>
       <Text style={styles.cardTitle}>Apple Health</Text>
-      <View style={styles.summaryGrid}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
-            {summary.stepsToday != null ? summary.stepsToday.toLocaleString('pt-BR') : '--'}
-          </Text>
-          <Text style={styles.summaryLabel}>passos hoje</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
-            {summary.steps7d != null ? summary.steps7d.toLocaleString('pt-BR') : '--'}
-          </Text>
-          <Text style={styles.summaryLabel}>passos (7 dias)</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
-            {summary.distanceTodayMeters != null ? formatDistanceKm(summary.distanceTodayMeters) : '--'}
-          </Text>
-          <Text style={styles.summaryLabel}>km hoje</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
-            {summary.activeEnergyTodayKcal != null ? Math.round(summary.activeEnergyTodayKcal) : '--'}
-          </Text>
-          <Text style={styles.summaryLabel}>kcal ativas hoje</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{summary.heartRate.mostRecentBpm ?? '--'}</Text>
-          <Text style={styles.summaryLabel}>
-            {summary.heartRate.mostRecentAt
-              ? `bpm  •  ${formatHeartRateDate(summary.heartRate.mostRecentAt)}`
-              : 'frequencia cardiaca'}
-          </Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>
-            {summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
-          </Text>
-          <Text style={styles.summaryLabel}>sono (ultima noite)</Text>
-        </View>
-      </View>
+
+      <HealthMetricRow
+        icon="footsteps"
+        color={metricColors.steps}
+        label="Passos"
+        value={summary.stepsToday != null ? summary.stepsToday.toLocaleString('pt-BR') : '--'}
+      >
+        <HealthWeeklyBarChart fetcher={fetchStepsLast7Days} color={metricColors.steps} unitLabel="passos" />
+      </HealthMetricRow>
+
+      <HealthMetricRow
+        icon="flame"
+        color={metricColors.energy}
+        label="Calorias ativas"
+        value={summary.activeEnergyTodayKcal != null ? `${Math.round(summary.activeEnergyTodayKcal)} kcal` : '--'}
+      >
+        <HealthWeeklyBarChart fetcher={fetchActiveEnergyLast7Days} color={metricColors.energy} unitLabel="kcal" />
+      </HealthMetricRow>
+
+      <HealthMetricRow
+        icon="navigate"
+        color={metricColors.distance}
+        label="Distancia"
+        value={summary.distanceTodayMeters != null ? `${formatDistanceKm(summary.distanceTodayMeters)} km` : '--'}
+      />
+
+      <HealthMetricRow
+        icon="heart"
+        color={metricColors.heartRate}
+        label="Frequencia cardiaca"
+        subLabel={
+          summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
+        }
+        value={summary.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm} bpm` : '--'}
+      />
+
+      <HealthMetricRow
+        icon="moon"
+        color={metricColors.sleep}
+        label="Sono"
+        subLabel="ultima noite"
+        value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
+      />
     </Card>
   );
 }
@@ -215,10 +228,6 @@ const styles = StyleSheet.create({
 
   loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing.xs },
 
-  summaryCard: { gap: spacing.md },
-  cardTitle: { ...typography.h3 },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  summaryItem: { width: '30%', gap: spacing.xs },
-  summaryValue: { ...typography.statNumber, fontSize: 20 },
-  summaryLabel: { ...typography.statLabel },
+  summaryCard: { gap: spacing.xs },
+  cardTitle: { ...typography.h3, marginBottom: spacing.xs },
 });

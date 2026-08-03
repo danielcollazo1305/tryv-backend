@@ -3,6 +3,7 @@ import {
   getMostRecentQuantitySample,
   isHealthDataAvailable,
   queryCategorySamples,
+  queryStatisticsCollectionForQuantity,
   queryStatisticsForQuantity,
   queryWorkoutSamples,
   requestAuthorization,
@@ -209,6 +210,64 @@ const EMPTY_HEART_RATE: HealthSummary['heartRate'] = {
   mostRecentAt: null,
   average7dBpm: null,
 };
+
+export interface DailyQuantityPoint {
+  /** 'YYYY-MM-DD' em horario local. */
+  date: string;
+  /** null = sem dado nesse dia (HealthKit nao distingue "zero" de "sem amostra" na resposta agregada). */
+  value: number | null;
+}
+
+function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Quebra diaria (7 dias, hoje incluso) de uma quantidade cumulativa, usada
+ * pelo grafico de barras do card de Apple Health. Diferente de sumQuantity
+ * (que so soma o periodo inteiro), aqui usamos
+ * queryStatisticsCollectionForQuantity com intervalComponents={day:1} — a
+ * mesma consulta nativa ja devolve um bucket por dia de uma vez, em vez de
+ * precisar de 7 chamadas separadas (uma por dia).
+ */
+async function fetchDailyQuantityLast7Days<T extends QuantityTypeIdentifier>(
+  identifier: T,
+  unit: UnitForIdentifier<T>
+): Promise<DailyQuantityPoint[]> {
+  const start = startOfToday();
+  start.setDate(start.getDate() - 6);
+  const end = new Date();
+
+  const buckets = await queryStatisticsCollectionForQuantity(identifier, ['cumulativeSum'], start, { day: 1 }, {
+    filter: { date: { startDate: start, endDate: end } },
+    unit,
+  });
+
+  const byDate = new Map<string, number>();
+  for (const bucket of buckets) {
+    if (!bucket.startDate || !bucket.sumQuantity) continue;
+    byDate.set(toDateKey(bucket.startDate), bucket.sumQuantity.quantity);
+  }
+
+  const points: DailyQuantityPoint[] = [];
+  for (let offset = 0; offset < 7; offset++) {
+    const day = new Date(start);
+    day.setDate(day.getDate() + offset);
+    const key = toDateKey(day);
+    points.push({ date: key, value: byDate.has(key) ? byDate.get(key)! : null });
+  }
+  return points;
+}
+
+/** Passos dia a dia dos ultimos 7 dias (hoje incluso), pro grafico de barras expandido do card de Apple Health. */
+export async function fetchStepsLast7Days(): Promise<DailyQuantityPoint[]> {
+  return fetchDailyQuantityLast7Days('HKQuantityTypeIdentifierStepCount', 'count');
+}
+
+/** Calorias ativas dia a dia dos ultimos 7 dias — mesmo uso do fetchStepsLast7Days, so mudando o tipo de quantidade. */
+export async function fetchActiveEnergyLast7Days(): Promise<DailyQuantityPoint[]> {
+  return fetchDailyQuantityLast7Days('HKQuantityTypeIdentifierActiveEnergyBurned', 'kcal');
+}
 
 /**
  * Busca um resumo do que estiver disponivel no Apple Health, sem se importar
