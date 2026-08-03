@@ -36,7 +36,13 @@ import {
   getManualActivityInsight,
   getRunInsight,
 } from '@/services/activities';
+import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
 import { colors, radius, spacing, typography } from '@/constants/theme';
+
+// Intervalo minimo entre atualizacoes ao vivo enviadas pro backend — o GPS
+// pinga a cada ~4s, mas o professor acompanhando nao precisa de mais que
+// isso; throttle evita chamadas de rede desnecessarias.
+const LIVE_UPDATE_THROTTLE_MS = 5000;
 
 type Stage = 'select' | 'tracking' | 'manual-form' | 'saving' | 'result';
 
@@ -77,6 +83,11 @@ export default function NewActivityScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const watchSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<MapView | null>(null);
+  // Live Activity: o professor vinculado pode acompanhar via polling. E um
+  // bonus, nao o fluxo principal — qualquer falha aqui e engolida em
+  // silencio, nunca deve atrapalhar o aluno rastreando a propria atividade.
+  const liveActivityIdRef = useRef<string | null>(null);
+  const lastLiveUpdateAtRef = useRef(0);
 
   // Registro manual
   const [durationMinutes, setDurationMinutes] = useState('');
@@ -108,6 +119,30 @@ export default function NewActivityScreen() {
     }, 1000);
     return () => clearInterval(interval);
   }, [trackingActive, startedAt]);
+
+  // Envia a posicao atual pro backend (Live Activity), throttled — dispara a
+  // cada novo ponto de GPS (routePoints muda), mas so manda de fato se ja se
+  // passaram LIVE_UPDATE_THROTTLE_MS desde o ultimo envio.
+  useEffect(() => {
+    if (!trackingActive || !liveActivityIdRef.current || routePoints.length === 0 || !startedAt) return;
+    const now = Date.now();
+    if (now - lastLiveUpdateAtRef.current < LIVE_UPDATE_THROTTLE_MS) return;
+    lastLiveUpdateAtRef.current = now;
+
+    const last = routePoints[routePoints.length - 1];
+    const elapsed = Math.floor((now - startedAt.getTime()) / 1000);
+    const pace = liveDistanceMeters > 0 ? elapsed / (liveDistanceMeters / 1000) : null;
+
+    updateLiveActivity(liveActivityIdRef.current, {
+      lat: last.lat,
+      lng: last.lng,
+      distance_meters: liveDistanceMeters,
+      elapsed_seconds: elapsed,
+      pace_seconds_per_km: pace,
+    }).catch(() => {
+      // silencioso de proposito — ver comentario no ref acima
+    });
+  }, [routePoints, trackingActive, startedAt, liveDistanceMeters]);
 
   // Garante que o GPS pare de ser rastreado se o usuario sair da tela sem finalizar.
   useEffect(() => {
@@ -147,6 +182,16 @@ export default function NewActivityScreen() {
       setTrackingActive(true);
       setStage('tracking');
 
+      // Bonus pro professor vinculado acompanhar ao vivo — nao bloqueia nem
+      // afeta o rastreamento do proprio aluno se falhar.
+      startLiveActivity(selectedType as GpsActivityType)
+        .then((live) => {
+          liveActivityIdRef.current = live.id;
+        })
+        .catch(() => {
+          liveActivityIdRef.current = null;
+        });
+
       const subscription = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 4000, distanceInterval: 10 },
         (loc) => {
@@ -171,6 +216,18 @@ export default function NewActivityScreen() {
     }
   };
 
+  /** Idempotente: seguro chamar mais de uma vez (ex: Finalizar seguido de Descartar). */
+  const stopLiveTracking = async () => {
+    const id = liveActivityIdRef.current;
+    if (!id) return;
+    liveActivityIdRef.current = null;
+    try {
+      await finishLiveActivity(id);
+    } catch {
+      // silencioso — linha efemera, uma falha aqui nao precisa incomodar o aluno
+    }
+  };
+
   const handleFinishTracking = () => {
     watchSubscriptionRef.current?.remove();
     watchSubscriptionRef.current = null;
@@ -178,9 +235,11 @@ export default function NewActivityScreen() {
     const finish = new Date();
     setFinishedAt(finish);
     setElapsedSeconds(Math.floor((finish.getTime() - (startedAt?.getTime() ?? finish.getTime())) / 1000));
+    stopLiveTracking();
   };
 
   const handleDiscardTracking = () => {
+    stopLiveTracking();
     setStage('select');
     setSelectedType(null);
     setRoutePoints([]);
