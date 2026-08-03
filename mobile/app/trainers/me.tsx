@@ -165,6 +165,19 @@ export default function TrainerDashboardScreen() {
               )}
             </Card>
 
+            <Pressable onPress={() => router.push('/trainers/students')}>
+              <Card style={styles.statusCard}>
+                <View style={styles.statusRow}>
+                  <Ionicons name="pulse" size={20} color={colors.accent} />
+                  <View style={styles.statusInfo}>
+                    <Text style={styles.statusTitle}>Meus alunos</Text>
+                    <Text style={styles.statusSubtitle}>Acompanhe treinos ao vivo dos seus assinantes</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </Pressable>
+
             <Card style={styles.editCard}>
               <View style={styles.editHeader}>
                 <Text style={styles.editTitle}>Perfil</Text>

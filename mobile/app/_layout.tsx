@@ -40,6 +40,8 @@ function RootNavigator() {
         <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/register" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/me" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trainers/students" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trainers/live/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/[userId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/post/[postId]" options={{ presentation: 'modal' }} />

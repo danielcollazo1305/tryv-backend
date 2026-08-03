@@ -39,6 +39,13 @@ export interface CheckoutSession {
   checkout_url: string;
 }
 
+export interface Student {
+  user_id: string;
+  name: string;
+  is_live: boolean;
+  live_activity_id: string | null;
+}
+
 export async function listTrainers(): Promise<Trainer[]> {
   const response = await api.get<Trainer[]>('/trainers/');
   return response.data;
@@ -76,6 +83,11 @@ export async function getStripeStatus(): Promise<StripeStatus> {
 
 export async function subscribeToTrainer(trainerId: string): Promise<CheckoutSession> {
   const response = await api.post<CheckoutSession>(`/trainers/${trainerId}/subscribe`);
+  return response.data;
+}
+
+export async function listMyStudents(): Promise<Student[]> {
+  const response = await api.get<Student[]>('/trainers/me/students');
   return response.data;
 }
 
