@@ -195,10 +195,29 @@ async function fetchLastNightSleepHours(): Promise<number | null> {
   return totalMs > 0 ? totalMs / (1000 * 60 * 60) : null;
 }
 
+/** Roda uma busca e engole falha (transiente ou de tipo nao autorizado) virando null, sem derrubar o resto do resumo. */
+async function safe<T>(promise: Promise<T>): Promise<T | null> {
+  try {
+    return await promise;
+  } catch {
+    return null;
+  }
+}
+
+const EMPTY_HEART_RATE: HealthSummary['heartRate'] = {
+  mostRecentBpm: null,
+  mostRecentAt: null,
+  average7dBpm: null,
+};
+
 /**
  * Busca um resumo do que estiver disponivel no Apple Health, sem se importar
  * com qual app escreveu o dado (relogio nativo, Zepp, Strava, etc. — o
- * HealthKit nao diferencia a origem na leitura).
+ * HealthKit nao diferencia a origem na leitura). Cada metrica e buscada com
+ * "safe" e falha de forma independente (fica null) em vez de derrubar o
+ * resumo inteiro — uma unica consulta instavel (ex: logo apos autorizar,
+ * quando um tipo recem-liberado ainda pode nao estar "pronto") nao pode
+ * fazer o card inteiro parecer "nunca conectado".
  */
 export async function fetchHealthSummary(): Promise<HealthSummary> {
   const today = startOfToday();
@@ -214,14 +233,14 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
     heartRate,
     sleepLastNightHours,
   ] = await Promise.all([
-    sumQuantity('HKQuantityTypeIdentifierStepCount', 'count', today),
-    sumQuantity('HKQuantityTypeIdentifierStepCount', 'count', sevenDaysAgo),
-    sumQuantity('HKQuantityTypeIdentifierDistanceWalkingRunning', 'm', today),
-    sumQuantity('HKQuantityTypeIdentifierDistanceWalkingRunning', 'm', sevenDaysAgo),
-    sumQuantity('HKQuantityTypeIdentifierActiveEnergyBurned', 'kcal', today),
-    sumQuantity('HKQuantityTypeIdentifierActiveEnergyBurned', 'kcal', sevenDaysAgo),
-    fetchHeartRateSummary(sevenDaysAgo),
-    fetchLastNightSleepHours(),
+    safe(sumQuantity('HKQuantityTypeIdentifierStepCount', 'count', today)),
+    safe(sumQuantity('HKQuantityTypeIdentifierStepCount', 'count', sevenDaysAgo)),
+    safe(sumQuantity('HKQuantityTypeIdentifierDistanceWalkingRunning', 'm', today)),
+    safe(sumQuantity('HKQuantityTypeIdentifierDistanceWalkingRunning', 'm', sevenDaysAgo)),
+    safe(sumQuantity('HKQuantityTypeIdentifierActiveEnergyBurned', 'kcal', today)),
+    safe(sumQuantity('HKQuantityTypeIdentifierActiveEnergyBurned', 'kcal', sevenDaysAgo)),
+    safe(fetchHeartRateSummary(sevenDaysAgo)),
+    safe(fetchLastNightSleepHours()),
   ]);
 
   return {
@@ -231,7 +250,7 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
     distance7dMeters,
     activeEnergyTodayKcal: activeEnergyTodayKcal != null ? Math.round(activeEnergyTodayKcal) : null,
     activeEnergy7dKcal: activeEnergy7dKcal != null ? Math.round(activeEnergy7dKcal) : null,
-    heartRate,
+    heartRate: heartRate ?? EMPTY_HEART_RATE,
     sleepLastNightHours,
   };
 }

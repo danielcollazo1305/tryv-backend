@@ -24,7 +24,12 @@ function formatHeartRateDate(iso: string): string {
   });
 }
 
-type Status = 'checking' | 'unavailable' | 'disconnected' | 'loading' | 'ready';
+// 'disconnected' = nunca conectou (ou a flag realmente sumiu); 'error' = a
+// flag diz que ja esta conectado, mas ESSA busca falhou — dois estados
+// visualmente diferentes de proposito, pra nao fazer uma falha passageira de
+// rede parecer "voce precisa conectar de novo" (o que reabriria o dialogo de
+// permissao do sistema a toa).
+type Status = 'checking' | 'unavailable' | 'disconnected' | 'loading' | 'ready' | 'error';
 
 /**
  * Card auto-contido: verifica disponibilidade/conexao com o Apple Health,
@@ -37,16 +42,22 @@ export function HealthSummaryCard() {
   const [summary, setSummary] = useState<HealthSummary | null>(null);
   const [connecting, setConnecting] = useState(false);
 
-  const loadSummary = useCallback(async () => {
+  const loadSummary = useCallback(async (isRetry = false) => {
     setStatus('loading');
     try {
       setSummary(await fetchHealthSummary());
       setStatus('ready');
     } catch {
-      // Se a busca falhar (ex: instabilidade momentanea), volta pro card de
-      // "Conectar" em vez de travar num loading infinito — o usuario pode
-      // tentar de novo com um toque.
-      setStatus('disconnected');
+      if (!isRetry) {
+        // Logo apos autorizar (ou ao reabrir a tela), o HealthKit as vezes
+        // leva um instante pra um tipo recem-liberado ficar pronto pra
+        // consulta — uma segunda tentativa curta evita mostrar erro por
+        // causa dessa janela de corrida.
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await loadSummary(true);
+        return;
+      }
+      setStatus('error');
     }
   }, []);
 
@@ -119,6 +130,23 @@ export function HealthSummaryCard() {
       <View style={styles.loadingWrap}>
         <ActivityIndicator size="small" color={colors.accent} />
       </View>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Pressable onPress={() => loadSummary()}>
+        <Card style={styles.connectCard}>
+          <View style={styles.connectIconWrap}>
+            <Ionicons name="refresh" size={20} color={colors.accent} />
+          </View>
+          <View style={styles.connectInfo}>
+            <Text style={styles.connectTitle}>Nao foi possivel carregar o Apple Health</Text>
+            <Text style={styles.connectSubtitle}>Toque para tentar novamente.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Card>
+      </Pressable>
     );
   }
 
