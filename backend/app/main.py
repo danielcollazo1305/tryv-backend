@@ -10,6 +10,7 @@ from app.routers import (
     dashboard,
     heart_rate,
     insights,
+    live_activities,
     media,
     meals,
     readiness,
@@ -51,6 +52,7 @@ app.include_router(weight_logs.router)
 app.include_router(dashboard.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
+app.include_router(live_activities.router)
 
 
 @app.get("/")

@@ -7,11 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.live_activity import LiveActivity
+from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
 from app.schemas.trainer import (
     StripeOnboardingOut,
     StripeStatusOut,
+    StudentOut,
     TrainerOut,
     TrainerRegister,
     TrainerUpdate,
@@ -174,6 +177,45 @@ def get_stripe_status(
         charges_enabled=bool(account.charges_enabled),
         payouts_enabled=bool(account.payouts_enabled),
     )
+
+
+@router.get("/me/students", response_model=list[StudentOut])
+def list_my_students(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Alunos com assinatura ativa no professor logado, sinalizando quem esta com uma atividade ao vivo agora."""
+    trainer = _get_my_trainer(db, current_user)
+
+    rows = (
+        db.query(User.id, User.name)
+        .join(Subscription, Subscription.user_id == User.id)
+        .filter(
+            Subscription.trainer_id == trainer.id,
+            Subscription.type == "trainer_addon",
+            Subscription.status == "active",
+        )
+        .order_by(User.name.asc())
+        .all()
+    )
+    if not rows:
+        return []
+
+    live_by_user = dict(
+        db.query(LiveActivity.user_id, LiveActivity.id)
+        .filter(LiveActivity.user_id.in_([row.id for row in rows]))
+        .all()
+    )
+
+    return [
+        StudentOut(
+            user_id=row.id,
+            name=row.name,
+            is_live=row.id in live_by_user,
+            live_activity_id=live_by_user.get(row.id),
+        )
+        for row in rows
+    ]
 
 
 @router.get("/", response_model=list[TrainerOut])

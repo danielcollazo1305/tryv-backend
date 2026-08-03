@@ -40,3 +40,11 @@ class StripeStatusOut(BaseModel):
     details_submitted: bool = False
     charges_enabled: bool = False
     payouts_enabled: bool = False
+
+
+class StudentOut(BaseModel):
+    """Um aluno com assinatura ativa no professor logado — usado pela tela de Live Activity do professor."""
+    user_id: uuid.UUID
+    name: str
+    is_live: bool
+    live_activity_id: uuid.UUID | None = None
