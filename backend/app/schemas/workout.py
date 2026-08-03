@@ -24,6 +24,8 @@ class WorkoutDayOut(BaseModel):
     day: str
     focus: str
     exercises: list[WorkoutExerciseOut]
+    estimated_duration_minutes: int | None = None
+    estimated_calories: int | None = None
 
 
 class WorkoutPlanGenerated(BaseModel):

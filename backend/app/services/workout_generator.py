@@ -30,8 +30,22 @@ _DAY_SCHEMA = {
         "day": {"type": "string", "description": "Ex: 'Segunda-feira' ou 'Dia 1'"},
         "focus": {"type": "string", "description": "Grupo muscular ou tipo de treino do dia"},
         "exercises": {"type": "array", "items": _EXERCISE_SCHEMA},
+        "estimated_duration_minutes": {
+            "type": "integer",
+            "description": "Estimativa de duracao total do treino do dia, em minutos",
+        },
+        "estimated_calories": {
+            "type": "integer",
+            "description": "Estimativa de calorias gastas no treino do dia",
+        },
     },
-    "required": ["day", "focus", "exercises"],
+    "required": [
+        "day",
+        "focus",
+        "exercises",
+        "estimated_duration_minutes",
+        "estimated_calories",
+    ],
     "additionalProperties": False,
 }
 
@@ -66,7 +80,11 @@ _SYSTEM_PROMPT = (
     "Os campos 'sets' e 'reps' de cada exercicio sao flexiveis — use-os "
     "para representar o que fizer mais sentido na modalidade (numero de "
     "rounds/series de nado e sua duracao/distancia, ou series/repeticoes "
-    "tradicionais de musculacao)."
+    "tradicionais de musculacao).\n\n"
+    "Para cada dia, estime tambem a duracao total do treino em minutos "
+    "(estimated_duration_minutes) e o gasto calorico aproximado "
+    "(estimated_calories), considerando o volume, a intensidade e o "
+    "numero de exercicios daquele dia especifico."
 )
 
 
