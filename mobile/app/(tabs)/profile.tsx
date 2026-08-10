@@ -7,17 +7,19 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { PostGrid } from '@/components/PostGrid';
+import { ProfileBadges } from '@/components/ProfileBadges';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, listUserPosts } from '@/services/social';
 import { getMyTrainerProfile } from '@/services/trainers';
-import { updateProfile } from '@/services/user';
+import { UserBadges, getUserBadges, updateProfile } from '@/services/user';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const { user, refreshUser } = useAuth();
   const [isTrainer, setIsTrainer] = useState(false);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [badges, setBadges] = useState<UserBadges | null>(null);
 
   const [editingGoal, setEditingGoal] = useState(false);
   const [calorieGoalInput, setCalorieGoalInput] = useState('');
@@ -63,6 +65,25 @@ export default function ProfileScreen() {
     }, [user])
   );
 
+  // Selo Pro / Team sao so exibicao — qualquer falha (ex: rede) simplesmente
+  // nao mostra nada, sem bloquear o resto do perfil.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let active = true;
+      getUserBadges(user.id)
+        .then((data) => {
+          if (active) setBadges(data);
+        })
+        .catch(() => {
+          if (active) setBadges(null);
+        });
+      return () => {
+        active = false;
+      };
+    }, [user])
+  );
+
   const handleSaveGoal = async () => {
     const value = Number(calorieGoalInput);
     if (!value || value <= 0) {
@@ -95,6 +116,10 @@ export default function ProfileScreen() {
       </View>
       <Text style={styles.name}>{user?.name}</Text>
       <Text style={styles.email}>{user?.email}</Text>
+
+      <View style={styles.badgesWrap}>
+        <ProfileBadges badges={badges} />
+      </View>
 
       <Card style={styles.goalCard}>
         <View style={styles.goalHeader}>
@@ -207,7 +232,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   name: { ...typography.h2 },
-  email: { ...typography.bodySecondary, marginTop: spacing.xs, marginBottom: spacing.xl },
+  email: { ...typography.bodySecondary, marginTop: spacing.xs, marginBottom: spacing.sm },
+  badgesWrap: { marginBottom: spacing.lg },
 
   goalCard: { width: '100%', gap: spacing.sm, marginBottom: spacing.md },
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

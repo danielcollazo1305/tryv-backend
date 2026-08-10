@@ -5,9 +5,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Button } from '@/components/Button';
 import { PostGrid } from '@/components/PostGrid';
+import { ProfileBadges } from '@/components/ProfileBadges';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, UserBrief, followUser, listFollowers, listFollowing, listUserPosts, unfollowUser } from '@/services/social';
+import { UserBadges, getUserBadges } from '@/services/user';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 export default function UserProfileScreen() {
@@ -18,6 +20,7 @@ export default function UserProfileScreen() {
   const [followers, setFollowers] = useState<UserBrief[]>([]);
   const [following, setFollowing] = useState<UserBrief[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [badges, setBadges] = useState<UserBadges | null>(null);
   // Nao ha um GET /users/{id} generico para o nome — usamos o autor dos
   // posts (mais confiavel) ou, se ja seguimos essa pessoa, a entrada
   // correspondente na nossa propria lista de "following".
@@ -38,17 +41,19 @@ export default function UserProfileScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [postsData, followersData, followingData, myFollowingData] = await Promise.all([
+      const [postsData, followersData, followingData, myFollowingData, badgesData] = await Promise.all([
         listUserPosts(userId),
         listFollowers(userId),
         listFollowing(userId),
         listFollowing(currentUser.id),
+        getUserBadges(userId).catch(() => null),
       ]);
       setPosts(postsData);
       setFollowers(followersData);
       setFollowing(followingData);
       setIsFollowing(myFollowingData.some((u) => u.id === userId));
       setDisplayName(postsData[0]?.author ?? myFollowingData.find((u) => u.id === userId)?.name ?? null);
+      setBadges(badgesData);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel carregar este perfil.'));
     } finally {
@@ -99,6 +104,8 @@ export default function UserProfileScreen() {
               <Ionicons name="person" size={32} color={colors.accent} />
             </View>
             <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
+
+            <ProfileBadges badges={badges} />
 
             <View style={styles.statsRow}>
               <View style={styles.stat}>
