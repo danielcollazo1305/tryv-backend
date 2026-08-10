@@ -31,6 +31,26 @@ class TrainerOut(BaseModel):
         from_attributes = True
 
 
+class TrainerPublicOut(BaseModel):
+    """Vitrine publica (GET /trainers/, GET /trainers/{id}) — sem
+    platform_fee_percent: a comissao que a plataforma cobra do professor e
+    um dado comercial interno, sem motivo pra aparecer numa rota sem
+    autenticacao. TrainerOut (com esse campo) fica reservado pro proprio
+    professor ver o proprio perfil."""
+    id: uuid.UUID
+    user_id: uuid.UUID
+    user_name: str
+    cref_number: str
+    cref_verified: bool
+    bio: str | None = None
+    price: float
+    active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class StripeOnboardingOut(BaseModel):
     onboarding_url: str
 

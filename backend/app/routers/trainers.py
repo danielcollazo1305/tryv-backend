@@ -16,6 +16,7 @@ from app.schemas.trainer import (
     StripeStatusOut,
     StudentOut,
     TrainerOut,
+    TrainerPublicOut,
     TrainerRegister,
     TrainerUpdate,
 )
@@ -56,6 +57,24 @@ def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None)
         price=trainer.price,
         active=trainer.active,
         platform_fee_percent=trainer.platform_fee_percent,
+        created_at=trainer.created_at,
+    )
+
+
+def _to_trainer_public_out(db: Session, trainer: Trainer, user_name: str | None = None) -> TrainerPublicOut:
+    """Mesma logica de _to_trainer_out, mas sem platform_fee_percent — usado
+    nas rotas publicas/sem autenticacao (vitrine de professores)."""
+    if user_name is None:
+        user_name = db.query(User.name).filter(User.id == trainer.user_id).scalar() or ""
+    return TrainerPublicOut(
+        id=trainer.id,
+        user_id=trainer.user_id,
+        user_name=user_name,
+        cref_number=trainer.cref_number,
+        cref_verified=trainer.cref_verified,
+        bio=trainer.bio,
+        price=trainer.price,
+        active=trainer.active,
         created_at=trainer.created_at,
     )
 
@@ -218,7 +237,7 @@ def list_my_students(
     ]
 
 
-@router.get("/", response_model=list[TrainerOut])
+@router.get("/", response_model=list[TrainerPublicOut])
 def list_trainers(db: Session = Depends(get_db)):
     """Lista publica — so professores verificados e ativos aparecem na busca."""
     rows = (
@@ -228,10 +247,10 @@ def list_trainers(db: Session = Depends(get_db)):
         .order_by(Trainer.created_at.desc())
         .all()
     )
-    return [_to_trainer_out(db, trainer, user_name=user_name) for trainer, user_name in rows]
+    return [_to_trainer_public_out(db, trainer, user_name=user_name) for trainer, user_name in rows]
 
 
-@router.get("/{trainer_id}", response_model=TrainerOut)
+@router.get("/{trainer_id}", response_model=TrainerPublicOut)
 def get_trainer(trainer_id: str, db: Session = Depends(get_db)):
     """Perfil publico de um professor — mesma regra da lista: so verificado e ativo."""
     try:
@@ -252,7 +271,7 @@ def get_trainer(trainer_id: str, db: Session = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
     trainer, user_name = row
-    return _to_trainer_out(db, trainer, user_name=user_name)
+    return _to_trainer_public_out(db, trainer, user_name=user_name)
 
 
 @router.patch("/{trainer_id}/verify", response_model=TrainerOut)
