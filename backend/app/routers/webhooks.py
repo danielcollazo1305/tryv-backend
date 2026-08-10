@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.subscription import Subscription
+from app.schemas.common import WebhookAckOut
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
@@ -80,7 +81,7 @@ def _handle_subscription_status_change(db: Session, subscription: dict, *, delet
     db.commit()
 
 
-@router.post("/stripe")
+@router.post("/stripe", response_model=WebhookAckOut)
 async def stripe_webhook(
     request: Request,
     stripe_signature: str | None = Header(None, alias="Stripe-Signature"),

@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.subscription import Subscription
 from app.models.user import User
+from app.schemas.common import StatusMessageOut
 from app.schemas.subscription import CheckoutSessionOut
 from app.services.stripe_client import get_client
 
@@ -92,11 +93,11 @@ def checkout_pro(
     return CheckoutSessionOut(checkout_url=session.url)
 
 
-@router.get("/pro/success")
+@router.get("/pro/success", response_model=StatusMessageOut)
 def checkout_pro_success():
     return {"status": "success", "message": "Assinatura Tryv Pro confirmada! Voce ja pode fechar esta janela."}
 
 
-@router.get("/pro/cancel")
+@router.get("/pro/cancel", response_model=StatusMessageOut)
 def checkout_pro_cancel():
     return {"status": "canceled", "message": "Assinatura cancelada antes da conclusao do pagamento."}

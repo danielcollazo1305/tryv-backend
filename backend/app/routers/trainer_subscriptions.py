@@ -11,6 +11,7 @@ from app.core.deps import get_current_user
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
+from app.schemas.common import StatusMessageOut
 from app.schemas.subscription import CheckoutSessionOut
 from app.services.stripe_client import get_client
 
@@ -142,11 +143,11 @@ def subscribe_to_trainer(
     return CheckoutSessionOut(checkout_url=session.url)
 
 
-@router.get("/trainers/{trainer_id}/subscribe/success")
+@router.get("/trainers/{trainer_id}/subscribe/success", response_model=StatusMessageOut)
 def subscribe_success(trainer_id: str):
     return {"status": "success", "message": "Assinatura confirmada! Voce ja pode fechar esta janela."}
 
 
-@router.get("/trainers/{trainer_id}/subscribe/cancel")
+@router.get("/trainers/{trainer_id}/subscribe/cancel", response_model=StatusMessageOut)
 def subscribe_cancel(trainer_id: str):
     return {"status": "canceled", "message": "Assinatura cancelada antes da conclusao do pagamento."}
