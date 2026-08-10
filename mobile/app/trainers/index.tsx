@@ -5,10 +5,10 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { Card } from '@/components/Card';
 import { getApiErrorMessage } from '@/services/api';
-import { Trainer, formatPriceBRL, listTrainers } from '@/services/trainers';
+import { TrainerPublic, formatPriceBRL, listTrainers } from '@/services/trainers';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-function TrainerCard({ trainer }: { trainer: Trainer }) {
+function TrainerCard({ trainer }: { trainer: TrainerPublic }) {
   return (
     <Pressable onPress={() => router.push({ pathname: '/trainers/[id]', params: { id: trainer.id } })}>
       <Card style={styles.card}>
@@ -31,7 +31,7 @@ function TrainerCard({ trainer }: { trainer: Trainer }) {
 }
 
 export default function TrainersScreen() {
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [trainers, setTrainers] = useState<TrainerPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

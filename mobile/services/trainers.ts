@@ -13,6 +13,22 @@ export interface Trainer {
   created_at: string;
 }
 
+// Espelha TrainerPublicOut no backend — usado pela vitrine publica
+// (GET /trainers/, GET /trainers/{id}), sem autenticacao. Sem
+// platform_fee_percent: e um dado comercial interno, so o proprio
+// professor ve o proprio (Trainer, acima).
+export interface TrainerPublic {
+  id: string;
+  user_id: string;
+  user_name: string;
+  cref_number: string;
+  cref_verified: boolean;
+  bio: string | null;
+  price: number;
+  active: boolean;
+  created_at: string;
+}
+
 export interface TrainerRegisterPayload {
   cref_number: string;
   bio?: string | null;
@@ -46,13 +62,13 @@ export interface Student {
   live_activity_id: string | null;
 }
 
-export async function listTrainers(): Promise<Trainer[]> {
-  const response = await api.get<Trainer[]>('/trainers/');
+export async function listTrainers(): Promise<TrainerPublic[]> {
+  const response = await api.get<TrainerPublic[]>('/trainers/');
   return response.data;
 }
 
-export async function getTrainer(id: string): Promise<Trainer> {
-  const response = await api.get<Trainer>(`/trainers/${id}`);
+export async function getTrainer(id: string): Promise<TrainerPublic> {
+  const response = await api.get<TrainerPublic>(`/trainers/${id}`);
   return response.data;
 }
 

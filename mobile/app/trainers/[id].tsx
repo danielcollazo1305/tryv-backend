@@ -9,13 +9,13 @@ import { Card } from '@/components/Card';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { getApiErrorMessage } from '@/services/api';
 import { Challenge, listTrainerChallenges } from '@/services/challenges';
-import { Trainer, formatPriceBRL, getTrainer, subscribeToTrainer } from '@/services/trainers';
+import { TrainerPublic, formatPriceBRL, getTrainer, subscribeToTrainer } from '@/services/trainers';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 export default function TrainerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [trainer, setTrainer] = useState<Trainer | null>(null);
+  const [trainer, setTrainer] = useState<TrainerPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
