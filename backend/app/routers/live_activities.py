@@ -35,6 +35,10 @@ def _trainer_has_access_to_student(db: Session, trainer_user: User, student_id: 
     trainer = db.query(Trainer).filter(Trainer.user_id == trainer_user.id).first()
     if not trainer:
         return False
+    # Live Activity (acompanhar GPS ao vivo) e um contexto especifico de
+    # personal trainer — nutricionista nao tem uso funcional pra isso.
+    if trainer.professional_type != "personal_trainer":
+        return False
     subscription = (
         db.query(Subscription)
         .filter(

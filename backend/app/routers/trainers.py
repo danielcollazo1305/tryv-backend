@@ -220,11 +220,17 @@ def list_my_students(
     if not rows:
         return []
 
-    live_by_user = dict(
-        db.query(LiveActivity.user_id, LiveActivity.id)
-        .filter(LiveActivity.user_id.in_([row.id for row in rows]))
-        .all()
-    )
+    # Live Activity e um contexto especifico de personal trainer — pra um
+    # nutricionista, is_live ficaria sempre False (nao teria pra onde ir
+    # mesmo que verdadeiro, ja que GET /activities/live/{id} tambem nega
+    # acesso a esse tipo de profissional).
+    live_by_user = {}
+    if trainer.professional_type == "personal_trainer":
+        live_by_user = dict(
+            db.query(LiveActivity.user_id, LiveActivity.id)
+            .filter(LiveActivity.user_id.in_([row.id for row in rows]))
+            .all()
+        )
 
     return [
         StudentOut(
