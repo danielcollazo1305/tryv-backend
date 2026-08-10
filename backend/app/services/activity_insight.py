@@ -1,12 +1,14 @@
 """
 Interpretacao textual de uma atividade (corrida rastreada por GPS ou
-atividade manual) via Claude, usando output_config com json_schema — mesmo
-padrao usado em meal_analysis.py e workout_generator.py.
+atividade manual) via IA. Chamada de baixo risco (dados numericos ja
+estruturados, saida curta) — migrada pra OpenAI; mesmo padrao de schema JSON
+usado em meal_analysis.py e workout_generator.py (esses dois continuam no
+Claude).
 """
 import json
 import logging
 
-from app.services.ai_client import MODEL, get_client
+from app.services.openai_client import MODEL, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ def generate_activity_insight(activity_data: dict) -> dict:
     atividade, a partir de um dict com tipo, duracao, distancia (se
     houver), calorias, FC media/maxima (se disponivel) e pace (se houver).
 
-    Levanta anthropic.APIError (ou subclasses) se a chamada a API falhar, e
+    Levanta openai.APIError (ou subclasses) se a chamada a API falhar, e
     ValueError se a geracao for recusada ou vier incompleta — o router e
     responsavel por traduzir isso em uma resposta HTTP adequada.
     """
@@ -57,23 +59,26 @@ def generate_activity_insight(activity_data: dict) -> dict:
         + "\n\nEscreva o resumo, destaque (se houver) e sugestao para essa atividade."
     )
 
-    response = get_client().messages.create(
+    response = get_client().chat.completions.create(
         model=MODEL,
-        max_tokens=1024,
-        thinking={"type": "adaptive"},
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
-        output_config={"format": {"type": "json_schema", "schema": _INSIGHT_SCHEMA}},
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {"name": "activity_insight", "schema": _INSIGHT_SCHEMA, "strict": True},
+        },
     )
 
-    if response.stop_reason == "refusal":
+    choice = response.choices[0]
+    if choice.finish_reason == "content_filter":
         logger.error("Geracao de insight de atividade recusada pelos filtros de seguranca da IA")
         raise ValueError("Nao foi possivel gerar a interpretacao da atividade")
-    if response.stop_reason == "max_tokens":
-        logger.error("Geracao de insight de atividade truncada por atingir max_tokens")
+    if choice.finish_reason == "length":
+        logger.error("Geracao de insight de atividade truncada por atingir o limite de tokens")
         raise ValueError("Resposta da IA incompleta")
 
-    text = next(block.text for block in response.content if block.type == "text")
-    result = json.loads(text)
+    result = json.loads(choice.message.content)
     result["highlight"] = result.get("highlight") or None
     return result

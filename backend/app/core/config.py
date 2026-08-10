@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     # Claude API
     anthropic_api_key: str = ""
 
+    # OpenAI API — usada so pelas chamadas de baixo risco (insights curtos a
+    # partir de dados ja agregados); analise de foto e geracao de treino
+    # continuam no Claude. Mesmo padrao de seguranca da chave acima: nunca
+    # commitada, sempre via .env.
+    openai_api_key: str = ""
+
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

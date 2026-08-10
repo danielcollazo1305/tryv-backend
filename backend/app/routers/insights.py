@@ -2,6 +2,7 @@ import logging
 from datetime import date, datetime, timedelta
 
 import anthropic
+import openai
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -110,7 +111,7 @@ def _generate_and_upsert(db: Session, current_user: User) -> DailyInsight:
         ]
         try:
             result = generate_daily_insight(summary, recent_insights)
-        except (anthropic.APIError, ValueError) as e:
+        except (anthropic.APIError, openai.APIError, ValueError) as e:
             logger.error("Falha ao gerar insight diario (user_id=%s): %s", current_user.id, e)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,

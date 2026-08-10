@@ -2,6 +2,7 @@ import logging
 import uuid
 
 import anthropic
+import openai
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -86,7 +87,7 @@ def get_manual_activity_insight(
 
     try:
         return generate_activity_insight(activity_data)
-    except (anthropic.APIError, ValueError) as e:
+    except (anthropic.APIError, openai.APIError, ValueError) as e:
         logger.error("Falha ao gerar insight de atividade manual (activity_id=%s): %s", activity.id, e)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
