@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { Card } from '@/components/Card';
@@ -204,7 +205,12 @@ export function HealthSummaryCard() {
           summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
         }
         value={summary.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm} bpm` : '--'}
-      />
+      >
+        <Pressable onPress={() => router.push('/heart-rate-report')} style={styles.reportLink} hitSlop={8}>
+          <Text style={styles.reportLinkText}>Ver relatorio completo de FC</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+        </Pressable>
+      </HealthMetricRow>
 
       <HealthMetricRow
         icon="moon"
@@ -235,4 +241,7 @@ const styles = StyleSheet.create({
 
   summaryCard: { gap: spacing.xs },
   cardTitle: { ...typography.h3, marginBottom: spacing.xs },
+
+  reportLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.xs },
+  reportLinkText: { ...typography.caption, color: colors.accent, fontWeight: '700' },
 });

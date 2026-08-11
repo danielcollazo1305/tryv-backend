@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -27,3 +27,30 @@ class HeartRateSampleOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DailyHeartRatePoint(BaseModel):
+    date: date
+    avg_bpm: float
+    min_bpm: int
+    max_bpm: int
+
+
+class RestingHeartRateEstimate(BaseModel):
+    """
+    Aproximacao, nao uma leitura real de FC de repouso (o HealthKit tem um
+    tipo especifico pra isso, RestingHeartRate, que o app nao le hoje).
+    is_estimated fica sempre True de proposito — nao existe um caminho pra
+    isso virar uma leitura real ainda, entao nao ha por que o campo variar.
+    """
+    bpm: float | None = None
+    is_estimated: bool = True
+    note: str = "Estimativa baseada no menor bpm registrado por dia — nao e uma leitura de FC de repouso real."
+
+
+class HeartRateReportOut(BaseModel):
+    period_days: int
+    daily: list[DailyHeartRatePoint] = []
+    avg_bpm: float | None = None
+    max_bpm: int | None = None
+    resting_estimate: RestingHeartRateEstimate
