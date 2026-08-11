@@ -7,12 +7,12 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://SUBSTITUA-PELA-URL-DO-RAILWAY"
+        "EXPO_PUBLIC_API_URL": "https://tryv-backend-production.up.railway.app"
       }
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://SUBSTITUA-PELA-URL-DO-RAILWAY"
+        "EXPO_PUBLIC_API_URL": "https://tryv-backend-production.up.railway.app"
       }
     }
   }
