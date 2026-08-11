@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
 import { InsightCard } from '@/components/InsightCard';
 import { MonthComparisonCard } from '@/components/MonthComparisonCard';
+import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
@@ -138,6 +139,8 @@ export default function HomeScreen() {
       <ReadinessCard />
 
       <MonthComparisonCard />
+
+      <PersonalRecordsCard />
 
       {insightLoading && (
         <View style={styles.insightLoading}>

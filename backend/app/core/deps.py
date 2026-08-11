@@ -41,6 +41,26 @@ def get_current_user(
     return user
 
 
+def has_active_pro_subscription(db: Session, user_id: uuid.UUID) -> bool:
+    """
+    Mesma checagem usada por require_pro_subscription, exposta como funcao
+    pura (sem levantar HTTPException) pra endpoints que precisam se
+    comportar diferente por usuario Pro/free em vez de bloquear o acesso
+    inteiro — ex: POST /runs continua livre pra todo mundo, mas so calcula
+    o campo new_prs (recordes pessoais) pra quem e Pro.
+    """
+    return (
+        db.query(Subscription)
+        .filter(
+            Subscription.user_id == user_id,
+            Subscription.type == "base",
+            Subscription.status == "active",
+        )
+        .first()
+        is not None
+    )
+
+
 def require_pro_subscription(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -50,17 +70,7 @@ def require_pro_subscription(
     Tryv Pro (type='base' em Subscription — nao confundir com a assinatura
     de professor, type='trainer_addon', que e independente disso).
     """
-    has_pro = (
-        db.query(Subscription)
-        .filter(
-            Subscription.user_id == current_user.id,
-            Subscription.type == "base",
-            Subscription.status == "active",
-        )
-        .first()
-        is not None
-    )
-    if not has_pro:
+    if not has_active_pro_subscription(db, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Esta funcionalidade requer uma assinatura Tryv Pro ativa",

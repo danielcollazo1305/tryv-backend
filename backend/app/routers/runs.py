@@ -8,13 +8,25 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, has_active_pro_subscription, require_pro_subscription
 from app.models.heart_rate import HeartRateSample
 from app.models.run import Run
 from app.models.user import User
 from app.schemas.activity_insight import ActivityInsightOut
-from app.schemas.run import RunCreate, RunDetailOut, RunOut, RunSummaryOut
+from app.schemas.run import (
+    ActivityTypeRecordsOut,
+    DistanceRecordOut,
+    DurationRecordOut,
+    PaceRecordOut,
+    PersonalRecordsOut,
+    RunCreate,
+    RunCreateOut,
+    RunDetailOut,
+    RunOut,
+    RunSummaryOut,
+)
 from app.services.activity_insight import generate_activity_insight
+from app.services.personal_records import ActivityRecords, compute_personal_records, detect_new_prs
 from app.services.run_calculator import (
     calculate_avg_pace_seconds_per_km,
     calculate_calories_burned,
@@ -26,7 +38,7 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/", response_model=RunOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=RunCreateOut, status_code=status.HTTP_201_CREATED)
 def create_run(
     payload: RunCreate,
     db: Session = Depends(get_db),
@@ -36,12 +48,23 @@ def create_run(
     Recebe a rota bruta (lat/lng/timestamp) do app mobile e calcula
     distancia, duracao, pace e calorias no backend — nunca confia em
     metricas ja calculadas no cliente.
+
+    Salvar uma corrida continua livre pra qualquer usuario (esse endpoint
+    nunca foi gated) — so o campo new_prs (recordes pessoais) e um atrativo
+    Pro, entao fica vazio pra quem nao e Pro em vez de bloquear o save.
     """
     distance_meters = calculate_distance_meters(payload.route_points)
     duration_seconds = calculate_duration_seconds(payload.started_at, payload.finished_at)
     avg_pace = calculate_avg_pace_seconds_per_km(distance_meters, duration_seconds)
     weight_kg = payload.user_weight_kg or current_user.weight
     calories = calculate_calories_burned(payload.activity_type, distance_meters, duration_seconds, weight_kg)
+
+    # Calculado ANTES do commit da corrida nova — assim a query de "recorde
+    # anterior" nunca ve a propria linha que esta sendo comparada.
+    is_pro = has_active_pro_subscription(db, current_user.id)
+    previous_records: ActivityRecords | None = None
+    if is_pro:
+        previous_records = compute_personal_records(db, current_user.id).get(payload.activity_type)
 
     run = Run(
         user_id=current_user.id,
@@ -57,7 +80,9 @@ def create_run(
     db.add(run)
     db.commit()
     db.refresh(run)
-    return run
+
+    new_prs = detect_new_prs(run, previous_records) if is_pro else []
+    return RunCreateOut(**RunOut.model_validate(run).model_dump(), new_prs=new_prs)
 
 
 @router.get("/", response_model=list[RunOut])
@@ -102,6 +127,59 @@ def summary(
         total_distance_meters=total_distance,
         total_duration_seconds=total_duration,
         avg_pace_seconds_per_km=calculate_avg_pace_seconds_per_km(total_distance, total_duration),
+    )
+
+
+def _to_activity_type_records_out(records: ActivityRecords) -> ActivityTypeRecordsOut:
+    return ActivityTypeRecordsOut(
+        longest_distance=(
+            DistanceRecordOut(
+                distance_meters=records.longest_distance.distance_meters,
+                run_id=records.longest_distance.id,
+                achieved_at=records.longest_distance.started_at,
+            )
+            if records.longest_distance
+            else None
+        ),
+        longest_duration=(
+            DurationRecordOut(
+                duration_seconds=records.longest_duration.duration_seconds,
+                run_id=records.longest_duration.id,
+                achieved_at=records.longest_duration.started_at,
+            )
+            if records.longest_duration
+            else None
+        ),
+        best_pace_by_reference={
+            label: PaceRecordOut(
+                avg_pace_seconds_per_km=run.avg_pace_seconds_per_km,
+                distance_meters=run.distance_meters,
+                run_id=run.id,
+                achieved_at=run.started_at,
+            )
+            for label, run in records.best_pace_by_reference.items()
+        },
+    )
+
+
+@router.get("/personal-records", response_model=PersonalRecordsOut)
+def get_personal_records(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_pro_subscription),
+):
+    """
+    Recordes pessoais por modalidade — maior distancia, maior duracao,
+    melhor pace perto de 1km/5km/10km (tolerancia +-10%). Calculado sob
+    demanda a cada chamada, sem cache: o historico de corridas por usuario
+    e pequeno o suficiente pra isso ser barato (mesmo espirito de
+    GET /runs/summary).
+    """
+    records = compute_personal_records(db, current_user.id)
+    return PersonalRecordsOut(
+        records_by_activity_type={
+            activity_type: _to_activity_type_records_out(activity_records)
+            for activity_type, activity_records in records.items()
+        }
     )
 
 

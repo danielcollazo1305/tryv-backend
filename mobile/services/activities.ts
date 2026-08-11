@@ -31,6 +31,11 @@ export interface RunDetail extends Run {
   heart_rate_max: number | null;
 }
 
+export interface RunCreateResult extends Run {
+  /** Recordes pessoais batidos por essa corrida — sempre [] pra quem nao e Pro. */
+  new_prs: string[];
+}
+
 export interface RunCreatePayload {
   // O backend aceita qualquer ACTIVITY_TYPES (nao so run/bike) — o app so
   // envia run/bike a partir do rastreamento manual, mas a importacao do
@@ -68,8 +73,8 @@ export interface ActivityInsight {
   suggestion: string;
 }
 
-export async function createRun(payload: RunCreatePayload): Promise<Run> {
-  const response = await api.post<Run>('/runs/', payload);
+export async function createRun(payload: RunCreatePayload): Promise<RunCreateResult> {
+  const response = await api.post<RunCreateResult>('/runs/', payload);
   return response.data;
 }
 
@@ -106,6 +111,42 @@ export async function getManualActivity(id: string): Promise<ManualActivity> {
 
 export async function getManualActivityInsight(id: string): Promise<ActivityInsight> {
   const response = await api.get<ActivityInsight>(`/activities/manual/${id}/insight`, { timeout: 45000 });
+  return response.data;
+}
+
+export interface DistanceRecord {
+  distance_meters: number;
+  run_id: string;
+  achieved_at: string;
+}
+
+export interface DurationRecord {
+  duration_seconds: number;
+  run_id: string;
+  achieved_at: string;
+}
+
+export interface PaceRecord {
+  avg_pace_seconds_per_km: number;
+  distance_meters: number;
+  run_id: string;
+  achieved_at: string;
+}
+
+export interface ActivityTypeRecords {
+  longest_distance: DistanceRecord | null;
+  longest_duration: DurationRecord | null;
+  /** chave: '1km' | '5km' | '10km' — so aparece se houver atividade dentro da tolerancia */
+  best_pace_by_reference: Record<string, PaceRecord>;
+}
+
+export interface PersonalRecords {
+  /** chave: activity_type ('run', 'bike', etc.) */
+  records_by_activity_type: Record<string, ActivityTypeRecords>;
+}
+
+export async function getPersonalRecords(): Promise<PersonalRecords> {
+  const response = await api.get<PersonalRecords>('/runs/personal-records');
   return response.data;
 }
 
