@@ -1,14 +1,16 @@
 """
 Geracao do insight diario proativo — combina refeicoes, atividades e FC dos
-ultimos 7 dias num resumo, e pede pra IA gerar UMA frase curta de insight.
-Chamada de baixo risco (entrada ja estruturada, saida curta) — migrada pra
-OpenAI; mesmo padrao de schema JSON ja usado em meal_analysis.py,
-workout_generator.py e activity_insight.py (esses dois continuam no Claude).
+ultimos 7 dias num resumo, e pede pra Claude gerar UMA frase curta de
+insight. Chamada de baixo risco (entrada ja estruturada, saida curta) — usa
+LIGHT_MODEL (Sonnet) em vez do MODEL padrao (Opus) usado por
+meal_analysis.py e workout_generator.py. Mesmo padrao de output_config/
+json_schema ja usado nesses dois e em activity_insight.py.
 """
 import json
 import logging
 
-from app.services.openai_client import MODEL, get_client
+from app.services.activity_plausibility import check_activity_plausibility
+from app.services.ai_client import LIGHT_MODEL, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ def generate_daily_insight(weekly_summary: dict, recent_insights: list[str]) -> 
     Gera o insight do dia a partir de um resumo dos ultimos 7 dias do
     usuario e da lista dos ultimos insights ja mostrados (para nao repetir).
 
-    Levanta openai.APIError (ou subclasses) se a chamada a API falhar, e
+    Levanta anthropic.APIError (ou subclasses) se a chamada a API falhar, e
     ValueError se a geracao for recusada ou vier incompleta — o router e
     responsavel por traduzir isso em uma resposta HTTP adequada.
     """
@@ -57,24 +59,41 @@ def generate_daily_insight(weekly_summary: dict, recent_insights: list[str]) -> 
         + "\n\nGere o insight do dia."
     )
 
-    response = get_client().chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "daily_insight", "schema": _INSIGHT_SCHEMA, "strict": True},
-        },
+    anomalous_dates = []
+    for activity in weekly_summary.get("activities", []):
+        duration_seconds = (
+            activity["duration_minutes"] * 60 if activity.get("duration_minutes") is not None else None
+        )
+        anomaly = check_activity_plausibility(
+            activity.get("type"),
+            activity.get("distance_meters"),
+            duration_seconds,
+        )
+        if anomaly:
+            anomalous_dates.append(activity.get("date", "data desconhecida"))
+
+    if anomalous_dates:
+        prompt += (
+            "\n\nNota: os dados de atividade de " + ", ".join(anomalous_dates)
+            + " parecem inconsistentes (possivel falha de GPS ou sensor). Considere "
+            "isso na resposta, sem tentar validar exatamente o que aconteceu."
+        )
+
+    response = get_client().messages.create(
+        model=LIGHT_MODEL,
+        max_tokens=1024,
+        thinking={"type": "adaptive"},
+        system=_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+        output_config={"format": {"type": "json_schema", "schema": _INSIGHT_SCHEMA}},
     )
 
-    choice = response.choices[0]
-    if choice.finish_reason == "content_filter":
+    if response.stop_reason == "refusal":
         logger.error("Geracao de insight diario recusada pelos filtros de seguranca da IA")
         raise ValueError("Nao foi possivel gerar o insight de hoje")
-    if choice.finish_reason == "length":
-        logger.error("Geracao de insight diario truncada por atingir o limite de tokens")
+    if response.stop_reason == "max_tokens":
+        logger.error("Geracao de insight diario truncada por atingir max_tokens")
         raise ValueError("Resposta da IA incompleta")
 
-    return json.loads(choice.message.content)
+    text = next(block.text for block in response.content if block.type == "text")
+    return json.loads(text)
