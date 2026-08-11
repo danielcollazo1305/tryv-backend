@@ -1,10 +1,23 @@
 import { api } from '@/services/api';
 
+export type ProfessionalType = 'personal_trainer' | 'nutritionist';
+
+export const PROFESSIONAL_TYPE_LABELS: Record<ProfessionalType, string> = {
+  personal_trainer: 'Personal Trainer',
+  nutritionist: 'Nutricionista',
+};
+
+/** CREF pra personal trainer, CRN pra nutricionista — mesmo campo (license_number), rotulo depende do tipo. */
+export function licenseLabel(professionalType: ProfessionalType): string {
+  return professionalType === 'nutritionist' ? 'CRN' : 'CREF';
+}
+
 export interface Trainer {
   id: string;
   user_id: string;
   user_name: string;
-  cref_number: string;
+  professional_type: ProfessionalType;
+  license_number: string;
   cref_verified: boolean;
   bio: string | null;
   price: number;
@@ -16,12 +29,13 @@ export interface Trainer {
 // Espelha TrainerPublicOut no backend — usado pela vitrine publica
 // (GET /trainers/, GET /trainers/{id}), sem autenticacao. Sem
 // platform_fee_percent: e um dado comercial interno, so o proprio
-// professor ve o proprio (Trainer, acima).
+// profissional ve o proprio (Trainer, acima).
 export interface TrainerPublic {
   id: string;
   user_id: string;
   user_name: string;
-  cref_number: string;
+  professional_type: ProfessionalType;
+  license_number: string;
   cref_verified: boolean;
   bio: string | null;
   price: number;
@@ -30,7 +44,8 @@ export interface TrainerPublic {
 }
 
 export interface TrainerRegisterPayload {
-  cref_number: string;
+  professional_type: ProfessionalType;
+  license_number: string;
   bio?: string | null;
   price: number;
 }

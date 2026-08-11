@@ -17,6 +17,7 @@ import {
   formatPriceBRL,
   getMyTrainerProfile,
   getStripeStatus,
+  licenseLabel,
   updateMyTrainerProfile,
 } from '@/services/trainers';
 import { colors, spacing, typography } from '@/constants/theme';
@@ -100,7 +101,7 @@ export default function TrainerDashboardScreen() {
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Meu painel de professor</Text>
+        <Text style={styles.title}>Meu painel profissional</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={26} color={colors.textSecondary} />
         </Pressable>
@@ -126,12 +127,14 @@ export default function TrainerDashboardScreen() {
                 />
                 <View style={styles.statusInfo}>
                   <Text style={styles.statusTitle}>
-                    {trainer.cref_verified ? 'CREF verificado' : 'Seu CREF esta em analise'}
+                    {trainer.cref_verified
+                      ? `${licenseLabel(trainer.professional_type)} verificado`
+                      : `Seu ${licenseLabel(trainer.professional_type)} esta em analise`}
                   </Text>
                   <Text style={styles.statusSubtitle}>
                     {trainer.cref_verified
-                      ? `CREF ${trainer.cref_number}`
-                      : 'Seu perfil so aparece na busca de professores apos a verificacao.'}
+                      ? `${licenseLabel(trainer.professional_type)} ${trainer.license_number}`
+                      : 'Seu perfil so aparece na busca de profissionais apos a verificacao.'}
                   </Text>
                 </View>
               </View>

@@ -9,7 +9,14 @@ import { Card } from '@/components/Card';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { getApiErrorMessage } from '@/services/api';
 import { Challenge, listTrainerChallenges } from '@/services/challenges';
-import { TrainerPublic, formatPriceBRL, getTrainer, subscribeToTrainer } from '@/services/trainers';
+import {
+  PROFESSIONAL_TYPE_LABELS,
+  TrainerPublic,
+  formatPriceBRL,
+  getTrainer,
+  licenseLabel,
+  subscribeToTrainer,
+} from '@/services/trainers';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 export default function TrainerProfileScreen() {
@@ -32,7 +39,7 @@ export default function TrainerProfileScreen() {
     try {
       setTrainer(await getTrainer(id));
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Nao foi possivel carregar este professor.'));
+      setLoadError(getApiErrorMessage(err, 'Nao foi possivel carregar este profissional.'));
     } finally {
       setLoading(false);
     }
@@ -74,7 +81,7 @@ export default function TrainerProfileScreen() {
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Professor</Text>
+        <Text style={styles.title}>{trainer ? PROFESSIONAL_TYPE_LABELS[trainer.professional_type] : 'Profissional'}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={26} color={colors.textSecondary} />
         </Pressable>
@@ -96,7 +103,9 @@ export default function TrainerProfileScreen() {
                 <Ionicons name="person" size={32} color={colors.accent} />
               </View>
               <Text style={styles.name}>{trainer.user_name}</Text>
-              <Text style={styles.cref}>CREF {trainer.cref_number}</Text>
+              <Text style={styles.cref}>
+                {licenseLabel(trainer.professional_type)} {trainer.license_number}
+              </Text>
             </View>
 
             <Card style={styles.priceCard}>

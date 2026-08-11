@@ -51,7 +51,8 @@ def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None)
         id=trainer.id,
         user_id=trainer.user_id,
         user_name=user_name,
-        cref_number=trainer.cref_number,
+        professional_type=trainer.professional_type,
+        license_number=trainer.license_number,
         cref_verified=trainer.cref_verified,
         bio=trainer.bio,
         price=trainer.price,
@@ -70,7 +71,8 @@ def _to_trainer_public_out(db: Session, trainer: Trainer, user_name: str | None 
         id=trainer.id,
         user_id=trainer.user_id,
         user_name=user_name,
-        cref_number=trainer.cref_number,
+        professional_type=trainer.professional_type,
+        license_number=trainer.license_number,
         cref_verified=trainer.cref_verified,
         bio=trainer.bio,
         price=trainer.price,
@@ -94,7 +96,8 @@ def register(
 
     trainer = Trainer(
         user_id=current_user.id,
-        cref_number=payload.cref_number,
+        professional_type=payload.professional_type,
+        license_number=payload.license_number,
         bio=payload.bio,
         price=payload.price,
     )

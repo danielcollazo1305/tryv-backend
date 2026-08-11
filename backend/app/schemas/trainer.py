@@ -1,13 +1,44 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.professional_types import validate_professional_type
+
+_LICENSE_NUMBER_MAX_LENGTH = 50
+
+
+def _clean_license_number(value: str) -> str:
+    """
+    Sanitizacao leve, sem validar formato (CREF/CRN variam de formato entre
+    conselhos estaduais — nao ha uma fonte confiavel de todos os formatos
+    oficiais pra validar sem risco de rejeitar registro valido). So trim,
+    nao-vazio e um limite de tamanho razoavel. Decisao deliberada, nao
+    esquecimento — pode ganhar validacao de formato depois.
+    """
+    value = value.strip()
+    if not value:
+        raise ValueError("license_number nao pode ser vazio")
+    if len(value) > _LICENSE_NUMBER_MAX_LENGTH:
+        raise ValueError(f"license_number muito longo (maximo {_LICENSE_NUMBER_MAX_LENGTH} caracteres)")
+    return value
 
 
 class TrainerRegister(BaseModel):
-    cref_number: str
+    professional_type: str
+    license_number: str
     bio: str | None = None
     price: float = Field(..., gt=0)
+
+    @field_validator("professional_type")
+    @classmethod
+    def _check_professional_type(cls, value: str) -> str:
+        return validate_professional_type(value)
+
+    @field_validator("license_number")
+    @classmethod
+    def _check_license_number(cls, value: str) -> str:
+        return _clean_license_number(value)
 
 
 class TrainerUpdate(BaseModel):
@@ -19,7 +50,8 @@ class TrainerOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     user_name: str
-    cref_number: str
+    professional_type: str
+    license_number: str
     cref_verified: bool
     bio: str | None = None
     price: float
@@ -36,11 +68,12 @@ class TrainerPublicOut(BaseModel):
     platform_fee_percent: a comissao que a plataforma cobra do professor e
     um dado comercial interno, sem motivo pra aparecer numa rota sem
     autenticacao. TrainerOut (com esse campo) fica reservado pro proprio
-    professor ver o proprio perfil."""
+    profissional ver o proprio perfil."""
     id: uuid.UUID
     user_id: uuid.UUID
     user_name: str
-    cref_number: str
+    professional_type: str
+    license_number: str
     cref_verified: bool
     bio: str | None = None
     price: float

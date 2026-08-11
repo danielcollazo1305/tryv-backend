@@ -106,7 +106,7 @@ def subscribe_to_trainer(
             "line_items": [{
                 "price_data": {
                     "currency": "brl",
-                    "product_data": {"name": f"Assinatura com professor {trainer.cref_number}"},
+                    "product_data": {"name": f"Assinatura Tryv - registro {trainer.license_number}"},
                     "unit_amount": round(trainer.price * 100),
                     "recurring": {"interval": "month"},
                 },

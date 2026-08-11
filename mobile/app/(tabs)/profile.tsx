@@ -173,8 +173,8 @@ export default function ProfileScreen() {
             <Ionicons name="people" size={20} color={colors.accent} />
           </View>
           <View style={styles.optionInfo}>
-            <Text style={styles.optionTitle}>Professores</Text>
-            <Text style={styles.optionSubtitle}>Encontre um professor certificado</Text>
+            <Text style={styles.optionTitle}>Profissionais</Text>
+            <Text style={styles.optionSubtitle}>Encontre um profissional certificado</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Card>
@@ -190,12 +190,12 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.optionInfo}>
             <Text style={styles.optionTitle}>
-              {isTrainer ? 'Meu painel de professor' : 'Tornar-se professor'}
+              {isTrainer ? 'Meu painel profissional' : 'Tornar-se profissional parceiro'}
             </Text>
             <Text style={styles.optionSubtitle}>
               {isTrainer
                 ? 'Status, edicao de perfil e pagamentos'
-                : 'Cadastre seu CREF e comece a dar aulas'}
+                : 'Cadastre seu registro profissional e comece a atender'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

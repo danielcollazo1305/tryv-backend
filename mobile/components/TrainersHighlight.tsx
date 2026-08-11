@@ -52,9 +52,9 @@ export function TrainersHighlight() {
         <View style={styles.iconWrap}>
           <Ionicons name="ribbon" size={22} color={colors.accent} />
         </View>
-        <Text style={styles.title}>Treinos personalizados</Text>
-        <Text style={styles.subtitle}>Tenha treinos personalizados com profissionais da area.</Text>
-        <Button label="Ver professores" onPress={() => router.push('/trainers')} />
+        <Text style={styles.title}>Acompanhamento profissional</Text>
+        <Text style={styles.subtitle}>Tenha treino ou nutricao acompanhados por profissionais da area.</Text>
+        <Button label="Ver profissionais" onPress={() => router.push('/trainers')} />
 
         <View style={styles.divider} />
 
@@ -65,7 +65,7 @@ export function TrainersHighlight() {
           <Text style={styles.secondaryText}>
             {isTrainer
               ? 'Voce e nosso parceiro — ver meu painel'
-              : 'E professor de educacao fisica? Seja nosso parceiro'}
+              : 'E personal trainer ou nutricionista? Seja nosso parceiro'}
           </Text>
           <Ionicons name="chevron-forward" size={16} color={colors.accent} />
         </Pressable>

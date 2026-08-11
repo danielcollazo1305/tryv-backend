@@ -39,7 +39,16 @@ def _get_verified_trainer(db: Session, current_user: User) -> Trainer:
     if not trainer or not trainer.cref_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Apenas professores verificados podem criar desafios",
+            detail="Apenas profissionais verificados podem criar desafios",
+        )
+    # Decisao deliberada da v1, nao limitacao tecnica: o conceito de
+    # "desafio" e toda a copy em volta (ex: TrainersHighlight) pressupoem
+    # contexto de treino. Fica restrito a personal trainer por ora — pode
+    # reavaliar depois se fizer sentido ter desafios de nutricao tambem.
+    if trainer.professional_type != "personal_trainer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Desafios sao exclusivos de personal trainers nesta versao",
         )
     return trainer
 
