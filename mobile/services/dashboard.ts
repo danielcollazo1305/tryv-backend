@@ -39,6 +39,27 @@ export async function getHomeSummary(params: HomeSummaryParams = { period: '30d'
   return response.data;
 }
 
+export interface MetricComparison {
+  current: number | null;
+  previous: number | null;
+  delta_absolute: number | null;
+  delta_percent: number | null;
+}
+
+export interface MonthComparison {
+  current_month: string;
+  previous_month: string;
+  distance_km: MetricComparison;
+  workouts_count: MetricComparison;
+  avg_daily_calories: MetricComparison;
+  weight_change_kg: MetricComparison;
+}
+
+export async function getMonthComparison(): Promise<MonthComparison> {
+  const response = await api.get<MonthComparison>('/dashboard/month-comparison');
+  return response.data;
+}
+
 /** O backend manda "logged_at"/"date" como data pura ("YYYY-MM-DD"), sem horario nem fuso. */
 export function parseLocalDate(isoDate: string): Date {
   return new Date(`${isoDate}T00:00:00`);

@@ -13,7 +13,14 @@ from app.models.meal import Meal
 from app.models.run import Run
 from app.models.user import User
 from app.models.weight_log import WeightLog
-from app.schemas.dashboard import CalorieSummary, HomeSummaryOut, TrainingDay, WeightPoint
+from app.schemas.dashboard import (
+    CalorieSummary,
+    HomeSummaryOut,
+    MetricComparison,
+    MonthComparisonOut,
+    TrainingDay,
+    WeightPoint,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -133,4 +140,136 @@ def get_home_summary(
         days_trained=len(trained_dates),
         days_total=days_total,
         calorie_summary=calorie_summary,
+    )
+
+
+def _month_bounds(year: int, month: int) -> tuple[date, date]:
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, 1), date(year, month, last_day)
+
+
+def _shift_month(year: int, month: int, delta_months: int) -> tuple[int, int]:
+    total = year * 12 + (month - 1) + delta_months
+    return total // 12, total % 12 + 1
+
+
+def _compute_month_metrics(db: Session, user_id, start_date: date, end_date: date) -> dict:
+    """
+    As mesmas 4 metricas do mes, calculadas com as mesmas queries de
+    get_home_summary — so chamada duas vezes (mes atual, mes anterior) pelo
+    endpoint de comparacao, em vez de uma.
+
+    distance_km e workouts_count ficam 0 quando nao ha dado (zero km /
+    zero treinos e um valor real, nao "sem dado"). avg_daily_calories e
+    weight_change_kg ficam None quando nao da pra calcular de verdade
+    (nenhuma refeicao registrada, ou menos de 2 registros de peso no mes) —
+    ai sim e "sem dado", nao zero.
+    """
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+
+    distance_meters = (
+        db.query(func.sum(Run.distance_meters))
+        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .scalar()
+        or 0.0
+    )
+
+    run_count = (
+        db.query(func.count(Run.id))
+        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .scalar()
+        or 0
+    )
+    manual_count = (
+        db.query(func.count(ManualActivity.id))
+        .filter(
+            ManualActivity.user_id == user_id,
+            ManualActivity.performed_at >= start_datetime,
+            ManualActivity.performed_at <= end_datetime,
+        )
+        .scalar()
+        or 0
+    )
+
+    meal_rows = (
+        db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total"))
+        .filter(
+            Meal.user_id == user_id,
+            Meal.logged_at >= start_datetime,
+            Meal.logged_at <= end_datetime,
+            Meal.calories.isnot(None),
+        )
+        .group_by(func.date(Meal.logged_at))
+        .all()
+    )
+    avg_daily_calories = (
+        round(sum(row.total for row in meal_rows) / len(meal_rows), 1) if meal_rows else None
+    )
+
+    weight_rows = (
+        db.query(WeightLog)
+        .filter(WeightLog.user_id == user_id, WeightLog.logged_at >= start_date, WeightLog.logged_at <= end_date)
+        .order_by(WeightLog.logged_at.asc())
+        .all()
+    )
+    weight_change_kg = None
+    if len(weight_rows) >= 2:
+        weight_change_kg = round(float(weight_rows[-1].weight_kg) - float(weight_rows[0].weight_kg), 2)
+
+    return {
+        "distance_km": round(distance_meters / 1000, 2),
+        "workouts_count": float(run_count + manual_count),
+        "avg_daily_calories": avg_daily_calories,
+        "weight_change_kg": weight_change_kg,
+    }
+
+
+def _metric_comparison(current: float | None, previous: float | None) -> MetricComparison:
+    """
+    delta_percent fica None (em vez de erro/divisao por zero) quando a base
+    de comparacao nao existe: mes anterior sem dado nenhum (previous=None)
+    ou mes anterior com valor exatamente 0 — nesse ultimo caso o
+    delta_absolute ainda aparece (ex: foi de 0km pra 12km e informativo),
+    mas um "%" calculado a partir de uma base zero seria infinito/enganoso.
+    """
+    if current is None or previous is None:
+        return MetricComparison(current=current, previous=previous)
+
+    delta_absolute = round(current - previous, 2)
+    delta_percent = round((delta_absolute / abs(previous)) * 100, 1) if previous != 0 else None
+    return MetricComparison(
+        current=current,
+        previous=previous,
+        delta_absolute=delta_absolute,
+        delta_percent=delta_percent,
+    )
+
+
+@router.get("/month-comparison", response_model=MonthComparisonOut)
+def get_month_comparison(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_pro_subscription),
+):
+    """Mes civil atual vs. mes civil anterior, sempre — sem navegacao (isso
+    ja existe em /home-summary via ?month=)."""
+    today = date.today()
+    current_start, current_end = _month_bounds(today.year, today.month)
+    previous_year, previous_month = _shift_month(today.year, today.month, -1)
+    previous_start, previous_end = _month_bounds(previous_year, previous_month)
+
+    current_metrics = _compute_month_metrics(db, current_user.id, current_start, current_end)
+    previous_metrics = _compute_month_metrics(db, current_user.id, previous_start, previous_end)
+
+    return MonthComparisonOut(
+        current_month=f"{today.year:04d}-{today.month:02d}",
+        previous_month=f"{previous_year:04d}-{previous_month:02d}",
+        distance_km=_metric_comparison(current_metrics["distance_km"], previous_metrics["distance_km"]),
+        workouts_count=_metric_comparison(current_metrics["workouts_count"], previous_metrics["workouts_count"]),
+        avg_daily_calories=_metric_comparison(
+            current_metrics["avg_daily_calories"], previous_metrics["avg_daily_calories"]
+        ),
+        weight_change_kg=_metric_comparison(
+            current_metrics["weight_change_kg"], previous_metrics["weight_change_kg"]
+        ),
     )

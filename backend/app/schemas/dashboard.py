@@ -27,3 +27,19 @@ class HomeSummaryOut(BaseModel):
     days_trained: int
     days_total: int
     calorie_summary: CalorieSummary | None = None
+
+
+class MetricComparison(BaseModel):
+    current: float | None = None
+    previous: float | None = None
+    delta_absolute: float | None = None
+    delta_percent: float | None = None
+
+
+class MonthComparisonOut(BaseModel):
+    current_month: str  # 'YYYY-MM'
+    previous_month: str  # 'YYYY-MM'
+    distance_km: MetricComparison
+    workouts_count: MetricComparison
+    avg_daily_calories: MetricComparison
+    weight_change_kg: MetricComparison

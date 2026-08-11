@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/Card';
 import { InsightCard } from '@/components/InsightCard';
+import { MonthComparisonCard } from '@/components/MonthComparisonCard';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { TrainingCalendar } from '@/components/TrainingCalendar';
@@ -135,6 +136,8 @@ export default function HomeScreen() {
       </View>
 
       <ReadinessCard />
+
+      <MonthComparisonCard />
 
       {insightLoading && (
         <View style={styles.insightLoading}>
