@@ -43,3 +43,21 @@ class MonthComparisonOut(BaseModel):
     workouts_count: MetricComparison
     avg_daily_calories: MetricComparison
     weight_change_kg: MetricComparison
+
+
+class PeriodComparisonOut(BaseModel):
+    """
+    Mesma forma do MonthComparisonOut, mas por janela de N dias corridos em
+    vez de mes civil — usado pela Exportacao PDF (7 ou 30 dias), nao pelo
+    card de comparacao mensal da Home (que continua em MonthComparisonOut,
+    sempre mes atual vs. anterior, intocado).
+    """
+    days: int
+    current_start: date
+    current_end: date
+    previous_start: date
+    previous_end: date
+    distance_km: MetricComparison
+    workouts_count: MetricComparison
+    avg_daily_calories: MetricComparison
+    weight_change_kg: MetricComparison

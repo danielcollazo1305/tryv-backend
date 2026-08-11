@@ -60,6 +60,24 @@ export async function getMonthComparison(): Promise<MonthComparison> {
   return response.data;
 }
 
+export interface PeriodComparison {
+  days: number;
+  current_start: string;
+  current_end: string;
+  previous_start: string;
+  previous_end: string;
+  distance_km: MetricComparison;
+  workouts_count: MetricComparison;
+  avg_daily_calories: MetricComparison;
+  weight_change_kg: MetricComparison;
+}
+
+/** Ultimos N dias vs. os N dias anteriores a esses — usado pela Exportacao PDF, nao pelo card de comparacao mensal da Home (que continua em getMonthComparison). */
+export async function getPeriodComparison(days: 7 | 30): Promise<PeriodComparison> {
+  const response = await api.get<PeriodComparison>('/dashboard/period-comparison', { params: { days } });
+  return response.data;
+}
+
 /** O backend manda "logged_at"/"date" como data pura ("YYYY-MM-DD"), sem horario nem fuso. */
 export function parseLocalDate(isoDate: string): Date {
   return new Date(`${isoDate}T00:00:00`);

@@ -18,6 +18,7 @@ from app.schemas.dashboard import (
     HomeSummaryOut,
     MetricComparison,
     MonthComparisonOut,
+    PeriodComparisonOut,
     TrainingDay,
     WeightPoint,
 )
@@ -153,11 +154,13 @@ def _shift_month(year: int, month: int, delta_months: int) -> tuple[int, int]:
     return total // 12, total % 12 + 1
 
 
-def _compute_month_metrics(db: Session, user_id, start_date: date, end_date: date) -> dict:
+def _compute_period_metrics(db: Session, user_id, start_date: date, end_date: date) -> dict:
     """
-    As mesmas 4 metricas do mes, calculadas com as mesmas queries de
-    get_home_summary — so chamada duas vezes (mes atual, mes anterior) pelo
-    endpoint de comparacao, em vez de uma.
+    As mesmas 4 metricas, calculadas com as mesmas queries de
+    get_home_summary, pra uma janela arbitraria de datas — compartilhada
+    por get_month_comparison (janela = mes civil) e get_period_comparison
+    (janela = N dias corridos). Chamada duas vezes por essas rotas (periodo
+    atual, periodo anterior) em vez de uma.
 
     distance_km e workouts_count ficam 0 quando nao ha dado (zero km /
     zero treinos e um valor real, nao "sem dado"). avg_daily_calories e
@@ -258,12 +261,50 @@ def get_month_comparison(
     previous_year, previous_month = _shift_month(today.year, today.month, -1)
     previous_start, previous_end = _month_bounds(previous_year, previous_month)
 
-    current_metrics = _compute_month_metrics(db, current_user.id, current_start, current_end)
-    previous_metrics = _compute_month_metrics(db, current_user.id, previous_start, previous_end)
+    current_metrics = _compute_period_metrics(db, current_user.id, current_start, current_end)
+    previous_metrics = _compute_period_metrics(db, current_user.id, previous_start, previous_end)
 
     return MonthComparisonOut(
         current_month=f"{today.year:04d}-{today.month:02d}",
         previous_month=f"{previous_year:04d}-{previous_month:02d}",
+        distance_km=_metric_comparison(current_metrics["distance_km"], previous_metrics["distance_km"]),
+        workouts_count=_metric_comparison(current_metrics["workouts_count"], previous_metrics["workouts_count"]),
+        avg_daily_calories=_metric_comparison(
+            current_metrics["avg_daily_calories"], previous_metrics["avg_daily_calories"]
+        ),
+        weight_change_kg=_metric_comparison(
+            current_metrics["weight_change_kg"], previous_metrics["weight_change_kg"]
+        ),
+    )
+
+
+@router.get("/period-comparison", response_model=PeriodComparisonOut)
+def get_period_comparison(
+    days: int = Query(30, ge=1, le=90, description="Tamanho da janela em dias — 7 ou 30, usado pela Exportacao PDF"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_pro_subscription),
+):
+    """
+    Ultimos N dias vs. os N dias imediatamente anteriores a esses — mesma
+    logica/queries de get_month_comparison (_compute_period_metrics,
+    _metric_comparison), so trocando "mes civil" por "N dias corridos".
+    Nao mexe em get_month_comparison, que continua exclusivamente mes atual
+    vs. anterior pro card da Home.
+    """
+    current_end = date.today()
+    current_start = current_end - timedelta(days=days - 1)
+    previous_end = current_start - timedelta(days=1)
+    previous_start = previous_end - timedelta(days=days - 1)
+
+    current_metrics = _compute_period_metrics(db, current_user.id, current_start, current_end)
+    previous_metrics = _compute_period_metrics(db, current_user.id, previous_start, previous_end)
+
+    return PeriodComparisonOut(
+        days=days,
+        current_start=current_start,
+        current_end=current_end,
+        previous_start=previous_start,
+        previous_end=previous_end,
         distance_km=_metric_comparison(current_metrics["distance_km"], previous_metrics["distance_km"]),
         workouts_count=_metric_comparison(current_metrics["workouts_count"], previous_metrics["workouts_count"]),
         avg_daily_calories=_metric_comparison(

@@ -15,6 +15,7 @@ import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
+import { exportPeriodReportPdf } from '@/services/pdfExport';
 import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -41,6 +42,9 @@ export default function HomeScreen() {
   const [insight, setInsight] = useState<DailyInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(true);
 
+  const [exportingDays, setExportingDays] = useState<7 | 30 | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
   const fetchSummary = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -56,6 +60,18 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, [viewMode]);
+
+  const handleExportPdf = async (days: 7 | 30) => {
+    setExportingDays(days);
+    setExportError(null);
+    try {
+      await exportPeriodReportPdf(user?.name ?? '', days);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Nao foi possivel exportar o relatorio em PDF.'));
+    } finally {
+      setExportingDays(null);
+    }
+  };
 
   const goToPreviousMonth = () => {
     if (viewMode.type === 'rolling') {
@@ -170,6 +186,39 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.exportRow}>
+        <Text style={styles.exportLabel}>Exportar relatorio em PDF</Text>
+        <View style={styles.exportButtons}>
+          <Pressable
+            onPress={() => handleExportPdf(7)}
+            disabled={exportingDays !== null}
+            style={styles.exportButton}
+            hitSlop={8}
+          >
+            {exportingDays === 7 ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : (
+              <Ionicons name="document-text-outline" size={16} color={colors.accent} />
+            )}
+            <Text style={styles.exportButtonText}>Ultimos 7 dias</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleExportPdf(30)}
+            disabled={exportingDays !== null}
+            style={styles.exportButton}
+            hitSlop={8}
+          >
+            {exportingDays === 30 ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : (
+              <Ionicons name="document-text-outline" size={16} color={colors.accent} />
+            )}
+            <Text style={styles.exportButtonText}>Ultimos 30 dias</Text>
+          </Pressable>
+        </View>
+      </View>
+      {!!exportError && <Text style={styles.error}>{exportError}</Text>}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
       {loading && <ActivityIndicator color={colors.accent} style={styles.loading} />}
 
@@ -264,6 +313,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   monthLabel: { ...typography.body, fontWeight: '600', minWidth: 140, textAlign: 'center' },
+  exportRow: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  exportLabel: { ...typography.caption },
+  exportButtons: { flexDirection: 'row', gap: spacing.lg },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  exportButtonText: { ...typography.bodySecondary, color: colors.accent, fontWeight: '700' },
   error: { color: colors.danger, textAlign: 'center' },
   loading: { marginTop: spacing.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing.xs },
