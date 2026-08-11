@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Card } from '@/components/Card';
+import { DietPlanBanner } from '@/components/DietPlanBanner';
 import { MealCard } from '@/components/MealCard';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, isToday, listMeals } from '@/services/meals';
@@ -70,6 +71,8 @@ export default function MealsScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Refeicoes</Text>
             <Text style={styles.subtitle}>Hoje</Text>
+
+            <DietPlanBanner />
 
             <Card style={styles.totalsCard}>
               <View style={styles.totalsRow}>
