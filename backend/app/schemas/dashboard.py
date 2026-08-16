@@ -29,6 +29,25 @@ class HomeSummaryOut(BaseModel):
     calorie_summary: CalorieSummary | None = None
 
 
+class TrainingFrequencyOut(BaseModel):
+    """Mesmo formato de training_frequency/days_trained/days_total do
+    HomeSummaryOut, exposto sozinho (sem o resto do resumo Pro) — usado por
+    /dashboard/training-frequency, que e livre."""
+    period: str
+    training_frequency: list[TrainingDay]
+    days_trained: int
+    days_total: int
+
+
+class DailyActiveMinutes(BaseModel):
+    date: date
+    minutes: float
+
+
+class WeeklyActivityOut(BaseModel):
+    daily: list[DailyActiveMinutes]
+
+
 class MetricComparison(BaseModel):
     current: float | None = None
     previous: float | None = None

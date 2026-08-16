@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_pro_subscription
+from app.core.deps import get_current_user, require_pro_subscription
 from app.core.period import parse_period_days
 from app.models.manual_activity import ManualActivity
 from app.models.meal import Meal
@@ -15,11 +15,14 @@ from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.schemas.dashboard import (
     CalorieSummary,
+    DailyActiveMinutes,
     HomeSummaryOut,
     MetricComparison,
     MonthComparisonOut,
     PeriodComparisonOut,
     TrainingDay,
+    TrainingFrequencyOut,
+    WeeklyActivityOut,
     WeightPoint,
 )
 
@@ -54,6 +57,124 @@ def _resolve_window(period: str, month: str | None) -> tuple[date, date, int, st
     return start_date, end_date, days, period
 
 
+def _compute_training_frequency(
+    db: Session, user_id, start_date: date, end_date: date, days_total: int
+) -> tuple[list[TrainingDay], int]:
+    """
+    Intensidade = quantidade de Run + ManualActivity no dia (0-3, "3" =
+    "3 ou mais"). Extraida de get_home_summary pra ser reaproveitada por
+    /dashboard/training-frequency (versao livre, sem Pro-gate) sem duplicar
+    a query.
+    """
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+
+    run_counts = dict(
+        db.query(func.date(Run.started_at), func.count(Run.id))
+        .filter(
+            Run.user_id == user_id,
+            Run.started_at >= start_datetime,
+            Run.started_at <= end_datetime,
+        )
+        .group_by(func.date(Run.started_at))
+        .all()
+    )
+    manual_counts = dict(
+        db.query(func.date(ManualActivity.performed_at), func.count(ManualActivity.id))
+        .filter(
+            ManualActivity.user_id == user_id,
+            ManualActivity.performed_at >= start_datetime,
+            ManualActivity.performed_at <= end_datetime,
+        )
+        .group_by(func.date(ManualActivity.performed_at))
+        .all()
+    )
+    trained_dates = set(run_counts) | set(manual_counts)
+
+    def _intensity(day: date) -> int:
+        return min(run_counts.get(day, 0) + manual_counts.get(day, 0), 3)
+
+    training_frequency = [
+        TrainingDay(date=start_date + timedelta(days=offset), intensity=_intensity(start_date + timedelta(days=offset)))
+        for offset in range(days_total)
+    ]
+    return training_frequency, len(trained_dates)
+
+
+@router.get("/training-frequency", response_model=TrainingFrequencyOut)
+def get_training_frequency(
+    period: str = Query("30d"),
+    month: str | None = Query(
+        None, description="Mes civil no formato YYYY-MM — se informado, tem prioridade sobre period"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Mesmo dado de training_frequency que ja existia dentro de
+    /dashboard/home-summary, exposto sozinho e livre (sem Pro-gate) — a
+    frequencia de treino (Run + ManualActivity) e conteudo gratuito; so o
+    resto do resumo (evolucao de peso, deficit calorico) continua Pro.
+    """
+    start_date, end_date, days_total, period_label = _resolve_window(period, month)
+    training_frequency, days_trained = _compute_training_frequency(
+        db, current_user.id, start_date, end_date, days_total
+    )
+    return TrainingFrequencyOut(
+        period=period_label,
+        training_frequency=training_frequency,
+        days_trained=days_trained,
+        days_total=days_total,
+    )
+
+
+@router.get("/weekly-activity", response_model=WeeklyActivityOut)
+def get_weekly_activity(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Minutos ativos por dia (Run.duration_seconds/60 + ManualActivity.
+    duration_minutes) dos ultimos 7 dias, hoje incluso — livre, sem
+    Pro-gate. Metrica escolhida em vez de calorias/distancia porque e o
+    unico campo presente em 100% dos registros de ambas as tabelas
+    (calories_burned e nullable nas duas; distance so existe em Run).
+    """
+    end_date = date.today()
+    start_date = end_date - timedelta(days=6)
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+
+    run_seconds = dict(
+        db.query(func.date(Run.started_at), func.sum(Run.duration_seconds))
+        .filter(
+            Run.user_id == current_user.id,
+            Run.started_at >= start_datetime,
+            Run.started_at <= end_datetime,
+        )
+        .group_by(func.date(Run.started_at))
+        .all()
+    )
+    manual_minutes = dict(
+        db.query(func.date(ManualActivity.performed_at), func.sum(ManualActivity.duration_minutes))
+        .filter(
+            ManualActivity.user_id == current_user.id,
+            ManualActivity.performed_at >= start_datetime,
+            ManualActivity.performed_at <= end_datetime,
+        )
+        .group_by(func.date(ManualActivity.performed_at))
+        .all()
+    )
+
+    daily = []
+    for offset in range(7):
+        day = start_date + timedelta(days=offset)
+        minutes = (run_seconds.get(day, 0) or 0) / 60 + (manual_minutes.get(day, 0) or 0)
+        daily.append(DailyActiveMinutes(date=day, minutes=round(minutes, 1)))
+
+    return WeeklyActivityOut(daily=daily)
+
+
 @router.get("/home-summary", response_model=HomeSummaryOut)
 def get_home_summary(
     period: str = Query("30d"),
@@ -64,8 +185,6 @@ def get_home_summary(
     current_user: User = Depends(require_pro_subscription),
 ):
     start_date, end_date, days_total, period_label = _resolve_window(period, month)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
 
     # --- Evolucao de peso ---
     weight_rows = (
@@ -83,36 +202,12 @@ def get_home_summary(
     if len(weight_evolution) >= 2:
         weight_change_kg = round(weight_evolution[-1].weight_kg - weight_evolution[0].weight_kg, 2)
 
-    # --- Frequencia de treino: intensidade = quantidade de Run + ManualActivity no dia (0-3, "3" = "3 ou mais") ---
-    run_counts = dict(
-        db.query(func.date(Run.started_at), func.count(Run.id))
-        .filter(
-            Run.user_id == current_user.id,
-            Run.started_at >= start_datetime,
-            Run.started_at <= end_datetime,
-        )
-        .group_by(func.date(Run.started_at))
-        .all()
+    training_frequency, days_trained = _compute_training_frequency(
+        db, current_user.id, start_date, end_date, days_total
     )
-    manual_counts = dict(
-        db.query(func.date(ManualActivity.performed_at), func.count(ManualActivity.id))
-        .filter(
-            ManualActivity.user_id == current_user.id,
-            ManualActivity.performed_at >= start_datetime,
-            ManualActivity.performed_at <= end_datetime,
-        )
-        .group_by(func.date(ManualActivity.performed_at))
-        .all()
-    )
-    trained_dates = set(run_counts) | set(manual_counts)
 
-    def _intensity(day: date) -> int:
-        return min(run_counts.get(day, 0) + manual_counts.get(day, 0), 3)
-
-    training_frequency = [
-        TrainingDay(date=start_date + timedelta(days=offset), intensity=_intensity(start_date + timedelta(days=offset)))
-        for offset in range(days_total)
-    ]
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
 
     # --- Resumo calorico: media diaria consumida (refeicoes) vs meta, se houver ---
     meal_rows = (
@@ -138,7 +233,7 @@ def get_home_summary(
         weight_evolution=weight_evolution,
         weight_change_kg=weight_change_kg,
         training_frequency=training_frequency,
-        days_trained=len(trained_dates),
+        days_trained=days_trained,
         days_total=days_total,
         calorie_summary=calorie_summary,
     )

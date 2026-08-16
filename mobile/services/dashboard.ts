@@ -39,6 +39,34 @@ export async function getHomeSummary(params: HomeSummaryParams = { period: '30d'
   return response.data;
 }
 
+export interface TrainingFrequency {
+  period: string;
+  training_frequency: TrainingDay[];
+  days_trained: number;
+  days_total: number;
+}
+
+/** Mesmo dado de training_frequency de getHomeSummary, mas livre (sem exigir Pro) — usado pelo card "Frequencia de treino" da Home. */
+export async function getTrainingFrequency(params: HomeSummaryParams): Promise<TrainingFrequency> {
+  const response = await api.get<TrainingFrequency>('/dashboard/training-frequency', { params });
+  return response.data;
+}
+
+export interface DailyActiveMinutes {
+  date: string;
+  minutes: number;
+}
+
+export interface WeeklyActivity {
+  daily: DailyActiveMinutes[];
+}
+
+/** Minutos ativos (Run + ManualActivity) por dia, ultimos 7 dias — livre. Usado pelo grafico "Atividades" da Home. */
+export async function getWeeklyActivity(): Promise<WeeklyActivity> {
+  const response = await api.get<WeeklyActivity>('/dashboard/weekly-activity');
+  return response.data;
+}
+
 export interface MetricComparison {
   current: number | null;
   previous: number | null;
