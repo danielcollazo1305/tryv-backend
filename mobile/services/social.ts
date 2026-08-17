@@ -39,6 +39,24 @@ export interface UserBrief {
   name: string;
 }
 
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  is_following: boolean;
+}
+
+export interface MatchedContact {
+  contact_ref: string;
+  id: string;
+  name: string;
+  is_following: boolean;
+}
+
+export interface ContactEntry {
+  contact_ref: string;
+  phone_numbers: string[];
+}
+
 export async function getFeed(limit: number, offset: number): Promise<Post[]> {
   const response = await api.get<Post[]>('/feed', { params: { limit, offset } });
   return response.data;
@@ -78,6 +96,22 @@ export async function listFollowers(userId: string): Promise<UserBrief[]> {
 
 export async function listFollowing(userId: string): Promise<UserBrief[]> {
   const response = await api.get<UserBrief[]>(`/users/${userId}/following`);
+  return response.data;
+}
+
+export async function searchUsers(query: string, limit = 20): Promise<UserSearchResult[]> {
+  const response = await api.get<UserSearchResult[]>('/users/search', { params: { q: query, limit } });
+  return response.data;
+}
+
+export async function getSuggestions(limit = 20): Promise<UserSearchResult[]> {
+  const response = await api.get<UserSearchResult[]>('/users/suggestions', { params: { limit } });
+  return response.data;
+}
+
+/** So envia os numeros normalizados por contato (contact_ref e um id local, nao sensivel) -- nunca nome/foto/email do contato (ver services/contacts.ts). */
+export async function matchContacts(contacts: ContactEntry[]): Promise<MatchedContact[]> {
+  const response = await api.post<MatchedContact[]>('/users/match-contacts', { contacts });
   return response.data;
 }
 

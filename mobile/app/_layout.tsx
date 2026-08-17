@@ -2,11 +2,26 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { colors } from '@/constants/theme';
+import { colors, fontsToLoad2 } from '@/constants/theme';
 
 export default function RootLayout() {
+  // Fontes do design novo (liquiglass) — telas ainda no sistema antigo nao
+  // dependem disso (usam a fonte padrao do sistema), entao nao ha regressao
+  // visual pra elas enquanto isso carrega; so atrasa o primeiro frame em
+  // ~alguns ms num dispositivo real (fontes ja ficam em cache depois disso).
+  const [fontsLoaded] = useFonts(fontsToLoad2);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
   return (
     <AuthProvider>
       <StatusBar style="light" />
@@ -43,6 +58,8 @@ function RootNavigator() {
         <Stack.Screen name="trainers/students" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/live/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/new" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="social/discover" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="social/follows" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/[userId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/post/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/comments/[postId]" options={{ presentation: 'modal' }} />
