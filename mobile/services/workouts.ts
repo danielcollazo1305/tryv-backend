@@ -57,3 +57,39 @@ export async function listWorkoutPlans(): Promise<WorkoutPlan[]> {
   const response = await api.get<WorkoutPlan[]>('/workout-plans/');
   return response.data;
 }
+
+export interface WorkoutSetLog {
+  weight_kg: number | null;
+  reps: number | null;
+  completed: boolean;
+}
+
+export interface WorkoutExerciseLog {
+  name: string;
+  planned_sets: number;
+  planned_reps: string;
+  sets: WorkoutSetLog[];
+}
+
+export interface WorkoutSessionCreate {
+  day: string;
+  focus: string;
+  exercises: WorkoutExerciseLog[];
+  duration_minutes?: number | null;
+  calories_burned?: number | null;
+}
+
+export interface WorkoutSession {
+  id: string;
+  plan_id: string;
+  exercises: { day: string; focus: string; exercises: WorkoutExerciseLog[] } | null;
+  calories_burned: number | null;
+  duration_minutes: number | null;
+  completed_at: string;
+}
+
+/** Registra o que foi de fato executado num dia do plano (peso/reps por serie). */
+export async function logWorkoutSession(planId: string, payload: WorkoutSessionCreate): Promise<WorkoutSession> {
+  const response = await api.post<WorkoutSession>(`/workout-plans/${planId}/sessions`, payload);
+  return response.data;
+}

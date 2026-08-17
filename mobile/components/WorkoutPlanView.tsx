@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
-import { WorkoutDayCard } from '@/components/WorkoutDayCard';
-import { WorkoutPlanData } from '@/services/workouts';
+import { SetEntry, WorkoutDayCard } from '@/components/WorkoutDayCard';
+import { WorkoutPlanData, logWorkoutSession } from '@/services/workouts';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 interface WorkoutPlanViewProps {
@@ -18,6 +18,15 @@ interface WorkoutPlanViewProps {
    * normais em AiWorkoutSection/TrainerWorkoutSection.
    */
   showCompleteAction?: boolean;
+  /**
+   * id do WorkoutPlan ja salvo — so existe quando showCompleteAction
+   * tambem faz sentido (plano ja persistido). Habilita a secao de registro
+   * de peso/reps por serie (WorkoutDayCard) e e o que "Concluir esse
+   * treino" usa pra salvar a sessao em workout_sessions antes de ir pra
+   * tela de compartilhamento. Sem planId, a secao de registro fica
+   * escondida (nao ha onde persistir).
+   */
+  planId?: string;
 }
 
 /**
@@ -30,11 +39,65 @@ interface WorkoutPlanViewProps {
  * completo, que so essa prop era usada mesmo. Nao reimplementa nada, so
  * generaliza o que ja existia.
  */
-export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = true }: WorkoutPlanViewProps) {
+export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = true, planId }: WorkoutPlanViewProps) {
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  // [indice do dia][indice do exercicio] -> series registradas. Mantido por
+  // dia pra nao perder o que ja foi preenchido se a pessoa navegar entre as
+  // abas de dia (ex: conferir o treino de amanha no meio do de hoje).
+  const [logByDay, setLogByDay] = useState<Record<number, Record<number, SetEntry[]>>>({});
+  const [saving, setSaving] = useState(false);
 
   const days = planData.days;
   const selectedDay = days[selectedDayIndex] ?? days[0];
+
+  const handleSetsChange = (exerciseIndex: number, sets: SetEntry[]) => {
+    setLogByDay((prev) => ({
+      ...prev,
+      [selectedDayIndex]: { ...prev[selectedDayIndex], [exerciseIndex]: sets },
+    }));
+  };
+
+  const handleComplete = async () => {
+    if (!selectedDay) return;
+
+    if (planId) {
+      setSaving(true);
+      try {
+        const dayLog = logByDay[selectedDayIndex] ?? {};
+        await logWorkoutSession(planId, {
+          day: selectedDay.day,
+          focus: selectedDay.focus,
+          exercises: selectedDay.exercises.map((exercise, index) => ({
+            name: exercise.name,
+            planned_sets: exercise.sets,
+            planned_reps: exercise.reps,
+            // So salva series de fato preenchidas (peso, reps ou marcadas
+            // como concluidas) — linhas em branco sao so o convite visual
+            // pra preencher, nao um dado real.
+            sets: (dayLog[index] ?? [])
+              .filter((set) => set.completed || set.weightKg.trim() || set.reps.trim())
+              .map((set) => ({
+                weight_kg: set.weightKg.trim() ? Number(set.weightKg.replace(',', '.')) : null,
+                reps: set.reps.trim() ? Number(set.reps) : null,
+                completed: set.completed,
+              })),
+          })),
+        });
+      } catch {
+        Alert.alert(
+          'Nao foi possivel salvar o registro',
+          'O treino vai continuar pro compartilhamento, mas o peso/reps registrados nesta sessao nao foram salvos. Tente novamente mais tarde.'
+        );
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    router.push({
+      pathname: '/workout-plan/share',
+      params: { day: JSON.stringify(selectedDay) },
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -55,18 +118,16 @@ export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = 
         })}
       </ScrollView>
 
-      {selectedDay && <WorkoutDayCard day={selectedDay} />}
+      {selectedDay && (
+        <WorkoutDayCard
+          day={selectedDay}
+          log={planId ? logByDay[selectedDayIndex] : undefined}
+          onSetsChange={planId ? handleSetsChange : undefined}
+        />
+      )}
 
       {selectedDay && showCompleteAction && (
-        <Button2
-          label="Concluir esse treino"
-          onPress={() =>
-            router.push({
-              pathname: '/workout-plan/share',
-              params: { day: JSON.stringify(selectedDay) },
-            })
-          }
-        />
+        <Button2 label="Concluir esse treino" onPress={handleComplete} loading={saving} />
       )}
 
       {!!onGenerateNew && <Button2 label="Gerar novo plano" variant="secondary" onPress={onGenerateNew} />}

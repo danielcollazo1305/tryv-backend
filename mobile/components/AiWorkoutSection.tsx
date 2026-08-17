@@ -21,7 +21,11 @@ export function AiWorkoutSection({ plan }: { plan: WorkoutPlan | null }) {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Treino gerado por IA</Text>
       {plan?.plan_data ? (
-        <WorkoutPlanView planData={plan.plan_data} onGenerateNew={() => router.push('/workout-plan/generate')} />
+        <WorkoutPlanView
+          planData={plan.plan_data}
+          planId={plan.id}
+          onGenerateNew={() => router.push('/workout-plan/generate')}
+        />
       ) : (
         <LiquiglassCard style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>

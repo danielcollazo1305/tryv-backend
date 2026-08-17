@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LiquiglassCard } from '@/components/LiquiglassCard';
@@ -7,6 +7,17 @@ import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { getDayMuscleGroups, getExerciseInfo } from '@/constants/exerciseLibrary';
 import { WorkoutDay } from '@/services/workouts';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+
+/** Estado local (nao salvo ainda) de uma serie sendo registrada — valores como texto pra aceitar digitacao livre (vazio, "22,5" etc.) antes de virar numero no save. */
+export interface SetEntry {
+  weightKg: string;
+  reps: string;
+  completed: boolean;
+}
+
+function buildDefaultSets(count: number): SetEntry[] {
+  return Array.from({ length: Math.max(count, 1) }, () => ({ weightKg: '', reps: '', completed: false }));
+}
 
 /**
  * Video de execucao por exercicio (item 2) — so estrutura/estado vazio
@@ -40,7 +51,87 @@ function ExerciseVideoBlock({ videoUrl }: { videoUrl?: string }) {
   );
 }
 
-export function WorkoutDayCard({ day }: { day: WorkoutDay }) {
+/**
+ * Linhas de peso/reps por serie de um exercicio. So aparece quando o pai
+ * passa log/onSetsChange (plano ja salvo, com plan_id pra associar a
+ * sessao) — na etapa de revisao do gerador de treino (plano ainda nao
+ * salvo), esses props ficam undefined e a secao nao renderiza, ja que nao
+ * haveria onde persistir o registro.
+ */
+function SetLogSection({
+  plannedSets,
+  sets,
+  onChange,
+}: {
+  plannedSets: number;
+  sets: SetEntry[] | undefined;
+  onChange: (sets: SetEntry[]) => void;
+}) {
+  const rows = sets ?? buildDefaultSets(plannedSets);
+
+  const updateRow = (index: number, patch: Partial<SetEntry>) => {
+    const next = rows.map((row, i) => (i === index ? { ...row, ...patch } : row));
+    onChange(next);
+  };
+
+  const addSet = () => {
+    onChange([...rows, { weightKg: '', reps: '', completed: false }]);
+  };
+
+  return (
+    <View style={styles.logSection}>
+      <View style={styles.logHeaderRow}>
+        <Text style={[styles.logHeaderCell, styles.logSerieCell]}>Serie</Text>
+        <Text style={[styles.logHeaderCell, styles.logInputCell]}>Peso (kg)</Text>
+        <Text style={[styles.logHeaderCell, styles.logInputCell]}>Reps</Text>
+        <View style={styles.logCheckCell} />
+      </View>
+      {rows.map((row, index) => (
+        <View key={index} style={styles.logRow}>
+          <Text style={[styles.logSerieText, styles.logSerieCell]}>{index + 1}</Text>
+          <TextInput
+            style={[styles.logInput, styles.logInputCell]}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            placeholderTextColor={colors2.onSurfaceVariant}
+            value={row.weightKg}
+            onChangeText={(text) => updateRow(index, { weightKg: text })}
+          />
+          <TextInput
+            style={[styles.logInput, styles.logInputCell]}
+            keyboardType="number-pad"
+            placeholder="0"
+            placeholderTextColor={colors2.onSurfaceVariant}
+            value={row.reps}
+            onChangeText={(text) => updateRow(index, { reps: text })}
+          />
+          <Pressable
+            style={styles.logCheckCell}
+            hitSlop={8}
+            onPress={() => updateRow(index, { completed: !row.completed })}
+          >
+            <View style={[styles.checkCircle, row.completed && styles.checkCircleDone]}>
+              {row.completed && <Ionicons name="checkmark" size={14} color={colors2.white} />}
+            </View>
+          </Pressable>
+        </View>
+      ))}
+      <Pressable style={styles.addSetButton} onPress={addSet} hitSlop={8}>
+        <Ionicons name="add-circle-outline" size={16} color={colors2.primary} />
+        <Text style={styles.addSetText}>Adicionar serie</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+interface WorkoutDayCardProps {
+  day: WorkoutDay;
+  /** Registro de peso/reps por indice de exercicio — omitir esconde a secao de registro (ver SetLogSection). */
+  log?: Record<number, SetEntry[]>;
+  onSetsChange?: (exerciseIndex: number, sets: SetEntry[]) => void;
+}
+
+export function WorkoutDayCard({ day, log, onSetsChange }: WorkoutDayCardProps) {
   const hasSummaryStats = day.estimated_duration_minutes != null || day.estimated_calories != null;
   const muscleGroups = getDayMuscleGroups(day.exercises.map((exercise) => exercise.name));
 
@@ -109,6 +200,13 @@ export function WorkoutDayCard({ day }: { day: WorkoutDay }) {
               </View>
             )}
             <ExerciseVideoBlock videoUrl={getExerciseInfo(exercise.name)?.videoUrl} />
+            {!!onSetsChange && (
+              <SetLogSection
+                plannedSets={exercise.sets}
+                sets={log?.[index]}
+                onChange={(sets) => onSetsChange(index, sets)}
+              />
+            )}
           </LiquiglassCard>
         ))}
       </View>
@@ -169,6 +267,49 @@ const styles = StyleSheet.create({
     padding: spacing2.sm,
   },
   noteText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant, flex: 1 },
+
+  logSection: {
+    gap: spacing2.xs,
+    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius2.sm,
+    padding: spacing2.sm,
+  },
+  logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
+  logHeaderCell: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
+  logRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
+  logSerieCell: { width: 28 },
+  logSerieText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  logInputCell: { flex: 1 },
+  logInput: {
+    backgroundColor: colors2.surfaceContainer,
+    borderRadius: radius2.sm,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    paddingHorizontal: spacing2.sm,
+    paddingVertical: spacing2.xs + 2,
+    color: colors2.onSurface,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  logCheckCell: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: radius2.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(149, 142, 160, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircleDone: { backgroundColor: colors2.violet, borderColor: colors2.violet },
+  addSetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: spacing2.xs,
+  },
+  addSetText: { ...typography2.bodyMd, fontSize: 13, color: colors2.primary, fontWeight: '600' },
 
   videoPlaceholder: {
     flexDirection: 'row',

@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
 from app.models.user import User
-from app.models.workout import WorkoutPlan
+from app.models.workout import WorkoutPlan, WorkoutSession
 from app.schemas.workout import (
     WorkoutGenerateRequest,
     WorkoutPlanCreate,
     WorkoutPlanGenerated,
     WorkoutPlanOut,
+    WorkoutSessionCreate,
+    WorkoutSessionOut,
 )
 from app.services.workout_generator import generate_workout_plan
 
@@ -96,3 +98,47 @@ def get_plan(
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano nao encontrado")
     return plan
+
+
+@router.post("/{plan_id}/sessions", response_model=WorkoutSessionOut, status_code=status.HTTP_201_CREATED)
+def log_session(
+    plan_id: str,
+    payload: WorkoutSessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Registra o que foi de fato executado num dia do plano (peso/reps por
+    serie) — grava em workout_sessions, tabela que ja existia no banco mas
+    ate agora nao tinha nenhum endpoint lendo/escrevendo nela. Reaproveitada
+    como esta: a coluna `exercises` (JSON, sem schema fixo) comporta o
+    payload inteiro (day/focus/exercises), entao nenhuma migration foi
+    necessaria pra esta tarefa.
+    """
+    try:
+        parsed_id = uuid.UUID(plan_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano nao encontrado")
+
+    plan = (
+        db.query(WorkoutPlan)
+        .filter(WorkoutPlan.id == parsed_id, WorkoutPlan.user_id == current_user.id)
+        .first()
+    )
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano nao encontrado")
+
+    session = WorkoutSession(
+        plan_id=plan.id,
+        exercises={
+            "day": payload.day,
+            "focus": payload.focus,
+            "exercises": [exercise.model_dump() for exercise in payload.exercises],
+        },
+        duration_minutes=payload.duration_minutes,
+        calories_burned=payload.calories_burned,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session

@@ -28,7 +28,7 @@ export function TrainerWorkoutSection({ trainerName, plan }: { trainerName: stri
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Seu treino com {trainerName}</Text>
       {plan?.plan_data ? (
-        <WorkoutPlanView planData={plan.plan_data} />
+        <WorkoutPlanView planData={plan.plan_data} planId={plan.id} />
       ) : (
         <LiquiglassCard style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>
