@@ -39,13 +39,17 @@ class TrainingFrequencyOut(BaseModel):
     days_total: int
 
 
-class DailyActiveMinutes(BaseModel):
+class DailyDistanceKm(BaseModel):
     date: date
-    minutes: float
+    distance_km: float
 
 
 class WeeklyActivityOut(BaseModel):
-    daily: list[DailyActiveMinutes]
+    """Km rodados por dia (Run.distance_meters), nao minutos ativos —
+    trocado a pedido do usuario pra bater com o grafico estilo Strava do
+    card 'Km rodados' da Home. So Run entra aqui (ManualActivity nao tem
+    campo de distancia)."""
+    daily: list[DailyDistanceKm]
 
 
 class MetricComparison(BaseModel):

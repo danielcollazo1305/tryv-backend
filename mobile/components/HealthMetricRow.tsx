@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 interface HealthMetricRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -38,7 +38,7 @@ export function HealthMetricRow({ icon, color, label, value, subLabel, children 
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={16}
-          color={colors.textMuted}
+          color={colors2.onSurfaceVariant}
           style={styles.chevron}
         />
       )}
@@ -56,25 +56,25 @@ export function HealthMetricRow({ icon, color, label, value, subLabel, children 
 const styles = StyleSheet.create({
   container: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors2.outlineVariant,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm + 4,
+    gap: spacing2.sm,
+    paddingVertical: spacing2.sm + 4,
   },
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: radius.md,
+    borderRadius: radius2.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  label: { ...typography.body },
-  subLabel: { ...typography.caption, marginTop: 2 },
-  value: { ...typography.body, fontWeight: '700' },
-  chevron: { marginLeft: spacing.xs },
-  expandedContent: { paddingBottom: spacing.md },
+  label: { ...typography2.bodyMd, fontSize: 15 },
+  subLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2 },
+  value: { ...typography2.bodyMd, fontSize: 15, fontWeight: '700' },
+  chevron: { marginLeft: spacing2.xs },
+  expandedContent: { paddingBottom: spacing2.md },
 });

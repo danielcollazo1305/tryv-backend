@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
+import { Avatar } from '@/components/Avatar';
+import { Button2 } from '@/components/Button2';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import {
@@ -17,7 +19,8 @@ import {
   listChallengeParticipants,
 } from '@/services/challenges';
 import { UserBrief } from '@/services/social';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { getInitials } from '@/utils/text';
 
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -97,18 +100,18 @@ export default function ChallengeDetailScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Desafio</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors2.violet} />
           </View>
         )}
 
@@ -116,35 +119,38 @@ export default function ChallengeDetailScreen() {
 
         {!loading && challenge && (
           <>
-            <Text style={styles.challengeTitle}>{challenge.title}</Text>
+            <View style={styles.titleBlock}>
+              <Ionicons name="trophy" size={22} color={colors2.primary} />
+              <Text style={styles.challengeTitle}>{challenge.title}</Text>
+            </View>
             <Text style={styles.dates}>
               {formatChallengeDate(challenge.start_date)} - {formatChallengeDate(challenge.end_date)}
             </Text>
 
             {!!challenge.description && <Text style={styles.description}>{challenge.description}</Text>}
 
-            <Card style={styles.statsCard}>
+            <LiquiglassCard style={styles.statsCard}>
               <Text style={styles.statNumber}>{challenge.participants_count}</Text>
               <Text style={styles.statLabel}>participante(s)</Text>
-            </Card>
+            </LiquiglassCard>
 
             {joinDenied && (
-              <Card style={styles.deniedCard}>
-                <Ionicons name="lock-closed" size={20} color={colors.danger} />
+              <LiquiglassCard style={styles.deniedCard}>
+                <Ionicons name="lock-closed" size={20} color={colors2.danger} />
                 <Text style={styles.deniedText}>Voce precisa ser aluno deste professor para participar.</Text>
-                <Button
+                <Button2
                   label="Ver perfil do professor"
                   variant="secondary"
                   onPress={() =>
                     router.push({ pathname: '/trainers/[id]', params: { id: challenge.trainer_id } })
                   }
                 />
-              </Card>
+              </LiquiglassCard>
             )}
 
             {!!joinError && <Text style={styles.error}>{joinError}</Text>}
 
-            <Button
+            <Button2
               label={isParticipating ? 'Sair' : 'Participar'}
               variant={isParticipating ? 'secondary' : 'primary'}
               onPress={isParticipating ? handleLeave : handleJoin}
@@ -159,9 +165,7 @@ export default function ChallengeDetailScreen() {
                 ) : (
                   participants.map((p) => (
                     <View key={p.id} style={styles.participantRow}>
-                      <View style={styles.participantAvatar}>
-                        <Ionicons name="person" size={14} color={colors.accent} />
-                      </View>
+                      <Avatar initials={getInitials(p.name)} size={28} />
                       <Text style={styles.participantName}>{p.name}</Text>
                     </View>
                   ))
@@ -171,47 +175,40 @@ export default function ChallengeDetailScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  centered: { alignItems: 'center', marginTop: spacing.xl },
-  error: { color: colors.danger, textAlign: 'center' },
+  title: { ...typography2.headlineMd, fontSize: 20 },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
+  centered: { alignItems: 'center', marginTop: spacing2.xl },
+  error: { color: colors2.danger, textAlign: 'center' },
 
-  challengeTitle: { ...typography.h1 },
-  dates: { ...typography.bodySecondary, marginTop: -spacing.xs },
-  description: { ...typography.body, color: colors.textSecondary },
+  titleBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  challengeTitle: { ...typography2.headlineLgMobile, fontSize: 24, flexShrink: 1 },
+  dates: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: -spacing2.xs },
+  description: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
 
-  statsCard: { alignItems: 'center', gap: spacing.xs },
-  statNumber: { ...typography.statNumber, fontSize: 28 },
-  statLabel: { ...typography.statLabel },
+  statsCard: { alignItems: 'center', gap: spacing2.xs },
+  statNumber: { ...typography2.metricMono, fontSize: 28 },
+  statLabel: { ...typography2.labelCaps },
 
-  deniedCard: { alignItems: 'center', gap: spacing.sm },
-  deniedText: { ...typography.bodySecondary, textAlign: 'center' },
+  deniedCard: { alignItems: 'center', gap: spacing2.sm },
+  deniedText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, textAlign: 'center' },
 
-  participantsSection: { gap: spacing.sm, marginTop: spacing.md },
-  sectionTitle: { ...typography.h3 },
-  emptyText: { ...typography.bodySecondary },
-  participantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  participantAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  participantName: { ...typography.bodySecondary, color: colors.text },
+  participantsSection: { gap: spacing2.sm, marginTop: spacing2.md },
+  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  participantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  participantName: { ...typography2.bodyMd, fontSize: 14 },
 });

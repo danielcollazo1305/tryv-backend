@@ -15,7 +15,7 @@ from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.schemas.dashboard import (
     CalorieSummary,
-    DailyActiveMinutes,
+    DailyDistanceKm,
     HomeSummaryOut,
     MetricComparison,
     MonthComparisonOut,
@@ -134,19 +134,21 @@ def get_weekly_activity(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Minutos ativos por dia (Run.duration_seconds/60 + ManualActivity.
-    duration_minutes) dos ultimos 7 dias, hoje incluso — livre, sem
-    Pro-gate. Metrica escolhida em vez de calorias/distancia porque e o
-    unico campo presente em 100% dos registros de ambas as tabelas
-    (calories_burned e nullable nas duas; distance so existe em Run).
+    Km rodados por dia (Run.distance_meters / 1000) dos ultimos 7 dias,
+    hoje incluso — livre, sem Pro-gate. Trocado de "minutos ativos" pra
+    km a pedido do usuario (grafico estilo Strava, so corrida). So Run
+    entra aqui — ManualActivity nao tem campo de distancia, entao dias com
+    so atividade manual aparecem como 0km (esperado: esse grafico e
+    especificamente de corrida/distancia, nao de atividade geral — pra
+    isso ver TrainingFrequencyCard).
     """
     end_date = date.today()
     start_date = end_date - timedelta(days=6)
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.max.time())
 
-    run_seconds = dict(
-        db.query(func.date(Run.started_at), func.sum(Run.duration_seconds))
+    run_distance = dict(
+        db.query(func.date(Run.started_at), func.sum(Run.distance_meters))
         .filter(
             Run.user_id == current_user.id,
             Run.started_at >= start_datetime,
@@ -155,22 +157,12 @@ def get_weekly_activity(
         .group_by(func.date(Run.started_at))
         .all()
     )
-    manual_minutes = dict(
-        db.query(func.date(ManualActivity.performed_at), func.sum(ManualActivity.duration_minutes))
-        .filter(
-            ManualActivity.user_id == current_user.id,
-            ManualActivity.performed_at >= start_datetime,
-            ManualActivity.performed_at <= end_datetime,
-        )
-        .group_by(func.date(ManualActivity.performed_at))
-        .all()
-    )
 
     daily = []
     for offset in range(7):
         day = start_date + timedelta(days=offset)
-        minutes = (run_seconds.get(day, 0) or 0) / 60 + (manual_minutes.get(day, 0) or 0)
-        daily.append(DailyActiveMinutes(date=day, minutes=round(minutes, 1)))
+        meters = run_distance.get(day, 0) or 0
+        daily.append(DailyDistanceKm(date=day, distance_km=round(meters / 1000, 1)))
 
     return WeeklyActivityOut(daily=daily)
 

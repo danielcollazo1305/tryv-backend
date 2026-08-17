@@ -3,9 +3,9 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
-import { Card } from '@/components/Card';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { MetricComparison, MonthComparison, getMonthComparison } from '@/services/dashboard';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 function shortMonthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split('-').map(Number);
@@ -26,34 +26,30 @@ const METRICS: MetricRowConfig[] = [
   { key: 'weight_change_kg', label: 'Variacao de peso', formatValue: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} kg` },
 ];
 
-function MetricRow({ config, comparison }: { config: MetricRowConfig; comparison: MetricComparison }) {
+function MetricTile({ config, comparison }: { config: MetricRowConfig; comparison: MetricComparison }) {
   const hasCurrent = comparison.current != null;
   const hasDelta = comparison.delta_absolute != null;
   const isUp = hasDelta && (comparison.delta_absolute as number) > 0;
   const isDown = hasDelta && (comparison.delta_absolute as number) < 0;
-  const deltaColor = isUp ? colors.success : isDown ? colors.danger : colors.textMuted;
+  const deltaColor = isUp ? colors2.success : isDown ? colors2.danger : colors2.onSurfaceVariant;
 
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{config.label}</Text>
-      <View style={styles.rowValues}>
-        <Text style={styles.rowCurrent}>
-          {hasCurrent ? config.formatValue(comparison.current as number) : '--'}
-        </Text>
-        {hasDelta ? (
-          <View style={styles.deltaWrap}>
-            <Ionicons name={isUp ? 'arrow-up' : isDown ? 'arrow-down' : 'remove'} size={12} color={deltaColor} />
-            <Text style={[styles.deltaText, { color: deltaColor }]}>
-              {comparison.delta_percent != null
-                ? `${Math.abs(comparison.delta_percent).toFixed(0)}%`
-                : config.formatValue(Math.abs(comparison.delta_absolute as number))}
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.deltaTextMuted}>sem comparacao</Text>
-        )}
-      </View>
-    </View>
+    <LiquiglassCard style={styles.tile} padding={spacing2.md}>
+      <Text style={styles.tileLabel}>{config.label}</Text>
+      <Text style={styles.tileValue}>{hasCurrent ? config.formatValue(comparison.current as number) : '--'}</Text>
+      {hasDelta ? (
+        <View style={styles.deltaWrap}>
+          <Ionicons name={isUp ? 'arrow-up' : isDown ? 'arrow-down' : 'remove'} size={12} color={deltaColor} />
+          <Text style={[styles.deltaText, { color: deltaColor }]}>
+            {comparison.delta_percent != null
+              ? `${Math.abs(comparison.delta_percent).toFixed(0)}%`
+              : config.formatValue(Math.abs(comparison.delta_absolute as number))}
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.deltaTextMuted}>sem comparação</Text>
+      )}
+    </LiquiglassCard>
   );
 }
 
@@ -87,7 +83,7 @@ export function MonthComparisonCard() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={colors.accent} />
+        <ActivityIndicator size="small" color={colors2.violet} />
       </View>
     );
   }
@@ -95,39 +91,34 @@ export function MonthComparisonCard() {
   if (!comparison) return null;
 
   return (
-    <Card style={styles.card}>
+    <View style={styles.wrapper}>
       <View style={styles.header}>
-        <Text style={styles.title}>Comparacao mensal</Text>
+        <Text style={styles.title}>Comparação mensal</Text>
         <Text style={styles.subtitle}>
           {shortMonthLabel(comparison.current_month)} vs. {shortMonthLabel(comparison.previous_month)}
         </Text>
       </View>
-      {METRICS.map((config) => (
-        <MetricRow key={config.key} config={config} comparison={comparison[config.key]} />
-      ))}
-    </Card>
+      <View style={styles.grid}>
+        {METRICS.map((config) => (
+          <MetricTile key={config.key} config={config} comparison={comparison[config.key]} />
+        ))}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing.xs },
-  card: { gap: spacing.sm },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: spacing.xs },
-  title: { ...typography.h3 },
-  subtitle: { ...typography.caption },
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
+  wrapper: { gap: spacing2.sm },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  title: { ...typography2.headlineMd, fontSize: 18 },
+  subtitle: { ...typography2.labelCaps, textTransform: 'none' },
 
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  rowLabel: { ...typography.bodySecondary, flex: 1 },
-  rowValues: { alignItems: 'flex-end', gap: 2 },
-  rowCurrent: { ...typography.body, fontWeight: '700' },
-  deltaWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  deltaText: { ...typography.caption, fontWeight: '700' },
-  deltaTextMuted: { ...typography.caption, color: colors.textMuted },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
+  tile: { flexBasis: '47%', flexGrow: 1, gap: 4 },
+  tileLabel: { ...typography2.labelCaps, textTransform: 'none' },
+  tileValue: { ...typography2.metricMono, fontSize: 22 },
+  deltaWrap: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  deltaText: { ...typography2.labelCaps, textTransform: 'none', fontWeight: '700' },
+  deltaTextMuted: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant, marginTop: 2 },
 });

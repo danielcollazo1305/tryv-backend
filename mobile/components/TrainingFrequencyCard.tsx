@@ -1,15 +1,17 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { TrainingDay, getTrainingFrequency, parseLocalDate } from '@/services/dashboard';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 const WEEKDAY_HEADERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
 // Mesma paleta roxa usada em todo o app, com opacidade crescente por
-// intensidade (0-3) — em vez de introduzir tons novos.
+// intensidade (0-3) — em vez de introduzir tons novos. Indice 0 fica quase
+// invisivel no fundo escuro de proposito (heatmap estilo GitHub: "sem
+// treino" e o estado neutro, nao um alerta).
 const INTENSITY_COLORS = [
   colors2.surfaceContainerHigh, // 0 - sem treino
   'rgba(139, 92, 246, 0.35)', // 1
@@ -27,9 +29,20 @@ function monthTitle(): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function intensityLabel(intensity: number): string {
+  if (intensity === 0) return 'Sem treino';
+  if (intensity === 1) return '1 treino';
+  if (intensity === 2) return '2 treinos';
+  return '3 ou mais treinos';
+}
+
+function formatSelectedDate(dateStr: string): string {
+  return parseLocalDate(dateStr).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+}
+
 interface Cell {
   key: string;
-  day?: number;
+  date?: string;
   intensity?: number;
   isToday?: boolean;
 }
@@ -40,16 +53,25 @@ interface Cell {
  * (/dashboard/home-summary): busca os proprios dados, sempre do mes civil
  * atual, sem depender do seletor de mes que continua exclusivo das
  * estatisticas pagas mais abaixo na tela.
+ *
+ * Heatmap estilo GitHub contribution graph: quadradinhos sem numero do dia
+ * (decisao de design — com o quadrado pequeno o suficiente pra caber o mes
+ * inteiro numa largura de card confortavel, o numero fica ilegivel; um
+ * toque no quadrado mostra a data + intensidade em texto abaixo, entao a
+ * informacao do dia exato continua acessivel sem precisar do numero
+ * impresso em cima da cor).
  */
 export function TrainingFrequencyCard() {
   const [days, setDays] = useState<TrainingDay[] | null>(null);
   const [error, setError] = useState(false);
+  const [selected, setSelected] = useState<TrainingDay | null>(null);
 
   const fetchData = useCallback(async () => {
     setError(false);
     try {
       const data = await getTrainingFrequency({ month: currentMonthParam() });
       setDays(data.training_frequency);
+      setSelected(null);
     } catch {
       setError(true);
     }
@@ -81,12 +103,7 @@ export function TrainingFrequencyCard() {
       cells.push({ key: `blank-lead-${i}` });
     }
     days.forEach((d) => {
-      cells.push({
-        key: d.date,
-        day: parseLocalDate(d.date).getDate(),
-        intensity: d.intensity,
-        isToday: d.date === todayKey,
-      });
+      cells.push({ key: d.date, date: d.date, intensity: d.intensity, isToday: d.date === todayKey });
     });
     while (cells.length % 7 !== 0) {
       cells.push({ key: `blank-trail-${cells.length}` });
@@ -98,39 +115,58 @@ export function TrainingFrequencyCard() {
     }
 
     content = (
-      <View style={styles.grid}>
-        <View style={styles.week}>
-          {WEEKDAY_HEADERS.map((label, index) => (
-            // eslint-disable-next-line react/no-array-index-key
-            <Text key={index} style={styles.weekdayLabel}>
-              {label}
-            </Text>
-          ))}
-        </View>
-        {weeks.map((week, weekIndex) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <View key={weekIndex} style={styles.week}>
-            {week.map((cell) => (
-              <View
-                key={cell.key}
-                style={[
-                  styles.cell,
-                  cell.day !== undefined && {
-                    backgroundColor: INTENSITY_COLORS[cell.intensity ?? 0],
-                  },
-                  cell.isToday && styles.cellToday,
-                ]}
-              >
-                {cell.day !== undefined && (
-                  <Text style={[styles.cellDay, (cell.intensity ?? 0) >= 2 && styles.cellDayOnColor]}>
-                    {cell.day}
-                  </Text>
-                )}
-              </View>
+      <>
+        <View style={styles.grid}>
+          <View style={styles.week}>
+            {WEEKDAY_HEADERS.map((label, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <Text key={index} style={styles.weekdayLabel}>
+                {label}
+              </Text>
             ))}
           </View>
-        ))}
-      </View>
+          {weeks.map((week, weekIndex) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <View key={weekIndex} style={styles.week}>
+              {week.map((cell) =>
+                cell.date ? (
+                  <Pressable
+                    key={cell.key}
+                    onPress={() => setSelected({ date: cell.date!, intensity: cell.intensity ?? 0 })}
+                    hitSlop={2}
+                  >
+                    <View
+                      style={[
+                        styles.cell,
+                        { backgroundColor: INTENSITY_COLORS[cell.intensity ?? 0] },
+                        cell.isToday && styles.cellToday,
+                      ]}
+                    />
+                  </Pressable>
+                ) : (
+                  <View key={cell.key} style={styles.cell} />
+                )
+              )}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.selectedText}>
+            {selected
+              ? `${formatSelectedDate(selected.date)} — ${intensityLabel(selected.intensity)}`
+              : 'Toque num dia para ver o detalhe'}
+          </Text>
+          <View style={styles.legend}>
+            <Text style={styles.legendLabel}>Menos</Text>
+            {INTENSITY_COLORS.map((color, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <View key={index} style={[styles.legendSwatch, { backgroundColor: color }]} />
+            ))}
+            <Text style={styles.legendLabel}>Mais</Text>
+          </View>
+        </View>
+      </>
     );
   }
 
@@ -152,21 +188,24 @@ const styles = StyleSheet.create({
   weekdayLabel: {
     ...typography2.labelCaps,
     textTransform: 'none',
-    width: 36,
+    width: 14,
+    fontSize: 9,
     textAlign: 'center',
     color: colors2.onSurfaceVariant,
   },
   cell: {
-    width: 36,
-    height: 36,
-    borderRadius: radius2.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 14,
+    height: 14,
+    borderRadius: 3,
   },
   cellToday: {
     borderWidth: 1.5,
-    borderColor: colors2.violet,
+    borderColor: colors2.white,
   },
-  cellDay: { ...typography2.bodyMd, fontSize: 12, color: colors2.onSurfaceVariant },
-  cellDayOnColor: { color: colors2.white, fontWeight: '700' },
+
+  footer: { gap: spacing2.xs, marginTop: spacing2.xs },
+  selectedText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendLabel: { ...typography2.labelCaps, textTransform: 'none', fontSize: 10, color: colors2.onSurfaceVariant },
+  legendSwatch: { width: 10, height: 10, borderRadius: 2 },
 });

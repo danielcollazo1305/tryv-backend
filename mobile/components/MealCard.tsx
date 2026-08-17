@@ -2,18 +2,18 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Card } from '@/components/Card';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { Meal, formatMealTime } from '@/services/meals';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 export function MealCard({ meal }: { meal: Meal }) {
   return (
-    <Card style={styles.card}>
+    <LiquiglassCard style={styles.card} padding={spacing2.md}>
       {meal.photo_url ? (
         <Image source={{ uri: meal.photo_url }} style={styles.photo} />
       ) : (
         <View style={styles.photoPlaceholder}>
-          <Ionicons name="restaurant" size={22} color={colors.accent} />
+          <Ionicons name="restaurant" size={22} color={colors2.primary} />
         </View>
       )}
 
@@ -33,34 +33,33 @@ export function MealCard({ meal }: { meal: Meal }) {
           <Text style={styles.macro}>G {Math.round(meal.fat ?? 0)}g</Text>
         </View>
       </View>
-    </Card>
+    </LiquiglassCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.md,
+    gap: spacing2.md,
     alignItems: 'center',
   },
   photo: {
     width: 64,
     height: 64,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius2.md,
+    backgroundColor: colors2.surfaceContainerHigh,
   },
   photoPlaceholder: {
     width: 64,
     height: 64,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
+    borderRadius: radius2.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: {
     flex: 1,
-    gap: spacing.xs,
+    gap: spacing2.xs,
   },
   headerRow: {
     flexDirection: 'row',
@@ -68,13 +67,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   description: {
-    ...typography.body,
+    ...typography2.bodyMd,
     fontWeight: '600',
     flex: 1,
-    marginRight: spacing.sm,
+    marginRight: spacing2.sm,
   },
-  time: { ...typography.caption },
-  calories: { ...typography.h3 },
-  macrosRow: { flexDirection: 'row', gap: spacing.md },
-  macro: { ...typography.bodySecondary },
+  time: { ...typography2.labelCaps, textTransform: 'none' },
+  calories: { ...typography2.headlineMd, fontSize: 18 },
+  macrosRow: { flexDirection: 'row', gap: spacing2.md },
+  macro: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
 });

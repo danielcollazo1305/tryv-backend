@@ -13,13 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { ChoiceGroup } from '@/components/ChoiceGroup';
-import { TextField } from '@/components/TextField';
+import { Avatar } from '@/components/Avatar';
+import { Button2 } from '@/components/Button2';
+import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { TextField2 } from '@/components/TextField2';
+import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { uploadMedia } from '@/services/media';
 import { PostVisibility, createPost } from '@/services/social';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { getInitials } from '@/utils/text';
 
 type Stage = 'picking' | 'compose' | 'uploading' | 'saving';
 
@@ -29,6 +32,7 @@ const VISIBILITY_OPTIONS: { value: PostVisibility; label: string }[] = [
 ];
 
 export default function NewPostScreen() {
+  const { user } = useAuth();
   const [stage, setStage] = useState<Stage>('picking');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
@@ -106,10 +110,17 @@ export default function NewPostScreen() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <Text style={styles.title}>Novo post</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={24} color={colors2.onSurfaceVariant} />
         </Pressable>
+        <Text style={styles.headerTitle}>Novo post</Text>
+        {stage === 'compose' ? (
+          <Pressable onPress={handlePublish} hitSlop={8}>
+            <Text style={styles.publishText}>Publicar</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 24 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -118,11 +129,15 @@ export default function NewPostScreen() {
         {stage === 'picking' && (
           <View style={styles.pickButtons}>
             <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
-              <Ionicons name="camera" size={28} color={colors.accent} />
+              <View style={styles.pickIconWrap}>
+                <Ionicons name="camera" size={26} color={colors2.primary} />
+              </View>
               <Text style={styles.pickButtonText}>Tirar foto</Text>
             </Pressable>
             <Pressable style={styles.pickButton} onPress={handlePickFromLibrary}>
-              <Ionicons name="images" size={28} color={colors.accent} />
+              <View style={styles.pickIconWrap}>
+                <Ionicons name="image" size={26} color={colors2.primary} />
+              </View>
               <Text style={styles.pickButtonText}>Escolher da galeria</Text>
             </Pressable>
           </View>
@@ -130,11 +145,21 @@ export default function NewPostScreen() {
 
         {(stage === 'compose' || stage === 'uploading' || stage === 'saving') && (
           <View style={styles.composeContainer}>
+            <View style={styles.authorRow}>
+              <Avatar initials={user ? getInitials(user.name) : '?'} size={40} />
+              <View>
+                <Text style={styles.authorName}>{user?.name ?? 'Voce'}</Text>
+                <Text style={styles.visibilityHint}>
+                  {visibility === 'public' ? 'Publico' : 'Privado'}
+                </Text>
+              </View>
+            </View>
+
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.preview} />}
 
-            <TextField
+            <TextField2
               label="Legenda (opcional)"
-              placeholder="Escreva algo sobre esse momento..."
+              placeholder="O que voce esta treinando hoje?"
               value={caption}
               onChangeText={setCaption}
               multiline
@@ -142,19 +167,29 @@ export default function NewPostScreen() {
               style={styles.captionInput}
             />
 
-            <ChoiceGroup
+            {/*
+              Lacuna de dado: o mockup social-criar-post.html tem uma secao
+              "Vincular Atividade" (linkar o post a uma corrida/treino
+              recente). O payload real de criacao de post (PostCreatePayload
+              em services/social.ts) nao tem campo pra isso — so o backend
+              preenche reference_id em fluxos internos, criar um post pelo
+              app nunca vincula uma atividade hoje. Omitido em vez de
+              inventar essa selecao sem nenhum efeito real.
+            */}
+
+            <ChoiceGroup2
               label="Visibilidade"
               options={VISIBILITY_OPTIONS}
               value={visibility}
               onChange={setVisibility}
             />
 
-            <Button
+            <Button2
               label={stage === 'uploading' ? 'Enviando foto...' : 'Publicar'}
               onPress={handlePublish}
               loading={stage === 'uploading' || stage === 'saving'}
             />
-            <Button
+            <Button2
               label="Trocar foto"
               variant="secondary"
               onPress={handleRetry}
@@ -168,39 +203,51 @@ export default function NewPostScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, backgroundColor: colors2.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
+  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
+  publishText: { ...typography2.labelCaps, color: colors2.primary },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
+  error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },
 
-  pickButtons: { gap: spacing.md, marginTop: spacing.xl },
+  pickButtons: { gap: spacing2.md, marginTop: spacing2.xl },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+    gap: spacing2.md,
+    backgroundColor: colors2.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.lg,
+    padding: spacing2.lg,
   },
-  pickButtonText: { ...typography.h3 },
+  pickIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickButtonText: { ...typography2.headlineMd, fontSize: 16 },
 
-  composeContainer: { gap: spacing.sm },
+  composeContainer: { gap: spacing2.sm },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  authorName: { ...typography2.bodyMd, fontWeight: '600' },
+  visibilityHint: { ...typography2.labelCaps, textTransform: 'none' },
   preview: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceElevated,
-    marginBottom: spacing.sm,
+    borderRadius: radius2.lg,
+    backgroundColor: colors2.surfaceContainerHigh,
+    marginTop: spacing2.sm,
   },
   captionInput: { minHeight: 70, textAlignVertical: 'top' },
 });

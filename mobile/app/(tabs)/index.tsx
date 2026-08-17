@@ -1,23 +1,30 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
-import { Card } from '@/components/Card';
+import { AiWorkoutCard } from '@/components/AiWorkoutCard';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
+import { ImageCoverCard } from '@/components/ImageCoverCard';
 import { InsightCard } from '@/components/InsightCard';
 import { MonthComparisonCard } from '@/components/MonthComparisonCard';
 import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ReadinessCard } from '@/components/ReadinessCard';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
-import { TrainingCalendar } from '@/components/TrainingCalendar';
+import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
+import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
 import { exportPeriodReportPdf } from '@/services/pdfExport';
 import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
 
@@ -29,6 +36,7 @@ function monthLabel(year: number, month: number): string {
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
+  const insets = useSafeAreaInsets();
 
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'rolling' });
 
@@ -55,7 +63,19 @@ export default function HomeScreen() {
           : { period: '30d' };
       setSummary(await getHomeSummary(params));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu resumo.'));
+      // 402 aqui = require_pro_subscription (o resumo da Home e conteudo
+      // Pro) — confirmado no codigo (backend/app/core/deps.py:75, HTTP 402
+      // Payment Required, nao 403). Isso dispara sozinho toda vez que a
+      // Home monta, pra QUALQUER usuario sem assinatura — nao e uma falha
+      // real nem uma acao que o usuario tentou e foi barrado, entao nao
+      // deve virar um banner vermelho de erro. Mesmo padrao ja usado por
+      // MonthComparisonCard/ReadinessCard/PersonalRecordsCard/InsightCard:
+      // some da tela em vez de mostrar a mensagem crua do backend.
+      const isProRequired = axios.isAxiosError(err) && err.response?.status === 402;
+      setSummary(null);
+      if (!isProRequired) {
+        setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu resumo.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -141,36 +161,104 @@ export default function HomeScreen() {
   const deficitLabel = deficit != null ? `${Math.round(deficit)}` : '--';
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+    <ScreenBackground2>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing2.xl }]}
+    >
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Ola, {firstName}</Text>
+          <Text style={styles.greeting}>Olá, {firstName}</Text>
           <Text style={styles.subtitle}>Vamos treinar hoje?</Text>
         </View>
         <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
-          <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
+          <Ionicons name="log-out-outline" size={22} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
-      <ReadinessCard />
+      {/* 2. Card de Saude — primeiro bloco de conteudo depois da saudacao. */}
+      <HealthMetricsGrid />
 
-      <MonthComparisonCard />
+      {/* 3. Km rodados (Run, estilo Strava) — troca de "Atividades"/minutos. */}
+      <Pressable onPress={() => router.push('/activity')}>
+        <LiquiglassCard style={styles.sectionCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Km rodados</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+          </View>
+          <WeeklyActivityChart />
+        </LiquiglassCard>
+      </Pressable>
 
-      <PersonalRecordsCard />
+      {/* 4. Frequencia de treino — heatmap estilo GitHub. */}
+      <TrainingFrequencyCard />
 
-      {insightLoading && (
-        <View style={styles.insightLoading}>
-          <ActivityIndicator size="small" color={colors.accent} />
+      {/* 5. Exportar PDF — nao mexido, so reposicionado. */}
+      <LiquiglassCard style={styles.exportCard}>
+        <Text style={styles.exportLabel}>Exportar relatório em PDF</Text>
+        <View style={styles.exportButtons}>
+          <Pressable
+            onPress={() => handleExportPdf(7)}
+            disabled={exportingDays !== null}
+            style={styles.exportButton}
+            hitSlop={8}
+          >
+            {exportingDays === 7 ? (
+              <ActivityIndicator size="small" color={colors2.primary} />
+            ) : (
+              <Ionicons name="document-text-outline" size={16} color={colors2.primary} />
+            )}
+            <Text style={styles.exportButtonText}>Últimos 7 dias</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleExportPdf(30)}
+            disabled={exportingDays !== null}
+            style={styles.exportButton}
+            hitSlop={8}
+          >
+            {exportingDays === 30 ? (
+              <ActivityIndicator size="small" color={colors2.primary} />
+            ) : (
+              <Ionicons name="document-text-outline" size={16} color={colors2.primary} />
+            )}
+            <Text style={styles.exportButtonText}>Últimos 30 dias</Text>
+          </Pressable>
         </View>
-      )}
-      {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
+        {!!exportError && <Text style={styles.error}>{exportError}</Text>}
+      </LiquiglassCard>
 
+      {/* 6. Desafios — imagem de capa, sem contador (sem endpoint agregado pronto, ver investigacao). */}
+      <ImageCoverCard
+        image={require('../../assets/imagens/desafios-card.png')}
+        title="Desafios"
+        subtitle="Acompanhe desafios dos seus profissionais"
+        accessibilityLabel="Grupo de pessoas correndo a noite"
+        onPress={() => router.push('/challenges')}
+      />
+
+      {/* 7. Treino com IA — novo. */}
+      <AiWorkoutCard />
+
+      {/* 8. Acompanhamento profissional — agora fluxo em 2 passos (ver TrainersHighlight). */}
+      <TrainersHighlight />
+
+      {/*
+        Conteudo Pro existente (comparacao mensal, seletor de mes,
+        prontidao, insight do dia, recordes pessoais, resumo do periodo e
+        evolucao de peso) — nao fazia parte da lista numerada de reorganizacao
+        pedida, entao mantive tudo junto (mesma adjacencia de antes) e movi
+        pro fim da Home: os itens 2-8 acima sao conteudo de "relance" +
+        descoberta (gratuitos), enquanto isso aqui e relatorio/analise mais
+        profunda (a maioria Pro) — faz mais sentido ficar depois, nao
+        competindo com os cards de entrada rapida do topo. Decisao de
+        design minha, nao especificada explicitamente no pedido.
+      */}
       <View style={styles.monthSelector}>
         <Pressable onPress={goToPreviousMonth} hitSlop={8} style={styles.monthArrow}>
-          <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
+          <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
         </Pressable>
         <Text style={styles.monthLabel}>
-          {viewMode.type === 'rolling' ? 'Ultimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
+          {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
         </Text>
         <Pressable
           onPress={goToNextMonth}
@@ -181,52 +269,32 @@ export default function HomeScreen() {
           <Ionicons
             name="chevron-forward"
             size={20}
-            color={viewMode.type === 'rolling' ? colors.textMuted : colors.textSecondary}
+            color={viewMode.type === 'rolling' ? colors2.outlineVariant : colors2.onSurfaceVariant}
           />
         </Pressable>
       </View>
 
-      <View style={styles.exportRow}>
-        <Text style={styles.exportLabel}>Exportar relatorio em PDF</Text>
-        <View style={styles.exportButtons}>
-          <Pressable
-            onPress={() => handleExportPdf(7)}
-            disabled={exportingDays !== null}
-            style={styles.exportButton}
-            hitSlop={8}
-          >
-            {exportingDays === 7 ? (
-              <ActivityIndicator size="small" color={colors.accent} />
-            ) : (
-              <Ionicons name="document-text-outline" size={16} color={colors.accent} />
-            )}
-            <Text style={styles.exportButtonText}>Ultimos 7 dias</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => handleExportPdf(30)}
-            disabled={exportingDays !== null}
-            style={styles.exportButton}
-            hitSlop={8}
-          >
-            {exportingDays === 30 ? (
-              <ActivityIndicator size="small" color={colors.accent} />
-            ) : (
-              <Ionicons name="document-text-outline" size={16} color={colors.accent} />
-            )}
-            <Text style={styles.exportButtonText}>Ultimos 30 dias</Text>
-          </Pressable>
+      <MonthComparisonCard />
+
+      <ReadinessCard />
+
+      {insightLoading && (
+        <View style={styles.insightLoading}>
+          <ActivityIndicator size="small" color={colors2.violet} />
         </View>
-      </View>
-      {!!exportError && <Text style={styles.error}>{exportError}</Text>}
+      )}
+      {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
+
+      <PersonalRecordsCard />
 
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <ActivityIndicator color={colors.accent} style={styles.loading} />}
+      {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
 
       {!loading && summary && (
         <>
-          <Card style={styles.statsCard}>
+          <LiquiglassCard style={styles.statsCard}>
             <Text style={styles.cardTitle}>
-              {viewMode.type === 'rolling' ? 'Ultimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
+              {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
@@ -239,72 +307,54 @@ export default function HomeScreen() {
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{deficitLabel}</Text>
-                <Text style={styles.statLabel}>kcal deficit/dia</Text>
+                <Text style={styles.statLabel}>kcal déficit/dia</Text>
               </View>
             </View>
-          </Card>
+          </LiquiglassCard>
 
-          <Card style={styles.sectionCard}>
+          <LiquiglassCard style={styles.sectionCard}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Evolucao de peso</Text>
+              <Text style={styles.cardTitle}>Evolução de peso</Text>
               <Pressable onPress={() => router.push('/weight/new')} hitSlop={8}>
-                <Ionicons name="add-circle-outline" size={22} color={colors.accent} />
+                <Ionicons name="add-circle-outline" size={22} color={colors2.primary} />
               </Pressable>
             </View>
             <WeightChart data={summary.weight_evolution} />
-          </Card>
-
-          <Card style={styles.sectionCard}>
-            <Text style={styles.cardTitle}>Frequencia de treino</Text>
-            <TrainingCalendar data={summary.training_frequency} />
-          </Card>
+          </LiquiglassCard>
         </>
       )}
-
-      <Pressable onPress={() => router.push('/activity')}>
-        <Card style={styles.placeholderCard}>
-          <View style={styles.placeholderIconWrap}>
-            <Ionicons name="flame" size={24} color={colors.accent} />
-          </View>
-          <Text style={styles.cardTitle}>Atividades</Text>
-          <Text style={styles.placeholderText}>
-            Registre uma corrida, pedalada ou atividade manual e veja seu historico aqui.
-          </Text>
-        </Card>
-      </Pressable>
-
-      <TrainersHighlight />
     </ScrollView>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
-  container: { padding: spacing.lg, paddingTop: spacing.xxl, gap: spacing.md },
+  flex: { flex: 1 },
+  container: { padding: spacing2.containerMargin, gap: spacing2.md },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    marginBottom: spacing2.md,
   },
-  greeting: { ...typography.h1 },
-  subtitle: { ...typography.bodySecondary, marginTop: spacing.xs },
+  greeting: { ...typography2.headlineLgMobile, fontSize: 26 },
+  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.xs },
   logoutButton: {
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    borderRadius: 9999,
+    backgroundColor: colors2.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors2.outlineVariant,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
+    gap: spacing2.md,
+    marginBottom: spacing2.sm,
   },
   monthArrow: {
     width: 32,
@@ -312,40 +362,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthLabel: { ...typography.body, fontWeight: '600', minWidth: 140, textAlign: 'center' },
-  exportRow: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  exportLabel: { ...typography.caption },
-  exportButtons: { flexDirection: 'row', gap: spacing.lg },
+  monthLabel: { ...typography2.bodyMd, fontWeight: '600', minWidth: 140, textAlign: 'center' },
+  exportCard: { alignItems: 'center', gap: spacing2.xs },
+  exportLabel: { ...typography2.labelCaps, textTransform: 'none' },
+  exportButtons: { flexDirection: 'row', gap: spacing2.lg },
   exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
+    gap: spacing2.xs,
+    paddingVertical: spacing2.sm,
   },
-  exportButtonText: { ...typography.bodySecondary, color: colors.accent, fontWeight: '700' },
-  error: { color: colors.danger, textAlign: 'center' },
-  loading: { marginTop: spacing.lg },
-  insightLoading: { alignItems: 'flex-start', paddingVertical: spacing.xs },
-  statsCard: { gap: spacing.md },
-  cardTitle: { ...typography.h3 },
+  exportButtonText: { ...typography2.bodyMd, fontSize: 14, color: colors2.primary, fontWeight: '700' },
+  error: { color: colors2.danger, textAlign: 'center' },
+  loading: { marginTop: spacing2.lg },
+  insightLoading: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
+  statsCard: { gap: spacing2.md },
+  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'flex-start', flex: 1 },
-  statNumber: { ...typography.statNumber, fontSize: 24 },
-  statLabel: { ...typography.statLabel, marginTop: spacing.xs },
+  statNumber: { ...typography2.metricMono, fontSize: 22 },
+  statLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: spacing2.xs },
 
-  sectionCard: { gap: spacing.md },
+  sectionCard: { gap: spacing2.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-
-  placeholderCard: { alignItems: 'flex-start', gap: spacing.sm },
-  placeholderIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  placeholderText: { ...typography.bodySecondary },
 });

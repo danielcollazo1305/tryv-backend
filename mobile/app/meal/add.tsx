@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -14,13 +15,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { ChoiceGroup } from '@/components/ChoiceGroup';
-import { TextField } from '@/components/TextField';
+import { Badge } from '@/components/Badge';
+import { Button2 } from '@/components/Button2';
+import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { createPost } from '@/services/social';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
 type Mode = 'photo' | 'manual';
@@ -63,6 +66,23 @@ export default function AddMealScreen() {
   const [manualCarbs, setManualCarbs] = useState('');
   const [manualFat, setManualFat] = useState('');
   const [manualSaving, setManualSaving] = useState(false);
+
+  // Desligado por padrao — registro de refeicao e privado (so contagem de
+  // nutrientes) a menos que o usuario opte explicitamente por publicar.
+  const [shareToFeed, setShareToFeed] = useState(false);
+
+  // Falha ao compartilhar no Feed nunca desfaz nem bloqueia o registro da
+  // refeicao, que ja foi salvo com sucesso antes disso rodar — mesmo
+  // padrao de acao secundaria "fire and forget" ja usado em outros lugares
+  // do app (ex: syncRecentHeartRate em HealthSummaryCard).
+  const shareMealToFeed = (caption: string, mediaUrl?: string) => {
+    createPost({
+      type: mediaUrl ? 'photo' : 'progress',
+      caption: caption || undefined,
+      media_url: mediaUrl ?? null,
+      visibility: 'public',
+    }).catch(() => {});
+  };
 
   const runAnalysis = async (uri: string) => {
     setImageUri(uri);
@@ -139,6 +159,7 @@ export default function AddMealScreen() {
         carbs: Number(carbs) || 0,
         fat: Number(fat) || 0,
       });
+      if (shareToFeed) shareMealToFeed(analysis.description, photoUrl);
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
@@ -192,6 +213,7 @@ export default function AddMealScreen() {
         carbs: carbsValue,
         fat: fatValue,
       });
+      if (shareToFeed) shareMealToFeed(description);
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
@@ -205,34 +227,40 @@ export default function AddMealScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Nova refeicao</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {(mode === 'manual' || stage === 'picking') && !manualSaving && (
-          <ChoiceGroup label="Como registrar" options={MODE_OPTIONS} value={mode} onChange={setMode} />
+          <ChoiceGroup2 label="Como registrar" options={MODE_OPTIONS} value={mode} onChange={setMode} />
         )}
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         {mode === 'photo' && stage === 'picking' && (
-          <View style={styles.pickButtons}>
-            <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
-              <Ionicons name="camera" size={28} color={colors.accent} />
-              <Text style={styles.pickButtonText}>Tirar foto</Text>
-            </Pressable>
-            <Pressable style={styles.pickButton} onPress={handlePickFromLibrary}>
-              <Ionicons name="images" size={28} color={colors.accent} />
-              <Text style={styles.pickButtonText}>Escolher da galeria</Text>
-            </Pressable>
+          <View style={styles.photoSection}>
+            <View style={styles.photoSectionHeader}>
+              <Text style={styles.photoSectionTitle}>Registrar por foto</Text>
+              <Badge label="IA" variant="primary" />
+            </View>
+            <View style={styles.pickButtons}>
+              <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
+                <Ionicons name="camera" size={28} color={colors2.primary} />
+                <Text style={styles.pickButtonText}>Tirar foto</Text>
+              </Pressable>
+              <Pressable style={styles.pickButton} onPress={handlePickFromLibrary}>
+                <Ionicons name="images" size={28} color={colors2.primary} />
+                <Text style={styles.pickButtonText}>Escolher da galeria</Text>
+              </Pressable>
+            </View>
           </View>
         )}
 
         {mode === 'photo' && stage === 'analyzing' && (
           <View style={styles.centered}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
-            <ActivityIndicator size="large" color={colors.accent} style={styles.analyzingSpinner} />
+            <ActivityIndicator size="large" color={colors2.violet} style={styles.analyzingSpinner} />
             <Text style={styles.analyzingText}>Analisando sua refeicao...</Text>
           </View>
         )}
@@ -241,22 +269,38 @@ export default function AddMealScreen() {
           <View style={styles.reviewContainer}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
 
-            <Text style={styles.description}>{analysis.description}</Text>
+            <View style={styles.descriptionRow}>
+              <Text style={styles.description}>{analysis.description}</Text>
+              <Badge label="IA" variant="primary" />
+            </View>
             <Text style={styles.confidence}>
               {CONFIDENCE_LABEL[analysis.confidence] ?? `Confianca: ${analysis.confidence}`}
             </Text>
 
-            <TextField label="Calorias (kcal)" keyboardType="decimal-pad" value={calories} onChangeText={setCalories} />
-            <TextField label="Proteina (g)" keyboardType="decimal-pad" value={protein} onChangeText={setProtein} />
-            <TextField label="Carboidrato (g)" keyboardType="decimal-pad" value={carbs} onChangeText={setCarbs} />
-            <TextField label="Gordura (g)" keyboardType="decimal-pad" value={fat} onChangeText={setFat} />
+            <TextField2 label="Calorias (kcal)" keyboardType="decimal-pad" value={calories} onChangeText={setCalories} />
+            <TextField2 label="Proteina (g)" keyboardType="decimal-pad" value={protein} onChangeText={setProtein} />
+            <TextField2 label="Carboidrato (g)" keyboardType="decimal-pad" value={carbs} onChangeText={setCarbs} />
+            <TextField2 label="Gordura (g)" keyboardType="decimal-pad" value={fat} onChangeText={setFat} />
 
-            <Button
+            <View style={styles.shareRow}>
+              <View style={styles.shareTextWrap}>
+                <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
+                <Text style={styles.shareSubtitle}>Publica esta refeicao no seu Feed social</Text>
+              </View>
+              <Switch
+                value={shareToFeed}
+                onValueChange={setShareToFeed}
+                trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
+                thumbColor={colors2.white}
+              />
+            </View>
+
+            <Button2
               label={stage === 'uploading' ? 'Enviando foto...' : 'Confirmar'}
               onPress={handleConfirm}
               loading={stage === 'uploading' || stage === 'saving'}
             />
-            <Button
+            <Button2
               label="Tirar outra foto"
               variant="secondary"
               onPress={handleRetry}
@@ -267,40 +311,40 @@ export default function AddMealScreen() {
 
         {mode === 'manual' && (
           <View style={styles.reviewContainer}>
-            <TextField
+            <TextField2
               label="Descricao do alimento"
               placeholder="Ex: Peito de frango grelhado"
               value={manualDescription}
               onChangeText={setManualDescription}
             />
-            <TextField
+            <TextField2
               label="Peso/quantidade (opcional)"
               placeholder="Ex: 150g"
               value={manualWeight}
               onChangeText={setManualWeight}
             />
-            <TextField
+            <TextField2
               label="Calorias (kcal)"
               placeholder="Ex: 250"
               keyboardType="decimal-pad"
               value={manualCalories}
               onChangeText={setManualCalories}
             />
-            <TextField
+            <TextField2
               label="Proteina (g) — opcional"
               placeholder="Ex: 40"
               keyboardType="decimal-pad"
               value={manualProtein}
               onChangeText={setManualProtein}
             />
-            <TextField
+            <TextField2
               label="Carboidrato (g) — opcional"
               placeholder="Ex: 0"
               keyboardType="decimal-pad"
               value={manualCarbs}
               onChangeText={setManualCarbs}
             />
-            <TextField
+            <TextField2
               label="Gordura (g) — opcional"
               placeholder="Ex: 6"
               keyboardType="decimal-pad"
@@ -308,7 +352,20 @@ export default function AddMealScreen() {
               onChangeText={setManualFat}
             />
 
-            <Button label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
+            <View style={styles.shareRow}>
+              <View style={styles.shareTextWrap}>
+                <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
+                <Text style={styles.shareSubtitle}>Publica esta refeicao no seu Feed social</Text>
+              </View>
+              <Switch
+                value={shareToFeed}
+                onValueChange={setShareToFeed}
+                trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
+                thumbColor={colors2.white}
+              />
+            </View>
+
+            <Button2 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
           </View>
         )}
       </ScrollView>
@@ -317,40 +374,60 @@ export default function AddMealScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, backgroundColor: colors2.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
-  pickButtons: { gap: spacing.md, marginTop: spacing.xl },
+  title: { ...typography2.headlineMd },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
+  error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },
+
+  photoSection: { gap: spacing2.md, marginTop: spacing2.md },
+  photoSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  photoSectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+
+  pickButtons: { gap: spacing2.md },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+    gap: spacing2.md,
+    backgroundColor: colors2.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.lg,
+    padding: spacing2.lg,
   },
-  pickButtonText: { ...typography.h3 },
-  centered: { alignItems: 'center', marginTop: spacing.xl },
+  pickButtonText: { ...typography2.headlineMd, fontSize: 16 },
+  centered: { alignItems: 'center', marginTop: spacing2.xl },
   previewLarge: {
     width: '100%',
     height: 220,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius2.lg,
+    backgroundColor: colors2.surfaceContainerHigh,
   },
-  analyzingSpinner: { marginTop: spacing.lg },
-  analyzingText: { ...typography.bodySecondary, marginTop: spacing.md },
-  reviewContainer: { gap: spacing.sm },
-  description: { ...typography.h3, marginTop: spacing.md },
-  confidence: { ...typography.caption, marginBottom: spacing.sm },
+  analyzingSpinner: { marginTop: spacing2.lg },
+  analyzingText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.md },
+  reviewContainer: { gap: spacing2.sm },
+  descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm, marginTop: spacing2.md },
+  description: { ...typography2.headlineMd, fontSize: 18, flex: 1 },
+  confidence: { ...typography2.labelCaps, textTransform: 'none', marginBottom: spacing2.sm },
+
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors2.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.md,
+    padding: spacing2.md,
+  },
+  shareTextWrap: { flex: 1, gap: 2, marginRight: spacing2.sm },
+  shareTitle: { ...typography2.bodyMd, fontWeight: '600' },
+  shareSubtitle: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 });

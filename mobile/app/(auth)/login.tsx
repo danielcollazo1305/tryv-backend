@@ -3,9 +3,9 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { Link } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/Button';
-import { TextField } from '@/components/TextField';
-import { colors, spacing, typography } from '@/constants/theme';
+import { Button2 } from '@/components/Button2';
+import { TextField2 } from '@/components/TextField2';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -33,10 +33,12 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo}>Tryv</Text>
-        <Text style={styles.subtitle}>Entre para continuar seu progresso</Text>
+        <View style={styles.header}>
+          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.subtitle}>Entre para continuar seu progresso</Text>
+        </View>
 
-        <TextField
+        <TextField2
           label="E-mail"
           autoCapitalize="none"
           autoCorrect={false}
@@ -45,7 +47,7 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           placeholder="voce@email.com"
         />
-        <TextField
+        <TextField2
           label="Senha"
           secureTextEntry
           value={password}
@@ -55,7 +57,7 @@ export default function LoginScreen() {
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button label="Entrar" onPress={handleSubmit} loading={loading} />
+        <Button2 label="Entrar" onPress={handleSubmit} loading={loading} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Ainda nao tem conta? </Text>
@@ -69,12 +71,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  logo: { ...typography.h1, fontSize: 36, color: colors.accent, textAlign: 'center', marginBottom: spacing.xs },
-  subtitle: { ...typography.bodySecondary, textAlign: 'center', marginBottom: spacing.xl },
-  error: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
-  footerText: { ...typography.bodySecondary },
-  link: { ...typography.bodySecondary, color: colors.accent, fontWeight: '700' },
+  flex: { flex: 1, backgroundColor: colors2.background },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing2.containerMargin, gap: spacing2.md },
+  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
+  logo: { ...typography2.displayHero, fontSize: 36 },
+  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  error: { color: colors2.danger, textAlign: 'center' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing2.md },
+  footerText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  link: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
 });

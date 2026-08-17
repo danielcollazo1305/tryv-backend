@@ -3,11 +3,11 @@ import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 
 import { WeightPoint, formatShortDate } from '@/services/dashboard';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-// Largura da tela menos o padding do container da Home e o padding interno do Card (spacing.lg dos dois lados, duas vezes).
-const CHART_WIDTH = SCREEN_WIDTH - spacing.lg * 4;
+// Largura da tela menos o padding do container da Home e o padding interno do LiquiglassCard (spacing2.lg dos dois lados, duas vezes).
+const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
 
 interface SelectedPoint {
   x: number;
@@ -48,13 +48,13 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
         withOuterLines={false}
         segments={4}
         chartConfig={{
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
+          backgroundGradientFrom: colors2.surfaceContainer,
+          backgroundGradientTo: colors2.surfaceContainer,
           decimalPlaces: 1,
           color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-          labelColor: () => colors.textMuted,
-          propsForDots: { r: '3', strokeWidth: '2', stroke: colors.accent },
-          propsForBackgroundLines: { stroke: colors.border },
+          labelColor: () => colors2.onSurfaceVariant,
+          propsForDots: { r: '3', strokeWidth: '2', stroke: colors2.violet },
+          propsForBackgroundLines: { stroke: colors2.outlineVariant },
         }}
         onDataPointClick={({ x, y, index }) => {
           setSelected({ x, y, date: data[index].date, weight: data[index].weight_kg });
@@ -77,19 +77,19 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
 }
 
 const styles = StyleSheet.create({
-  chart: { borderRadius: radius.md },
-  empty: { paddingVertical: spacing.xl, alignItems: 'center' },
-  emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+  chart: { borderRadius: radius2.md },
+  empty: { paddingVertical: spacing2.xl, alignItems: 'center' },
+  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
   tooltip: {
     position: 'absolute',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.sm,
+    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius2.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    borderColor: colors2.outlineVariant,
+    paddingHorizontal: spacing2.sm,
+    paddingVertical: spacing2.xs,
     alignItems: 'center',
   },
-  tooltipWeight: { ...typography.bodySecondary, color: colors.text, fontWeight: '700' },
-  tooltipDate: { ...typography.caption },
+  tooltipWeight: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurface, fontWeight: '700' },
+  tooltipDate: { ...typography2.labelCaps, textTransform: 'none' },
 });

@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
-import { ChallengeCard } from '@/components/ChallengeCard';
+import { Avatar } from '@/components/Avatar';
+import { Button2 } from '@/components/Button2';
+import { ChallengeCard2 } from '@/components/ChallengeCard2';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { getApiErrorMessage } from '@/services/api';
 import { Challenge, listTrainerChallenges } from '@/services/challenges';
 import {
@@ -17,7 +19,8 @@ import {
   licenseLabel,
   subscribeToTrainer,
 } from '@/services/trainers';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { getInitials } from '@/utils/text';
 
 export default function TrainerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,18 +82,19 @@ export default function TrainerProfileScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>{trainer ? PROFESSIONAL_TYPE_LABELS[trainer.professional_type] : 'Profissional'}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="arrow-back" size={24} color={colors2.onSurface} />
         </Pressable>
+        <Text style={styles.headerTitle}>Tryv</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors2.violet} />
           </View>
         )}
 
@@ -99,85 +103,181 @@ export default function TrainerProfileScreen() {
         {!loading && trainer && (
           <>
             <View style={styles.profileHeader}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={32} color={colors.accent} />
+              <View>
+                <Avatar initials={getInitials(trainer.user_name)} size={100} />
+                {trainer.cref_verified && (
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="checkmark" size={14} color={colors2.background} />
+                  </View>
+                )}
               </View>
               <Text style={styles.name}>{trainer.user_name}</Text>
-              <Text style={styles.cref}>
-                {licenseLabel(trainer.professional_type)} {trainer.license_number}
-              </Text>
+              <View style={styles.credentialRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={colors2.outline} />
+                <Text style={styles.cref}>
+                  {licenseLabel(trainer.professional_type)} {trainer.license_number}
+                </Text>
+              </View>
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{PROFESSIONAL_TYPE_LABELS[trainer.professional_type]}</Text>
+              </View>
+
+              <View style={styles.priceInline}>
+                <Text style={styles.priceInlineValue}>{formatPriceBRL(trainer.price)}</Text>
+                <Text style={styles.priceInlineUnit}> /mes</Text>
+              </View>
             </View>
 
-            <Card style={styles.priceCard}>
-              <Text style={styles.priceLabel}>Mensalidade</Text>
-              <Text style={styles.price}>{formatPriceBRL(trainer.price)}</Text>
-            </Card>
+            {!!trainer.bio && (
+              <LiquiglassCard style={styles.section}>
+                <Text style={styles.sectionTitle}>Sobre mim</Text>
+                <Text style={styles.bio}>{trainer.bio}</Text>
+              </LiquiglassCard>
+            )}
 
-            {!!trainer.bio && <Text style={styles.bio}>{trainer.bio}</Text>}
+            {trainer.professional_type === 'personal_trainer' && (
+              <LiquiglassCard style={styles.differentialSection}>
+                <View style={styles.differentialIcon}>
+                  <Ionicons name="videocam" size={20} color={colors2.onPrimaryContainer} />
+                </View>
+                <View style={styles.differentialText}>
+                  <Text style={styles.differentialTitle}>Acompanhamento de treino ao vivo</Text>
+                  <Text style={styles.differentialSubtitle}>
+                    Sessoes online para correcao de postura e motivacao em tempo real.
+                  </Text>
+                </View>
+              </LiquiglassCard>
+            )}
+
+            {/*
+              Nota de lacuna de dado: o mockup marketplace-perfil.html mostra
+              um grid de estatisticas (Alunos Ativos, Avaliacao, Planilhas,
+              Anos de Experiencia). Nenhum desses campos existe hoje em
+              TrainerPublic nem em qualquer endpoint do backend — nao ha como
+              popular isso com dado real, entao a secao foi omitida em vez de
+              inventar numeros.
+            */}
 
             {!!subscribeError && <Text style={styles.error}>{subscribeError}</Text>}
 
             {!!info && (
-              <Card style={styles.infoCard}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+              <LiquiglassCard style={styles.infoCard}>
+                <Ionicons name="checkmark-circle" size={18} color={colors2.success} />
                 <Text style={styles.infoText}>{info}</Text>
-              </Card>
+              </LiquiglassCard>
             )}
-
-            <Button label="Assinar" onPress={handleSubscribe} loading={subscribing} />
 
             {challenges.length > 0 && (
               <View style={styles.challengesSection}>
                 <Text style={styles.sectionTitle}>Desafios</Text>
                 {challenges.map((challenge) => (
-                  <ChallengeCard key={challenge.id} challenge={challenge} />
+                  <ChallengeCard2 key={challenge.id} challenge={challenge} />
                 ))}
               </View>
             )}
           </>
         )}
       </ScrollView>
-    </View>
+
+      {!loading && trainer && (
+        <View style={styles.footer}>
+          <Button2
+            label={`Assinar por ${formatPriceBRL(trainer.price)}/mes`}
+            onPress={handleSubscribe}
+            loading={subscribing}
+          />
+        </View>
+      )}
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  centered: { alignItems: 'center', marginTop: spacing.xl },
-  error: { color: colors.danger, textAlign: 'center' },
+  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, paddingBottom: 140, gap: spacing2.md },
+  centered: { alignItems: 'center', marginTop: spacing2.xl },
+  error: { color: colors2.danger, textAlign: 'center' },
 
-  profileHeader: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
+  profileHeader: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors2.background,
   },
-  name: { ...typography.h2 },
-  cref: { ...typography.caption },
+  name: { ...typography2.headlineLgMobile, fontSize: 24, marginTop: spacing2.sm },
+  credentialRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
+  cref: { ...typography2.labelCaps, textTransform: 'none', color: colors2.outline },
+  typeBadge: {
+    marginTop: spacing2.xs,
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.xs,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+  },
+  typeBadgeText: { ...typography2.labelCaps, color: colors2.primary },
+  priceInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: spacing2.sm,
+    backgroundColor: colors2.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.md,
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.sm,
+  },
+  priceInlineValue: { ...typography2.metricMono, fontSize: 20 },
+  priceInlineUnit: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
 
-  priceCard: { alignItems: 'center', gap: spacing.xs },
-  priceLabel: { ...typography.caption },
-  price: { ...typography.statNumber, fontSize: 28 },
+  section: { gap: spacing2.sm },
+  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+  bio: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, lineHeight: 24 },
 
-  bio: { ...typography.body, color: colors.textSecondary },
+  differentialSection: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  differentialIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  differentialText: { flex: 1, gap: spacing2.xs },
+  differentialTitle: { ...typography2.bodyMd, fontWeight: '600' },
+  differentialSubtitle: { ...typography2.labelCaps, textTransform: 'none' },
 
-  infoCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  infoText: { ...typography.bodySecondary, flex: 1 },
+  infoCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  infoText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, flex: 1 },
 
-  challengesSection: { gap: spacing.sm, marginTop: spacing.md },
-  sectionTitle: { ...typography.h3 },
+  challengesSection: { gap: spacing2.sm, marginTop: spacing2.sm },
+
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing2.containerMargin,
+    backgroundColor: 'rgba(19, 19, 19, 0.9)',
+    borderTopWidth: 1,
+    borderTopColor: colors2.outlineVariant,
+  },
 });

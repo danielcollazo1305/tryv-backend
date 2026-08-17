@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
-import { Card } from '@/components/Card';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthMetricRow } from '@/components/HealthMetricRow';
 import { HealthWeeklyBarChart } from '@/components/HealthWeeklyBarChart';
 import { formatDistanceKm } from '@/services/activities';
@@ -17,7 +17,7 @@ import {
   requestHealthKitPermissions,
 } from '@/services/healthkit';
 import { syncRecentHeartRate } from '@/services/heartRateSync';
-import { colors, metricColors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
 
 // So guarda "o usuario ja passou pelo fluxo de conectar" — nao revela se
 // cada tipo de dado foi de fato autorizado (o HealthKit nao expoe isso por
@@ -121,9 +121,9 @@ export function HealthSummaryCard() {
   if (status === 'disconnected') {
     return (
       <Pressable onPress={handleConnect} disabled={connecting}>
-        <Card style={styles.connectCard}>
+        <LiquiglassCard style={styles.connectCard}>
           <View style={styles.connectIconWrap}>
-            <Ionicons name="heart" size={20} color={colors.accent} />
+            <Ionicons name="heart" size={20} color={colors2.violet} />
           </View>
           <View style={styles.connectInfo}>
             <Text style={styles.connectTitle}>Conectar Apple Health</Text>
@@ -132,11 +132,11 @@ export function HealthSummaryCard() {
             </Text>
           </View>
           {connecting ? (
-            <ActivityIndicator color={colors.accent} />
+            <ActivityIndicator color={colors2.violet} />
           ) : (
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
           )}
-        </Card>
+        </LiquiglassCard>
       </Pressable>
     );
   }
@@ -144,7 +144,7 @@ export function HealthSummaryCard() {
   if (status === 'loading') {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={colors.accent} />
+        <ActivityIndicator size="small" color={colors2.violet} />
       </View>
     );
   }
@@ -152,16 +152,16 @@ export function HealthSummaryCard() {
   if (status === 'error') {
     return (
       <Pressable onPress={() => loadSummary()}>
-        <Card style={styles.connectCard}>
+        <LiquiglassCard style={styles.connectCard}>
           <View style={styles.connectIconWrap}>
-            <Ionicons name="refresh" size={20} color={colors.accent} />
+            <Ionicons name="refresh" size={20} color={colors2.violet} />
           </View>
           <View style={styles.connectInfo}>
             <Text style={styles.connectTitle}>Nao foi possivel carregar o Apple Health</Text>
             <Text style={styles.connectSubtitle}>Toque para tentar novamente.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Card>
+          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+        </LiquiglassCard>
       </Pressable>
     );
   }
@@ -169,7 +169,7 @@ export function HealthSummaryCard() {
   if (!summary) return null;
 
   return (
-    <Card style={styles.summaryCard}>
+    <LiquiglassCard style={styles.summaryCard}>
       <Text style={styles.cardTitle}>Apple Health</Text>
 
       <HealthMetricRow
@@ -208,7 +208,7 @@ export function HealthSummaryCard() {
       >
         <Pressable onPress={() => router.push('/heart-rate-report')} style={styles.reportLink} hitSlop={8}>
           <Text style={styles.reportLinkText}>Ver relatorio completo de FC</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+          <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
         </Pressable>
       </HealthMetricRow>
 
@@ -219,29 +219,29 @@ export function HealthSummaryCard() {
         subLabel="ultima noite"
         value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
       />
-    </Card>
+    </LiquiglassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  connectCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  connectCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
   connectIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
+    borderRadius: radius2.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  connectInfo: { flex: 1, gap: spacing.xs },
-  connectTitle: { ...typography.body, fontWeight: '600' },
-  connectSubtitle: { ...typography.caption },
+  connectInfo: { flex: 1, gap: spacing2.xs },
+  connectTitle: { ...typography2.bodyMd, fontWeight: '600' },
+  connectSubtitle: { ...typography2.labelCaps, textTransform: 'none' },
 
-  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing.xs },
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
 
-  summaryCard: { gap: spacing.xs },
-  cardTitle: { ...typography.h3, marginBottom: spacing.xs },
+  summaryCard: { gap: spacing2.xs },
+  cardTitle: { ...typography2.headlineMd, fontSize: 18, marginBottom: spacing2.xs },
 
-  reportLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.xs },
-  reportLinkText: { ...typography.caption, color: colors.accent, fontWeight: '700' },
+  reportLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing2.xs },
+  reportLinkText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, fontWeight: '700' },
 });

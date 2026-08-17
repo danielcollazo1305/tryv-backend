@@ -61,6 +61,36 @@ export async function listMeals(): Promise<Meal[]> {
   return response.data;
 }
 
+export type MealsSummaryPeriod = '1d' | '7d' | '4w' | '1y';
+
+export interface MealDailySummary {
+  date: string;
+  has_data: boolean;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+}
+
+export interface MealsSummary {
+  period: MealsSummaryPeriod;
+  granularity: 'day' | 'month';
+  offset: number;
+  start_date: string;
+  end_date: string;
+  daily: MealDailySummary[];
+  avg_calories: number | null;
+  avg_protein: number | null;
+  avg_carbs: number | null;
+  avg_fat: number | null;
+}
+
+/** Agregacao historica (kcal + 3 macros por dia ou mes) — offset navega pra janelas anteriores (0 = atual). */
+export async function getMealsSummary(period: MealsSummaryPeriod, offset = 0): Promise<MealsSummary> {
+  const response = await api.get<MealsSummary>('/meals/summary', { params: { period, offset } });
+  return response.data;
+}
+
 /**
  * O backend serializa datetimes "ingenuos" em UTC sem sufixo de fuso
  * (ex: "2026-07-25T14:30:00"). Sem tratar isso, o JS interpretaria a
@@ -84,4 +114,11 @@ export function isToday(isoDate: string): boolean {
 
 export function formatMealTime(isoDate: string): string {
   return parseUtcDate(isoDate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+export function formatMealDateTime(isoDate: string): string {
+  const date = parseUtcDate(isoDate);
+  const dateLabel = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  const timeLabel = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `${dateLabel}, ${timeLabel}`;
 }

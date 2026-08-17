@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -37,3 +38,31 @@ class MealOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+MealsSummaryPeriod = Literal["1d", "7d", "4w", "1y"]
+
+
+class MealDailySummary(BaseModel):
+    """Um ponto do historico -- um dia (periodos 1d/7d/4w) ou um mes (1y,
+    ver granularity). has_data=False quando nao houve nenhuma refeicao
+    registrada nesse dia/mes -- diferente de ter registrado e somar 0."""
+    date: date
+    has_data: bool
+    calories: float | None = None
+    protein: float | None = None
+    carbs: float | None = None
+    fat: float | None = None
+
+
+class MealsSummaryOut(BaseModel):
+    period: MealsSummaryPeriod
+    granularity: Literal["day", "month"]
+    offset: int
+    start_date: date
+    end_date: date
+    daily: list[MealDailySummary]
+    avg_calories: float | None = None
+    avg_protein: float | None = None
+    avg_carbs: float | None = None
+    avg_fat: float | None = None

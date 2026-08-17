@@ -46,12 +46,14 @@ function RootNavigator() {
       <Stack.Protected guard={!!token}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="meal/add" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="meal/photos" options={{ presentation: 'modal' }} />
         <Stack.Screen name="workout-plan/generate" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/index" />
         <Stack.Screen name="activity/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/index" />
+        <Stack.Screen name="trainers/select-type" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/register" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/me" options={{ presentation: 'modal' }} />

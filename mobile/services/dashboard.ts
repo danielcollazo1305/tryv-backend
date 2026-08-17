@@ -52,16 +52,16 @@ export async function getTrainingFrequency(params: HomeSummaryParams): Promise<T
   return response.data;
 }
 
-export interface DailyActiveMinutes {
+export interface DailyDistanceKm {
   date: string;
-  minutes: number;
+  distance_km: number;
 }
 
 export interface WeeklyActivity {
-  daily: DailyActiveMinutes[];
+  daily: DailyDistanceKm[];
 }
 
-/** Minutos ativos (Run + ManualActivity) por dia, ultimos 7 dias — livre. Usado pelo grafico "Atividades" da Home. */
+/** Km rodados (so Run) por dia, ultimos 7 dias — livre. Usado pelo grafico "Km rodados" da Home. */
 export async function getWeeklyActivity(): Promise<WeeklyActivity> {
   const response = await api.get<WeeklyActivity>('/dashboard/weekly-activity');
   return response.data;

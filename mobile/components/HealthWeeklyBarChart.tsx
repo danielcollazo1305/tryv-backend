@@ -3,11 +3,11 @@ import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-nat
 import { BarChart } from 'react-native-chart-kit';
 
 import { DailyQuantityPoint } from '@/services/healthkit';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-// Mesma conta do WeightChart: largura da tela menos o padding do container da tela e o padding interno do Card (spacing.lg dos dois lados, duas vezes).
-const CHART_WIDTH = SCREEN_WIDTH - spacing.lg * 4;
+// Mesma conta do WeightChart: largura da tela menos o padding do container da tela e o padding interno do LiquiglassCard (spacing2.lg dos dois lados, duas vezes).
+const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
 
 const WEEKDAY_LABELS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
@@ -87,13 +87,13 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeekly
         yAxisLabel=""
         yAxisSuffix=""
         chartConfig={{
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
+          backgroundGradientFrom: colors2.surfaceContainer,
+          backgroundGradientTo: colors2.surfaceContainer,
           decimalPlaces: 0,
           color: (opacity = 1) => hexToRgba(color, opacity),
-          labelColor: () => colors.textMuted,
+          labelColor: () => colors2.onSurfaceVariant,
           barPercentage: 0.6,
-          propsForBackgroundLines: { stroke: colors.border },
+          propsForBackgroundLines: { stroke: colors2.outlineVariant },
           propsForLabels: { fontSize: 11 },
         }}
         style={styles.chart}
@@ -111,8 +111,8 @@ function hexToRgba(hex: string, opacity: number): string {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing.md },
-  emptyText: { ...typography.bodySecondary, paddingVertical: spacing.sm },
-  comparison: { ...typography.bodySecondary, marginBottom: spacing.sm },
-  chart: { borderRadius: radius.md, marginLeft: -spacing.md },
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing2.md },
+  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, paddingVertical: spacing2.sm },
+  comparison: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, marginBottom: spacing2.sm },
+  chart: { borderRadius: radius2.md, marginLeft: -spacing2.md },
 });

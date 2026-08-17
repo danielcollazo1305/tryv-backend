@@ -3,11 +3,14 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { TextField } from '@/components/TextField';
+import { Button2 } from '@/components/Button2';
+import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import { ProfessionalType, licenseLabel, registerTrainer } from '@/services/trainers';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const TYPE_OPTIONS: { value: ProfessionalType; label: string }[] = [
   { value: 'personal_trainer', label: 'Personal Trainer' },
@@ -47,100 +50,91 @@ export default function TrainerRegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScreenBackground2 style={styles.flex}>
+    <KeyboardAvoidingView style={styles.innerFlex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <Text style={styles.title}>Cadastro profissional</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="arrow-back" size={24} color={colors2.onSurface} />
         </Pressable>
+        <Text style={styles.headerTitle}>Tryv</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.fieldLabel}>Tipo de profissional</Text>
-        <View style={styles.typeRow}>
-          {TYPE_OPTIONS.map((option) => {
-            const selected = professionalType === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => setProfessionalType(option.value)}
-                style={[styles.typePill, selected && styles.typePillSelected]}
-              >
-                <Text style={[styles.typePillText, selected && styles.typePillTextSelected]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
+        <View style={styles.intro}>
+          <Text style={styles.title}>Registro Profissional</Text>
+          <Text style={styles.subtitle}>Configure seu perfil para oferecer servicos na plataforma.</Text>
         </View>
 
-        <Text style={styles.subtitle}>
-          {professionalType
-            ? `Seu ${label} passa por uma analise antes do seu perfil aparecer na busca de ${
-                professionalType === 'nutritionist' ? 'nutricionistas' : 'personal trainers'
-              }.`
-            : 'Escolha seu tipo de atuacao pra continuar.'}
-        </Text>
+        <ChoiceGroup2 label="Area de atuacao" options={TYPE_OPTIONS} value={professionalType} onChange={setProfessionalType} />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <TextField
-          label={`Numero do ${label}`}
-          placeholder={professionalType === 'nutritionist' ? 'Ex: 12345/SP' : 'Ex: 012345-G/SP'}
-          value={licenseNumber}
-          onChangeText={setLicenseNumber}
-        />
-        <TextField
-          label="Bio"
-          placeholder="Conte sua experiencia, especialidades e forma de trabalho..."
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={5}
-          style={styles.bioInput}
-        />
-        <TextField
-          label="Preco mensal (R$)"
-          placeholder="Ex: 150"
-          keyboardType="decimal-pad"
-          value={price}
-          onChangeText={setPrice}
-        />
+        <LiquiglassCard style={styles.formCard}>
+          <TextField2
+            label={`Numero do ${label}`}
+            placeholder={professionalType === 'nutritionist' ? 'Ex: 12345/SP' : 'Ex: 012345-G/SP'}
+            value={licenseNumber}
+            onChangeText={setLicenseNumber}
+          />
+          <TextField2
+            label="Minibio (visivel no perfil)"
+            placeholder="Descreva sua especialidade, metodologia e experiencia..."
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            numberOfLines={5}
+            style={styles.bioInput}
+          />
+          <TextField2
+            label="Mensalidade base (R$)"
+            placeholder="Ex: 150"
+            keyboardType="decimal-pad"
+            value={price}
+            onChangeText={setPrice}
+          />
+        </LiquiglassCard>
 
-        <Button label="Cadastrar" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} />
+        <View style={styles.noticeCard}>
+          <Ionicons name="information-circle" size={20} color={colors2.primary} />
+          <Text style={styles.noticeText}>Seu registro passa por verificacao antes de ficar visivel publicamente.</Text>
+        </View>
+
+        <Button2 label="Enviar para analise" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} />
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  innerFlex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  fieldLabel: { ...typography.caption, marginBottom: -spacing.xs },
-  typeRow: { flexDirection: 'row', gap: spacing.sm },
-  typePill: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  typePillSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  typePillText: { ...typography.bodySecondary, color: colors.text, fontWeight: '600' },
-  typePillTextSelected: { color: colors.white, fontWeight: '700' },
-  subtitle: { ...typography.bodySecondary },
-  error: { color: colors.danger, textAlign: 'center' },
+  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg, paddingBottom: spacing2.xl },
+  intro: { gap: spacing2.xs },
+  title: { ...typography2.headlineLgMobile, fontSize: 24 },
+  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  error: { color: colors2.danger, textAlign: 'center' },
+  formCard: { gap: spacing2.md },
   bioInput: { minHeight: 110, textAlignVertical: 'top' },
+  noticeCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing2.sm,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    borderRadius: radius2.md,
+    padding: spacing2.md,
+  },
+  noticeText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurface, flex: 1, lineHeight: 20 },
 });

@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
+import { ImageCoverCard } from '@/components/ImageCoverCard';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { getMyTrainerProfile } from '@/services/trainers';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 /**
- * Destaque do marketplace de professores na Home. Uma unica secao com duas
- * chamadas (aluno em primeiro plano, professor como linha secundaria) em vez
- * de dois cards do mesmo tamanho competindo por atencao — a maioria dos
- * usuarios e aluno, entao o CTA de aluno e o "hero" do card.
+ * Destaque do marketplace de professores na Home. Card principal com
+ * imagem de capa (acompanhamento-profissional-card.png) leva pro passo
+ * intermediario de selecao de categoria (trainers/select-type.tsx) em vez
+ * de ir direto pra listagem — fluxo em 2 passos pedido na reorganizacao da
+ * Home. Linha secundaria (virar parceiro) preservada abaixo, sem mudanca
+ * de logica — so deixou de morar dentro do mesmo LiquiglassCard porque o
+ * card principal virou um card de imagem (ImageCoverCard), que nao pode
+ * conter outro Pressable dentro sem conflito de toque.
  */
 export function TrainersHighlight() {
   const [isTrainer, setIsTrainer] = useState(false);
@@ -47,17 +51,16 @@ export function TrainersHighlight() {
   }, [fade, slide]);
 
   return (
-    <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
-      <Card style={styles.card}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="ribbon" size={22} color={colors.accent} />
-        </View>
-        <Text style={styles.title}>Acompanhamento profissional</Text>
-        <Text style={styles.subtitle}>Tenha treino ou nutricao acompanhados por profissionais da area.</Text>
-        <Button label="Ver profissionais" onPress={() => router.push('/trainers')} />
+    <Animated.View style={[styles.wrapper, { opacity: fade, transform: [{ translateY: slide }] }]}>
+      <ImageCoverCard
+        image={require('../assets/imagens/acompanhamento-profissional-card.png')}
+        title="Acompanhamento profissional"
+        subtitle="Tenha treino ou nutricao acompanhados por profissionais da area."
+        accessibilityLabel="Personal trainer orientando um aluno durante o treino"
+        onPress={() => router.push('/trainers/select-type')}
+      />
 
-        <View style={styles.divider} />
-
+      <LiquiglassCard style={styles.secondaryCard} padding={spacing2.md}>
         <Pressable
           style={styles.secondaryRow}
           onPress={() => router.push(isTrainer ? '/trainers/me' : '/trainers/register')}
@@ -67,31 +70,20 @@ export function TrainersHighlight() {
               ? 'Voce e nosso parceiro — ver meu painel'
               : 'E personal trainer ou nutricionista? Seja nosso parceiro'}
           </Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+          <Ionicons name="chevron-forward" size={16} color={colors2.primary} />
         </Pressable>
-      </Card>
+      </LiquiglassCard>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing.sm },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  title: { ...typography.h3 },
-  subtitle: { ...typography.bodySecondary },
-  divider: { height: 1, backgroundColor: colors.border, marginTop: spacing.xs },
+  wrapper: { gap: spacing2.sm },
+  secondaryCard: { paddingVertical: spacing2.sm },
   secondaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  secondaryText: { ...typography.bodySecondary, color: colors.accent, flex: 1, marginRight: spacing.sm },
+  secondaryText: { ...typography2.bodyMd, fontSize: 14, color: colors2.primary, flex: 1, marginRight: spacing2.sm },
 });

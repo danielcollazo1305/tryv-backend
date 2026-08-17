@@ -1,17 +1,47 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { Card } from '@/components/Card';
+import { Avatar } from '@/components/Avatar';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { getApiErrorMessage } from '@/services/api';
 import { Student, Trainer, getMyTrainerProfile, listMyStudents } from '@/services/trainers';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { getInitials } from '@/utils/text';
 
 // Enquanto a tela esta aberta, atualiza quem esta "ao vivo" agora — o
 // professor pode estar olhando a lista bem quando um aluno comeca a treinar.
 // So faz sentido pra personal trainer (ver isNutritionist abaixo).
 const REFRESH_INTERVAL_MS = 10000;
+
+function LiveDot() {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <View style={styles.liveDotWrap}>
+      <Animated.View
+        style={[
+          styles.liveDotRing,
+          { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }] },
+        ]}
+      />
+      <View style={styles.liveDot} />
+    </View>
+  );
+}
 
 export default function TrainerStudentsScreen() {
   const [trainer, setTrainer] = useState<Trainer | null>(null);
@@ -68,11 +98,11 @@ export default function TrainerStudentsScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>{isNutritionist ? 'Meus pacientes' : 'Meus alunos'}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
@@ -80,13 +110,13 @@ export default function TrainerStudentsScreen() {
         {!!error && <Text style={styles.error}>{error}</Text>}
         {loading && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors2.violet} />
           </View>
         )}
 
         {!loading && students.length === 0 && !error && (
           <View style={styles.centered}>
-            <Ionicons name="people-outline" size={32} color={colors.textMuted} />
+            <Ionicons name="people-outline" size={32} color={colors2.onSurfaceVariant} />
             <Text style={styles.emptyText}>
               {isNutritionist ? 'Voce ainda nao tem pacientes assinantes.' : 'Voce ainda nao tem alunos assinantes.'}
             </Text>
@@ -100,63 +130,76 @@ export default function TrainerStudentsScreen() {
               onPress={() => handleSelectStudent(student)}
               disabled={!isNutritionist && !student.is_live}
             >
-              <Card style={styles.studentCard}>
-                <View style={styles.avatar}>
-                  <Ionicons name="person" size={20} color={colors.accent} />
-                </View>
+              <LiquiglassCard style={styles.studentCard} padding={spacing2.md}>
+                <Avatar initials={getInitials(student.name)} size={48} />
                 <View style={styles.studentInfo}>
                   <Text style={styles.studentName}>{student.name}</Text>
+                  {/*
+                    Lacuna de dado: o mockup marketplace-meus-alunos.html
+                    mostra "Desde <data>" (inicio da assinatura). O tipo
+                    Student (services/trainers.ts) nao tem esse campo hoje
+                    (so user_id/name/is_live/live_activity_id) — omitido
+                    aqui em vez de inventar uma data.
+                  */}
                   {isNutritionist ? (
                     <Text style={styles.offlineText}>Ver ou editar plano alimentar</Text>
                   ) : student.is_live ? (
                     <View style={styles.liveRow}>
-                      <View style={styles.liveDot} />
-                      <Text style={styles.liveText}>Treinando agora</Text>
+                      <LiveDot />
+                      <Text style={styles.liveText}>Ao vivo agora</Text>
                     </View>
                   ) : (
                     <Text style={styles.offlineText}>Sem atividade no momento</Text>
                   )}
                 </View>
-                {(isNutritionist || student.is_live) && (
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                {isNutritionist ? (
+                  <View style={styles.dietPlanButton}>
+                    <Text style={styles.dietPlanButtonText}>Ver plano</Text>
+                  </View>
+                ) : (
+                  student.is_live && <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
                 )}
-              </Card>
+              </LiquiglassCard>
             </Pressable>
           ))}
       </ScrollView>
-    </View>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.sm },
-  error: { color: colors.danger, textAlign: 'center' },
-  centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
-  emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+  title: { ...typography2.headlineMd, fontSize: 20 },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.sm },
+  error: { color: colors2.danger, textAlign: 'center' },
+  centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
+  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
 
-  studentCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+  studentCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  studentInfo: { flex: 1, gap: spacing2.xs },
+  studentName: { ...typography2.bodyMd, fontWeight: '600' },
+  offlineText: { ...typography2.labelCaps, textTransform: 'none' },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  liveDotWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
+  liveDotRing: { position: 'absolute', width: 10, height: 10, borderRadius: radius2.pill, backgroundColor: colors2.success },
+  liveDot: { width: 8, height: 8, borderRadius: radius2.pill, backgroundColor: colors2.success },
+  liveText: { ...typography2.labelCaps, color: colors2.success, textTransform: 'none' },
+
+  dietPlanButton: {
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.xs,
+    borderRadius: radius2.pill,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: colors2.violet,
   },
-  studentInfo: { flex: 1, gap: spacing.xs },
-  studentName: { ...typography.body, fontWeight: '600' },
-  offlineText: { ...typography.caption },
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  liveDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.success },
-  liveText: { ...typography.caption, color: colors.success, fontWeight: '700' },
+  dietPlanButtonText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary },
 });

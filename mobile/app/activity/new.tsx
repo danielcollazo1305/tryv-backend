@@ -15,10 +15,11 @@ import * as Location from 'expo-location';
 import MapView, { Polyline } from 'react-native-maps';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
-import { ChoiceGroup } from '@/components/ChoiceGroup';
-import { TextField } from '@/components/TextField';
+import { Button2 } from '@/components/Button2';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import {
   ActivityInsight,
@@ -38,7 +39,7 @@ import {
 } from '@/services/activities';
 import { fetchRecentHeartRateBpm } from '@/services/healthkit';
 import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 // Intervalo minimo entre atualizacoes ao vivo enviadas pro backend — o GPS
 // pinga a cada ~4s, mas o professor acompanhando nao precisa de mais que
@@ -342,7 +343,7 @@ export default function NewActivityScreen() {
     return (
       <View style={styles.trackingFlex}>
         <Pressable style={styles.trackingCloseButton} onPress={handleCloseTracking} hitSlop={12}>
-          <Ionicons name="close" size={22} color={colors.white} />
+          <Ionicons name="close" size={22} color={colors2.white} />
         </Pressable>
 
         <MapView
@@ -359,7 +360,7 @@ export default function NewActivityScreen() {
           {routePoints.length > 1 && (
             <Polyline
               coordinates={routePoints.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-              strokeColor={colors.accent}
+              strokeColor={colors2.violet}
               strokeWidth={4}
             />
           )}
@@ -368,23 +369,23 @@ export default function NewActivityScreen() {
         <View style={styles.trackingPanel}>
           <View style={styles.trackingStatsRow}>
             <View style={styles.trackingStat}>
-              <Text style={typography.statNumber}>{formatDuration(elapsedSeconds)}</Text>
-              <Text style={typography.statLabel}>tempo</Text>
+              <Text style={styles.trackingStatNumber}>{formatDuration(elapsedSeconds)}</Text>
+              <Text style={styles.trackingStatLabel}>tempo</Text>
             </View>
             <View style={styles.trackingStat}>
-              <Text style={typography.statNumber}>{formatDistanceKm(liveDistanceMeters)}</Text>
-              <Text style={typography.statLabel}>km</Text>
+              <Text style={styles.trackingStatNumber}>{formatDistanceKm(liveDistanceMeters)}</Text>
+              <Text style={styles.trackingStatLabel}>km</Text>
             </View>
           </View>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
           {trackingActive ? (
-            <Button label="Finalizar" onPress={handleFinishTracking} />
+            <Button2 label="Finalizar" onPress={handleFinishTracking} />
           ) : (
             <>
-              <Button label="Salvar atividade" onPress={handleSaveRun} />
-              <Button label="Descartar atividade" variant="secondary" onPress={handleDiscardTracking} />
+              <Button2 label="Salvar atividade" onPress={handleSaveRun} />
+              <Button2 label="Descartar atividade" variant="secondary" onPress={handleDiscardTracking} />
             </>
           )}
         </View>
@@ -393,11 +394,12 @@ export default function NewActivityScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScreenBackground2 style={styles.flex}>
+    <KeyboardAvoidingView style={styles.innerFlex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <Text style={styles.title}>{stage === 'result' ? 'Atividade salva' : 'Nova atividade'}</Text>
         <Pressable onPress={handleClose} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
@@ -406,14 +408,14 @@ export default function NewActivityScreen() {
 
         {stage === 'select' && (
           <>
-            <ChoiceGroup label="Com GPS" options={GPS_OPTIONS} value={selectedType} onChange={setSelectedType} />
-            <ChoiceGroup
+            <ChoiceGroup2 label="Com GPS" options={GPS_OPTIONS} value={selectedType} onChange={setSelectedType} />
+            <ChoiceGroup2
               label="Registro manual"
               options={MANUAL_OPTIONS}
               value={selectedType}
               onChange={setSelectedType}
             />
-            <Button
+            <Button2
               label={isGpsType ? 'Iniciar atividade' : 'Continuar'}
               onPress={handleSelectContinue}
               disabled={!selectedType}
@@ -423,21 +425,21 @@ export default function NewActivityScreen() {
 
         {stage === 'manual-form' && (
           <>
-            <TextField
+            <TextField2
               label="Duracao (minutos)"
               placeholder="Ex: 45"
               keyboardType="number-pad"
               value={durationMinutes}
               onChangeText={setDurationMinutes}
             />
-            <TextField
+            <TextField2
               label="Calorias (opcional)"
               placeholder="Ex: 320"
               keyboardType="decimal-pad"
               value={caloriesManual}
               onChangeText={setCaloriesManual}
             />
-            <TextField
+            <TextField2
               label="Notas (opcional)"
               placeholder="Ex: 5 rounds de sparring, treino leve..."
               value={notes}
@@ -446,47 +448,47 @@ export default function NewActivityScreen() {
               numberOfLines={3}
               style={styles.notesInput}
             />
-            <Button label="Salvar atividade" onPress={handleSaveManual} disabled={!canSubmitManual} />
+            <Button2 label="Salvar atividade" onPress={handleSaveManual} disabled={!canSubmitManual} />
           </>
         )}
 
         {stage === 'saving' && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors2.violet} />
             <Text style={styles.savingText}>Salvando atividade...</Text>
           </View>
         )}
 
         {stage === 'result' && (savedRun || savedManual) && (
           <View style={styles.reviewContainer}>
-            <Card style={styles.resultCard}>
+            <LiquiglassCard style={styles.resultCard}>
               {savedRun ? (
                 <View style={styles.statsRow}>
                   <View style={styles.stat}>
-                    <Text style={typography.statNumber}>{formatDistanceKm(savedRun.distance_meters)}</Text>
-                    <Text style={typography.statLabel}>km</Text>
+                    <Text style={styles.statNumber}>{formatDistanceKm(savedRun.distance_meters)}</Text>
+                    <Text style={styles.statLabel}>km</Text>
                   </View>
                   <View style={styles.stat}>
-                    <Text style={typography.statNumber}>{formatDuration(savedRun.duration_seconds)}</Text>
-                    <Text style={typography.statLabel}>tempo</Text>
+                    <Text style={styles.statNumber}>{formatDuration(savedRun.duration_seconds)}</Text>
+                    <Text style={styles.statLabel}>tempo</Text>
                   </View>
                   <View style={styles.stat}>
-                    <Text style={typography.statNumber}>{formatPace(savedRun.avg_pace_seconds_per_km)}</Text>
-                    <Text style={typography.statLabel}>pace</Text>
+                    <Text style={styles.statNumber}>{formatPace(savedRun.avg_pace_seconds_per_km)}</Text>
+                    <Text style={styles.statLabel}>pace</Text>
                   </View>
                 </View>
               ) : (
                 savedManual && (
                   <View style={styles.statsRow}>
                     <View style={styles.stat}>
-                      <Text style={typography.statNumber}>{savedManual.duration_minutes}</Text>
-                      <Text style={typography.statLabel}>minutos</Text>
+                      <Text style={styles.statNumber}>{savedManual.duration_minutes}</Text>
+                      <Text style={styles.statLabel}>minutos</Text>
                     </View>
                     <View style={styles.stat}>
-                      <Text style={typography.statNumber}>
+                      <Text style={styles.statNumber}>
                         {savedManual.calories_burned != null ? Math.round(savedManual.calories_burned) : '--'}
                       </Text>
-                      <Text style={typography.statLabel}>kcal</Text>
+                      <Text style={styles.statLabel}>kcal</Text>
                     </View>
                   </View>
                 )
@@ -495,23 +497,23 @@ export default function NewActivityScreen() {
                 <Text style={styles.resultExtra}>{Math.round(savedRun.calories_burned)} kcal</Text>
               )}
               {!!savedManual?.notes && <Text style={styles.resultExtra}>{savedManual.notes}</Text>}
-            </Card>
+            </LiquiglassCard>
 
             {insight ? (
-              <Card style={styles.insightCard}>
+              <LiquiglassCard style={styles.insightCard}>
                 <Text style={styles.insightSummary}>{insight.summary}</Text>
                 {!!insight.highlight && (
                   <View style={styles.insightHighlightRow}>
-                    <Ionicons name="sparkles" size={16} color={colors.accent} />
+                    <Ionicons name="sparkles" size={16} color={colors2.violet} />
                     <Text style={styles.insightHighlight}>{insight.highlight}</Text>
                   </View>
                 )}
                 <Text style={styles.insightSuggestion}>{insight.suggestion}</Text>
-              </Card>
+              </LiquiglassCard>
             ) : (
               <>
                 {!!insightError && <Text style={styles.error}>{insightError}</Text>}
-                <Button
+                <Button2
                   label="Ver analise da IA"
                   variant="secondary"
                   onPress={handleFetchInsight}
@@ -520,65 +522,71 @@ export default function NewActivityScreen() {
               </>
             )}
 
-            <Button label="Concluir" onPress={handleDone} />
+            <Button2 label="Concluir" onPress={handleDone} />
           </View>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  innerFlex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
+  title: { ...typography2.headlineMd },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
+  error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },
   notesInput: { minHeight: 80, textAlignVertical: 'top' },
-  centered: { alignItems: 'center', marginTop: spacing.xl },
-  savingText: { ...typography.bodySecondary, marginTop: spacing.md },
-  reviewContainer: { gap: spacing.md },
+  centered: { alignItems: 'center', marginTop: spacing2.xl },
+  savingText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.md },
+  reviewContainer: { gap: spacing2.md },
 
-  resultCard: { gap: spacing.sm },
+  resultCard: { gap: spacing2.sm },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'flex-start' },
-  resultExtra: { ...typography.bodySecondary, marginTop: spacing.xs },
+  statNumber: { ...typography2.metricMono, fontSize: 22 },
+  statLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2 },
+  resultExtra: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, marginTop: spacing2.xs },
 
-  insightCard: { gap: spacing.sm },
-  insightSummary: { ...typography.body },
-  insightHighlightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  insightHighlight: { ...typography.bodySecondary, fontWeight: '600', flex: 1 },
-  insightSuggestion: { ...typography.bodySecondary },
+  insightCard: { gap: spacing2.sm },
+  insightSummary: { ...typography2.bodyMd },
+  insightHighlightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
+  insightHighlight: { ...typography2.bodyMd, fontSize: 14, fontWeight: '600', flex: 1 },
+  insightSuggestion: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
 
-  trackingFlex: { flex: 1, backgroundColor: colors.background },
+  trackingFlex: { flex: 1, backgroundColor: colors2.background },
   trackingCloseButton: {
     position: 'absolute',
-    top: spacing.xxl,
-    left: spacing.lg,
+    top: spacing2.xl,
+    left: spacing2.lg,
     zIndex: 1,
     width: 40,
     height: 40,
-    borderRadius: radius.pill,
+    borderRadius: radius2.pill,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   map: { flex: 1 },
   trackingPanel: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors2.surfaceContainer,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    gap: spacing.sm,
+    borderTopColor: colors2.outlineVariant,
+    padding: spacing2.lg,
+    paddingBottom: spacing2.xl,
+    gap: spacing2.sm,
   },
-  trackingStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: spacing.sm },
+  trackingStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: spacing2.sm },
   trackingStat: { alignItems: 'center' },
+  trackingStatNumber: { ...typography2.metricMono, fontSize: 28 },
+  trackingStatLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2 },
 });

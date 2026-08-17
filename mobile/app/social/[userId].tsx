@@ -3,14 +3,18 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { PostGrid } from '@/components/PostGrid';
-import { ProfileBadges } from '@/components/ProfileBadges';
+import { Avatar } from '@/components/Avatar';
+import { Button2 } from '@/components/Button2';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { PostGrid2 } from '@/components/PostGrid2';
+import { ProfileBadges2 } from '@/components/ProfileBadges2';
+import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, UserBrief, followUser, listFollowers, listFollowing, listUserPosts, unfollowUser } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { getInitials } from '@/utils/text';
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -83,97 +87,96 @@ export default function UserProfileScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Perfil</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
         </Pressable>
+        <Text style={styles.headerTitle}>Tryv</Text>
+        <View style={{ width: 22 }} />
       </View>
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color={colors2.violet} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <View style={styles.profileHeader}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={32} color={colors.accent} />
-            </View>
+          <LiquiglassCard style={styles.profileCard}>
+            <Avatar initials={displayName ? getInitials(displayName) : '?'} size={100} />
             <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
 
-            <ProfileBadges badges={badges} />
+            <ProfileBadges2 badges={badges} />
 
             <View style={styles.statsRow}>
               <View style={styles.stat}>
-                <Text style={styles.statNumber}>{posts.length}</Text>
-                <Text style={styles.statLabel}>posts</Text>
-              </View>
-              <View style={styles.stat}>
                 <Text style={styles.statNumber}>{followers.length}</Text>
-                <Text style={styles.statLabel}>seguidores</Text>
+                <Text style={styles.statLabel}>Seguidores</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{following.length}</Text>
-                <Text style={styles.statLabel}>seguindo</Text>
+                <Text style={styles.statLabel}>Seguindo</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{posts.length}</Text>
+                <Text style={styles.statLabel}>Posts</Text>
               </View>
             </View>
 
-            <Button
-              label={isFollowing ? 'Deixar de seguir' : 'Seguir'}
+            <Button2
+              label={isFollowing ? 'Seguindo' : 'Seguir'}
               variant={isFollowing ? 'secondary' : 'primary'}
               onPress={handleToggleFollow}
               loading={followBusy}
             />
-          </View>
+          </LiquiglassCard>
 
-          {posts.length > 0 ? (
-            <PostGrid posts={posts} />
-          ) : (
-            <View style={styles.empty}>
-              <Ionicons name="images-outline" size={28} color={colors.textMuted} />
-              <Text style={styles.emptyText}>Nenhum post visivel ainda.</Text>
-            </View>
-          )}
+          <View style={styles.postsSection}>
+            <Text style={styles.sectionTitle}>Posts</Text>
+            {posts.length > 0 ? (
+              <PostGrid2 posts={posts} />
+            ) : (
+              <View style={styles.empty}>
+                <Ionicons name="images-outline" size={28} color={colors2.onSurfaceVariant} />
+                <Text style={styles.emptyText}>Nenhum post visivel ainda.</Text>
+              </View>
+            )}
+          </View>
         </ScrollView>
       )}
-    </View>
+    </ScreenBackground2>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
+  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.lg },
-  error: { color: colors.danger, textAlign: 'center' },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg },
+  error: { color: colors2.danger, textAlign: 'center' },
 
-  profileHeader: { alignItems: 'center', gap: spacing.md },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: { ...typography.h2 },
-  statsRow: { flexDirection: 'row', gap: spacing.xl },
-  stat: { alignItems: 'center' },
-  statNumber: { ...typography.h3 },
-  statLabel: { ...typography.caption },
+  profileCard: { alignItems: 'center', gap: spacing2.md },
+  name: { ...typography2.headlineLgMobile, fontSize: 22 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.lg, marginTop: spacing2.xs },
+  stat: { alignItems: 'center', minWidth: 64 },
+  statDivider: { width: 1, height: 32, backgroundColor: colors2.outlineVariant },
+  statNumber: { ...typography2.metricMono, fontSize: 18, color: colors2.primary },
+  statLabel: { ...typography2.labelCaps, fontSize: 10, marginTop: 2 },
 
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
-  emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+  postsSection: { gap: spacing2.md },
+  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
+  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
 });

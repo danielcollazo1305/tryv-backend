@@ -4,11 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { TextField } from '@/components/TextField';
+import { Button2 } from '@/components/Button2';
+import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import { createChallenge } from '@/services/challenges';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -66,15 +66,15 @@ export default function NewChallengeScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Novo desafio</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <TextField label="Titulo" placeholder="Ex: Desafio 30 dias" value={title} onChangeText={setTitle} />
-        <TextField
+        <TextField2 label="Titulo" placeholder="Ex: Desafio 30 dias" value={title} onChangeText={setTitle} />
+        <TextField2
           label="Descricao (opcional)"
           placeholder="Explique as regras e o objetivo do desafio..."
           value={description}
@@ -87,7 +87,7 @@ export default function NewChallengeScreen() {
         <View style={styles.dateField}>
           <Text style={styles.dateLabel}>Data de inicio</Text>
           <Pressable style={styles.dateButton} onPress={() => setShowStartPicker(true)}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+            <Ionicons name="calendar-outline" size={18} color={colors2.primary} />
             <Text style={styles.dateButtonText}>{formatDate(startDate)}</Text>
           </Pressable>
           {showStartPicker && (
@@ -100,14 +100,14 @@ export default function NewChallengeScreen() {
             />
           )}
           {Platform.OS === 'ios' && showStartPicker && (
-            <Button label="Concluir" variant="secondary" onPress={() => setShowStartPicker(false)} />
+            <Button2 label="Concluir" variant="secondary" onPress={() => setShowStartPicker(false)} />
           )}
         </View>
 
         <View style={styles.dateField}>
           <Text style={styles.dateLabel}>Data de fim</Text>
           <Pressable style={styles.dateButton} onPress={() => setShowEndPicker(true)}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+            <Ionicons name="calendar-outline" size={18} color={colors2.primary} />
             <Text style={styles.dateButtonText}>{formatDate(endDate)}</Text>
           </Pressable>
           {showEndPicker && (
@@ -120,43 +120,43 @@ export default function NewChallengeScreen() {
             />
           )}
           {Platform.OS === 'ios' && showEndPicker && (
-            <Button label="Concluir" variant="secondary" onPress={() => setShowEndPicker(false)} />
+            <Button2 label="Concluir" variant="secondary" onPress={() => setShowEndPicker(false)} />
           )}
         </View>
 
-        <Button label="Criar desafio" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} />
+        <Button2 label="Criar desafio" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, backgroundColor: colors2.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
+    paddingBottom: spacing2.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  error: { color: colors.danger, textAlign: 'center' },
+  title: { ...typography2.headlineMd, fontSize: 20 },
+  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
+  error: { color: colors2.danger, textAlign: 'center' },
   descriptionInput: { minHeight: 90, textAlignVertical: 'top' },
 
-  dateField: { gap: spacing.xs, marginBottom: spacing.sm },
-  dateLabel: { ...typography.caption, color: colors.textSecondary },
+  dateField: { gap: spacing2.xs, marginBottom: spacing2.sm },
+  dateLabel: { ...typography2.labelCaps, textTransform: 'none' },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    gap: spacing2.sm,
+    backgroundColor: colors2.surfaceContainer,
+    borderRadius: radius2.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
+    borderColor: colors2.outlineVariant,
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.sm + 4,
   },
-  dateButtonText: { ...typography.body, color: colors.text },
+  dateButtonText: { ...typography2.bodyMd },
 });

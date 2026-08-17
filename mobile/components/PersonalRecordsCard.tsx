@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
-import { Card } from '@/components/Card';
+import { LiquiglassCard } from '@/components/LiquiglassCard';
 import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_TYPE_LABELS,
@@ -15,7 +15,7 @@ import {
   formatPace,
   getPersonalRecords,
 } from '@/services/activities';
-import { colors, spacing, typography } from '@/constants/theme';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
 const PACE_REFERENCE_ORDER = ['1km', '5km', '10km'];
 
@@ -33,7 +33,7 @@ function ActivityTypeBlock({ activityType, records }: { activityType: string; re
   return (
     <View style={styles.block}>
       <View style={styles.blockHeader}>
-        <Ionicons name={activityIcon(activityType)} size={16} color={colors.accent} />
+        <Ionicons name={activityIcon(activityType)} size={16} color={colors2.primary} />
         <Text style={styles.blockTitle}>{activityLabel(activityType)}</Text>
       </View>
 
@@ -91,7 +91,7 @@ export function PersonalRecordsCard() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={colors.accent} />
+        <ActivityIndicator size="small" color={colors2.violet} />
       </View>
     );
   }
@@ -100,7 +100,7 @@ export function PersonalRecordsCard() {
   if (activityTypes.length === 0) return null;
 
   return (
-    <Card style={styles.card}>
+    <LiquiglassCard style={styles.card}>
       <Text style={styles.title}>Recordes pessoais</Text>
       {activityTypes.map((activityType) => (
         <ActivityTypeBlock
@@ -109,20 +109,20 @@ export function PersonalRecordsCard() {
           records={records!.records_by_activity_type[activityType]}
         />
       ))}
-    </Card>
+    </LiquiglassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing.xs },
-  card: { gap: spacing.sm },
-  title: { ...typography.h3, marginBottom: spacing.xs },
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
+  card: { gap: spacing2.sm },
+  title: { ...typography2.headlineMd, fontSize: 18, marginBottom: spacing2.xs },
 
-  block: { gap: 6, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  blockHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 },
-  blockTitle: { ...typography.bodySecondary, fontWeight: '700', color: colors.text },
+  block: { gap: 6, paddingVertical: spacing2.sm, borderTopWidth: 1, borderTopColor: colors2.outlineVariant },
+  blockHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs, marginBottom: 2 },
+  blockTitle: { ...typography2.bodyMd, fontSize: 14, fontWeight: '700', color: colors2.onSurface },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { ...typography.caption },
-  rowValue: { ...typography.body, fontWeight: '700' },
+  rowLabel: { ...typography2.labelCaps, textTransform: 'none' },
+  rowValue: { ...typography2.bodyMd, fontSize: 14, fontWeight: '700' },
 });
