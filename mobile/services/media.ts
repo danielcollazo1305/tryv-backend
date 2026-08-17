@@ -1,6 +1,6 @@
 import { api } from '@/services/api';
 
-export type MediaFolder = 'meals' | 'posts' | 'profiles';
+export type MediaFolder = 'meals' | 'posts' | 'profiles' | 'challenges';
 
 /** Envia uma imagem local (URI do dispositivo) para o S3 e retorna a URL publica. */
 export async function uploadMedia(fileUri: string, folder: MediaFolder): Promise<string> {

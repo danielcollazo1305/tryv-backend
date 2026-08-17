@@ -1,35 +1,60 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
+import { HeatmapGrid } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import {
   Challenge,
+  ChallengeCheckin,
+  buildChallengeHeatmapDays,
+  createChallengeCheckin,
   formatChallengeDate,
   getChallenge,
   joinChallenge,
   leaveChallenge,
   listChallengeParticipants,
+  listMyChallengeCheckins,
 } from '@/services/challenges';
-import { UserBrief } from '@/services/social';
+import { uploadMedia } from '@/services/media';
+import { createPost, UserBrief } from '@/services/social';
+import { TrainerPublic, getTrainer, licenseLabel } from '@/services/trainers';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
+
+const CATEGORY_LABEL: Record<string, string> = {
+  musculacao_corrida: 'Musculação/Corrida',
+  alimentacao: 'Alimentação',
+};
+
+const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
+  personal_trainer: 'Personal Trainer',
+  nutritionist: 'Nutricionista',
+};
+
+function todayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
   const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [creatorTrainer, setCreatorTrainer] = useState<TrainerPublic | null>(null);
   // null = nao autorizado a ver a lista (403) — esconde a secao em vez de mostrar erro.
   const [participants, setParticipants] = useState<UserBrief[] | null>(null);
   const [isParticipating, setIsParticipating] = useState(false);
+  const [checkins, setCheckins] = useState<ChallengeCheckin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,26 +62,56 @@ export default function ChallengeDetailScreen() {
   const [joinDenied, setJoinDenied] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  const [checkinPhotoUri, setCheckinPhotoUri] = useState<string | null>(null);
+  const [checkinShareToFeed, setCheckinShareToFeed] = useState(false);
+  const [checkinSaving, setCheckinSaving] = useState(false);
+  const [checkinError, setCheckinError] = useState<string | null>(null);
+
   const fetchAll = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
+    let loadedChallenge: Challenge;
     try {
-      setChallenge(await getChallenge(id));
+      loadedChallenge = await getChallenge(id);
+      setChallenge(loadedChallenge);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel carregar este desafio.'));
       setLoading(false);
       return;
     }
 
+    if (loadedChallenge.trainer_id) {
+      getTrainer(loadedChallenge.trainer_id)
+        .then(setCreatorTrainer)
+        .catch(() => setCreatorTrainer(null));
+    } else {
+      setCreatorTrainer(null);
+    }
+
+    let participating = false;
     try {
       const participantsData = await listChallengeParticipants(id);
       setParticipants(participantsData);
-      setIsParticipating(participantsData.some((p) => p.id === user?.id));
+      participating = participantsData.some((p) => p.id === user?.id);
+      setIsParticipating(participating);
     } catch {
       setParticipants(null);
-      setIsParticipating(false);
+      // 403 tambem acontece quando a pessoa NAO participa (ver
+      // list_participants no backend) — nesse caso permanece false, ja e o
+      // valor inicial.
     }
+
+    if (participating) {
+      try {
+        setCheckins(await listMyChallengeCheckins(id));
+      } catch {
+        setCheckins([]);
+      }
+    } else {
+      setCheckins([]);
+    }
+
     setLoading(false);
   }, [id, user]);
 
@@ -99,6 +154,69 @@ export default function ChallengeDetailScreen() {
     }
   };
 
+  const handleTakeCheckinPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setCheckinError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
+    if (!result.canceled && result.assets[0]) setCheckinPhotoUri(result.assets[0].uri);
+  };
+
+  const handlePickCheckinPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setCheckinError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+    if (!result.canceled && result.assets[0]) setCheckinPhotoUri(result.assets[0].uri);
+  };
+
+  const handleCheckin = async () => {
+    if (!id || !challenge) return;
+    setCheckinSaving(true);
+    setCheckinError(null);
+    try {
+      let photoUrl: string | null = null;
+      if (checkinPhotoUri) {
+        photoUrl = await uploadMedia(checkinPhotoUri, 'challenges');
+      }
+      await createChallengeCheckin(id, { photo_url: photoUrl, shared_publicly: checkinShareToFeed });
+
+      // Mesmo padrao "fire and forget" de meal/add.tsx — o check-in ja foi
+      // salvo com sucesso, uma falha so ao publicar no Feed nao deve
+      // travar nem desfazer o check-in.
+      if (checkinShareToFeed) {
+        createPost({
+          type: photoUrl ? 'photo' : 'achievement',
+          caption: `Check-in do desafio: ${challenge.title}`,
+          media_url: photoUrl,
+          visibility: 'public',
+        }).catch(() => {});
+      }
+
+      setCheckinPhotoUri(null);
+      setCheckinShareToFeed(false);
+      await fetchAll();
+    } catch (err) {
+      setCheckinError(getApiErrorMessage(err, 'Nao foi possivel registrar seu check-in.'));
+    } finally {
+      setCheckinSaving(false);
+    }
+  };
+
+  const hasCheckedInToday = checkins.some((c) => c.date === todayKey());
+  const creatorLabel = creatorTrainer
+    ? PROFESSIONAL_TYPE_LABEL[creatorTrainer.professional_type] ?? creatorTrainer.professional_type
+    : null;
+
   return (
     <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
@@ -127,24 +245,56 @@ export default function ChallengeDetailScreen() {
               {formatChallengeDate(challenge.start_date)} - {formatChallengeDate(challenge.end_date)}
             </Text>
 
+            <View style={styles.tagsRow}>
+              {challenge.is_official ? (
+                <View style={styles.tag}>
+                  <Ionicons name="shield-checkmark" size={13} color={colors2.primary} />
+                  <Text style={styles.tagText}>Desafio oficial Tryv</Text>
+                </View>
+              ) : (
+                creatorTrainer && (
+                  <View style={styles.tag}>
+                    <Ionicons name="checkmark-circle" size={13} color={colors2.primary} />
+                    <Text style={styles.tagText} numberOfLines={1}>
+                      Desafio de {creatorTrainer.user_name} — {creatorLabel} (
+                      {licenseLabel(creatorTrainer.professional_type)} {creatorTrainer.license_number})
+                    </Text>
+                  </View>
+                )
+              )}
+              {!!challenge.category && (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>{CATEGORY_LABEL[challenge.category] ?? challenge.category}</Text>
+                </View>
+              )}
+            </View>
+
             {!!challenge.description && <Text style={styles.description}>{challenge.description}</Text>}
 
-            <LiquiglassCard style={styles.statsCard}>
-              <Text style={styles.statNumber}>{challenge.participants_count}</Text>
-              <Text style={styles.statLabel}>participante(s)</Text>
-            </LiquiglassCard>
+            <View style={styles.statsRow}>
+              <LiquiglassCard style={styles.statTile}>
+                <Text style={styles.statNumber}>{challenge.participants_count}</Text>
+                <Text style={styles.statLabel}>Participantes</Text>
+              </LiquiglassCard>
+              <LiquiglassCard style={styles.statTile}>
+                <Text style={styles.statNumber}>{challenge.community_progress_percent}%</Text>
+                <Text style={styles.statLabel}>Fizeram check-in hoje</Text>
+              </LiquiglassCard>
+            </View>
 
             {joinDenied && (
               <LiquiglassCard style={styles.deniedCard}>
                 <Ionicons name="lock-closed" size={20} color={colors2.danger} />
                 <Text style={styles.deniedText}>Voce precisa ser aluno deste professor para participar.</Text>
-                <Button2
-                  label="Ver perfil do professor"
-                  variant="secondary"
-                  onPress={() =>
-                    router.push({ pathname: '/trainers/[id]', params: { id: challenge.trainer_id } })
-                  }
-                />
+                {!!challenge.trainer_id && (
+                  <Button2
+                    label="Ver perfil do professor"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({ pathname: '/trainers/[id]', params: { id: challenge.trainer_id! } })
+                    }
+                  />
+                )}
               </LiquiglassCard>
             )}
 
@@ -156,6 +306,57 @@ export default function ChallengeDetailScreen() {
               onPress={isParticipating ? handleLeave : handleJoin}
               loading={joining}
             />
+
+            {isParticipating && (
+              <>
+                {hasCheckedInToday ? (
+                  <LiquiglassCard style={styles.checkinDoneCard}>
+                    <Ionicons name="checkmark-circle" size={22} color={colors2.violet} />
+                    <Text style={styles.checkinDoneText}>Voce ja fez check-in hoje!</Text>
+                  </LiquiglassCard>
+                ) : (
+                  <LiquiglassCard style={styles.checkinCard}>
+                    <Text style={styles.sectionTitle}>Check-in de hoje</Text>
+
+                    {checkinPhotoUri && <Image source={{ uri: checkinPhotoUri }} style={styles.checkinPreview} />}
+
+                    <View style={styles.checkinPhotoButtons}>
+                      <Pressable style={styles.checkinPhotoButton} onPress={handleTakeCheckinPhoto}>
+                        <Ionicons name="camera" size={18} color={colors2.primary} />
+                        <Text style={styles.checkinPhotoButtonText}>Tirar foto</Text>
+                      </Pressable>
+                      <Pressable style={styles.checkinPhotoButton} onPress={handlePickCheckinPhoto}>
+                        <Ionicons name="images" size={18} color={colors2.primary} />
+                        <Text style={styles.checkinPhotoButtonText}>Galeria</Text>
+                      </Pressable>
+                    </View>
+                    <Text style={styles.checkinHint}>Foto e opcional.</Text>
+
+                    <View style={styles.shareRow}>
+                      <View style={styles.shareTextWrap}>
+                        <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
+                        <Text style={styles.shareSubtitle}>Publica este check-in no seu Feed social</Text>
+                      </View>
+                      <Switch
+                        value={checkinShareToFeed}
+                        onValueChange={setCheckinShareToFeed}
+                        trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
+                        thumbColor={colors2.white}
+                      />
+                    </View>
+
+                    {!!checkinError && <Text style={styles.error}>{checkinError}</Text>}
+
+                    <Button2 label="Fiz hoje" onPress={handleCheckin} loading={checkinSaving} />
+                  </LiquiglassCard>
+                )}
+
+                <LiquiglassCard style={styles.heatmapCard}>
+                  <Text style={styles.sectionTitle}>Sua consistencia</Text>
+                  <HeatmapGrid days={buildChallengeHeatmapDays(challenge, checkins)} todayKey={todayKey()} />
+                </LiquiglassCard>
+              </>
+            )}
 
             {participants !== null && (
               <View style={styles.participantsSection}>
@@ -199,15 +400,69 @@ const styles = StyleSheet.create({
   dates: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: -spacing2.xs },
   description: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
 
-  statsCard: { alignItems: 'center', gap: spacing2.xs },
-  statNumber: { ...typography2.metricMono, fontSize: 28 },
-  statLabel: { ...typography2.labelCaps },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing2.md - 4,
+    paddingVertical: 5,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: 'rgba(208, 188, 255, 0.2)',
+    maxWidth: '100%',
+  },
+  tagText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, flexShrink: 1 },
+
+  statsRow: { flexDirection: 'row', gap: spacing2.sm },
+  statTile: { flex: 1, alignItems: 'center', gap: spacing2.xs },
+  statNumber: { ...typography2.metricMono, fontSize: 24 },
+  statLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant, textAlign: 'center' },
 
   deniedCard: { alignItems: 'center', gap: spacing2.sm },
   deniedText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, textAlign: 'center' },
 
-  participantsSection: { gap: spacing2.sm, marginTop: spacing2.md },
   sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+
+  checkinCard: { gap: spacing2.sm },
+  checkinPreview: { width: '100%', height: 160, borderRadius: radius2.md, backgroundColor: colors2.surfaceContainerHigh },
+  checkinPhotoButtons: { flexDirection: 'row', gap: spacing2.sm },
+  checkinPhotoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing2.xs,
+    backgroundColor: colors2.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.md,
+    paddingVertical: spacing2.sm,
+  },
+  checkinPhotoButtonText: { ...typography2.bodyMd, fontSize: 13 },
+  checkinHint: { ...typography2.bodyMd, fontSize: 12, fontStyle: 'italic', color: colors2.onSurfaceVariant },
+
+  checkinDoneCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  checkinDoneText: { ...typography2.bodyMd, fontWeight: '600' },
+
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors2.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    borderRadius: radius2.md,
+    padding: spacing2.md,
+  },
+  shareTextWrap: { flex: 1, gap: 2, marginRight: spacing2.sm },
+  shareTitle: { ...typography2.bodyMd, fontWeight: '600' },
+  shareSubtitle: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
+
+  heatmapCard: { gap: spacing2.md },
+
+  participantsSection: { gap: spacing2.sm, marginTop: spacing2.md },
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
   participantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
   participantName: { ...typography2.bodyMd, fontSize: 14 },

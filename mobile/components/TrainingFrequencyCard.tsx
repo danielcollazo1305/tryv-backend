@@ -1,23 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { HEATMAP_INTENSITY_COLORS, HeatmapDay, HeatmapGrid } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { TrainingDay, getTrainingFrequency, parseLocalDate } from '@/services/dashboard';
 import { colors2, spacing2, typography2 } from '@/constants/theme';
-
-const WEEKDAY_HEADERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-
-// Mesma paleta roxa usada em todo o app, com opacidade crescente por
-// intensidade (0-3) — em vez de introduzir tons novos. Indice 0 fica quase
-// invisivel no fundo escuro de proposito (heatmap estilo GitHub: "sem
-// treino" e o estado neutro, nao um alerta).
-const INTENSITY_COLORS = [
-  colors2.surfaceContainerHigh, // 0 - sem treino
-  'rgba(139, 92, 246, 0.35)', // 1
-  'rgba(139, 92, 246, 0.65)', // 2
-  colors2.violet, // 3 ou mais
-];
 
 function currentMonthParam(): string {
   const now = new Date();
@@ -38,13 +26,6 @@ function intensityLabel(intensity: number): string {
 
 function formatSelectedDate(dateStr: string): string {
   return parseLocalDate(dateStr).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
-}
-
-interface Cell {
-  key: string;
-  date?: string;
-  intensity?: number;
-  isToday?: boolean;
 }
 
 /**
@@ -97,59 +78,13 @@ export function TrainingFrequencyCard() {
   } else if (days.length === 0) {
     content = <Text style={styles.emptyText}>Sem dados neste mes ainda.</Text>;
   } else {
-    const leadingBlanks = parseLocalDate(days[0].date).getDay();
-    const cells: Cell[] = [];
-    for (let i = 0; i < leadingBlanks; i++) {
-      cells.push({ key: `blank-lead-${i}` });
-    }
-    days.forEach((d) => {
-      cells.push({ key: d.date, date: d.date, intensity: d.intensity, isToday: d.date === todayKey });
-    });
-    while (cells.length % 7 !== 0) {
-      cells.push({ key: `blank-trail-${cells.length}` });
-    }
-
-    const weeks: Cell[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-      weeks.push(cells.slice(i, i + 7));
-    }
-
     content = (
       <>
-        <View style={styles.grid}>
-          <View style={styles.week}>
-            {WEEKDAY_HEADERS.map((label, index) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <Text key={index} style={styles.weekdayLabel}>
-                {label}
-              </Text>
-            ))}
-          </View>
-          {weeks.map((week, weekIndex) => (
-            // eslint-disable-next-line react/no-array-index-key
-            <View key={weekIndex} style={styles.week}>
-              {week.map((cell) =>
-                cell.date ? (
-                  <Pressable
-                    key={cell.key}
-                    onPress={() => setSelected({ date: cell.date!, intensity: cell.intensity ?? 0 })}
-                    hitSlop={2}
-                  >
-                    <View
-                      style={[
-                        styles.cell,
-                        { backgroundColor: INTENSITY_COLORS[cell.intensity ?? 0] },
-                        cell.isToday && styles.cellToday,
-                      ]}
-                    />
-                  </Pressable>
-                ) : (
-                  <View key={cell.key} style={styles.cell} />
-                )
-              )}
-            </View>
-          ))}
-        </View>
+        <HeatmapGrid
+          days={days as HeatmapDay[]}
+          todayKey={todayKey}
+          onSelectDay={(day) => setSelected({ date: day.date, intensity: day.intensity })}
+        />
 
         <View style={styles.footer}>
           <Text style={styles.selectedText}>
@@ -159,7 +94,7 @@ export function TrainingFrequencyCard() {
           </Text>
           <View style={styles.legend}>
             <Text style={styles.legendLabel}>Menos</Text>
-            {INTENSITY_COLORS.map((color, index) => (
+            {HEATMAP_INTENSITY_COLORS.map((color, index) => (
               // eslint-disable-next-line react/no-array-index-key
               <View key={index} style={[styles.legendSwatch, { backgroundColor: color }]} />
             ))}
@@ -182,26 +117,6 @@ const styles = StyleSheet.create({
   card: { gap: spacing2.md },
   cardTitle: { ...typography2.headlineMd, fontSize: 18 },
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-
-  grid: { gap: 4 },
-  week: { flexDirection: 'row', gap: 4 },
-  weekdayLabel: {
-    ...typography2.labelCaps,
-    textTransform: 'none',
-    width: 14,
-    fontSize: 9,
-    textAlign: 'center',
-    color: colors2.onSurfaceVariant,
-  },
-  cell: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-  },
-  cellToday: {
-    borderWidth: 1.5,
-    borderColor: colors2.white,
-  },
 
   footer: { gap: spacing2.xs, marginTop: spacing2.xs },
   selectedText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },

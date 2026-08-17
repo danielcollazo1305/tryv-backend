@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { AiWorkoutSection } from '@/components/AiWorkoutSection';
+import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ObscuredCard } from '@/components/ObscuredCard';
@@ -14,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { WorkoutPlan, listWorkoutPlans } from '@/services/workouts';
+import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 /**
@@ -97,7 +99,16 @@ export default function WorkoutScreen() {
   return (
     <ScreenBackground2>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Treino</Text>
+        <View style={styles.headerWrap}>
+          <Text style={styles.logo}>Tryv</Text>
+          <View style={styles.header}>
+            <Text style={styles.title}>Treino</Text>
+            {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+            <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
+              <Avatar initials={user ? getInitials(user.name) : '?'} size={36} />
+            </Pressable>
+          </View>
+        </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         {/* Casos B/D — secao do Personal Trainer, so quando ha assinatura ativa. */}
@@ -146,6 +157,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl, gap: spacing2.lg },
+  headerWrap: { gap: spacing2.xs },
+  logo: { ...typography2.displayHero, fontSize: 36 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { ...typography2.headlineLgMobile, fontSize: 26 },
   error: { color: colors2.danger, textAlign: 'center' },
 

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
+import { Avatar } from '@/components/Avatar';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { DietPlanBanner } from '@/components/DietPlanBanner';
@@ -13,6 +14,7 @@ import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, isToday, listMeals } from '@/services/meals';
+import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 export default function MealsScreen() {
@@ -78,8 +80,17 @@ export default function MealsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.title}>Refeições</Text>
-            <Text style={styles.subtitle}>Hoje</Text>
+            <Text style={styles.logo}>Tryv</Text>
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={styles.title}>Refeições</Text>
+                <Text style={styles.subtitle}>Hoje</Text>
+              </View>
+              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+              <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
+                <Avatar initials={user ? getInitials(user.name) : '?'} size={36} />
+              </Pressable>
+            </View>
 
             <DietPlanBanner />
 
@@ -142,6 +153,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl * 2 },
   header: { gap: spacing2.md, marginBottom: spacing2.md },
+  logo: { ...typography2.displayHero, fontSize: 36 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   title: { ...typography2.headlineLgMobile, fontSize: 26 },
   subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: -spacing2.sm },
   error: { color: colors2.danger, textAlign: 'center' },

@@ -3,7 +3,7 @@ Importa todos os modelos para que Base.metadata os conheça (e as foreign
 keys entre eles resolvam corretamente) independente de quais routers/
 servicos estejam sendo carregados no momento.
 """
-from app.models.challenge import Challenge  # noqa: F401
+from app.models.challenge import Challenge, ChallengeCheckin  # noqa: F401
 from app.models.daily_insight import DailyInsight  # noqa: F401
 from app.models.diet_plan import DietPlan  # noqa: F401
 from app.models.heart_rate import HeartRateSample  # noqa: F401

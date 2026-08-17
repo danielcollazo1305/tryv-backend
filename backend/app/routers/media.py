@@ -10,7 +10,7 @@ from app.services.storage import StorageError, upload_image
 router = APIRouter(prefix="/media", tags=["media"])
 logger = logging.getLogger(__name__)
 
-ALLOWED_FOLDERS = {"meals", "posts", "profiles"}
+ALLOWED_FOLDERS = {"meals", "posts", "profiles", "challenges"}
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 

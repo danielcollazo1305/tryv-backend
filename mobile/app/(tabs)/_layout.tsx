@@ -47,12 +47,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="challenges"
         options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
+          title: 'Desafios',
+          tabBarIcon: ({ color, size }) => <Ionicons name="trophy" color={color} size={size} />,
         }}
       />
+      {/*
+        Perfil saiu da tab bar (item 3 do pedido) mas continua existindo
+        como rota dentro do grupo (tabs) — href: null so tira o botao da
+        barra, sem desregistrar a tela. Acesso agora e via avatar no topo
+        de Home/Feed/Refeicoes/Treino (ver cada uma), nao mais um botao
+        fixo sempre visivel.
+      */}
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
+import { Avatar } from '@/components/Avatar';
 import { EmptyFollowingState } from '@/components/EmptyFollowingState';
 import { PostCard2 } from '@/components/PostCard2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
@@ -10,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
+import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const PAGE_SIZE = 20;
@@ -132,18 +134,25 @@ export default function FeedScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
+            <Text style={styles.logo}>Tryv</Text>
             <View style={styles.headerTop}>
               <Text style={styles.title}>Feed</Text>
-              {/*
-                Entrada pro Descobrir (item 3) — o pedido original nao
-                especificava de onde essa tela seria acessada, so a
-                estrutura interna dela. Icone de busca no topo do Feed e o
-                padrao mais comum pra "encontrar pessoas" em apps sociais
-                (decisao minha, documentada aqui).
-              */}
-              <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
-                <Ionicons name="search" size={22} color={colors2.onSurfaceVariant} />
-              </Pressable>
+              <View style={styles.headerActions}>
+                {/*
+                  Entrada pro Descobrir (item 3) — o pedido original nao
+                  especificava de onde essa tela seria acessada, so a
+                  estrutura interna dela. Icone de busca no topo do Feed e o
+                  padrao mais comum pra "encontrar pessoas" em apps sociais
+                  (decisao minha, documentada aqui).
+                */}
+                <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
+                  <Ionicons name="search" size={22} color={colors2.onSurfaceVariant} />
+                </Pressable>
+                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+                <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
+                  <Avatar initials={user ? getInitials(user.name) : '?'} size={32} />
+                </Pressable>
+              </View>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
@@ -191,7 +200,9 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl * 2 },
   header: { gap: spacing2.xs, marginBottom: spacing2.md },
+  logo: { ...typography2.displayHero, fontSize: 36 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
   title: { ...typography2.headlineLgMobile, fontSize: 26 },
   error: { color: colors2.danger, textAlign: 'center' },
   loading: { marginTop: spacing2.sm },
