@@ -25,4 +25,13 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     stripe_customer_id = Column(String, nullable=True)
 
+    # Numero normalizado (so digitos, com DDI) -- nullable porque ninguem
+    # preenche isso no cadastro hoje (nao existe campo de telefone em
+    # nenhum lugar do onboarding). Usado so pelo match de contatos (POST
+    # /users/match-contacts, ver app/routers/users.py) -- so vai comecar a
+    # gerar match de verdade quando/se o telefone passar a ser coletado em
+    # algum momento (onboarding ou edicao de perfil), decisao separada
+    # deste trabalho.
+    phone_number = Column(String, nullable=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
