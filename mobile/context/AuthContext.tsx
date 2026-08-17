@@ -13,6 +13,11 @@ export interface User {
   height: number | null;
   goal: string | null;
   daily_calorie_goal: number | null;
+  date_of_birth: string | null;
+  biological_sex: string | null;
+  body_fat_percentage: number | null;
+  training_level: string | null;
+  available_equipment: string | null;
   subscription_status: string;
   created_at: string;
 }

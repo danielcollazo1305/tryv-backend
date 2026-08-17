@@ -1,7 +1,11 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
+
+BiologicalSex = Literal["masculino", "feminino", "prefiro_nao_informar"]
+TrainingLevel = Literal["iniciante", "intermediario", "avancado"]
 
 
 class UserCreate(BaseModel):
@@ -23,6 +27,11 @@ class UserOut(BaseModel):
     height: float | None = None
     goal: str | None = None
     daily_calorie_goal: float | None = None
+    date_of_birth: date | None = None
+    biological_sex: str | None = None
+    body_fat_percentage: float | None = None
+    training_level: str | None = None
+    available_equipment: str | None = None
     subscription_status: str
     created_at: datetime
 
@@ -35,6 +44,11 @@ class UserUpdate(BaseModel):
     height: float | None = Field(None, gt=0)
     goal: str | None = None
     daily_calorie_goal: float | None = Field(None, gt=0)
+    date_of_birth: date | None = None
+    biological_sex: BiologicalSex | None = None
+    body_fat_percentage: float | None = Field(None, gt=0, lt=100)
+    training_level: TrainingLevel | None = None
+    available_equipment: str | None = None
 
 
 class UserSearchResult(BaseModel):

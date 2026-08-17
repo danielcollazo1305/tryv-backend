@@ -1,24 +1,35 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
-import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/Button';
-import { TextField } from '@/components/TextField';
-import { createWeightLog, toDateString } from '@/services/weightLogs';
-import { colors, spacing, typography } from '@/constants/theme';
+import { Button2 } from '@/components/Button2';
+import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { TextField2 } from '@/components/TextField2';
+import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
+import { useRegisterDraft } from '@/context/RegisterDraftContext';
+import { colors2, spacing2, typography2 } from '@/constants/theme';
 
+/**
+ * Passo 1 do cadastro (Conta) — onboarding expandido, agora 6 ou 7 passos
+ * no total (ver getOnboardingTotalSteps). O layout liquiglass (logo,
+ * progress bar, campos) segue o mesmo padrao dos outros passos, aplicado
+ * aos campos que ja existiam aqui (nome/email/senha/peso).
+ *
+ * Nao chama register() ainda — so valida e guarda no RegisterDraftContext.
+ * A chamada real de cadastro (register + updateProfile + createWeightLog)
+ * acontece no ultimo passo (register-goal.tsx), depois que altura/objetivo
+ * tambem forem coletados. Ver esse arquivo pro fluxo completo.
+ */
 export default function RegisterScreen() {
-  const { register } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { draft, updateDraft } = useRegisterDraft();
+  const [name, setName] = useState(draft.name);
+  const [email, setEmail] = useState(draft.email);
+  const [password, setPassword] = useState(draft.password);
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState(draft.weight);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleContinue = () => {
     setError(null);
     if (!name.trim() || !email.trim() || !password) {
       setError('Preencha todos os campos.');
@@ -32,37 +43,33 @@ export default function RegisterScreen() {
       setError('As senhas nao coincidem.');
       return;
     }
-    setLoading(true);
-    try {
-      await register(name.trim(), email.trim(), password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel criar a conta.');
-      setLoading(false);
+    // Peso deixou de ser opcional (onboarding expandido) -- a meta
+    // calorica sugerida (passo novo mais a frente) perde muito sentido
+    // sem ele, e ele ja e a base de varios calculos daqui pra frente.
+    const weightValue = Number(weight.replace(',', '.'));
+    if (!weight.trim() || Number.isNaN(weightValue) || weightValue <= 0) {
+      setError('Informe seu peso atual.');
       return;
     }
-
-    // Peso e opcional e best-effort: a conta ja foi criada com sucesso, entao
-    // uma falha aqui (raro) nao deve travar o usuario na tela de cadastro —
-    // ele so nao comeca com um ponto no historico, e pode registrar depois.
-    const weightValue = Number(weight);
-    if (weightValue > 0) {
-      try {
-        await createWeightLog({ weight_kg: weightValue, logged_at: toDateString(new Date()) });
-      } catch {
-        // silencioso de proposito
-      }
-    }
-    setLoading(false);
+    updateDraft({ name: name.trim(), email: email.trim(), password, weight });
+    router.push('/(auth)/register-body');
   };
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.logo}>Tryv</Text>
-        <Text style={styles.subtitle}>Crie sua conta para comecar</Text>
+        <View style={styles.header}>
+          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.title}>Criar sua conta</Text>
+          <Text style={styles.subtitle}>Vamos comecar sua jornada</Text>
 
-        <TextField label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
-        <TextField
+          <View style={styles.progressWrap}>
+            <ProgressSteps2 current={1} total={getOnboardingTotalSteps(draft)} label="Conta" />
+          </View>
+        </View>
+
+        <TextField2 label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
+        <TextField2
           label="E-mail"
           autoCapitalize="none"
           autoCorrect={false}
@@ -71,22 +78,22 @@ export default function RegisterScreen() {
           onChangeText={setEmail}
           placeholder="voce@email.com"
         />
-        <TextField
+        <TextField2
           label="Senha"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
           placeholder="********"
         />
-        <TextField
+        <TextField2
           label="Confirmar senha"
           secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           placeholder="********"
         />
-        <TextField
-          label="Peso atual em kg (opcional)"
+        <TextField2
+          label="Peso atual em kg"
           keyboardType="decimal-pad"
           value={weight}
           onChangeText={setWeight}
@@ -95,7 +102,7 @@ export default function RegisterScreen() {
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button label="Criar conta" onPress={handleSubmit} loading={loading} />
+        <Button2 label="Continuar" onPress={handleContinue} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Ja tem conta? </Text>
@@ -109,12 +116,15 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  logo: { ...typography.h1, fontSize: 36, color: colors.accent, textAlign: 'center', marginBottom: spacing.xs },
-  subtitle: { ...typography.bodySecondary, textAlign: 'center', marginBottom: spacing.xl },
-  error: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
-  footerText: { ...typography.bodySecondary },
-  link: { ...typography.bodySecondary, color: colors.accent, fontWeight: '700' },
+  flex: { flex: 1, backgroundColor: colors2.background },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing2.containerMargin, gap: spacing2.md },
+  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
+  logo: { ...typography2.displayHero, fontSize: 36 },
+  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
+  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  progressWrap: { width: '100%', marginTop: spacing2.md },
+  error: { color: colors2.danger, textAlign: 'center' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing2.md },
+  footerText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  link: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
 });
