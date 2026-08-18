@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
-import { useAuth } from '@/context/AuthContext';
 import { Button2 } from '@/components/Button2';
 import { TextField2 } from '@/components/TextField2';
+import { forgotPassword } from '@/services/auth';
+import { getApiErrorMessage } from '@/services/api';
 import { colors2, spacing2, typography2 } from '@/constants/theme';
 
-export default function LoginScreen() {
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function ForgotPasswordScreen() {
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(params.email ?? '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
-    if (!email.trim() || !password) {
-      setError('Preencha email e senha.');
+    if (!email.trim()) {
+      setError('Informe seu e-mail.');
       return;
     }
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await forgotPassword(email.trim());
+      router.push({ pathname: '/(auth)/reset-password', params: { email: email.trim() } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel entrar.');
+      setError(getApiErrorMessage(err, 'Nao foi possivel enviar o codigo. Tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,10 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv</Text>
-          <Text style={styles.subtitle}>Entre para continuar seu progresso</Text>
+          <Text style={styles.title}>Esqueci minha senha</Text>
+          <Text style={styles.subtitle}>
+            Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um codigo de verificacao.
+          </Text>
         </View>
 
         <TextField2
@@ -47,27 +51,16 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           placeholder="voce@email.com"
         />
-        <TextField2
-          label="Senha"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="********"
-        />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button2 label="Entrar" onPress={handleSubmit} loading={loading} />
-
-        <Link href="/(auth)/forgot-password" style={styles.forgotLink}>
-          Esqueci minha senha
-        </Link>
+        <Button2 label="Enviar codigo" onPress={handleSubmit} loading={loading} />
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Ainda nao tem conta? </Text>
-          <Link href="/(auth)/register" style={styles.link}>
-            Criar conta
-          </Link>
+          <Text style={styles.footerText}>Lembrou a senha? </Text>
+          <Text style={styles.link} onPress={() => router.back()}>
+            Voltar para o login
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -79,9 +72,9 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, justifyContent: 'center', padding: spacing2.containerMargin, gap: spacing2.md },
   header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
   logo: { ...typography2.displayHero, fontSize: 36 },
+  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
   subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
   error: { color: colors2.danger, textAlign: 'center' },
-  forgotLink: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center', marginTop: spacing2.sm },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing2.md },
   footerText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
   link: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },

@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     aws_s3_bucket: str = "tryv-media-2026"
     aws_s3_region: str = "sa-east-1"
 
+    # Resend — envio de e-mail (hoje so recuperacao de senha, ver
+    # services/email.py). Remetente de teste enquanto o dominio nao e
+    # verificado no Resend — so entrega pro proprio e-mail da conta Resend
+    # ate la (ver docstring de services/email.py).
+    resend_api_key: str = ""
+    resend_from_email: str = "Tryv <onboarding@resend.dev>"
+
     class Config:
         env_file = ".env"
 

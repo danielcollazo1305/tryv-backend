@@ -10,6 +10,7 @@ from app.models.heart_rate import HeartRateSample  # noqa: F401
 from app.models.live_activity import LiveActivity  # noqa: F401
 from app.models.manual_activity import ManualActivity  # noqa: F401
 from app.models.meal import Meal  # noqa: F401
+from app.models.password_reset import PasswordResetToken  # noqa: F401
 from app.models.readiness_score import ReadinessScore  # noqa: F401
 from app.models.run import Run  # noqa: F401
 from app.models.smartwatch import SmartwatchData  # noqa: F401
