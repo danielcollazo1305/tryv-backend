@@ -47,7 +47,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Tryv precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada."
+          "locationWhenInUsePermission": "O Tryv precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada.",
+          "locationAlwaysAndWhenInUsePermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [

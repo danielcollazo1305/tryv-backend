@@ -14,6 +14,18 @@ class LiveActivity(Base):
     rolando — sem relacao com o historico: quando o aluno finaliza, esta
     linha e apagada (ver POST /activities/live/{id}/finish) e a atividade
     de verdade e salva normalmente via POST /runs, como ja acontecia antes.
+
+    DECISAO DELIBERADA DE PRIVACIDADE/SEGURANCA (revisao de 2026-08-17,
+    task "atividade-entrada-unica" desta sessao) — NAO adicionar um
+    historico de posicoes aqui (ex: uma coluna route_points ou tabela
+    separada de pontos). So guardamos last_lat/last_lng (o ultimo ponto
+    conhecido, ja suficiente pro professor saber "esta rolando agora/tem
+    sinal"). Dar ao professor visibilidade de localizacao em tempo real
+    e granular do aluno (trajeto completo, minuto a minuto) e um risco
+    real de seguranca/privacidade — nao so uma limitacao tecnica a
+    "resolver" depois. Se essa necessidade surgir de novo no futuro,
+    trate como uma decisao de produto/seguranca a ser revisitada
+    explicitamente com o usuario, nao como um TODO tecnico.
     """
     __tablename__ = "live_activities"
 

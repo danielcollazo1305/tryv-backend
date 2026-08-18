@@ -1,22 +1,91 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { AiWorkoutSection } from '@/components/AiWorkoutSection';
-import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ObscuredCard } from '@/components/ObscuredCard';
+import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
 import { WorkoutAccessGate } from '@/components/WorkoutAccessGate';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { ACTIVITY_TYPE_LABELS, GpsActivityType } from '@/services/activities';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { WorkoutPlan, listWorkoutPlans } from '@/services/workouts';
-import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+
+const GPS_FAB_OPTIONS: { type: GpsActivityType; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+  { type: 'run', icon: 'walk' },
+  { type: 'bike', icon: 'bicycle' },
+  { type: 'walk', icon: 'footsteps' },
+];
+
+/**
+ * Ponto de entrada unico "Iniciar atividade" (item 3 da task
+ * "atividade-entrada-unica") — antes so existia um caminho pra
+ * activity/new.tsx (FAB dentro de Atividades, acessada via card "Km
+ * rodados" da Home; confirmado na investigacao). Esse FAB fica na aba
+ * Treino porque e o lugar mais natural de "vou treinar agora", cobrindo
+ * tanto plano estruturado quanto atividade com GPS — o caminho antigo
+ * (Home -> Atividades -> FAB) continua existindo tambem, sem conflito
+ * (so mais uma porta de entrada pro mesmo activity/new.tsx).
+ */
+function StartActivityFab() {
+  const [open, setOpen] = useState(false);
+
+  const handleSelectGps = (type: GpsActivityType) => {
+    setOpen(false);
+    router.push({ pathname: '/activity/new', params: { type } });
+  };
+
+  return (
+    <>
+      <Pressable style={styles.fab} onPress={() => setOpen(true)}>
+        <Ionicons name="add" size={28} color={colors2.white} />
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Iniciar atividade</Text>
+
+            {/*
+              "Treino do dia" nao navega pra lugar nenhum — o plano
+              estruturado ja esta bem abaixo, na mesma aba Treino (secoes
+              de IA/Personal Trainer). So fecha o seletor.
+            */}
+            <Pressable style={styles.modalOption} onPress={() => setOpen(false)}>
+              <View style={styles.modalOptionIconWrap}>
+                <Ionicons name="barbell" size={20} color={colors2.primary} />
+              </View>
+              <View style={styles.modalOptionTexts}>
+                <Text style={styles.modalOptionTitle}>Treino do dia</Text>
+                <Text style={styles.modalOptionSubtitle}>Seu plano estruturado, logo abaixo</Text>
+              </View>
+            </Pressable>
+
+            {GPS_FAB_OPTIONS.map((option) => (
+              <Pressable key={option.type} style={styles.modalOption} onPress={() => handleSelectGps(option.type)}>
+                <View style={styles.modalOptionIconWrap}>
+                  <Ionicons name={option.icon} size={20} color={colors2.primary} />
+                </View>
+                <View style={styles.modalOptionTexts}>
+                  <Text style={styles.modalOptionTitle}>{ACTIVITY_TYPE_LABELS[option.type]}</Text>
+                  <Text style={styles.modalOptionSubtitle}>Rastreamento por GPS ao vivo</Text>
+                </View>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 /**
  * Gate de acesso a Treino (reformulacao) — dois acessos INDEPENDENTES:
@@ -81,9 +150,21 @@ export default function WorkoutScreen() {
   const trainerPlan = plans.find((plan) => !!plan.trainer_id) ?? null;
 
   // Caso A — sem Pro e sem Personal Trainer: gate cobrindo a tela inteira.
+  // O FAB de iniciar atividade continua disponivel mesmo aqui — rastrear uma
+  // corrida/pedalada/caminhada com GPS nao depende de Pro nem de Personal
+  // Trainer, e um recurso gratuito independente do plano estruturado.
   if (!isPro && !hasPersonalTrainer) {
     return (
       <ScreenBackground2>
+        {/*
+          Entrada pro Perfil tambem aqui no Caso A — faltava antes desta
+          tarefa (so o retorno principal abaixo tinha avatar), o que
+          deixaria justamente quem mais se beneficia do badge de upgrade
+          (usuario free, sem Personal Trainer) sem ver-lo nesta aba.
+        */}
+        <View style={styles.gateHeader}>
+          <ProfileAvatarButton isPro={isPro} size={36} />
+        </View>
         <WorkoutAccessGate>
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrap}>
@@ -92,6 +173,7 @@ export default function WorkoutScreen() {
             <Text style={styles.emptyTitle}>Nenhum plano de treino ainda</Text>
           </View>
         </WorkoutAccessGate>
+        <StartActivityFab />
       </ScreenBackground2>
     );
   }
@@ -104,9 +186,7 @@ export default function WorkoutScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Treino</Text>
             {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
-            <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
-              <Avatar initials={user ? getInitials(user.name) : '?'} size={36} />
-            </Pressable>
+            <ProfileAvatarButton isPro={isPro} size={36} />
           </View>
         </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
@@ -145,6 +225,7 @@ export default function WorkoutScreen() {
           </View>
         )}
       </ScrollView>
+      <StartActivityFab />
     </ScreenBackground2>
   );
 }
@@ -155,6 +236,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  gateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing2.containerMargin,
+    paddingTop: spacing2.xl,
   },
   content: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl, gap: spacing2.lg },
   headerWrap: { gap: spacing2.xs },
@@ -185,4 +272,58 @@ const styles = StyleSheet.create({
     marginBottom: spacing2.md,
   },
   emptyTitle: { ...typography2.headlineMd, textAlign: 'center' },
+
+  fab: {
+    position: 'absolute',
+    right: spacing2.lg,
+    bottom: spacing2.lg,
+    width: 56,
+    height: 56,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.violet,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors2.violet,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors2.surfaceContainer,
+    borderTopLeftRadius: radius2.lg,
+    borderTopRightRadius: radius2.lg,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    padding: spacing2.lg,
+    paddingBottom: spacing2.xl,
+    gap: spacing2.sm,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors2.outlineVariant,
+    alignSelf: 'center',
+    marginBottom: spacing2.xs,
+  },
+  modalTitle: { ...typography2.headlineMd, fontSize: 18, marginBottom: spacing2.xs },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing2.md,
+    paddingVertical: spacing2.sm,
+  },
+  modalOptionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius2.md,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOptionTexts: { flex: 1, gap: 2 },
+  modalOptionTitle: { ...typography2.bodyMd, fontWeight: '700' },
+  modalOptionSubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
 });

@@ -9,7 +9,7 @@ export interface RoutePoint {
   timestamp: string;
 }
 
-export type GpsActivityType = 'run' | 'bike';
+export type GpsActivityType = 'run' | 'bike' | 'walk';
 export type ManualActivityType = 'swim' | 'fight' | 'hiit' | 'other';
 export type ActivityType = GpsActivityType | ManualActivityType;
 
@@ -188,6 +188,7 @@ export function formatPace(secondsPerKm: number | null): string {
 export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   run: 'Corrida',
   bike: 'Bike',
+  walk: 'Caminhada',
   swim: 'Natacao',
   fight: 'Luta',
   hiit: 'HIIT',
@@ -197,6 +198,9 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
 export const ACTIVITY_TYPE_ICONS: Record<ActivityType, ComponentProps<typeof Ionicons>['name']> = {
   run: 'walk',
   bike: 'bicycle',
+  // 'walk' (o glifo) ja e usado pra Corrida acima — Caminhada usa
+  // "footsteps" pra nao repetir o mesmo icone com significados diferentes.
+  walk: 'footsteps',
   swim: 'water',
   fight: 'fitness',
   hiit: 'flash',

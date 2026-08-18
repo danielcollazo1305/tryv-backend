@@ -5,6 +5,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+// Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
+// incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
+import '@/services/backgroundLocation';
 import { colors, fontsToLoad2 } from '@/constants/theme';
 
 export default function RootLayout() {

@@ -68,6 +68,16 @@ function LiveDot() {
  * O pulso central so aparece quando ha sinal de GPS real (last_lat/lng
  * presentes), o que preserva o unico dado real disponivel: "ha sinal
  * agora ou nao".
+ *
+ * DECISAO DELIBERADA DE PRIVACIDADE/SEGURANCA (revisao de 2026-08-17,
+ * task "atividade-entrada-unica" desta sessao) — isso NAO e uma lacuna a
+ * resolver depois. Confirmado explicitamente com o usuario: o professor
+ * NAO deve ter visibilidade de localizacao ao vivo/granular do aluno
+ * (trajeto minuto a minuto), mesmo que o backend um dia passe a guardar
+ * historico de pontos. Antes de trocar este backdrop por um mapa real
+ * com rota, essa decisao precisa ser revisitada explicitamente como
+ * escolha de produto/seguranca — nao "consertada" so porque o dado
+ * passou a existir.
  */
 function LiveRadarBackdrop({ hasSignal, icon }: { hasSignal: boolean; icon: React.ComponentProps<typeof Ionicons>['name'] }) {
   const pulse = useRef(new Animated.Value(0)).current;

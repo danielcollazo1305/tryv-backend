@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
+  AppStateStatus,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import MapView, { Polyline } from 'react-native-maps';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
@@ -37,6 +39,13 @@ import {
   getManualActivityInsight,
   getRunInsight,
 } from '@/services/activities';
+import {
+  clearBackgroundTrackingState,
+  requestBackgroundLocationUpgrade,
+  shouldOfferBackgroundLocationUpgrade,
+  startBackgroundTracking,
+  stopBackgroundTrackingAndFlush,
+} from '@/services/backgroundLocation';
 import { fetchRecentHeartRateBpm } from '@/services/healthkit';
 import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
@@ -54,7 +63,10 @@ type Stage = 'select' | 'tracking' | 'manual-form' | 'saving' | 'result';
 const GPS_OPTIONS: { value: GpsActivityType; label: string }[] = [
   { value: 'run', label: 'Corrida' },
   { value: 'bike', label: 'Bike' },
+  { value: 'walk', label: 'Caminhada' },
 ];
+
+const GPS_TYPES: GpsActivityType[] = ['run', 'bike', 'walk'];
 
 const MANUAL_OPTIONS: { value: ManualActivityType; label: string }[] = [
   { value: 'swim', label: 'Natacao' },
@@ -76,8 +88,18 @@ function haversineMeters(a: RoutePoint, b: RoutePoint): number {
 }
 
 export default function NewActivityScreen() {
+  // Pre-selecao de tipo (item 3 da task "atividade-entrada-unica") — vem
+  // do seletor "Iniciar atividade" da aba Treino. So GPS types fazem
+  // sentido aqui (o seletor so oferece Corrida/Bike/Caminhada); um valor
+  // invalido/ausente simplesmente cai no fluxo normal de selecao manual.
+  const { type: presetType } = useLocalSearchParams<{ type?: string }>();
+  const isValidGpsPreset = (value?: string): value is GpsActivityType =>
+    !!value && (GPS_TYPES as string[]).includes(value);
+
   const [stage, setStage] = useState<Stage>('select');
-  const [selectedType, setSelectedType] = useState<ActivityType | null>(null);
+  const [selectedType, setSelectedType] = useState<ActivityType | null>(
+    isValidGpsPreset(presetType) ? presetType : null
+  );
   const [error, setError] = useState<string | null>(null);
 
   // Rastreamento GPS
@@ -88,6 +110,12 @@ export default function NewActivityScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const watchSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<MapView | null>(null);
+
+  // Upgrade opcional pra rastreamento em segundo plano (item 4) — nunca
+  // pedido na primeira tela, so oferecido depois que o rastreamento em
+  // primeiro plano ja esta rolando (ver useEffect abaixo).
+  const [showBackgroundUpsell, setShowBackgroundUpsell] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
   // Live Activity: o professor vinculado pode acompanhar via polling. E um
   // bonus, nao o fluxo principal — qualquer falha aqui e engolida em
   // silencio, nunca deve atrapalhar o aluno rastreando a propria atividade.
@@ -106,7 +134,7 @@ export default function NewActivityScreen() {
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
-  const isGpsType = selectedType === 'run' || selectedType === 'bike';
+  const isGpsType = isValidGpsPreset(selectedType ?? undefined);
 
   const liveDistanceMeters = useMemo(() => {
     let total = 0;
@@ -166,8 +194,56 @@ export default function NewActivityScreen() {
   useEffect(() => {
     return () => {
       watchSubscriptionRef.current?.remove();
+      clearBackgroundTrackingState();
     };
   }, []);
+
+  // Auto-inicio quando chega com um tipo pre-selecionado (seletor "Iniciar
+  // atividade" da aba Treino) — pula a etapa de selecao manual. Guard por
+  // ref pra nunca disparar 2x (ex: double-invoke de efeitos em dev).
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStartedRef.current || !isValidGpsPreset(presetType)) return;
+    autoStartedRef.current = true;
+    startTracking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rastreamento em segundo plano (item 4) — so entra em acao quando o app
+  // de fato vai pro background DURANTE uma corrida ativa. O
+  // watchPositionAsync em primeiro plano (startTracking abaixo) nao e
+  // tocado por este efeito, continua sendo a fonte principal sempre que o
+  // app esta em primeiro plano.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+      if (!trackingActive) return;
+
+      if (prevState === 'active' && nextState.match(/inactive|background/)) {
+        startBackgroundTracking();
+      } else if (prevState.match(/inactive|background/) && nextState === 'active') {
+        stopBackgroundTrackingAndFlush().then((backgroundPoints) => {
+          if (backgroundPoints.length === 0) return;
+          setRoutePoints((prev) => [...prev, ...backgroundPoints]);
+        });
+      }
+    });
+    return () => subscription.remove();
+  }, [trackingActive]);
+
+  // Oferece o upgrade pra "Always" so depois que o rastreamento em
+  // primeiro plano ja esta rolando de verdade (nunca na tela inicial) — e
+  // so se ainda fizer sentido perguntar (ver shouldOfferBackgroundLocationUpgrade).
+  useEffect(() => {
+    if (!trackingActive) return;
+    shouldOfferBackgroundLocationUpgrade().then(setShowBackgroundUpsell);
+  }, [trackingActive]);
+
+  const handleActivateBackgroundUpsell = async () => {
+    setShowBackgroundUpsell(false);
+    await requestBackgroundLocationUpgrade();
+  };
 
   const handleSelectContinue = async () => {
     if (!selectedType) return;
@@ -250,14 +326,17 @@ export default function NewActivityScreen() {
     watchSubscriptionRef.current?.remove();
     watchSubscriptionRef.current = null;
     setTrackingActive(false);
+    setShowBackgroundUpsell(false);
     const finish = new Date();
     setFinishedAt(finish);
     setElapsedSeconds(Math.floor((finish.getTime() - (startedAt?.getTime() ?? finish.getTime())) / 1000));
     stopLiveTracking();
+    clearBackgroundTrackingState();
   };
 
   const handleDiscardTracking = () => {
     stopLiveTracking();
+    clearBackgroundTrackingState();
     setStage('select');
     setSelectedType(null);
     setRoutePoints([]);
@@ -265,6 +344,7 @@ export default function NewActivityScreen() {
     setFinishedAt(null);
     setElapsedSeconds(0);
     setError(null);
+    setShowBackgroundUpsell(false);
   };
 
   const handleSaveRun = async () => {
@@ -340,12 +420,10 @@ export default function NewActivityScreen() {
   };
 
   if (stage === 'tracking') {
+    const livePaceSecondsPerKm = liveDistanceMeters > 0 ? elapsedSeconds / (liveDistanceMeters / 1000) : null;
+
     return (
       <View style={styles.trackingFlex}>
-        <Pressable style={styles.trackingCloseButton} onPress={handleCloseTracking} hitSlop={12}>
-          <Ionicons name="close" size={22} color={colors2.white} />
-        </Pressable>
-
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -366,27 +444,65 @@ export default function NewActivityScreen() {
           )}
         </MapView>
 
-        <View style={styles.trackingPanel}>
+        <Pressable style={styles.trackingCloseButton} onPress={handleCloseTracking} hitSlop={12}>
+          <Ionicons name="close" size={22} color={colors2.white} />
+        </Pressable>
+
+        {/* Card flutuante no topo com as metricas ao vivo — layout Strava (item 3 da task). */}
+        <LiquiglassCard style={styles.trackingStatsCard}>
           <View style={styles.trackingStatsRow}>
             <View style={styles.trackingStat}>
               <Text style={styles.trackingStatNumber}>{formatDuration(elapsedSeconds)}</Text>
               <Text style={styles.trackingStatLabel}>tempo</Text>
             </View>
+            <View style={styles.trackingStatDivider} />
             <View style={styles.trackingStat}>
               <Text style={styles.trackingStatNumber}>{formatDistanceKm(liveDistanceMeters)}</Text>
               <Text style={styles.trackingStatLabel}>km</Text>
             </View>
+            <View style={styles.trackingStatDivider} />
+            <View style={styles.trackingStat}>
+              <Text style={styles.trackingStatNumber}>{formatPace(livePaceSecondsPerKm)}</Text>
+              <Text style={styles.trackingStatLabel}>pace</Text>
+            </View>
           </View>
+        </LiquiglassCard>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+        {/*
+          Upsell opcional de segundo plano (item 4) — so aparece uma vez,
+          enquanto a permissao "Always" ainda nao foi respondida (ver
+          shouldOfferBackgroundLocationUpgrade). Dispensavel, nunca
+          bloqueia o rastreamento em primeiro plano que ja esta rolando.
+        */}
+        {showBackgroundUpsell && (
+          <LiquiglassCard style={styles.backgroundUpsellCard}>
+            <View style={styles.backgroundUpsellTextWrap}>
+              <Ionicons name="moon" size={16} color={colors2.primary} />
+              <Text style={styles.backgroundUpsellText}>Continuar gravando com a tela apagada?</Text>
+            </View>
+            <View style={styles.backgroundUpsellButtons}>
+              <Pressable onPress={() => setShowBackgroundUpsell(false)} hitSlop={8}>
+                <Text style={styles.backgroundUpsellDismiss}>Agora nao</Text>
+              </Pressable>
+              <Pressable onPress={handleActivateBackgroundUpsell} hitSlop={8}>
+                <Text style={styles.backgroundUpsellActivate}>Ativar</Text>
+              </Pressable>
+            </View>
+          </LiquiglassCard>
+        )}
 
+        {!!error && <Text style={styles.trackingError}>{error}</Text>}
+
+        <View style={styles.trackingBottomArea}>
           {trackingActive ? (
-            <Button2 label="Finalizar" onPress={handleFinishTracking} />
+            <Pressable style={styles.trackingStopButton} onPress={handleFinishTracking}>
+              <Ionicons name="stop" size={26} color={colors2.white} />
+            </Pressable>
           ) : (
-            <>
+            <View style={styles.trackingResultButtons}>
               <Button2 label="Salvar atividade" onPress={handleSaveRun} />
               <Button2 label="Descartar atividade" variant="secondary" onPress={handleDiscardTracking} />
-            </>
+            </View>
           )}
         </View>
       </View>
@@ -576,17 +692,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  map: { flex: 1 },
-  trackingPanel: {
-    backgroundColor: colors2.surfaceContainer,
-    borderTopWidth: 1,
-    borderTopColor: colors2.outlineVariant,
-    padding: spacing2.lg,
-    paddingBottom: spacing2.xl,
+  map: { ...StyleSheet.absoluteFillObject },
+
+  // Card flutuante de metricas no topo (layout Strava) — flutua sobre o
+  // mapa em vez de ficar dentro de um painel docado embaixo.
+  trackingStatsCard: {
+    position: 'absolute',
+    top: spacing2.xl + 48,
+    left: spacing2.lg,
+    right: spacing2.lg,
+  },
+  trackingStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  trackingStat: { alignItems: 'center', flex: 1 },
+  trackingStatDivider: { width: 1, height: 32, backgroundColor: colors2.outlineVariant },
+  trackingStatNumber: { ...typography2.metricMono, fontSize: 24 },
+  trackingStatLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2, color: colors2.onSurfaceVariant },
+
+  backgroundUpsellCard: {
+    position: 'absolute',
+    bottom: 148,
+    left: spacing2.lg,
+    right: spacing2.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: spacing2.sm,
   },
-  trackingStatsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: spacing2.sm },
-  trackingStat: { alignItems: 'center' },
-  trackingStatNumber: { ...typography2.metricMono, fontSize: 28 },
-  trackingStatLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2 },
+  backgroundUpsellTextWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs, flex: 1 },
+  backgroundUpsellText: { ...typography2.bodyMd, fontSize: 13, flexShrink: 1 },
+  backgroundUpsellButtons: { flexDirection: 'row', gap: spacing2.md },
+  backgroundUpsellDismiss: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  backgroundUpsellActivate: { ...typography2.bodyMd, fontSize: 13, fontWeight: '700', color: colors2.primary },
+
+  trackingError: {
+    position: 'absolute',
+    bottom: 148,
+    left: spacing2.lg,
+    right: spacing2.lg,
+    color: colors2.white,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: radius2.md,
+    padding: spacing2.sm,
+    textAlign: 'center',
+  },
+
+  trackingBottomArea: {
+    position: 'absolute',
+    bottom: spacing2.xl,
+    left: spacing2.lg,
+    right: spacing2.lg,
+    alignItems: 'center',
+  },
+  trackingStopButton: {
+    width: 72,
+    height: 72,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors2.danger,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  trackingResultButtons: { width: '100%', gap: spacing2.sm },
 });
