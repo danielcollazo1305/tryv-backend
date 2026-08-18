@@ -12,10 +12,13 @@ import { UserBadges, getUserBadges } from '@/services/user';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 // Mesmos 7 recursos do mockup assinatura-planos.html — todos com gating real
-// de Pro ja implementado no backend hoje (confirmado em heart_rate.py,
-// dashboard.py, runs.py, insights.py, workout_plans.py, meals.py,
-// readiness.py), entao a tabela Gratis-vs-Pro abaixo reflete comportamento
-// real, nao e so copy de marketing inventada.
+// de Pro ja implementado no backend hoje (confirmado direto no codigo via
+// require_pro_subscription em dashboard.py, workout_plans.py, meals.py,
+// heart_rate.py, runs.py, insights.py, readiness.py -- revalidado nesta
+// investigacao, nao so por memoria da sessao). Frequencia de treino e km
+// semanal (dashboard.py) e o resumo de Saude (smartwatch.py) NAO entram
+// aqui de proposito -- viraram gratis nesta sessao, ver linha "free: true"
+// abaixo na tabela de comparacao.
 const BENEFITS: { icon: React.ComponentProps<typeof Ionicons>['name']; title: string; subtitle: string }[] = [
   { icon: 'sparkles', title: 'Inteligencia Artificial', subtitle: 'Analise de refeicao por foto e geracao de treino' },
   { icon: 'bulb', title: 'Insights proativos', subtitle: 'Recomendacoes personalizadas com base no seu progresso' },
@@ -26,13 +29,21 @@ const BENEFITS: { icon: React.ComponentProps<typeof Ionicons>['name']; title: st
   { icon: 'document-text', title: 'Exportacao de relatorios em PDF', subtitle: 'Compartilhe seu progresso com quem quiser' },
 ];
 
+// Inclui os 7 recursos Pro acima (PRs e Relatorio de FC estavam ausentes
+// daqui antes -- a tabela ficou desatualizada em relacao a lista de
+// beneficios ao longo da sessao) + os recursos que ja sao gratis hoje, pra
+// deixar claro que nao foram tirados nem exigem Pro.
 const COMPARISON_ROWS: { label: string; free: boolean }[] = [
   { label: 'Registro de treinos e refeicoes', free: true },
+  { label: 'Frequencia de treino e km semanal', free: true },
+  { label: 'Resumo de saude (passos, sono, FC)', free: true },
   { label: 'Analise de refeicao por foto (IA)', free: false },
   { label: 'Geracao de treino por IA', free: false },
   { label: 'Insights proativos', free: false },
   { label: 'Score de Prontidao', free: false },
   { label: 'Comparacao mes a mes', free: false },
+  { label: 'Recordes pessoais (PRs)', free: false },
+  { label: 'Relatorio de frequencia cardiaca', free: false },
   { label: 'Exportacao de relatorios em PDF', free: false },
 ];
 
@@ -77,6 +88,10 @@ export default function TryvProScreen() {
           <Text style={styles.heroTitle}>Tryv Pro</Text>
           <Text style={styles.heroSubtitle}>
             Desbloqueie IA, insights e relatorios avancados para acelerar sua evolucao.
+          </Text>
+          <Text style={styles.heroNote}>
+            Isso e diferente de contratar um Personal Trainer — o Tryv Pro libera recursos do app, o
+            acompanhamento com um profissional e uma assinatura separada.
           </Text>
         </View>
 
@@ -168,6 +183,13 @@ const styles = StyleSheet.create({
   },
   heroTitle: { ...typography2.headlineLg, fontSize: 28 },
   heroSubtitle: { ...typography2.bodyLg, fontSize: 16, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  heroNote: {
+    ...typography2.labelCaps,
+    textTransform: 'none',
+    color: colors2.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: spacing2.xs,
+  },
 
   benefitsCard: { gap: 0 },
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md, paddingVertical: spacing2.sm },
