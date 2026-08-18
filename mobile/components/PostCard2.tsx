@@ -50,7 +50,7 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.authorName}>{post.author}</Text>
-            {post.visibility === 'private' && (
+            {post.visibility === 'followers' && (
               <Ionicons name="lock-closed" size={12} color={colors2.onSurfaceVariant} />
             )}
             <ObscuredCard style={styles.verifiedBadge} borderRadius={radius2.pill}>

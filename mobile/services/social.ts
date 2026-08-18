@@ -1,7 +1,27 @@
 import { api } from '@/services/api';
 
 export type PostType = 'photo' | 'video' | 'progress' | 'achievement' | 'workout' | 'run';
-export type PostVisibility = 'public' | 'private';
+// 'private' renomeado pra 'followers' — sempre se comportou como "so
+// seguidores + o proprio autor", nunca foi de fato privado (ver
+// _can_view_post no backend). "Nao compartilhar" (privacidade em 3
+// niveis) nao e um valor de Post — e a ausencia de post, ver
+// ShareVisibility abaixo, usado nos toggles de "Compartilhar no Feed".
+export type PostVisibility = 'public' | 'followers';
+
+export type ShareVisibility = 'none' | PostVisibility;
+
+/**
+ * Reaproveitado pelos 3 lugares que hoje tem um toggle "Compartilhar no
+ * Feed" — Refeicoes (meal/add.tsx) e check-in de Desafio
+ * (challenges/[id].tsx). Nao usado em social/new.tsx: la a pessoa ja esta
+ * na tela de criar post, "nao compartilhar" nao faz sentido (o post e o
+ * proprio proposito da tela) — so um seletor Publico/Seguidores.
+ */
+export const SHARE_VISIBILITY_OPTIONS: { value: ShareVisibility; label: string }[] = [
+  { value: 'none', label: 'Nao compartilhar' },
+  { value: 'followers', label: 'Seguidores' },
+  { value: 'public', label: 'Publico' },
+];
 
 export interface Post {
   id: string;

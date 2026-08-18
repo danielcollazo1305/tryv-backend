@@ -38,20 +38,27 @@ function formatKm(value: number): string {
  * texto que eu mesmo escrevo (ex: formatKm) usa o formato brasileiro de
  * verdade — precisa de validacao visual no device pra confirmar o quanto
  * isso incomoda ou nao.
+ *
+ * userId opcional: reaproveitado tambem no perfil publico de outra pessoa
+ * (social/[userId].tsx) — com userId, busca o dado do usuario visitado em
+ * vez do proprio (GET /dashboard/weekly-activity/{user_id}, visivel por
+ * padrao pra qualquer um, sem gate de seguidor). Texto do estado vazio
+ * muda pra 3a pessoa nesse caso (nao faz sentido convidar um visitante a
+ * "registrar uma corrida" no perfil de outra pessoa).
  */
-export function WeeklyActivityChart() {
+export function WeeklyActivityChart({ userId }: { userId?: string } = {}) {
   const [daily, setDaily] = useState<DailyDistanceKm[] | null>(null);
   const [error, setError] = useState(false);
 
   const fetchData = useCallback(async () => {
     setError(false);
     try {
-      const data = await getWeeklyActivity();
+      const data = await getWeeklyActivity(userId);
       setDaily(data.daily);
     } catch {
       setError(true);
     }
-  }, []);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -60,7 +67,11 @@ export function WeeklyActivityChart() {
   );
 
   if (error) {
-    return <Text style={styles.emptyText}>Nao foi possivel carregar seus km rodados da semana.</Text>;
+    return (
+      <Text style={styles.emptyText}>
+        {userId ? 'Nao foi possivel carregar os km rodados da semana.' : 'Nao foi possivel carregar seus km rodados da semana.'}
+      </Text>
+    );
   }
 
   if (!daily) {
@@ -70,7 +81,11 @@ export function WeeklyActivityChart() {
   const hasAnyDistance = daily.some((point) => point.distance_km > 0);
   if (!hasAnyDistance) {
     return (
-      <Text style={styles.emptyText}>Nenhuma corrida nos ultimos 7 dias. Registre uma corrida para ver seu grafico de km aqui.</Text>
+      <Text style={styles.emptyText}>
+        {userId
+          ? 'Ainda sem corridas registradas.'
+          : 'Nenhuma corrida nos ultimos 7 dias. Registre uma corrida para ver seu grafico de km aqui.'}
+      </Text>
     );
   }
 

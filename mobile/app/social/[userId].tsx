@@ -9,6 +9,8 @@ import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
+import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, UserBrief, followUser, listFollowers, listFollowing, listUserPosts, unfollowUser } from '@/services/social';
@@ -146,6 +148,25 @@ export default function UserProfileScreen() {
               </View>
             )}
           </View>
+
+          {/*
+            Km semanal + frequencia de treino (item 2) — mesmos componentes
+            da Home, agora buscando o dado do usuario visitado (userId) em
+            vez do proprio. Visivel por padrao pra qualquer um, sem gate de
+            seguidor (decisao ja tomada, diferente da regra de posts do
+            item 1) — os proprios componentes ja tratam o estado vazio em
+            3a pessoa quando recebem userId.
+          */}
+          {!!userId && (
+            <View style={styles.activitySection}>
+              <Text style={styles.sectionTitle}>Atividade</Text>
+              <LiquiglassCard style={styles.activityCard}>
+                <Text style={styles.activityCardTitle}>Km rodados</Text>
+                <WeeklyActivityChart userId={userId} />
+              </LiquiglassCard>
+              <TrainingFrequencyCard userId={userId} />
+            </View>
+          )}
         </ScrollView>
       )}
     </ScreenBackground2>
@@ -179,4 +200,8 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+
+  activitySection: { gap: spacing2.md },
+  activityCard: { gap: spacing2.sm },
+  activityCardTitle: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
 });

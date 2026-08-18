@@ -1,4 +1,5 @@
 import calendar
+import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -55,6 +56,17 @@ def _resolve_window(period: str, month: str | None) -> tuple[date, date, int, st
     end_date = date.today()
     start_date = end_date - timedelta(days=days - 1)
     return start_date, end_date, days, period
+
+
+def _parse_and_validate_user_id(user_id: str, db: Session) -> uuid.UUID:
+    """Mesmo padrao de _parse_user_id em routers/social.py — 404 tanto pra id invalido quanto pra usuario inexistente, sem distinguir os dois casos."""
+    try:
+        parsed_id = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    if not db.query(User).filter(User.id == parsed_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    return parsed_id
 
 
 def _compute_training_frequency(
@@ -128,19 +140,39 @@ def get_training_frequency(
     )
 
 
-@router.get("/weekly-activity", response_model=WeeklyActivityOut)
-def get_weekly_activity(
+@router.get("/training-frequency/{user_id}", response_model=TrainingFrequencyOut)
+def get_user_training_frequency(
+    user_id: str,
+    period: str = Query("30d"),
+    month: str | None = Query(
+        None, description="Mes civil no formato YYYY-MM — se informado, tem prioridade sobre period"
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Versao publica de /dashboard/training-frequency — mesma decisao de visibilidade de get_user_weekly_activity (sem gate de seguidor)."""
+    parsed_id = _parse_and_validate_user_id(user_id, db)
+    start_date, end_date, days_total, period_label = _resolve_window(period, month)
+    training_frequency, days_trained = _compute_training_frequency(db, parsed_id, start_date, end_date, days_total)
+    return TrainingFrequencyOut(
+        period=period_label,
+        training_frequency=training_frequency,
+        days_trained=days_trained,
+        days_total=days_total,
+    )
+
+
+def _compute_weekly_activity(db: Session, user_id) -> list[DailyDistanceKm]:
     """
     Km rodados por dia (Run.distance_meters / 1000) dos ultimos 7 dias,
-    hoje incluso — livre, sem Pro-gate. Trocado de "minutos ativos" pra
-    km a pedido do usuario (grafico estilo Strava, so corrida). So Run
-    entra aqui — ManualActivity nao tem campo de distancia, entao dias com
-    so atividade manual aparecem como 0km (esperado: esse grafico e
-    especificamente de corrida/distancia, nao de atividade geral — pra
-    isso ver TrainingFrequencyCard).
+    hoje incluso. Trocado de "minutos ativos" pra km a pedido do usuario
+    (grafico estilo Strava, so corrida). So Run entra aqui — ManualActivity
+    nao tem campo de distancia, entao dias com so atividade manual aparecem
+    como 0km (esperado: esse grafico e especificamente de corrida/distancia,
+    nao de atividade geral — pra isso ver TrainingFrequencyCard).
+
+    Extraida de get_weekly_activity pra ser reaproveitada por
+    get_user_weekly_activity (perfil publico de outra pessoa).
     """
     end_date = date.today()
     start_date = end_date - timedelta(days=6)
@@ -150,7 +182,7 @@ def get_weekly_activity(
     run_distance = dict(
         db.query(func.date(Run.started_at), func.sum(Run.distance_meters))
         .filter(
-            Run.user_id == current_user.id,
+            Run.user_id == user_id,
             Run.started_at >= start_datetime,
             Run.started_at <= end_datetime,
         )
@@ -163,8 +195,34 @@ def get_weekly_activity(
         day = start_date + timedelta(days=offset)
         meters = run_distance.get(day, 0) or 0
         daily.append(DailyDistanceKm(date=day, distance_km=round(meters / 1000, 1)))
+    return daily
 
-    return WeeklyActivityOut(daily=daily)
+
+@router.get("/weekly-activity", response_model=WeeklyActivityOut)
+def get_weekly_activity(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Livre, sem Pro-gate — ver _compute_weekly_activity pro calculo."""
+    return WeeklyActivityOut(daily=_compute_weekly_activity(db, current_user.id))
+
+
+@router.get("/weekly-activity/{user_id}", response_model=WeeklyActivityOut)
+def get_user_weekly_activity(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Versao publica de /dashboard/weekly-activity pro perfil de outra
+    pessoa (social/[userId].tsx). Decisao ja tomada (nao desta tarefa em
+    diante, revisitar so com o usuario): visivel por padrao pra qualquer
+    usuario logado, sem checar se segue o alvo — diferente da regra de
+    posts do item 1. current_user aqui so exige estar autenticado, nao
+    escopa o dado retornado.
+    """
+    parsed_id = _parse_and_validate_user_id(user_id, db)
+    return WeeklyActivityOut(daily=_compute_weekly_activity(db, parsed_id))
 
 
 @router.get("/home-summary", response_model=HomeSummaryOut)

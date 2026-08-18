@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -22,7 +21,7 @@ import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
-import { createPost } from '@/services/social';
+import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
@@ -67,20 +66,22 @@ export default function AddMealScreen() {
   const [manualFat, setManualFat] = useState('');
   const [manualSaving, setManualSaving] = useState(false);
 
-  // Desligado por padrao — registro de refeicao e privado (so contagem de
-  // nutrientes) a menos que o usuario opte explicitamente por publicar.
-  const [shareToFeed, setShareToFeed] = useState(false);
+  // 'none' por padrao — registro de refeicao nao gera post nenhum (so
+  // contagem de nutrientes) a menos que o usuario opte explicitamente por
+  // compartilhar, agora com 3 niveis (nao compartilhar / seguidores /
+  // publico) em vez do antigo sim/nao binario.
+  const [shareVisibility, setShareVisibility] = useState<ShareVisibility>('none');
 
   // Falha ao compartilhar no Feed nunca desfaz nem bloqueia o registro da
   // refeicao, que ja foi salvo com sucesso antes disso rodar — mesmo
   // padrao de acao secundaria "fire and forget" ja usado em outros lugares
   // do app (ex: syncRecentHeartRate em HealthSummaryCard).
-  const shareMealToFeed = (caption: string, mediaUrl?: string) => {
+  const shareMealToFeed = (visibility: PostVisibility, caption: string, mediaUrl?: string) => {
     createPost({
       type: mediaUrl ? 'photo' : 'progress',
       caption: caption || undefined,
       media_url: mediaUrl ?? null,
-      visibility: 'public',
+      visibility,
     }).catch(() => {});
   };
 
@@ -159,7 +160,7 @@ export default function AddMealScreen() {
         carbs: Number(carbs) || 0,
         fat: Number(fat) || 0,
       });
-      if (shareToFeed) shareMealToFeed(analysis.description, photoUrl);
+      if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, photoUrl);
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
@@ -213,7 +214,7 @@ export default function AddMealScreen() {
         carbs: carbsValue,
         fat: fatValue,
       });
-      if (shareToFeed) shareMealToFeed(description);
+      if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, description);
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
@@ -282,18 +283,12 @@ export default function AddMealScreen() {
             <TextField2 label="Carboidrato (g)" keyboardType="decimal-pad" value={carbs} onChangeText={setCarbs} />
             <TextField2 label="Gordura (g)" keyboardType="decimal-pad" value={fat} onChangeText={setFat} />
 
-            <View style={styles.shareRow}>
-              <View style={styles.shareTextWrap}>
-                <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
-                <Text style={styles.shareSubtitle}>Publica esta refeicao no seu Feed social</Text>
-              </View>
-              <Switch
-                value={shareToFeed}
-                onValueChange={setShareToFeed}
-                trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
-                thumbColor={colors2.white}
-              />
-            </View>
+            <ChoiceGroup2
+              label="Compartilhar no Feed"
+              options={SHARE_VISIBILITY_OPTIONS}
+              value={shareVisibility}
+              onChange={setShareVisibility}
+            />
 
             <Button2
               label={stage === 'uploading' ? 'Enviando foto...' : 'Confirmar'}
@@ -352,18 +347,12 @@ export default function AddMealScreen() {
               onChangeText={setManualFat}
             />
 
-            <View style={styles.shareRow}>
-              <View style={styles.shareTextWrap}>
-                <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
-                <Text style={styles.shareSubtitle}>Publica esta refeicao no seu Feed social</Text>
-              </View>
-              <Switch
-                value={shareToFeed}
-                onValueChange={setShareToFeed}
-                trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
-                thumbColor={colors2.white}
-              />
-            </View>
+            <ChoiceGroup2
+              label="Compartilhar no Feed"
+              options={SHARE_VISIBILITY_OPTIONS}
+              value={shareVisibility}
+              onChange={setShareVisibility}
+            />
 
             <Button2 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
           </View>
@@ -416,18 +405,4 @@ const styles = StyleSheet.create({
   descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm, marginTop: spacing2.md },
   description: { ...typography2.headlineMd, fontSize: 18, flex: 1 },
   confidence: { ...typography2.labelCaps, textTransform: 'none', marginBottom: spacing2.sm },
-
-  shareRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors2.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: radius2.md,
-    padding: spacing2.md,
-  },
-  shareTextWrap: { flex: 1, gap: 2, marginRight: spacing2.sm },
-  shareTitle: { ...typography2.bodyMd, fontWeight: '600' },
-  shareSubtitle: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 });

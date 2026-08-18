@@ -41,8 +41,12 @@ function formatSelectedDate(dateStr: string): string {
  * toque no quadrado mostra a data + intensidade em texto abaixo, entao a
  * informacao do dia exato continua acessivel sem precisar do numero
  * impresso em cima da cor).
+ *
+ * userId opcional: reaproveitado no perfil publico de outra pessoa
+ * (social/[userId].tsx) — mesma decisao de visibilidade do
+ * WeeklyActivityChart (sem gate de seguidor).
  */
-export function TrainingFrequencyCard() {
+export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
   const [days, setDays] = useState<TrainingDay[] | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<TrainingDay | null>(null);
@@ -50,13 +54,13 @@ export function TrainingFrequencyCard() {
   const fetchData = useCallback(async () => {
     setError(false);
     try {
-      const data = await getTrainingFrequency({ month: currentMonthParam() });
+      const data = await getTrainingFrequency({ month: currentMonthParam() }, userId);
       setDays(data.training_frequency);
       setSelected(null);
     } catch {
       setError(true);
     }
-  }, []);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,11 +76,19 @@ export function TrainingFrequencyCard() {
   let content: React.ReactNode;
 
   if (error) {
-    content = <Text style={styles.emptyText}>Nao foi possivel carregar sua frequencia de treino.</Text>;
+    content = (
+      <Text style={styles.emptyText}>
+        {userId ? 'Nao foi possivel carregar a frequencia de treino.' : 'Nao foi possivel carregar sua frequencia de treino.'}
+      </Text>
+    );
   } else if (!days) {
     content = <Text style={styles.emptyText}>Carregando...</Text>;
   } else if (days.length === 0) {
-    content = <Text style={styles.emptyText}>Sem dados neste mes ainda.</Text>;
+    content = (
+      <Text style={styles.emptyText}>
+        {userId ? 'Ainda sem atividades registradas.' : 'Sem dados neste mes ainda.'}
+      </Text>
+    );
   } else {
     content = (
       <>

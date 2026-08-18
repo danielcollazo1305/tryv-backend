@@ -31,7 +31,7 @@ export function PostGrid2({ posts }: { posts: Post[] }) {
               <Ionicons name="document-text-outline" size={20} color={colors2.onSurfaceVariant} />
             </View>
           )}
-          {post.visibility === 'private' && (
+          {post.visibility === 'followers' && (
             <View style={styles.lockBadge}>
               <Ionicons name="lock-closed" size={10} color={colors2.white} />
             </View>

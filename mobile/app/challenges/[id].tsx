@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,6 +7,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
+import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { HeatmapGrid } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
@@ -25,7 +26,7 @@ import {
   listMyChallengeCheckins,
 } from '@/services/challenges';
 import { uploadMedia } from '@/services/media';
-import { createPost, UserBrief } from '@/services/social';
+import { SHARE_VISIBILITY_OPTIONS, ShareVisibility, UserBrief, createPost } from '@/services/social';
 import { TrainerPublic, getTrainer, licenseLabel } from '@/services/trainers';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
@@ -63,7 +64,7 @@ export default function ChallengeDetailScreen() {
   const [joinError, setJoinError] = useState<string | null>(null);
 
   const [checkinPhotoUri, setCheckinPhotoUri] = useState<string | null>(null);
-  const [checkinShareToFeed, setCheckinShareToFeed] = useState(false);
+  const [checkinVisibility, setCheckinVisibility] = useState<ShareVisibility>('none');
   const [checkinSaving, setCheckinSaving] = useState(false);
   const [checkinError, setCheckinError] = useState<string | null>(null);
 
@@ -188,22 +189,25 @@ export default function ChallengeDetailScreen() {
       if (checkinPhotoUri) {
         photoUrl = await uploadMedia(checkinPhotoUri, 'challenges');
       }
-      await createChallengeCheckin(id, { photo_url: photoUrl, shared_publicly: checkinShareToFeed });
+      await createChallengeCheckin(id, {
+        photo_url: photoUrl,
+        shared_publicly: checkinVisibility !== 'none',
+      });
 
       // Mesmo padrao "fire and forget" de meal/add.tsx — o check-in ja foi
       // salvo com sucesso, uma falha so ao publicar no Feed nao deve
       // travar nem desfazer o check-in.
-      if (checkinShareToFeed) {
+      if (checkinVisibility !== 'none') {
         createPost({
           type: photoUrl ? 'photo' : 'achievement',
           caption: `Check-in do desafio: ${challenge.title}`,
           media_url: photoUrl,
-          visibility: 'public',
+          visibility: checkinVisibility,
         }).catch(() => {});
       }
 
       setCheckinPhotoUri(null);
-      setCheckinShareToFeed(false);
+      setCheckinVisibility('none');
       await fetchAll();
     } catch (err) {
       setCheckinError(getApiErrorMessage(err, 'Nao foi possivel registrar seu check-in.'));
@@ -332,18 +336,12 @@ export default function ChallengeDetailScreen() {
                     </View>
                     <Text style={styles.checkinHint}>Foto e opcional.</Text>
 
-                    <View style={styles.shareRow}>
-                      <View style={styles.shareTextWrap}>
-                        <Text style={styles.shareTitle}>Compartilhar no Feed</Text>
-                        <Text style={styles.shareSubtitle}>Publica este check-in no seu Feed social</Text>
-                      </View>
-                      <Switch
-                        value={checkinShareToFeed}
-                        onValueChange={setCheckinShareToFeed}
-                        trackColor={{ true: colors2.violet, false: colors2.surfaceContainerHigh }}
-                        thumbColor={colors2.white}
-                      />
-                    </View>
+                    <ChoiceGroup2
+                      label="Compartilhar no Feed"
+                      options={SHARE_VISIBILITY_OPTIONS}
+                      value={checkinVisibility}
+                      onChange={setCheckinVisibility}
+                    />
 
                     {!!checkinError && <Text style={styles.error}>{checkinError}</Text>}
 
@@ -445,20 +443,6 @@ const styles = StyleSheet.create({
 
   checkinDoneCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
   checkinDoneText: { ...typography2.bodyMd, fontWeight: '600' },
-
-  shareRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors2.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: radius2.md,
-    padding: spacing2.md,
-  },
-  shareTextWrap: { flex: 1, gap: 2, marginRight: spacing2.sm },
-  shareTitle: { ...typography2.bodyMd, fontWeight: '600' },
-  shareSubtitle: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 
   heatmapCard: { gap: spacing2.md },
 

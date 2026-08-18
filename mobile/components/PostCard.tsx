@@ -31,7 +31,7 @@ export function PostCard({ post, onPressAuthor, onToggleLike, onPressComments }:
           <Ionicons name="person" size={16} color={colors.accent} />
         </View>
         <Text style={styles.authorName}>{post.author}</Text>
-        {post.visibility === 'private' && (
+        {post.visibility === 'followers' && (
           <Ionicons name="lock-closed" size={12} color={colors.textMuted} />
         )}
         <Text style={styles.date}>{formatPostDate(post.created_at)}</Text>

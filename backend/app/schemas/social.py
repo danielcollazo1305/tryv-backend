@@ -5,7 +5,8 @@ from typing import Literal
 from pydantic import BaseModel
 
 PostType = Literal["photo", "video", "progress", "achievement", "workout", "run"]
-PostVisibility = Literal["public", "private"]
+# 'private' renomeado pra 'followers' — ver comentario em models/social.py.
+PostVisibility = Literal["public", "followers"]
 
 
 class PostCreate(BaseModel):

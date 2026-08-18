@@ -16,7 +16,13 @@ class Post(Base):
     type = Column(String, nullable=False)  # 'photo' | 'video' | 'progress' | 'achievement' | 'workout' | 'run'
     caption = Column(Text, nullable=True)
     media_url = Column(String, nullable=True)
-    visibility = Column(String, nullable=False, default="public")  # 'public' | 'private'
+    # 'public' | 'followers' — renomeado de 'private' (privacidade em 3
+    # niveis): o valor sempre se comportou como "so seguidores + o proprio
+    # autor" (ver _can_view_post em routers/social.py), nunca foi de fato
+    # privado a ponto de nem o autor ver, entao o nome antigo era impreciso.
+    # "privado de verdade" nao e um estado do Post — e a AUSENCIA de post
+    # (a pessoa so nao compartilha nada).
+    visibility = Column(String, nullable=False, default="public")
 
     # Vincula a um workout_session, run ou challenge quando o post e automatico
     reference_id = Column(UUID(as_uuid=True), nullable=True)

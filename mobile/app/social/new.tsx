@@ -26,9 +26,13 @@ import { getInitials } from '@/utils/text';
 
 type Stage = 'picking' | 'compose' | 'uploading' | 'saving';
 
+// So Publico/Seguidores aqui (sem "Nao compartilhar") — diferente do
+// seletor de 3 vias usado em meal/add.tsx e challenges/[id].tsx: esta
+// tela existe especificamente pra publicar um post, "nao compartilhar"
+// nao faz sentido como opcao do proprio fluxo de criacao.
 const VISIBILITY_OPTIONS: { value: PostVisibility; label: string }[] = [
   { value: 'public', label: 'Publico' },
-  { value: 'private', label: 'Privado' },
+  { value: 'followers', label: 'Seguidores' },
 ];
 
 export default function NewPostScreen() {
@@ -150,7 +154,7 @@ export default function NewPostScreen() {
               <View>
                 <Text style={styles.authorName}>{user?.name ?? 'Voce'}</Text>
                 <Text style={styles.visibilityHint}>
-                  {visibility === 'public' ? 'Publico' : 'Privado'}
+                  {visibility === 'public' ? 'Publico' : 'Seguidores'}
                 </Text>
               </View>
             </View>

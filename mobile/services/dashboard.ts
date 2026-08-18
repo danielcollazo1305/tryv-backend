@@ -46,9 +46,15 @@ export interface TrainingFrequency {
   days_total: number;
 }
 
-/** Mesmo dado de training_frequency de getHomeSummary, mas livre (sem exigir Pro) — usado pelo card "Frequencia de treino" da Home. */
-export async function getTrainingFrequency(params: HomeSummaryParams): Promise<TrainingFrequency> {
-  const response = await api.get<TrainingFrequency>('/dashboard/training-frequency', { params });
+/**
+ * Mesmo dado de training_frequency de getHomeSummary, mas livre (sem
+ * exigir Pro) — usado pelo card "Frequencia de treino" da Home e, com
+ * userId, pela mesma secao no perfil publico de outra pessoa
+ * (social/[userId].tsx) — visivel por padrao, sem checar se segue.
+ */
+export async function getTrainingFrequency(params: HomeSummaryParams, userId?: string): Promise<TrainingFrequency> {
+  const url = userId ? `/dashboard/training-frequency/${userId}` : '/dashboard/training-frequency';
+  const response = await api.get<TrainingFrequency>(url, { params });
   return response.data;
 }
 
@@ -61,9 +67,15 @@ export interface WeeklyActivity {
   daily: DailyDistanceKm[];
 }
 
-/** Km rodados (so Run) por dia, ultimos 7 dias — livre. Usado pelo grafico "Km rodados" da Home. */
-export async function getWeeklyActivity(): Promise<WeeklyActivity> {
-  const response = await api.get<WeeklyActivity>('/dashboard/weekly-activity');
+/**
+ * Km rodados (so Run) por dia, ultimos 7 dias — livre. Usado pelo grafico
+ * "Km rodados" da Home e, com userId, pela mesma secao no perfil publico
+ * de outra pessoa (social/[userId].tsx) — visivel por padrao, sem checar
+ * se segue.
+ */
+export async function getWeeklyActivity(userId?: string): Promise<WeeklyActivity> {
+  const url = userId ? `/dashboard/weekly-activity/${userId}` : '/dashboard/weekly-activity';
+  const response = await api.get<WeeklyActivity>(url);
   return response.data;
 }
 
