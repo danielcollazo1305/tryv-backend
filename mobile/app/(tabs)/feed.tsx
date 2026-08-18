@@ -3,15 +3,14 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { Avatar } from '@/components/Avatar';
 import { EmptyFollowingState } from '@/components/EmptyFollowingState';
 import { PostCard2 } from '@/components/PostCard2';
+import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
-import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const PAGE_SIZE = 20;
@@ -149,9 +148,7 @@ export default function FeedScreen() {
                   <Ionicons name="search" size={22} color={colors2.onSurfaceVariant} />
                 </Pressable>
                 {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
-                <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
-                  <Avatar initials={user ? getInitials(user.name) : '?'} size={32} />
-                </Pressable>
+                <ProfileAvatarButton size={32} />
               </View>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}

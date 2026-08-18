@@ -3,18 +3,17 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { Avatar } from '@/components/Avatar';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { DietPlanBanner } from '@/components/DietPlanBanner';
 import { MacrosGrid } from '@/components/MacrosGrid';
 import { MealCard } from '@/components/MealCard';
 import { MealsHistoryCard } from '@/components/MealsHistoryCard';
+import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, isToday, listMeals } from '@/services/meals';
-import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 export default function MealsScreen() {
@@ -87,9 +86,7 @@ export default function MealsScreen() {
                 <Text style={styles.subtitle}>Hoje</Text>
               </View>
               {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
-              <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
-                <Avatar initials={user ? getInitials(user.name) : '?'} size={36} />
-              </Pressable>
+              <ProfileAvatarButton size={36} />
             </View>
 
             <DietPlanBanner />

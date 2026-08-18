@@ -7,7 +7,6 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
-import { Avatar } from '@/components/Avatar';
 import { HeatmapGrid } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
@@ -15,6 +14,7 @@ import { ImageCoverCard } from '@/components/ImageCoverCard';
 import { InsightCard } from '@/components/InsightCard';
 import { MonthComparisonCard } from '@/components/MonthComparisonCard';
 import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
+import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
@@ -34,7 +34,6 @@ import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
 import { exportPeriodReportPdf } from '@/services/pdfExport';
 import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
-import { getInitials } from '@/utils/text';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
@@ -217,9 +216,7 @@ export default function HomeScreen() {
           <Text style={styles.subtitle}>Vamos treinar hoje?</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
-            <Avatar initials={user ? getInitials(user.name) : '?'} size={40} />
-          </Pressable>
+          <ProfileAvatarButton size={40} />
           <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
             <Ionicons name="log-out-outline" size={22} color={colors2.onSurfaceVariant} />
           </Pressable>
