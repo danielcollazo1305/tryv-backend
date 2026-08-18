@@ -1,4 +1,5 @@
 import { api } from '@/services/api';
+import { parseUtcDate } from '@/services/activities';
 
 export interface WorkoutExercise {
   name: string;
@@ -28,7 +29,23 @@ export interface WorkoutPlan {
   trainer_id: string | null;
   status: string;
   plan_data: WorkoutPlanData | null;
+  /** null = nunca expira (hoje so acontece com planos source='trainer'). */
+  expires_at: string | null;
   created_at: string;
+}
+
+/** Validade de 8 semanas pra planos gerados por IA (calculada no backend ao salvar). Planos source='trainer' tem expires_at nulo e nunca expiram por aqui. */
+export function isWorkoutPlanExpired(plan: WorkoutPlan): boolean {
+  if (!plan.expires_at) return false;
+  return parseUtcDate(plan.expires_at).getTime() <= Date.now();
+}
+
+/** null quando o plano nao tem validade (expires_at nulo) ou ja expirou. */
+export function daysUntilWorkoutPlanExpiration(plan: WorkoutPlan): number | null {
+  if (!plan.expires_at) return null;
+  const diffMs = parseUtcDate(plan.expires_at).getTime() - Date.now();
+  if (diffMs <= 0) return null;
+  return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 }
 
 export interface WorkoutGenerateRequest {

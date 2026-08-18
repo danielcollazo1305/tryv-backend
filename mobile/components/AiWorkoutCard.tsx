@@ -2,14 +2,16 @@ import React, { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 
 import { ImageCoverCard } from '@/components/ImageCoverCard';
-import { listWorkoutPlans } from '@/services/workouts';
+import { isWorkoutPlanExpired, listWorkoutPlans } from '@/services/workouts';
 
 /**
  * "Treino com IA" — card novo da Home. Reaproveita listWorkoutPlans()
  * (mesmo endpoint livre ja usado por (tabs)/workout.tsx) so pra decidir o
- * texto: com plano ativo, convida a ver o treino; sem plano, convida a
- * gerar um novo. A tela de destino (workout.tsx) ja sabe mostrar o estado
- * certo (vazio vs. com plano) sozinha — este card so ajusta o convite.
+ * texto: com plano ativo (nao expirado), convida a ver o treino; sem
+ * plano valido — nunca teve um, ou o unico que existe ja expirou —
+ * convida a gerar um novo. A tela de destino (workout.tsx) ja sabe
+ * mostrar o estado certo (vazio/expirado/com plano) sozinha — este card
+ * so ajusta o convite.
  */
 export function AiWorkoutCard() {
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
@@ -19,7 +21,7 @@ export function AiWorkoutCard() {
       let active = true;
       listWorkoutPlans()
         .then((plans) => {
-          if (active) setHasPlan(plans.length > 0);
+          if (active) setHasPlan(plans.some((plan) => !isWorkoutPlanExpired(plan)));
         })
         .catch(() => {
           if (active) setHasPlan(null);

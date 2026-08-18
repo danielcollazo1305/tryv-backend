@@ -47,6 +47,7 @@ class WorkoutPlanOut(BaseModel):
     trainer_id: uuid.UUID | None = None
     status: str
     plan_data: dict | None = None
+    expires_at: datetime | None = None
     created_at: datetime
 
     class Config:

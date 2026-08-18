@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timedelta
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,6 +22,13 @@ from app.services.workout_generator import generate_workout_plan
 
 router = APIRouter(prefix="/workout-plans", tags=["workout-plans"])
 logger = logging.getLogger(__name__)
+
+# Validade de plano gerado por IA — depois disso o plano continua acessivel
+# (historico), mas deixa de contar como "plano ativo" nas telas que
+# perguntam "o usuario tem um plano?" (Home, aba Treino). So se aplica a
+# planos source='ai' — ver create_plan abaixo e o comentario em
+# models/workout.py.
+AI_WORKOUT_PLAN_VALIDITY = timedelta(weeks=8)
 
 
 @router.post("/generate", response_model=WorkoutPlanGenerated)
@@ -55,10 +63,13 @@ def create_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    expires_at = datetime.utcnow() + AI_WORKOUT_PLAN_VALIDITY if payload.source == "ai" else None
+
     plan = WorkoutPlan(
         user_id=current_user.id,
         source=payload.source,
         plan_data=payload.plan_data.model_dump(),
+        expires_at=expires_at,
     )
     db.add(plan)
     db.commit()
