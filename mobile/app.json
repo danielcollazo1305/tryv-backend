@@ -67,7 +67,8 @@
         {
           "contactsPermission": "O Tryv acessa seus contatos para encontrar amigos que ja usam o app. So os numeros de telefone sao usados, nunca enviados ou salvos alem da checagem de correspondencia."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

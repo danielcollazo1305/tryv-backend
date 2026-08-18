@@ -90,7 +90,19 @@ export default function TrainerStudentsScreen() {
       });
       return;
     }
-    if (!student.is_live || !student.live_activity_id) return;
+    // Acao principal do card, pra personal trainer, deixou de ser so "ver
+    // ao vivo se estiver treinando agora" (a lacuna que esta tarefa
+    // fecha) — agora sempre leva pro builder de plano manual. Status "ao
+    // vivo" continua acessivel, mas como um botao separado dentro do card
+    // (ver handleViewLive), nao mais a unica acao possivel.
+    router.push({
+      pathname: '/trainers/students/[studentId]/workout-plan',
+      params: { studentId: student.user_id, studentName: student.name },
+    });
+  };
+
+  const handleViewLive = (student: Student) => {
+    if (!student.live_activity_id) return;
     router.push({
       pathname: '/trainers/live/[id]',
       params: { id: student.live_activity_id, name: student.name },
@@ -125,11 +137,7 @@ export default function TrainerStudentsScreen() {
 
         {!loading &&
           students.map((student) => (
-            <Pressable
-              key={student.user_id}
-              onPress={() => handleSelectStudent(student)}
-              disabled={!isNutritionist && !student.is_live}
-            >
+            <Pressable key={student.user_id} onPress={() => handleSelectStudent(student)}>
               <LiquiglassCard style={styles.studentCard} padding={spacing2.md}>
                 <Avatar initials={getInitials(student.name)} size={48} />
                 <View style={styles.studentInfo}>
@@ -141,23 +149,35 @@ export default function TrainerStudentsScreen() {
                     (so user_id/name/is_live/live_activity_id) — omitido
                     aqui em vez de inventar uma data.
                   */}
-                  {isNutritionist ? (
-                    <Text style={styles.offlineText}>Ver ou editar plano alimentar</Text>
-                  ) : student.is_live ? (
-                    <View style={styles.liveRow}>
-                      <LiveDot />
-                      <Text style={styles.liveText}>Ao vivo agora</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.offlineText}>Sem atividade no momento</Text>
-                  )}
+                  <Text style={styles.offlineText}>
+                    {isNutritionist ? 'Ver ou editar plano alimentar' : 'Toque para montar o plano de treino'}
+                  </Text>
                 </View>
                 {isNutritionist ? (
                   <View style={styles.dietPlanButton}>
                     <Text style={styles.dietPlanButtonText}>Ver plano</Text>
                   </View>
                 ) : (
-                  student.is_live && <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+                  <View style={styles.trainerActions}>
+                    {/*
+                      "Ao vivo" continua acessivel, mas agora como um botao
+                      proprio dentro do card, nao mais a unica acao
+                      possivel — o card inteiro leva pro builder de plano
+                      (handleSelectStudent), montar plano nao depende do
+                      aluno estar treinando agora.
+                    */}
+                    {student.is_live && student.live_activity_id && (
+                      <Pressable
+                        style={styles.liveButton}
+                        onPress={() => handleViewLive(student)}
+                        hitSlop={8}
+                      >
+                        <LiveDot />
+                        <Text style={styles.liveButtonText}>Ao vivo</Text>
+                      </Pressable>
+                    )}
+                    <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+                  </View>
                 )}
               </LiquiglassCard>
             </Pressable>
@@ -187,11 +207,23 @@ const styles = StyleSheet.create({
   studentInfo: { flex: 1, gap: spacing2.xs },
   studentName: { ...typography2.bodyMd, fontWeight: '600' },
   offlineText: { ...typography2.labelCaps, textTransform: 'none' },
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
   liveDotWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
   liveDotRing: { position: 'absolute', width: 10, height: 10, borderRadius: radius2.pill, backgroundColor: colors2.success },
   liveDot: { width: 8, height: 8, borderRadius: radius2.pill, backgroundColor: colors2.success },
-  liveText: { ...typography2.labelCaps, color: colors2.success, textTransform: 'none' },
+
+  trainerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  liveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing2.xs,
+    paddingHorizontal: spacing2.sm,
+    paddingVertical: spacing2.xs,
+    borderRadius: radius2.pill,
+    backgroundColor: 'rgba(74, 222, 128, 0.12)',
+    borderWidth: 1,
+    borderColor: colors2.success,
+  },
+  liveButtonText: { ...typography2.labelCaps, color: colors2.success, textTransform: 'none' },
 
   dietPlanButton: {
     paddingHorizontal: spacing2.md,

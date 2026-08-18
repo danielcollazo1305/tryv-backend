@@ -12,6 +12,7 @@ from app.models.live_activity import LiveActivity
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
+from app.models.workout import WorkoutPlan
 from app.schemas.trainer import (
     StripeOnboardingOut,
     StripeStatusOut,
@@ -21,6 +22,7 @@ from app.schemas.trainer import (
     TrainerRegister,
     TrainerUpdate,
 )
+from app.schemas.workout import WorkoutPlanGenerated, WorkoutPlanOut
 from app.services.stripe_client import get_client
 
 router = APIRouter(prefix="/trainers", tags=["trainers"])
@@ -261,6 +263,80 @@ def list_my_students(
         )
         for row in rows
     ]
+
+
+@router.post(
+    "/students/{student_id}/workout-plans",
+    response_model=WorkoutPlanOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_student_workout_plan(
+    student_id: str,
+    payload: WorkoutPlanGenerated,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Preenche a lacuna documentada em TrainerWorkoutSection/WorkoutDayCard
+    (2 vezes na mesma sessao): ate agora nao existia nenhum endpoint pro
+    personal trainer montar um plano pra um aluno especifico, entao aquela
+    secao sempre caia no estado vazio pra quem tinha Personal Trainer.
+
+    Reaproveita WorkoutPlanGenerated (mesma estrutura de dias/exercicios ja
+    usada pelos planos de IA, incluindo o video_url novo por exercicio) —
+    so quem monta e o profissional, sem IA nenhuma envolvida. source e
+    trainer_id vem daqui, nao do payload (o cliente nao escolhe por quem o
+    plano foi "criado").
+    """
+    trainer = _get_my_trainer(db, current_user)
+    if trainer.professional_type != "personal_trainer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Planos de treino sao exclusivos de personal trainers",
+        )
+    if not trainer.cref_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas profissionais verificados podem montar planos de treino",
+        )
+
+    try:
+        parsed_student_id = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno nao encontrado")
+
+    # Mesma checagem de join_challenge (challenges.py): so pode montar
+    # plano pro PROPRIO aluno, nunca pro aluno de outro profissional.
+    has_active_subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.user_id == parsed_student_id,
+            Subscription.trainer_id == trainer.id,
+            Subscription.type == "trainer_addon",
+            Subscription.status == "active",
+        )
+        .first()
+        is not None
+    )
+    if not has_active_subscription:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Aluno nao encontrado ou sem assinatura ativa com voce",
+        )
+
+    plan = WorkoutPlan(
+        user_id=parsed_student_id,
+        source="trainer",
+        trainer_id=trainer.id,
+        plan_data=payload.model_dump(),
+        # Planos de trainer nao expiram automaticamente (decisao ja tomada
+        # na tarefa de validade de 8 semanas — essa e exclusiva de source='ai').
+        expires_at=None,
+    )
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+    return plan
 
 
 @router.get("/", response_model=list[TrainerPublicOut])

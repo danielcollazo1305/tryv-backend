@@ -7,6 +7,8 @@ export interface WorkoutExercise {
   reps: string;
   rest_seconds: number;
   notes: string;
+  /** Video de execucao — so existe em exercicios de planos source='trainer' (o profissional anexa ao montar o plano). Nunca vem de IA. */
+  video_url?: string | null;
 }
 
 export interface WorkoutDay {
@@ -72,6 +74,16 @@ export async function saveWorkoutPlan(planData: WorkoutPlanData): Promise<Workou
 /** Mais recente primeiro — o item [0] e tratado como o plano "ativo" atual. */
 export async function listWorkoutPlans(): Promise<WorkoutPlan[]> {
   const response = await api.get<WorkoutPlan[]>('/workout-plans/');
+  return response.data;
+}
+
+/**
+ * Personal trainer monta um plano manual (sem IA) pra um aluno especifico
+ * — preenche a lacuna que deixava TrainerWorkoutSection sempre no estado
+ * vazio. Reaproveita o mesmo formato de WorkoutPlanData dos planos de IA.
+ */
+export async function createStudentWorkoutPlan(studentId: string, planData: WorkoutPlanData): Promise<WorkoutPlan> {
+  const response = await api.post<WorkoutPlan>(`/trainers/students/${studentId}/workout-plans`, planData);
   return response.data;
 }
 

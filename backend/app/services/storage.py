@@ -1,8 +1,9 @@
 """
-Upload de imagens para o S3 — usado por refeicoes, posts do feed e (futuramente) fotos de perfil.
-O bucket ja tem uma bucket policy de leitura publica configurada, entao o
-upload nao precisa (nem deve) definir ACL — buckets com "Block Public
-Access" ativado rejeitam PutObject com ACL explicita.
+Upload de midia para o S3 — usado por refeicoes, posts do feed, fotos de
+perfil e (desde o registro profissional expandido) videos de execucao de
+exercicio. O bucket ja tem uma bucket policy de leitura publica
+configurada, entao o upload nao precisa (nem deve) definir ACL — buckets
+com "Block Public Access" ativado rejeitam PutObject com ACL explicita.
 """
 import logging
 import mimetypes

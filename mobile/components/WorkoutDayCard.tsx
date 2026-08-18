@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
@@ -20,28 +21,46 @@ function buildDefaultSets(count: number): SetEntry[] {
 }
 
 /**
- * Video de execucao por exercicio (item 2) — so estrutura/estado vazio
- * por enquanto, nenhum video existe ainda (confirmado com o usuario):
- * - Plano de IA: video viria de uma biblioteca generica do proprio app
- *   (ExerciseLibraryEntry.videoUrl, ver constants/exerciseLibrary.ts).
- * - Plano de Personal Trainer: video seria gravado/enviado pelo proprio
- *   profissional — DEPENDENCIA NAO RESOLVIDA, documentada aqui de
- *   proposito pra nao ficar esquecida: nao existe hoje nenhum endpoint
- *   pro trainer sequer atribuir um plano a um aluno (achado da tarefa
- *   anterior), entao "trainer sobe video pro exercicio dele" e uma
- *   camada em cima de algo que nem existe ainda. Ate isso ser construido,
- *   planos de trainer caem no mesmo estado vazio abaixo.
- *
- * Quando video_url existir de verdade, essa funcao precisa de um player
- * de video (nenhuma lib de video esta instalada no projeto hoje, ex.
- * expo-video) — nao instalei uma lib nova so pra um caminho que nunca
- * roda com o dado atual (sempre undefined).
+ * Player de verdade — instalado nesta tarefa (expo-video) porque agora
+ * existe uma fonte real de video_url (exercicio de plano source='trainer',
+ * anexado pelo profissional ao montar o plano em
+ * trainers/students/[studentId]/workout-plan.tsx). Componente separado (em
+ * vez de um if dentro de ExerciseVideoBlock) porque useVideoPlayer e um
+ * hook — so pode ser chamado incondicionalmente dentro de um componente
+ * que so monta quando ha videoUrl de verdade.
  */
-function ExerciseVideoBlock({ videoUrl }: { videoUrl?: string }) {
+function ExerciseVideoPlayer({ videoUrl }: { videoUrl: string }) {
+  const player = useVideoPlayer(videoUrl, (p) => {
+    p.loop = true;
+  });
+
+  return (
+    <VideoView
+      style={styles.video}
+      player={player}
+      allowsFullscreen
+      allowsPictureInPicture
+      nativeControls
+    />
+  );
+}
+
+/**
+ * Video de execucao por exercicio:
+ * - Plano de IA: video vem da biblioteca generica do proprio app
+ *   (ExerciseLibraryEntry.videoUrl, ver constants/exerciseLibrary.ts).
+ * - Plano de Personal Trainer: video vem de exercise.video_url (o
+ *   profissional anexa ao montar o plano) — dependencia que existia
+ *   documentada aqui ("nao existe endpoint pro trainer atribuir plano")
+ *   foi resolvida nesta tarefa.
+ * exercise.video_url tem prioridade sobre a biblioteca generica quando os
+ * dois existirem (nunca deveriam coexistir na pratica, ja que um exercicio
+ * de plano de trainer normalmente nao bate por nome com a biblioteca, mas
+ * o video real e especifico do profissional teria precedencia mesmo assim).
+ */
+function ExerciseVideoBlock({ videoUrl }: { videoUrl?: string | null }) {
   if (videoUrl) {
-    // Nunca roda hoje (nenhum videoUrl real existe) — placeholder
-    // estrutural pra quando houver um player de video integrado.
-    return null;
+    return <ExerciseVideoPlayer videoUrl={videoUrl} />;
   }
   return (
     <View style={styles.videoPlaceholder}>
@@ -199,7 +218,7 @@ export function WorkoutDayCard({ day, log, onSetsChange }: WorkoutDayCardProps) 
                 <Text style={styles.noteText}>{exercise.notes}</Text>
               </View>
             )}
-            <ExerciseVideoBlock videoUrl={getExerciseInfo(exercise.name)?.videoUrl} />
+            <ExerciseVideoBlock videoUrl={exercise.video_url ?? getExerciseInfo(exercise.name)?.videoUrl} />
             {!!onSetsChange && (
               <SetLogSection
                 plannedSets={exercise.sets}
@@ -322,4 +341,5 @@ const styles = StyleSheet.create({
     padding: spacing2.sm,
   },
   videoPlaceholderText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  video: { width: '100%', height: 200, borderRadius: radius2.sm, backgroundColor: colors2.surfaceContainerHigh },
 });

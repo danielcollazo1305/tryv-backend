@@ -18,6 +18,12 @@ class WorkoutExerciseOut(BaseModel):
     reps: str
     rest_seconds: int
     notes: str
+    # Video de execucao — nunca preenchido pela IA (o prompt de geracao nao
+    # tem de onde tirar isso), so por planos source='trainer' (o
+    # profissional sobe o video, ver POST /trainers/students/{id}/workout-plans).
+    # Mesmo endpoint generico de upload de midia (/media/upload) das fotos
+    # de refeicao/desafio, so que aceitando video pra pasta "workouts".
+    video_url: str | None = None
 
 
 class WorkoutDayOut(BaseModel):
