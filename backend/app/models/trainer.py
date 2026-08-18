@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Float, DateTime, Boolean, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Float, DateTime, Boolean, ForeignKey, Integer, Text
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 
 from app.core.database import Base
 
@@ -27,6 +27,19 @@ class Trainer(Base):
     cref_verified = Column(Boolean, default=False)
 
     bio = Column(Text, nullable=True)
+
+    # Dados que qualificam melhor o profissional (registro expandido) —
+    # todos nullable/vazios de proposito, sem valor padrao inventado pra
+    # profissionais que ja existiam antes desta coluna existir.
+    years_experience = Column(Integer, nullable=True)
+    # Vocabulario validado em app/core/trainer_specialties.py, dependente
+    # de professional_type — mesmo padrao de participant_ids em
+    # models/challenge.py (ARRAY nativo do Postgres, nao JSON).
+    specialties = Column(ARRAY(String), default=list)
+    # Formacao/certificacoes — texto livre, maior que bio (que e sobre
+    # metodologia/estilo; isso e sobre credenciais formais).
+    certifications = Column(Text, nullable=True)
+
     price = Column(Float, nullable=False)  # valor mensal cobrado do aluno
     active = Column(Boolean, default=True)
 

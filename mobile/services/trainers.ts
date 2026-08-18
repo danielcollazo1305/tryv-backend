@@ -12,6 +12,40 @@ export function licenseLabel(professionalType: ProfessionalType): string {
   return professionalType === 'nutritionist' ? 'CRN' : 'CREF';
 }
 
+/**
+ * Especialidades por tipo de profissional (registro expandido) — mesmo
+ * vocabulario validado no backend (app/core/trainer_specialties.py).
+ * Slugs em ingles/sem acento (consistente com o resto do app), rotulos em
+ * portugues aqui. "Emagrecimento" aparece nas duas listas de proposito —
+ * e uma especialidade valida tanto pra personal trainer quanto nutricionista.
+ */
+export const SPECIALTIES_BY_PROFESSIONAL_TYPE: Record<ProfessionalType, { value: string; label: string }[]> = {
+  personal_trainer: [
+    { value: 'hipertrofia', label: 'Hipertrofia' },
+    { value: 'emagrecimento', label: 'Emagrecimento' },
+    { value: 'reabilitacao_fisioterapia_esportiva', label: 'Reabilitação/Fisioterapia esportiva' },
+    { value: 'terceira_idade', label: 'Terceira idade' },
+    { value: 'gestantes', label: 'Gestantes' },
+    { value: 'powerlifting_forca', label: 'Powerlifting/Força' },
+    { value: 'funcional', label: 'Funcional' },
+    { value: 'corrida', label: 'Corrida' },
+  ],
+  nutritionist: [
+    { value: 'emagrecimento', label: 'Emagrecimento' },
+    { value: 'nutricao_esportiva', label: 'Nutrição esportiva' },
+    { value: 'reeducacao_alimentar', label: 'Reeducação alimentar' },
+    { value: 'vegetarianismo_veganismo', label: 'Vegetarianismo/Veganismo' },
+    { value: 'disturbios_alimentares', label: 'Distúrbios alimentares' },
+    { value: 'nutricao_clinica', label: 'Nutrição clínica' },
+  ],
+};
+
+/** Rotulo em portugues de uma especialidade (procura nas 2 listas — o slug e unico o suficiente na pratica). */
+export function specialtyLabel(value: string): string {
+  const all = [...SPECIALTIES_BY_PROFESSIONAL_TYPE.personal_trainer, ...SPECIALTIES_BY_PROFESSIONAL_TYPE.nutritionist];
+  return all.find((s) => s.value === value)?.label ?? value;
+}
+
 export interface Trainer {
   id: string;
   user_id: string;
@@ -20,6 +54,9 @@ export interface Trainer {
   license_number: string;
   cref_verified: boolean;
   bio: string | null;
+  years_experience: number | null;
+  specialties: string[];
+  certifications: string | null;
   price: number;
   active: boolean;
   platform_fee_percent: number;
@@ -38,6 +75,9 @@ export interface TrainerPublic {
   license_number: string;
   cref_verified: boolean;
   bio: string | null;
+  years_experience: number | null;
+  specialties: string[];
+  certifications: string | null;
   price: number;
   active: boolean;
   created_at: string;
@@ -47,12 +87,18 @@ export interface TrainerRegisterPayload {
   professional_type: ProfessionalType;
   license_number: string;
   bio?: string | null;
+  years_experience?: number | null;
+  specialties?: string[];
+  certifications?: string | null;
   price: number;
 }
 
 export interface TrainerUpdatePayload {
   bio?: string | null;
   price?: number | null;
+  years_experience?: number | null;
+  specialties?: string[];
+  certifications?: string | null;
 }
 
 export interface StripeOnboarding {

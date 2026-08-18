@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.trainer_specialties import validate_specialties
 from app.models.live_activity import LiveActivity
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
@@ -55,6 +56,9 @@ def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None)
         license_number=trainer.license_number,
         cref_verified=trainer.cref_verified,
         bio=trainer.bio,
+        years_experience=trainer.years_experience,
+        specialties=trainer.specialties or [],
+        certifications=trainer.certifications,
         price=trainer.price,
         active=trainer.active,
         platform_fee_percent=trainer.platform_fee_percent,
@@ -75,6 +79,9 @@ def _to_trainer_public_out(db: Session, trainer: Trainer, user_name: str | None 
         license_number=trainer.license_number,
         cref_verified=trainer.cref_verified,
         bio=trainer.bio,
+        years_experience=trainer.years_experience,
+        specialties=trainer.specialties or [],
+        certifications=trainer.certifications,
         price=trainer.price,
         active=trainer.active,
         created_at=trainer.created_at,
@@ -99,6 +106,9 @@ def register(
         professional_type=payload.professional_type,
         license_number=payload.license_number,
         bio=payload.bio,
+        years_experience=payload.years_experience,
+        specialties=payload.specialties,
+        certifications=payload.certifications,
         price=payload.price,
     )
     db.add(trainer)
@@ -124,7 +134,14 @@ def update_my_profile(
 ):
     trainer = _get_my_trainer(db, current_user)
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if update_data.get("specialties") is not None:
+        try:
+            validate_specialties(trainer.professional_type, update_data["specialties"])
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    for field, value in update_data.items():
         setattr(trainer, field, value)
 
     db.commit()

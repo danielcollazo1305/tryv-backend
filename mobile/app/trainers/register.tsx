@@ -6,10 +6,11 @@ import { router } from 'expo-router';
 import { Button2 } from '@/components/Button2';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { MultiChoiceGroup2 } from '@/components/MultiChoiceGroup2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
-import { ProfessionalType, licenseLabel, registerTrainer } from '@/services/trainers';
+import { ProfessionalType, SPECIALTIES_BY_PROFESSIONAL_TYPE, licenseLabel, registerTrainer } from '@/services/trainers';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const TYPE_OPTIONS: { value: ProfessionalType; label: string }[] = [
@@ -21,12 +22,23 @@ export default function TrainerRegisterScreen() {
   const [professionalType, setProfessionalType] = useState<ProfessionalType | null>(null);
   const [licenseNumber, setLicenseNumber] = useState('');
   const [bio, setBio] = useState('');
+  const [yearsExperience, setYearsExperience] = useState('');
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [certifications, setCertifications] = useState('');
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = professionalType !== null && licenseNumber.trim().length > 0 && Number(price) > 0;
   const label = professionalType ? licenseLabel(professionalType) : 'CREF/CRN';
+
+  // Trocar de area de atuacao muda o vocabulario valido de especialidades —
+  // limpa a selecao anterior pra nunca enviar uma especialidade que nao
+  // existe mais pro tipo escolhido.
+  const handleChangeProfessionalType = (type: ProfessionalType) => {
+    setProfessionalType(type);
+    setSpecialties([]);
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit) {
@@ -40,6 +52,9 @@ export default function TrainerRegisterScreen() {
         professional_type: professionalType,
         license_number: licenseNumber.trim(),
         bio: bio.trim() || undefined,
+        years_experience: yearsExperience.trim() ? Number(yearsExperience) : undefined,
+        specialties,
+        certifications: certifications.trim() || undefined,
         price: Number(price),
       });
       router.replace('/trainers/me');
@@ -66,7 +81,21 @@ export default function TrainerRegisterScreen() {
           <Text style={styles.subtitle}>Configure seu perfil para oferecer servicos na plataforma.</Text>
         </View>
 
-        <ChoiceGroup2 label="Area de atuacao" options={TYPE_OPTIONS} value={professionalType} onChange={setProfessionalType} />
+        <ChoiceGroup2
+          label="Area de atuacao"
+          options={TYPE_OPTIONS}
+          value={professionalType}
+          onChange={handleChangeProfessionalType}
+        />
+
+        {!!professionalType && (
+          <MultiChoiceGroup2
+            label="Especialidades"
+            options={SPECIALTIES_BY_PROFESSIONAL_TYPE[professionalType]}
+            value={specialties}
+            onChange={setSpecialties}
+          />
+        )}
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -78,6 +107,13 @@ export default function TrainerRegisterScreen() {
             onChangeText={setLicenseNumber}
           />
           <TextField2
+            label="Anos de experiencia (opcional)"
+            placeholder="Ex: 8"
+            keyboardType="number-pad"
+            value={yearsExperience}
+            onChangeText={setYearsExperience}
+          />
+          <TextField2
             label="Minibio (visivel no perfil)"
             placeholder="Descreva sua especialidade, metodologia e experiencia..."
             value={bio}
@@ -85,6 +121,15 @@ export default function TrainerRegisterScreen() {
             multiline
             numberOfLines={5}
             style={styles.bioInput}
+          />
+          <TextField2
+            label="Formacao/Certificacoes (opcional)"
+            placeholder="Ex: Graduado em Educacao Fisica pela USP, Pos em Fisiologia do Exercicio"
+            value={certifications}
+            onChangeText={setCertifications}
+            multiline
+            numberOfLines={4}
+            style={styles.certificationsInput}
           />
           <TextField2
             label="Mensalidade base (R$)"
@@ -126,6 +171,7 @@ const styles = StyleSheet.create({
   error: { color: colors2.danger, textAlign: 'center' },
   formCard: { gap: spacing2.md },
   bioInput: { minHeight: 110, textAlignVertical: 'top' },
+  certificationsInput: { minHeight: 90, textAlignVertical: 'top' },
   noticeCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

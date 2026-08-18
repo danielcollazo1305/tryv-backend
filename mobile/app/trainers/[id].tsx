@@ -17,6 +17,7 @@ import {
   formatPriceBRL,
   getTrainer,
   licenseLabel,
+  specialtyLabel,
   subscribeToTrainer,
 } from '@/services/trainers';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
@@ -122,6 +123,15 @@ export default function TrainerProfileScreen() {
                 <Text style={styles.typeBadgeText}>{PROFESSIONAL_TYPE_LABELS[trainer.professional_type]}</Text>
               </View>
 
+              {trainer.years_experience != null && (
+                <View style={styles.experienceRow}>
+                  <Ionicons name="ribbon-outline" size={14} color={colors2.onSurfaceVariant} />
+                  <Text style={styles.experienceText}>
+                    {trainer.years_experience} {trainer.years_experience === 1 ? 'ano' : 'anos'} de experiencia
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.priceInline}>
                 <Text style={styles.priceInlineValue}>{formatPriceBRL(trainer.price)}</Text>
                 <Text style={styles.priceInlineUnit}> /mes</Text>
@@ -132,6 +142,26 @@ export default function TrainerProfileScreen() {
               <LiquiglassCard style={styles.section}>
                 <Text style={styles.sectionTitle}>Sobre mim</Text>
                 <Text style={styles.bio}>{trainer.bio}</Text>
+              </LiquiglassCard>
+            )}
+
+            {trainer.specialties.length > 0 && (
+              <LiquiglassCard style={styles.section}>
+                <Text style={styles.sectionTitle}>Especialidades</Text>
+                <View style={styles.specialtiesRow}>
+                  {trainer.specialties.map((specialty) => (
+                    <View key={specialty} style={styles.specialtyPill}>
+                      <Text style={styles.specialtyPillText}>{specialtyLabel(specialty)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </LiquiglassCard>
+            )}
+
+            {!!trainer.certifications && (
+              <LiquiglassCard style={styles.section}>
+                <Text style={styles.sectionTitle}>Formacao e certificacoes</Text>
+                <Text style={styles.bio}>{trainer.certifications}</Text>
               </LiquiglassCard>
             )}
 
@@ -150,12 +180,14 @@ export default function TrainerProfileScreen() {
             )}
 
             {/*
-              Nota de lacuna de dado: o mockup marketplace-perfil.html mostra
-              um grid de estatisticas (Alunos Ativos, Avaliacao, Planilhas,
-              Anos de Experiencia). Nenhum desses campos existe hoje em
-              TrainerPublic nem em qualquer endpoint do backend — nao ha como
-              popular isso com dado real, entao a secao foi omitida em vez de
-              inventar numeros.
+              Nota de lacuna de dado (atualizada — registro profissional
+              expandido): o mockup marketplace-perfil.html mostra um grid
+              de estatisticas (Alunos Ativos, Avaliacao, Planilhas, Anos de
+              Experiencia). "Anos de Experiencia" agora e dado real
+              (trainer.years_experience, mostrado acima do preco) — os
+              outros 3 (Alunos Ativos, Avaliacao, Planilhas) continuam sem
+              nenhum campo/endpoint que os popule com dado real, entao
+              continuam omitidos em vez de inventados.
             */}
 
             {!!subscribeError && <Text style={styles.error}>{subscribeError}</Text>}
@@ -234,6 +266,8 @@ const styles = StyleSheet.create({
     borderColor: colors2.outlineVariant,
   },
   typeBadgeText: { ...typography2.labelCaps, color: colors2.primary },
+  experienceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs, marginTop: spacing2.xs },
+  experienceText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
   priceInline: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -251,6 +285,16 @@ const styles = StyleSheet.create({
   section: { gap: spacing2.sm },
   sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
   bio: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, lineHeight: 24 },
+  specialtiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
+  specialtyPill: {
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.xs,
+    borderRadius: radius2.pill,
+    backgroundColor: colors2.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+  },
+  specialtyPillText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary },
 
   differentialSection: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
   differentialIcon: {

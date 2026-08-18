@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.professional_types import validate_professional_type
+from app.core.trainer_specialties import validate_specialties
 
 _LICENSE_NUMBER_MAX_LENGTH = 50
 
@@ -29,6 +30,9 @@ class TrainerRegister(BaseModel):
     license_number: str
     bio: str | None = None
     price: float = Field(..., gt=0)
+    years_experience: int | None = Field(None, ge=0, le=80)
+    specialties: list[str] = Field(default_factory=list)
+    certifications: str | None = None
 
     @field_validator("professional_type")
     @classmethod
@@ -40,10 +44,22 @@ class TrainerRegister(BaseModel):
     def _check_license_number(cls, value: str) -> str:
         return _clean_license_number(value)
 
+    @model_validator(mode="after")
+    def _check_specialties(self) -> "TrainerRegister":
+        # Validado por ultimo (mode="after") porque depende de
+        # professional_type ja ter passado pela propria validacao.
+        validate_specialties(self.professional_type, self.specialties)
+        return self
+
 
 class TrainerUpdate(BaseModel):
     bio: str | None = None
     price: float | None = Field(None, gt=0)
+    years_experience: int | None = Field(None, ge=0, le=80)
+    # None = campo nao enviado (mantem o que ja existe). Validado contra o
+    # professional_type do trainer no router (nao disponivel aqui).
+    specialties: list[str] | None = None
+    certifications: str | None = None
 
 
 class TrainerOut(BaseModel):
@@ -54,6 +70,9 @@ class TrainerOut(BaseModel):
     license_number: str
     cref_verified: bool
     bio: str | None = None
+    years_experience: int | None = None
+    specialties: list[str] = Field(default_factory=list)
+    certifications: str | None = None
     price: float
     active: bool
     platform_fee_percent: float
@@ -76,6 +95,9 @@ class TrainerPublicOut(BaseModel):
     license_number: str
     cref_verified: bool
     bio: str | None = None
+    years_experience: int | None = None
+    specialties: list[str] = Field(default_factory=list)
+    certifications: str | None = None
     price: float
     active: bool
     created_at: datetime
