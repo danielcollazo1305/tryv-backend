@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
-import { HEATMAP_INTENSITY_COLORS, HeatmapDay, HeatmapGrid } from '@/components/HeatmapGrid';
+import { HEATMAP_INTENSITY_COLORS, HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey as getTodayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { TrainingDay, getTrainingFrequency, parseLocalDate } from '@/services/dashboard';
 import { colors2, spacing2, typography2 } from '@/constants/theme';
@@ -35,12 +36,12 @@ function formatSelectedDate(dateStr: string): string {
  * atual, sem depender do seletor de mes que continua exclusivo das
  * estatisticas pagas mais abaixo na tela.
  *
- * Heatmap estilo GitHub contribution graph: quadradinhos sem numero do dia
- * (decisao de design — com o quadrado pequeno o suficiente pra caber o mes
- * inteiro numa largura de card confortavel, o numero fica ilegivel; um
- * toque no quadrado mostra a data + intensidade em texto abaixo, entao a
- * informacao do dia exato continua acessivel sem precisar do numero
- * impresso em cima da cor).
+ * Calendario estilo Strava (HeatmapGrid): celulas circulares com o numero
+ * do dia dentro, hoje com contorno em vez de preenchimento, dias futuros
+ * apagados. Um toque na celula ainda mostra a data + intensidade em texto
+ * abaixo (mantido do design anterior). Sequencia atual (streak) calculada
+ * so sobre o mes civil buscado — ver comentario junto de `streak` abaixo
+ * pra limitacao quando a sequencia cruza a virada do mes.
  *
  * userId opcional: reaproveitado no perfil publico de outra pessoa
  * (social/[userId].tsx) — mesma decisao de visibilidade do
@@ -68,10 +69,15 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
     }, [fetchData])
   );
 
-  const today = new Date();
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-    today.getDate()
-  ).padStart(2, '0')}`;
+  const todayKey = getTodayKey();
+
+  // Sequencia calculada so sobre o mes civil atual (unico dado que este
+  // card busca) — se ela ainda estiver ativa no dia 1 do mes (hitLeftEdge),
+  // pode continuar no mes anterior, mas nao ha como saber sem buscar mais
+  // dado (GET /dashboard/training-frequency so foi chamado com o mes
+  // atual). Documentado em vez de inventar o restante: mostra "N+" nesse
+  // caso, sinalizando que e um piso, nao o total exato.
+  const streak = days ? computeCurrentStreak(days, todayKey) : null;
 
   let content: React.ReactNode;
 
@@ -119,7 +125,18 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
 
   return (
     <LiquiglassCard style={styles.card}>
-      <Text style={styles.cardTitle}>{monthTitle()}</Text>
+      <View style={styles.header}>
+        <Text style={styles.cardTitle}>{monthTitle()}</Text>
+        {!!streak && streak.count > 0 && (
+          <View style={styles.streakBadge}>
+            <Ionicons name="flame" size={14} color={colors2.violet} />
+            <Text style={styles.streakText}>
+              {streak.count}
+              {streak.hitLeftEdge ? '+' : ''} {streak.count === 1 ? 'dia seguido' : 'dias seguidos'}
+            </Text>
+          </View>
+        )}
+      </View>
       {content}
     </LiquiglassCard>
   );
@@ -127,7 +144,18 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
 
 const styles = StyleSheet.create({
   card: { gap: spacing2.md },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { ...typography2.headlineMd, fontSize: 18 },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing2.sm,
+    paddingVertical: 4,
+  },
+  streakText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.violet, fontWeight: '700' },
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
 
   footer: { gap: spacing2.xs, marginTop: spacing2.xs },

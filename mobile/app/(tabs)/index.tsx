@@ -7,7 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
-import { HeatmapGrid } from '@/components/HeatmapGrid';
+import { HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
 import { ImageCoverCard } from '@/components/ImageCoverCard';
@@ -301,7 +301,9 @@ export default function HomeScreen() {
             </View>
             <HeatmapGrid
               days={buildChallengeHeatmapDays(activeOfficialChallenge, activeChallengeCheckins)}
+              todayKey={todayKey()}
               cellSize={10}
+              showDayNumbers={false}
               showWeekdayHeaders={false}
             />
           </LiquiglassCard>

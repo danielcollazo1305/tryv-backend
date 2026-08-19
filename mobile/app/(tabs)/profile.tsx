@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
-import { HeatmapGrid } from '@/components/HeatmapGrid';
+import { HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
@@ -197,7 +197,9 @@ export default function ProfileScreen() {
                   </View>
                   <HeatmapGrid
                     days={buildChallengeHeatmapDays(challenge, checkins)}
+                    todayKey={todayKey()}
                     cellSize={10}
+                    showDayNumbers={false}
                     showWeekdayHeaders={false}
                   />
                 </LiquiglassCard>

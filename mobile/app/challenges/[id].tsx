@@ -8,7 +8,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
-import { HeatmapGrid } from '@/components/HeatmapGrid';
+import { HeatmapGrid, computeCurrentStreak, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
@@ -40,11 +40,6 @@ const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
   personal_trainer: 'Personal Trainer',
   nutritionist: 'Nutricionista',
 };
-
-function todayKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
 
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -217,6 +212,13 @@ export default function ChallengeDetailScreen() {
   };
 
   const hasCheckedInToday = checkins.some((c) => c.date === todayKey());
+  // buildChallengeHeatmapDays cobre sempre o periodo inteiro do desafio
+  // (start_date ate hoje/end_date) — diferente da Frequencia de Treino
+  // (janela de 1 mes civil), aqui hitLeftEdge=true so significa "a
+  // sequencia cobre o desafio inteiro ate agora", um numero exato, nao um
+  // piso — por isso nao mostra "+" (comparar com TrainingFrequencyCard).
+  const heatmapDays = challenge ? buildChallengeHeatmapDays(challenge, checkins) : [];
+  const consistencyStreak = computeCurrentStreak(heatmapDays, todayKey());
   const creatorLabel = creatorTrainer
     ? PROFESSIONAL_TYPE_LABEL[creatorTrainer.professional_type] ?? creatorTrainer.professional_type
     : null;
@@ -350,8 +352,18 @@ export default function ChallengeDetailScreen() {
                 )}
 
                 <LiquiglassCard style={styles.heatmapCard}>
-                  <Text style={styles.sectionTitle}>Sua consistencia</Text>
-                  <HeatmapGrid days={buildChallengeHeatmapDays(challenge, checkins)} todayKey={todayKey()} />
+                  <View style={styles.heatmapHeader}>
+                    <Text style={styles.sectionTitle}>Sua consistencia</Text>
+                    {consistencyStreak.count > 0 && (
+                      <View style={styles.streakBadge}>
+                        <Ionicons name="flame" size={14} color={colors2.violet} />
+                        <Text style={styles.streakText}>
+                          {consistencyStreak.count} {consistencyStreak.count === 1 ? 'dia seguido' : 'dias seguidos'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <HeatmapGrid days={heatmapDays} todayKey={todayKey()} />
                 </LiquiglassCard>
               </>
             )}
@@ -445,6 +457,17 @@ const styles = StyleSheet.create({
   checkinDoneText: { ...typography2.bodyMd, fontWeight: '600' },
 
   heatmapCard: { gap: spacing2.md },
+  heatmapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing2.sm,
+    paddingVertical: 4,
+  },
+  streakText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.violet, fontWeight: '700' },
 
   participantsSection: { gap: spacing2.sm, marginTop: spacing2.md },
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
