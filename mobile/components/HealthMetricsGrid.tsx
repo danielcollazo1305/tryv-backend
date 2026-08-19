@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { HealthSummary, fetchHealthSummary, isHealthKitAvailable } from '@/services/healthkit';
+import { HealthMetricKey, HealthSummary, fetchHealthSummary, isHealthKitAvailable } from '@/services/healthkit';
 import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
@@ -25,7 +25,7 @@ const ACTIVE_ENERGY_REFERENCE_KCAL = 500;
 const HR_RANGE = { min: 40, max: 120 };
 
 interface Tile {
-  key: string;
+  key: HealthMetricKey;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
   label: string;
@@ -41,6 +41,11 @@ interface Tile {
  * do backend (que existem mas nao sao escritas pelo app hoje; ver relatorio
  * de investigacao). So iOS tem HealthKit — Android nunca mostra este card,
  * mesmo padrao ja usado por HealthSummaryCard.
+ *
+ * Cada tile e tocavel e leva pra app/health/[metric].tsx (historico com
+ * periodo 1D/7D/4SEM/1ANO + navegacao "< >", fetchHealthMetricHistory) —
+ * a navegacao acontece independente do status aqui (mesmo com '--'), a
+ * tela de detalhe faz sua propria checagem de conexao/permissao.
  */
 export function HealthMetricsGrid() {
   const [status, setStatus] = useState<Status>('checking');
@@ -129,7 +134,11 @@ export function HealthMetricsGrid() {
 
       <View style={styles.grid}>
         {tiles.map((tile) => (
-          <View key={tile.key} style={styles.tile}>
+          <Pressable
+            key={tile.key}
+            style={styles.tile}
+            onPress={() => router.push({ pathname: '/health/[metric]', params: { metric: tile.key } })}
+          >
             <View style={[styles.iconWrap, { backgroundColor: hexToRgba(tile.color, 0.12) }]}>
               <Ionicons name={tile.icon} size={18} color={tile.color} />
             </View>
@@ -143,7 +152,7 @@ export function HealthMetricsGrid() {
                 ]}
               />
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
 

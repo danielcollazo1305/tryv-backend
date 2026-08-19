@@ -320,6 +320,225 @@ export async function fetchActiveEnergyLast7Days(): Promise<DailyQuantityPoint[]
  * quando um tipo recem-liberado ainda pode nao estar "pronto") nao pode
  * fazer o card inteiro parecer "nunca conectado".
  */
+// ─────────────────────────────────────────────────────────────────────────
+// Historico por periodo (1d/7d/4w/1y), usado pela tela de detalhe de cada
+// metrica (app/health/[metric].tsx) — mesma janela/offset de navegacao
+// "< >" ja usada em GET /meals/summary (services/meals.ts,
+// MealsHistoryCard), so que resolvida aqui no cliente porque a fonte e o
+// HealthKit local, nao o backend. A logica de janela (1d/7d/4w diarios, 1y
+// em 12 meses civis) espelha _resolve_summary_window de app/routers/meals.py
+// de proposito, pra manter os dois historicos do app com o mesmo
+// comportamento de navegacao.
+export type HealthHistoryPeriod = '1d' | '7d' | '4w' | '1y';
+export type HealthHistoryGranularity = 'day' | 'month';
+export type HealthMetricKey = 'heartRate' | 'steps' | 'sleep' | 'calories';
+
+export interface HealthHistoryPoint {
+  /** 'YYYY-MM-DD' (granularity='day') ou 'YYYY-MM' (granularity='month'), sempre local. */
+  date: string;
+  value: number | null;
+}
+
+export interface HealthMetricHistory {
+  period: HealthHistoryPeriod;
+  granularity: HealthHistoryGranularity;
+  offset: number;
+  startDate: string;
+  endDate: string;
+  points: HealthHistoryPoint[];
+  /** Media so sobre os pontos com dado (null nao entra), igual a avg_calories etc. de MealsSummary. */
+  average: number | null;
+}
+
+function addDays(d: Date, days: number): Date {
+  const result = new Date(d);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function endOfDay(d: Date): Date {
+  const result = new Date(d);
+  result.setHours(23, 59, 59, 999);
+  return result;
+}
+
+function toMonthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Resolve a janela [start, end] + granularidade pro periodo/offset pedido — mesma semantica de _resolve_summary_window (meals.py). */
+function resolveHistoryWindow(
+  period: HealthHistoryPeriod,
+  offset: number
+): { start: Date; end: Date; granularity: HealthHistoryGranularity } {
+  const today = startOfToday();
+
+  if (period === '1d') {
+    const end = addDays(today, -offset);
+    return { start: end, end, granularity: 'day' };
+  }
+  if (period === '7d') {
+    const end = addDays(today, -offset * 7);
+    return { start: addDays(end, -6), end, granularity: 'day' };
+  }
+  if (period === '4w') {
+    const end = addDays(today, -offset * 28);
+    return { start: addDays(end, -27), end, granularity: 'day' };
+  }
+
+  // 1y — 12 meses civis terminando no mes atual (ou 12*offset meses atras).
+  // getMonth() ja e 0-indexado, entao a conta de ordinal fica mais simples
+  // que a versao em Python (que precisa compensar mes 1-indexado).
+  const endOrdinal = today.getFullYear() * 12 + today.getMonth() - offset * 12;
+  const startOrdinal = endOrdinal - 11;
+  const start = new Date(Math.floor(startOrdinal / 12), ((startOrdinal % 12) + 12) % 12, 1);
+  const end = new Date(Math.floor(endOrdinal / 12), ((endOrdinal % 12) + 12) % 12 + 1, 0);
+  return { start, end, granularity: 'month' };
+}
+
+function buildBucketKeys(start: Date, end: Date, granularity: HealthHistoryGranularity): string[] {
+  const keys: string[] = [];
+  if (granularity === 'day') {
+    let cursor = new Date(start);
+    while (cursor <= end) {
+      keys.push(toDateKey(cursor));
+      cursor = addDays(cursor, 1);
+    }
+    return keys;
+  }
+  let year = start.getFullYear();
+  let month = start.getMonth();
+  const endOrdinal = end.getFullYear() * 12 + end.getMonth();
+  while (year * 12 + month <= endOrdinal) {
+    keys.push(toMonthKey(new Date(year, month, 1)));
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  return keys;
+}
+
+/** Soma (steps/calorias) ou media (FC) por bucket diario/mensal, via queryStatisticsCollectionForQuantity. */
+async function fetchQuantityHistoryBuckets<T extends QuantityTypeIdentifier>(
+  identifier: T,
+  unit: UnitForIdentifier<T>,
+  statistic: 'cumulativeSum' | 'discreteAverage',
+  start: Date,
+  end: Date,
+  granularity: HealthHistoryGranularity
+): Promise<Map<string, number>> {
+  const buckets = await queryStatisticsCollectionForQuantity(
+    identifier,
+    [statistic],
+    start,
+    granularity === 'day' ? { day: 1 } : { month: 1 },
+    { filter: { date: { startDate: start, endDate: endOfDay(end) } }, unit }
+  );
+
+  const byKey = new Map<string, number>();
+  for (const bucket of buckets) {
+    if (!bucket.startDate) continue;
+    const quantity = statistic === 'cumulativeSum' ? bucket.sumQuantity : bucket.averageQuantity;
+    if (!quantity) continue;
+    const key = granularity === 'day' ? toDateKey(bucket.startDate) : toMonthKey(bucket.startDate);
+    byKey.set(key, quantity.quantity);
+  }
+  return byKey;
+}
+
+/**
+ * Sono por bucket diario/mensal — nao existe statistics collection pra tipo
+ * categoria (so pra quantidade), entao busca as amostras brutas cobrindo a
+ * janela (com 1 dia de folga de cada lado, pra pegar sessoes que cruzam
+ * meia-noite) e soma manualmente. Atribuida ao dia em que a pessoa ACORDOU
+ * (endDate da amostra), igual ao proprio app Apple Saude mostra a "noite
+ * de sono" na data da manha seguinte, nao a da noite anterior.
+ */
+async function fetchSleepHistoryBuckets(
+  start: Date,
+  end: Date,
+  granularity: HealthHistoryGranularity
+): Promise<Map<string, number>> {
+  const samples = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
+    filter: { date: { startDate: addDays(start, -1), endDate: addDays(end, 1) } },
+    limit: 0,
+    ascending: true,
+  });
+
+  const byKey = new Map<string, number>();
+  for (const sample of samples) {
+    if (!ASLEEP_VALUES.has(sample.value as CategoryValueSleepAnalysis)) continue;
+    const key = granularity === 'day' ? toDateKey(sample.endDate) : toMonthKey(sample.endDate);
+    const hours = (sample.endDate.getTime() - sample.startDate.getTime()) / (1000 * 60 * 60);
+    byKey.set(key, (byKey.get(key) ?? 0) + hours);
+  }
+  return byKey;
+}
+
+async function buildHistory(
+  period: HealthHistoryPeriod,
+  offset: number,
+  fetchBuckets: (start: Date, end: Date, granularity: HealthHistoryGranularity) => Promise<Map<string, number>>
+): Promise<HealthMetricHistory> {
+  const { start, end, granularity } = resolveHistoryWindow(period, offset);
+  const byKey = await fetchBuckets(start, end, granularity);
+  const keys = buildBucketKeys(start, end, granularity);
+  const points: HealthHistoryPoint[] = keys.map((key) => ({ date: key, value: byKey.has(key) ? byKey.get(key)! : null }));
+
+  const withData = points.filter((p): p is HealthHistoryPoint & { value: number } => p.value != null);
+  const average = withData.length ? withData.reduce((sum, p) => sum + p.value, 0) / withData.length : null;
+
+  return {
+    period,
+    granularity,
+    offset,
+    startDate: toDateKey(start),
+    endDate: toDateKey(end),
+    points,
+    average,
+  };
+}
+
+/** Busca o historico de uma das 4 metricas do HealthMetricsGrid pro periodo/offset pedido. */
+export async function fetchHealthMetricHistory(
+  metric: HealthMetricKey,
+  period: HealthHistoryPeriod,
+  offset = 0
+): Promise<HealthMetricHistory> {
+  switch (metric) {
+    case 'heartRate':
+      return buildHistory(period, offset, (start, end, granularity) =>
+        fetchQuantityHistoryBuckets(
+          'HKQuantityTypeIdentifierHeartRate',
+          'count/min',
+          'discreteAverage',
+          start,
+          end,
+          granularity
+        )
+      );
+    case 'steps':
+      return buildHistory(period, offset, (start, end, granularity) =>
+        fetchQuantityHistoryBuckets('HKQuantityTypeIdentifierStepCount', 'count', 'cumulativeSum', start, end, granularity)
+      );
+    case 'calories':
+      return buildHistory(period, offset, (start, end, granularity) =>
+        fetchQuantityHistoryBuckets(
+          'HKQuantityTypeIdentifierActiveEnergyBurned',
+          'kcal',
+          'cumulativeSum',
+          start,
+          end,
+          granularity
+        )
+      );
+    case 'sleep':
+      return buildHistory(period, offset, fetchSleepHistoryBuckets);
+  }
+}
+
 export async function fetchHealthSummary(): Promise<HealthSummary> {
   const today = startOfToday();
   const sevenDaysAgo = daysAgo(7);

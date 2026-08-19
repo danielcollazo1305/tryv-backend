@@ -55,6 +55,7 @@ function RootNavigator() {
         <Stack.Screen name="activity/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="health/[metric]" />
         <Stack.Screen name="trainers/index" />
         <Stack.Screen name="trainers/select-type" options={{ presentation: 'modal' }} />
         <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
