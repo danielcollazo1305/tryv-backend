@@ -63,6 +63,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     lat: loc.coords.latitude,
     lng: loc.coords.longitude,
     timestamp: new Date(loc.timestamp).toISOString(),
+    alt: loc.coords.altitude,
   }));
   await writeState({ recording: true, points: [...state.points, ...newPoints] });
 });

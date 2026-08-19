@@ -10,6 +10,10 @@ class RoutePoint(BaseModel):
     lat: float
     lng: float
     timestamp: datetime
+    # Metros acima do nivel do mar — usada pro "Ganho de elev." do card de
+    # progresso da Home (ver _elevation_gain_meters em routers/dashboard.py).
+    # Ausente em rotas gravadas antes dessa captura existir no app.
+    alt: float | None = None
 
 
 class RunCreate(BaseModel):

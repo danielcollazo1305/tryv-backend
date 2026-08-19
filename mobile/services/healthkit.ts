@@ -88,6 +88,7 @@ async function extractRoutePoints(workout: WorkoutProxyTyped): Promise<RoutePoin
       lat: location.latitude,
       lng: location.longitude,
       timestamp: location.date.toISOString(),
+      alt: location.altitude,
     }));
   } catch {
     return null;

@@ -19,7 +19,7 @@ import { ReadinessCard } from '@/components/ReadinessCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
-import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
+import { ActivityProgressCard } from '@/components/ActivityProgressCard';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import {
@@ -226,16 +226,16 @@ export default function HomeScreen() {
       {/* 2. Card de Saude — primeiro bloco de conteudo depois da saudacao. */}
       <HealthMetricsGrid />
 
-      {/* 3. Km rodados (Run, estilo Strava) — troca de "Atividades"/minutos. */}
-      <Pressable onPress={() => router.push('/activity')}>
-        <LiquiglassCard style={styles.sectionCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Km rodados</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-          </View>
-          <WeeklyActivityChart />
-        </LiquiglassCard>
-      </Pressable>
+      {/*
+        3. Progresso (Corrida/Musculacao, estilo Strava) — substitui o
+        antigo card "Km rodados" (WeeklyActivityChart continua existindo,
+        agora so usado no perfil publico de outra pessoa em
+        social/[userId].tsx). Sem Pressable por fora feito o card antigo
+        tinha: o card tem suas proprias abas/toggle tocaveis por dentro, e
+        o botao "Veja mais do seu progresso" ja cobre a navegacao pra
+        /activity que o chevron fazia.
+      */}
+      <ActivityProgressCard />
 
       {/* 4. Frequencia de treino — heatmap estilo GitHub. */}
       <TrainingFrequencyCard />

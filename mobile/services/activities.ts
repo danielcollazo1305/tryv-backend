@@ -7,6 +7,8 @@ export interface RoutePoint {
   lat: number;
   lng: number;
   timestamp: string;
+  /** Metros acima do nivel do mar — usada pro "Ganho de elev." do card de progresso (Home). Ausente em pontos capturados antes dessa captura existir. */
+  alt?: number | null;
 }
 
 export type GpsActivityType = 'run' | 'bike' | 'walk';

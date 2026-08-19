@@ -268,6 +268,7 @@ export default function NewActivityScreen() {
         lat: first.coords.latitude,
         lng: first.coords.longitude,
         timestamp: now.toISOString(),
+        alt: first.coords.altitude,
       };
       setRoutePoints([point]);
       setStartedAt(now);
@@ -291,7 +292,12 @@ export default function NewActivityScreen() {
         (loc) => {
           setRoutePoints((prev) => [
             ...prev,
-            { lat: loc.coords.latitude, lng: loc.coords.longitude, timestamp: new Date(loc.timestamp).toISOString() },
+            {
+              lat: loc.coords.latitude,
+              lng: loc.coords.longitude,
+              timestamp: new Date(loc.timestamp).toISOString(),
+              alt: loc.coords.altitude,
+            },
           ]);
           mapRef.current?.animateToRegion(
             {

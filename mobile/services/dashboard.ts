@@ -79,6 +79,55 @@ export async function getWeeklyActivity(userId?: string): Promise<WeeklyActivity
   return response.data;
 }
 
+export type ProgressPeriod = 'weekly' | 'monthly';
+export type ProgressGranularity = 'day' | 'week';
+
+export interface ProgressChartPoint {
+  /** Data de inicio do bucket — o proprio dia (granularity='day') ou o 1o dia da janela de 7 dias que representa (granularity='week'). */
+  date: string;
+  value: number;
+}
+
+export interface RunProgress {
+  period: ProgressPeriod;
+  granularity: ProgressGranularity;
+  chart: ProgressChartPoint[];
+  distance_km: number;
+  duration_minutes: number;
+  elevation_gain_m: number;
+}
+
+/**
+ * Card de progresso com abas da Home (aba Corrida) — as 3 estatisticas sao
+ * sempre da semana atual (fixo), so o grafico muda com period (Semanal =
+ * picos diarios dos ultimos 7 dias, Mensal = picos semanais das ultimas 12
+ * semanas). Livre, sem Pro-gate.
+ */
+export async function getRunProgress(period: ProgressPeriod): Promise<RunProgress> {
+  const response = await api.get<RunProgress>('/dashboard/progress/run', { params: { period } });
+  return response.data;
+}
+
+export interface WorkoutProgress {
+  period: ProgressPeriod;
+  granularity: ProgressGranularity;
+  chart: ProgressChartPoint[];
+  sessions_count: number;
+  sets_count: number;
+  volume_kg: number;
+}
+
+/**
+ * Mesma ideia de getRunProgress pra aba Musculacao. Sem Tempo/Calorias reais
+ * (nunca capturados em workout_sessions hoje, ver investigacao) — as 3
+ * estatisticas sao Treinos/Series/Volume, derivadas do que de fato e
+ * gravado nas series completadas de cada sessao.
+ */
+export async function getWorkoutProgress(period: ProgressPeriod): Promise<WorkoutProgress> {
+  const response = await api.get<WorkoutProgress>('/dashboard/progress/workout', { params: { period } });
+  return response.data;
+}
+
 export interface MetricComparison {
   current: number | null;
   previous: number | null;

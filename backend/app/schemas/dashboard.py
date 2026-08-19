@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -50,6 +51,38 @@ class WeeklyActivityOut(BaseModel):
     card 'Km rodados' da Home. So Run entra aqui (ManualActivity nao tem
     campo de distancia)."""
     daily: list[DailyDistanceKm]
+
+
+class ProgressChartPoint(BaseModel):
+    """Data de INICIO do bucket — o proprio dia (granularity='day') ou o
+    primeiro dia da janela de 7 dias que representa (granularity='week')."""
+    date: date
+    value: float
+
+
+class RunProgressOut(BaseModel):
+    """Card de progresso da Home (aba Corrida, ver GET /dashboard/progress/run).
+    As 3 estatisticas sao sempre da semana atual (ultimos 7 dias, fixo,
+    igual ao 'Esta semana' do Strava); so o grafico muda com period."""
+    period: Literal["weekly", "monthly"]
+    granularity: Literal["day", "week"]
+    chart: list[ProgressChartPoint]
+    distance_km: float
+    duration_minutes: float
+    elevation_gain_m: float
+
+
+class WorkoutProgressOut(BaseModel):
+    """Mesma ideia de RunProgressOut pra aba Musculacao (GET /dashboard/progress/workout).
+    Sem duracao/calorias reais (nunca capturadas em workout_sessions hoje) —
+    as 3 estatisticas sao Treinos/Series/Volume, derivadas do que de fato
+    existe em WorkoutSession.exercises."""
+    period: Literal["weekly", "monthly"]
+    granularity: Literal["day", "week"]
+    chart: list[ProgressChartPoint]
+    sessions_count: int
+    sets_count: int
+    volume_kg: float
 
 
 class MetricComparison(BaseModel):

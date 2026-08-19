@@ -1,6 +1,7 @@
 import calendar
 import uuid
 from datetime import date, datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -14,6 +15,7 @@ from app.models.meal import Meal
 from app.models.run import Run
 from app.models.user import User
 from app.models.weight_log import WeightLog
+from app.models.workout import WorkoutPlan, WorkoutSession
 from app.schemas.dashboard import (
     CalorieSummary,
     DailyDistanceKm,
@@ -21,10 +23,13 @@ from app.schemas.dashboard import (
     MetricComparison,
     MonthComparisonOut,
     PeriodComparisonOut,
+    ProgressChartPoint,
+    RunProgressOut,
     TrainingDay,
     TrainingFrequencyOut,
     WeeklyActivityOut,
     WeightPoint,
+    WorkoutProgressOut,
 )
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -223,6 +228,216 @@ def get_user_weekly_activity(
     """
     parsed_id = _parse_and_validate_user_id(user_id, db)
     return WeeklyActivityOut(daily=_compute_weekly_activity(db, parsed_id))
+
+
+# Ganho de elevacao — limiar minimo de variacao pra contar como subida de
+# verdade (dead-band simples), pra nao inflar o total com ruido do GPS
+# (altitude de celular oscila alguns metros mesmo parado). Nao e um filtro
+# sofisticado (tipo suavizacao/media movel), so o suficiente pra evitar que
+# jitter puro vire "ganho de elevacao" — validar com dado real de device
+# depois se precisar refinar.
+_ELEVATION_GAIN_THRESHOLD_M = 1.0
+
+
+def _elevation_gain_meters(route_points: list[dict] | None) -> float:
+    """
+    Soma so as subidas (delta positivo acima do limiar) entre pontos
+    consecutivos com altitude presente. alt ausente (rota gravada antes da
+    captura de altitude existir, ou ponto sem leitura de altitude do GPS)
+    quebra a sequencia em vez de contar como salto de/pra 0.
+    """
+    if not route_points:
+        return 0.0
+    gain = 0.0
+    prev_alt = None
+    for point in route_points:
+        alt = point.get("alt") if isinstance(point, dict) else None
+        if alt is None:
+            prev_alt = None
+            continue
+        if prev_alt is not None:
+            delta = alt - prev_alt
+            if abs(delta) >= _ELEVATION_GAIN_THRESHOLD_M:
+                if delta > 0:
+                    gain += delta
+                prev_alt = alt
+            # delta pequeno (ruido): mantem prev_alt como estava
+        else:
+            prev_alt = alt
+    return gain
+
+
+def _compute_run_this_week(db: Session, user_id) -> tuple[float, float, float]:
+    """(distance_km, duration_minutes, elevation_gain_m) somados dos ultimos 7 dias (hoje incluso), fixo — nao muda com o toggle Semanal/Mensal do card."""
+    end_date = date.today()
+    start_date = end_date - timedelta(days=6)
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+
+    runs = (
+        db.query(Run)
+        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .all()
+    )
+    distance_km = round(sum(r.distance_meters for r in runs) / 1000, 2)
+    duration_minutes = round(sum(r.duration_seconds for r in runs) / 60, 1)
+    elevation_gain_m = round(sum(_elevation_gain_meters(r.route_points) for r in runs), 1)
+    return distance_km, duration_minutes, elevation_gain_m
+
+
+def _compute_run_chart(db: Session, user_id, granularity: Literal["day", "week"]) -> list[ProgressChartPoint]:
+    """
+    Picos diarios (7 pontos) ou semanais (12 pontos, janelas de 7 dias
+    corridas terminando hoje) de km rodados — generaliza
+    _compute_weekly_activity pra tambem cobrir a janela de 12 semanas do
+    toggle Mensal, sem duplicar a query.
+    """
+    bucket_count, bucket_days = (7, 1) if granularity == "day" else (12, 7)
+    end_date = date.today()
+    start_date = end_date - timedelta(days=bucket_count * bucket_days - 1)
+    start_datetime = datetime.combine(start_date, datetime.min.time())
+    end_datetime = datetime.combine(end_date, datetime.max.time())
+
+    run_distance = dict(
+        db.query(func.date(Run.started_at), func.sum(Run.distance_meters))
+        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .group_by(func.date(Run.started_at))
+        .all()
+    )
+
+    points = []
+    for bucket in range(bucket_count):
+        bucket_start = start_date + timedelta(days=bucket * bucket_days)
+        meters = sum(run_distance.get(bucket_start + timedelta(days=d), 0) or 0 for d in range(bucket_days))
+        points.append(ProgressChartPoint(date=bucket_start, value=round(meters / 1000, 1)))
+    return points
+
+
+@router.get("/progress/run", response_model=RunProgressOut)
+def get_run_progress(
+    period: Literal["weekly", "monthly"] = Query("weekly"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Card de progresso da Home (aba Corrida) — 3 estatisticas fixas da
+    semana atual (Distancia/Tempo/Ganho de elevacao) + grafico que muda com
+    o toggle Semanal (picos diarios, 7 dias) / Mensal (picos semanais, 12
+    semanas). Livre, sem Pro-gate (mesmo padrao de weekly-activity/
+    training-frequency).
+    """
+    distance_km, duration_minutes, elevation_gain_m = _compute_run_this_week(db, current_user.id)
+    granularity: Literal["day", "week"] = "day" if period == "weekly" else "week"
+    return RunProgressOut(
+        period=period,
+        granularity=granularity,
+        chart=_compute_run_chart(db, current_user.id, granularity),
+        distance_km=distance_km,
+        duration_minutes=duration_minutes,
+        elevation_gain_m=elevation_gain_m,
+    )
+
+
+def _session_stats(session: WorkoutSession) -> tuple[int, float]:
+    """
+    (series_completas, volume_kg) de uma sessao — deriva do JSON livre
+    exercises (day/focus/exercises[].sets[].{weight_kg,reps,completed}),
+    unica fonte de dado real hoje (duration_minutes/calories_burned da
+    sessao existem como coluna mas nunca sao preenchidos por nenhum fluxo
+    do app, ver investigacao). Volume so soma series completas com peso E
+    reps preenchidos.
+    """
+    exercises = (session.exercises or {}).get("exercises") or []
+    sets_count = 0
+    volume_kg = 0.0
+    for exercise in exercises:
+        for set_log in exercise.get("sets") or []:
+            if not set_log.get("completed"):
+                continue
+            sets_count += 1
+            weight = set_log.get("weight_kg")
+            reps = set_log.get("reps")
+            if weight is not None and reps is not None:
+                volume_kg += weight * reps
+    return sets_count, volume_kg
+
+
+def _query_workout_sessions(db: Session, user_id, start_datetime: datetime, end_datetime: datetime) -> list[WorkoutSession]:
+    """WorkoutSession nao tem user_id proprio — precisa passar por WorkoutPlan (mesmo join usado em qualquer outra query de sessao por usuario)."""
+    return (
+        db.query(WorkoutSession)
+        .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
+        .filter(
+            WorkoutPlan.user_id == user_id,
+            WorkoutSession.completed_at >= start_datetime,
+            WorkoutSession.completed_at <= end_datetime,
+        )
+        .all()
+    )
+
+
+def _compute_workout_this_week(db: Session, user_id) -> tuple[int, int, float]:
+    """(treinos, series_completas, volume_kg) dos ultimos 7 dias (hoje incluso), fixo — nao muda com o toggle."""
+    end_date = date.today()
+    start_date = end_date - timedelta(days=6)
+    sessions = _query_workout_sessions(
+        db, user_id, datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.max.time())
+    )
+    sets_count = 0
+    volume_kg = 0.0
+    for session in sessions:
+        s, v = _session_stats(session)
+        sets_count += s
+        volume_kg += v
+    return len(sessions), sets_count, round(volume_kg, 1)
+
+
+def _compute_workout_chart(db: Session, user_id, granularity: Literal["day", "week"]) -> list[ProgressChartPoint]:
+    """Mesma janela/bucket de _compute_run_chart, so que o valor por bucket e volume_kg (soma das series completas do dia) em vez de km."""
+    bucket_count, bucket_days = (7, 1) if granularity == "day" else (12, 7)
+    end_date = date.today()
+    start_date = end_date - timedelta(days=bucket_count * bucket_days - 1)
+    sessions = _query_workout_sessions(
+        db, user_id, datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.max.time())
+    )
+
+    volume_by_day: dict[date, float] = {}
+    for session in sessions:
+        _, volume = _session_stats(session)
+        day = session.completed_at.date()
+        volume_by_day[day] = volume_by_day.get(day, 0.0) + volume
+
+    points = []
+    for bucket in range(bucket_count):
+        bucket_start = start_date + timedelta(days=bucket * bucket_days)
+        total = sum(volume_by_day.get(bucket_start + timedelta(days=d), 0.0) for d in range(bucket_days))
+        points.append(ProgressChartPoint(date=bucket_start, value=round(total, 1)))
+    return points
+
+
+@router.get("/progress/workout", response_model=WorkoutProgressOut)
+def get_workout_progress(
+    period: Literal["weekly", "monthly"] = Query("weekly"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Mesma ideia de get_run_progress pra aba Musculacao. Sem Tempo/Calorias
+    reais (workout_sessions.duration_minutes/calories_burned existem como
+    coluna mas nenhum fluxo do app preenche isso hoje — falta um cronometro
+    na tela de treino) — as 3 estatisticas viraram Treinos/Series/Volume,
+    tudo derivado do que de fato e gravado em WorkoutSession.exercises.
+    """
+    sessions_count, sets_count, volume_kg = _compute_workout_this_week(db, current_user.id)
+    granularity: Literal["day", "week"] = "day" if period == "weekly" else "week"
+    return WorkoutProgressOut(
+        period=period,
+        granularity=granularity,
+        chart=_compute_workout_chart(db, current_user.id, granularity),
+        sessions_count=sessions_count,
+        sets_count=sets_count,
+        volume_kg=volume_kg,
+    )
 
 
 @router.get("/home-summary", response_model=HomeSummaryOut)
