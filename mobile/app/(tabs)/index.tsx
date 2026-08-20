@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
+import { Button2 } from '@/components/Button2';
 import { HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
@@ -43,6 +45,23 @@ function monthLabel(year: number, month: number): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+function formatExportDate(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Mesmo teto de 90 dias ja validado nos 3 endpoints da Exportacao PDF
+// (home-summary, period-comparison, heart-rate/report) — checado aqui de
+// novo so pra dar feedback imediato no client, sem esperar o 400 do
+// backend ir e voltar.
+const MAX_EXPORT_RANGE_DAYS = 90;
+
+/** Numero de dias no intervalo [a, b], inclusive dos dois extremos — comparando so a parte de data, sem horario. */
+function daysBetween(a: Date, b: Date): number {
+  const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const end = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+}
+
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
@@ -60,7 +79,19 @@ export default function HomeScreen() {
   const [insight, setInsight] = useState<DailyInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(true);
 
-  const [exportingDays, setExportingDays] = useState<7 | 30 | null>(null);
+  // Exportacao de PDF com intervalo livre (item aprovado: sem atalhos
+  // fixos "7/30 dias", a pessoa escolhe as 2 datas). Default de 30 dias
+  // terminando hoje, so como ponto de partida razoavel (mesmo range do
+  // botao antigo mais usado) — a pessoa pode ajustar livremente.
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 29);
+    return date;
+  });
+  const [exportEndDate, setExportEndDate] = useState(new Date());
+  const [showExportStartPicker, setShowExportStartPicker] = useState(false);
+  const [showExportEndPicker, setShowExportEndPicker] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   // Previa de progresso no card Desafios — so pra desafios da aba "App"
@@ -98,15 +129,29 @@ export default function HomeScreen() {
     }
   }, [viewMode]);
 
-  const handleExportPdf = async (days: 7 | 30) => {
-    setExportingDays(days);
+  const exportRangeDays = daysBetween(exportStartDate, exportEndDate);
+  const exportRangeValid = exportEndDate >= exportStartDate && exportRangeDays <= MAX_EXPORT_RANGE_DAYS;
+
+  const handleExportStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setShowExportStartPicker(false);
+    if (event.type === 'set' && selectedDate) setExportStartDate(selectedDate);
+  };
+
+  const handleExportEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') setShowExportEndPicker(false);
+    if (event.type === 'set' && selectedDate) setExportEndDate(selectedDate);
+  };
+
+  const handleExportPdf = async () => {
+    if (!exportRangeValid) return;
+    setExporting(true);
     setExportError(null);
     try {
-      await exportPeriodReportPdf(user?.name ?? '', days);
+      await exportPeriodReportPdf(user?.name ?? '', exportStartDate, exportEndDate);
     } catch (err) {
       setExportError(getApiErrorMessage(err, 'Nao foi possivel exportar o relatorio em PDF.'));
     } finally {
-      setExportingDays(null);
+      setExporting(false);
     }
   };
 
@@ -240,38 +285,73 @@ export default function HomeScreen() {
       {/* 4. Frequencia de treino — heatmap estilo GitHub. */}
       <TrainingFrequencyCard />
 
-      {/* 5. Exportar PDF — nao mexido, so reposicionado. */}
+      {/*
+        5. Exportar PDF — troca dos 2 atalhos fixos (7/30 dias) por um
+        seletor de intervalo livre, mesmo padrao de campo de data ja usado
+        em challenges/new.tsx (Pressable abrindo DateTimePicker inline no
+        iOS / modal no Android). Teto de 90 dias validado aqui pra feedback
+        imediato, e de novo no backend (validate_date_range) como rede de
+        seguranca.
+      */}
       <LiquiglassCard style={styles.exportCard}>
         <Text style={styles.exportLabel}>Exportar relatório em PDF</Text>
-        <View style={styles.exportButtons}>
-          <Pressable
-            onPress={() => handleExportPdf(7)}
-            disabled={exportingDays !== null}
-            style={styles.exportButton}
-            hitSlop={8}
-          >
-            {exportingDays === 7 ? (
-              <ActivityIndicator size="small" color={colors2.primary} />
-            ) : (
-              <Ionicons name="document-text-outline" size={16} color={colors2.primary} />
-            )}
-            <Text style={styles.exportButtonText}>Últimos 7 dias</Text>
+
+        <View style={styles.exportDateField}>
+          <Text style={styles.exportDateLabel}>Data inicial</Text>
+          <Pressable style={styles.exportDateButton} onPress={() => setShowExportStartPicker(true)}>
+            <Ionicons name="calendar-outline" size={16} color={colors2.primary} />
+            <Text style={styles.exportDateButtonText}>{formatExportDate(exportStartDate)}</Text>
           </Pressable>
-          <Pressable
-            onPress={() => handleExportPdf(30)}
-            disabled={exportingDays !== null}
-            style={styles.exportButton}
-            hitSlop={8}
-          >
-            {exportingDays === 30 ? (
-              <ActivityIndicator size="small" color={colors2.primary} />
-            ) : (
-              <Ionicons name="document-text-outline" size={16} color={colors2.primary} />
-            )}
-            <Text style={styles.exportButtonText}>Últimos 30 dias</Text>
-          </Pressable>
+          {showExportStartPicker && (
+            <DateTimePicker
+              value={exportStartDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={handleExportStartDateChange}
+              maximumDate={exportEndDate}
+            />
+          )}
+          {Platform.OS === 'ios' && showExportStartPicker && (
+            <Button2 label="Concluir" variant="secondary" onPress={() => setShowExportStartPicker(false)} />
+          )}
         </View>
+
+        <View style={styles.exportDateField}>
+          <Text style={styles.exportDateLabel}>Data final</Text>
+          <Pressable style={styles.exportDateButton} onPress={() => setShowExportEndPicker(true)}>
+            <Ionicons name="calendar-outline" size={16} color={colors2.primary} />
+            <Text style={styles.exportDateButtonText}>{formatExportDate(exportEndDate)}</Text>
+          </Pressable>
+          {showExportEndPicker && (
+            <DateTimePicker
+              value={exportEndDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={handleExportEndDateChange}
+              minimumDate={exportStartDate}
+              maximumDate={new Date()}
+            />
+          )}
+          {Platform.OS === 'ios' && showExportEndPicker && (
+            <Button2 label="Concluir" variant="secondary" onPress={() => setShowExportEndPicker(false)} />
+          )}
+        </View>
+
+        {!exportRangeValid && (
+          <Text style={styles.error}>
+            {exportEndDate < exportStartDate
+              ? 'A data final precisa ser igual ou posterior a data inicial.'
+              : `O período não pode ultrapassar ${MAX_EXPORT_RANGE_DAYS} dias (selecionado: ${exportRangeDays}).`}
+          </Text>
+        )}
         {!!exportError && <Text style={styles.error}>{exportError}</Text>}
+
+        <Button2
+          label="Exportar relatório em PDF"
+          onPress={handleExportPdf}
+          loading={exporting}
+          disabled={!exportRangeValid}
+        />
       </LiquiglassCard>
 
       {/*
@@ -467,17 +547,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   monthLabel: { ...typography2.bodyMd, fontWeight: '600', minWidth: 140, textAlign: 'center' },
-  exportCard: { alignItems: 'center', gap: spacing2.xs },
+  exportCard: { gap: spacing2.md },
   exportLabel: { ...typography2.labelCaps, textTransform: 'none' },
-  exportButtons: { flexDirection: 'row', gap: spacing2.lg },
-  exportButton: {
+  exportDateField: { gap: spacing2.xs },
+  exportDateLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
+  exportDateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing2.xs,
-    paddingVertical: spacing2.sm,
+    gap: spacing2.sm,
+    backgroundColor: colors2.surfaceContainer,
+    borderRadius: radius2.md,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    paddingHorizontal: spacing2.md,
+    paddingVertical: spacing2.sm + 4,
   },
-  exportButtonText: { ...typography2.bodyMd, fontSize: 14, color: colors2.primary, fontWeight: '700' },
+  exportDateButtonText: { ...typography2.bodyMd },
   error: { color: colors2.danger, textAlign: 'center' },
   loading: { marginTop: spacing2.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing2.xs },

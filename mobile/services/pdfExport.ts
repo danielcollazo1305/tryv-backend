@@ -138,19 +138,19 @@ function buildPersonalRecordsSection(records: PersonalRecords): string {
     </section>`;
 }
 
-function buildHeartRateSection(report: HeartRateReport): string {
+function buildHeartRateSection(report: HeartRateReport, rangeLabel: string): string {
   if (report.daily.length === 0) {
     return `
       <section class="card">
         <h2>Relatorio de frequencia cardiaca</h2>
-        <p class="muted">Sem amostras de frequencia cardiaca nos ultimos ${report.period_days} dias.</p>
+        <p class="muted">Sem amostras de frequencia cardiaca no periodo (${rangeLabel}).</p>
       </section>`;
   }
 
   return `
     <section class="card">
       <h2>Relatorio de frequencia cardiaca</h2>
-      <p class="muted">Ultimos ${report.period_days} dias</p>
+      <p class="muted">${rangeLabel}</p>
       <table>
         <tr><td>FC media</td><td>${fmtNum(report.avg_bpm, 0)} bpm</td></tr>
         <tr><td>FC maxima</td><td>${fmtNum(report.max_bpm, 0)} bpm</td></tr>
@@ -162,7 +162,6 @@ function buildHeartRateSection(report: HeartRateReport): string {
 
 function buildReportHtml(params: {
   userName: string;
-  days: 7 | 30;
   currentStart: string;
   currentEnd: string;
   homeSummary: HomeSummary;
@@ -172,6 +171,7 @@ function buildReportHtml(params: {
 }): string {
   const now = new Date();
   const generatedAt = `${now.toLocaleDateString('pt-BR')} as ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  const rangeLabel = `${formatShortDate(params.currentStart)} a ${formatShortDate(params.currentEnd)}`;
 
   return `
     <html>
@@ -210,37 +210,43 @@ function buildReportHtml(params: {
       <body>
         <div class="header">
           <div class="brand">Tryv</div>
-          <h1>Relatorio Tryv &mdash; Ultimos ${params.days} dias (${formatShortDate(params.currentStart)} a ${formatShortDate(params.currentEnd)})</h1>
+          <h1>Relatorio Tryv &mdash; ${rangeLabel}</h1>
           <p>${params.userName}</p>
           <p class="generated">Gerado em ${generatedAt}</p>
         </div>
         ${buildHomeSummarySection(params.homeSummary)}
         ${buildPeriodComparisonSection(params.periodComparison)}
         ${buildPersonalRecordsSection(params.personalRecords)}
-        ${buildHeartRateSection(params.heartRateReport)}
+        ${buildHeartRateSection(params.heartRateReport, rangeLabel)}
       </body>
     </html>`;
 }
 
+/** 'YYYY-MM-DD' local — mesmo formato que os 3 endpoints esperam em start_date/end_date. */
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 /**
- * Busca os 4 endpoints (todos gated Pro) em paralelo pro periodo escolhido
- * (7 ou 30 dias) — se qualquer um falhar (incluindo 402 de usuario free),
- * Promise.all rejeita antes de gerar qualquer PDF, entao nunca existe um
- * relatorio pela metade.
+ * Busca os 4 endpoints (todos gated Pro) em paralelo pro intervalo de datas
+ * escolhido no seletor da Home (ate 90 dias, validado no client antes de
+ * chamar isso e de novo no backend) — se qualquer um falhar (incluindo 402
+ * de usuario free, ou 400 de intervalo invalido), Promise.all rejeita antes
+ * de gerar qualquer PDF, entao nunca existe um relatorio pela metade.
  */
-export async function exportPeriodReportPdf(userName: string, days: 7 | 30): Promise<void> {
-  const periodParam = `${days}d`;
+export async function exportPeriodReportPdf(userName: string, startDate: Date, endDate: Date): Promise<void> {
+  const startDateKey = toDateKey(startDate);
+  const endDateKey = toDateKey(endDate);
 
   const [homeSummary, periodComparison, personalRecords, heartRateReport] = await Promise.all([
-    getHomeSummary({ period: periodParam }),
-    getPeriodComparison(days),
+    getHomeSummary({ start_date: startDateKey, end_date: endDateKey }),
+    getPeriodComparison(startDateKey, endDateKey),
     getPersonalRecords(),
-    getHeartRateReport(days),
+    getHeartRateReport({ startDate: startDateKey, endDate: endDateKey }),
   ]);
 
   const html = buildReportHtml({
     userName,
-    days,
     currentStart: periodComparison.current_start,
     currentEnd: periodComparison.current_end,
     homeSummary,

@@ -28,10 +28,13 @@ export interface HomeSummary {
 }
 
 export interface HomeSummaryParams {
-  /** "Nd" (ex: "30d") — janela deslizante terminando hoje. Ignorado se "month" for informado. */
+  /** "Nd" (ex: "30d") — janela deslizante terminando hoje. Ignorado se "month" ou start_date/end_date forem informados. */
   period?: string;
-  /** Mes civil no formato "YYYY-MM" — tem prioridade sobre "period" quando informado. */
+  /** Mes civil no formato "YYYY-MM" — tem prioridade sobre "period", mas nao sobre start_date/end_date. */
   month?: string;
+  /** Intervalo livre ("YYYY-MM-DD") — usado pela Exportacao PDF, tem prioridade sobre month/period. Precisa vir junto com end_date. */
+  start_date?: string;
+  end_date?: string;
 }
 
 export async function getHomeSummary(params: HomeSummaryParams = { period: '30d' }): Promise<HomeSummary> {
@@ -161,9 +164,16 @@ export interface PeriodComparison {
   weight_change_kg: MetricComparison;
 }
 
-/** Ultimos N dias vs. os N dias anteriores a esses — usado pela Exportacao PDF, nao pelo card de comparacao mensal da Home (que continua em getMonthComparison). */
-export async function getPeriodComparison(days: 7 | 30): Promise<PeriodComparison> {
-  const response = await api.get<PeriodComparison>('/dashboard/period-comparison', { params: { days } });
+/**
+ * Intervalo escolhido vs. o mesmo numero de dias imediatamente anteriores
+ * a ele — usado pela Exportacao PDF (seletor de datas livre, ate 90 dias),
+ * nao pelo card de comparacao mensal da Home (que continua em
+ * getMonthComparison). startDate/endDate no formato "YYYY-MM-DD".
+ */
+export async function getPeriodComparison(startDate: string, endDate: string): Promise<PeriodComparison> {
+  const response = await api.get<PeriodComparison>('/dashboard/period-comparison', {
+    params: { start_date: startDate, end_date: endDate },
+  });
   return response.data;
 }
 

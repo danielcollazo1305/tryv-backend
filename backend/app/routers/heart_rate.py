@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
+from app.core.period import validate_date_range
 from app.models.heart_rate import HeartRateSample
 from app.models.user import User
 from app.schemas.heart_rate import (
@@ -65,8 +66,12 @@ def list_heart_rate(
 @router.get("/report", response_model=HeartRateReportOut)
 def get_heart_rate_report(
     days: int = Query(
-        _DEFAULT_REPORT_WINDOW_DAYS, ge=1, le=90, description="Tamanho da janela em dias — 7 ou 30, usado pela Exportacao PDF"
+        _DEFAULT_REPORT_WINDOW_DAYS, ge=1, le=90, description="Tamanho da janela em dias — usado pela tela de Relatorio de FC"
     ),
+    start_date: date | None = Query(
+        None, description="Intervalo livre (com end_date) — usado pela Exportacao PDF, tem prioridade sobre days"
+    ),
+    end_date: date | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_pro_subscription),
 ):
@@ -80,8 +85,11 @@ def get_heart_rate_report(
     traz amostra crua pra fora do banco.
 
     days tem default 30 (compatibilidade com a tela de Relatorio de FC no
-    mobile, que continua chamando sem parametro) — a Exportacao PDF passa
-    7 ou 30 explicitamente.
+    mobile, que continua chamando sem nenhum parametro novo). start_date/
+    end_date sao opcionais e, quando os dois vem preenchidos, tem
+    prioridade sobre days — usados pela Exportacao PDF, que agora deixa a
+    pessoa escolher um intervalo livre (pode nao terminar hoje, por isso o
+    upper bound explicito em end, que o modo `days` nunca precisou ter).
 
     Sem minimo de dias com dado (diferente do _hr_score, que exige 5 dias
     pra comparar contra uma baseline) — aqui o proprio grafico/lista diaria
@@ -89,7 +97,16 @@ def get_heart_rate_report(
     unico dia com amostra ainda gera uma estimativa (marcada como tal),
     em vez de sumir silenciosamente.
     """
-    start = datetime.utcnow() - timedelta(days=days)
+    if start_date and end_date:
+        validate_date_range(start_date, end_date)
+        start = datetime.combine(start_date, datetime.min.time())
+        end = datetime.combine(end_date, datetime.max.time())
+        period_days = (end_date - start_date).days + 1
+        date_filter = (HeartRateSample.recorded_at >= start, HeartRateSample.recorded_at <= end)
+    else:
+        start = datetime.utcnow() - timedelta(days=days)
+        period_days = days
+        date_filter = (HeartRateSample.recorded_at >= start,)
 
     daily_rows = (
         db.query(
@@ -98,7 +115,7 @@ def get_heart_rate_report(
             func.min(HeartRateSample.bpm).label("min_bpm"),
             func.max(HeartRateSample.bpm).label("max_bpm"),
         )
-        .filter(HeartRateSample.user_id == current_user.id, HeartRateSample.recorded_at >= start)
+        .filter(HeartRateSample.user_id == current_user.id, *date_filter)
         .group_by(func.date(HeartRateSample.recorded_at))
         .order_by(func.date(HeartRateSample.recorded_at).asc())
         .all()
@@ -111,7 +128,7 @@ def get_heart_rate_report(
 
     period_avg, period_max = (
         db.query(func.avg(HeartRateSample.bpm), func.max(HeartRateSample.bpm))
-        .filter(HeartRateSample.user_id == current_user.id, HeartRateSample.recorded_at >= start)
+        .filter(HeartRateSample.user_id == current_user.id, *date_filter)
         .first()
     )
 
@@ -120,7 +137,7 @@ def get_heart_rate_report(
     resting_bpm = round(sum(row.min_bpm for row in daily) / len(daily), 1) if daily else None
 
     return HeartRateReportOut(
-        period_days=days,
+        period_days=period_days,
         daily=daily,
         avg_bpm=round(period_avg, 1) if period_avg is not None else None,
         max_bpm=period_max,

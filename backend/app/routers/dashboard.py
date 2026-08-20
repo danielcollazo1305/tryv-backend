@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
-from app.core.period import parse_period_days
+from app.core.period import parse_period_days, validate_date_range
 from app.models.manual_activity import ManualActivity
 from app.models.meal import Meal
 from app.models.run import Run
@@ -35,14 +35,26 @@ from app.schemas.dashboard import (
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-def _resolve_window(period: str, month: str | None) -> tuple[date, date, int, str]:
+def _resolve_window(
+    period: str,
+    month: str | None,
+    start_date_param: date | None = None,
+    end_date_param: date | None = None,
+) -> tuple[date, date, int, str]:
     """
     Retorna (start_date, end_date, dias_totais, rotulo) da janela pedida.
-    'month' (formato 'YYYY-MM'), se informado, tem prioridade sobre 'period'
-    e usa o mes civil inteiro (dia 1 ao ultimo dia do mes). Sem 'month',
-    mantem o comportamento original: janela deslizante de N dias terminando
-    hoje (compatibilidade com o que ja existia).
+    Prioridade: start_date_param+end_date_param (intervalo livre, so usado
+    por /home-summary hoje, pra Exportacao PDF) > month (mes civil inteiro)
+    > period (janela deslizante de N dias terminando hoje, comportamento
+    original). /training-frequency nunca passa start_date_param/
+    end_date_param, entao seu comportamento nao muda.
     """
+    if start_date_param and end_date_param:
+        validate_date_range(start_date_param, end_date_param)
+        days_total = (end_date_param - start_date_param).days + 1
+        label = f"{start_date_param.isoformat()}_{end_date_param.isoformat()}"
+        return start_date_param, end_date_param, days_total, label
+
     if month:
         try:
             year_str, month_str = month.split("-")
@@ -446,10 +458,14 @@ def get_home_summary(
     month: str | None = Query(
         None, description="Mes civil no formato YYYY-MM — se informado, tem prioridade sobre period"
     ),
+    start_date_param: date | None = Query(
+        None, alias="start_date", description="Intervalo livre (com end_date) — usado pela Exportacao PDF, tem prioridade sobre month/period"
+    ),
+    end_date_param: date | None = Query(None, alias="end_date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_pro_subscription),
 ):
-    start_date, end_date, days_total, period_label = _resolve_window(period, month)
+    start_date, end_date, days_total, period_label = _resolve_window(period, month, start_date_param, end_date_param)
 
     # --- Evolucao de peso ---
     weight_rows = (
@@ -640,19 +656,24 @@ def get_month_comparison(
 
 @router.get("/period-comparison", response_model=PeriodComparisonOut)
 def get_period_comparison(
-    days: int = Query(30, ge=1, le=90, description="Tamanho da janela em dias — 7 ou 30, usado pela Exportacao PDF"),
+    start_date: date = Query(..., description="Usado pela Exportacao PDF — intervalo escolhido pelo usuario"),
+    end_date: date = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_pro_subscription),
 ):
     """
-    Ultimos N dias vs. os N dias imediatamente anteriores a esses — mesma
-    logica/queries de get_month_comparison (_compute_period_metrics,
-    _metric_comparison), so trocando "mes civil" por "N dias corridos".
-    Nao mexe em get_month_comparison, que continua exclusivamente mes atual
-    vs. anterior pro card da Home.
+    Intervalo escolhido vs. o mesmo numero de dias imediatamente anteriores
+    a ele — mesma logica/queries de get_month_comparison
+    (_compute_period_metrics, _metric_comparison), so trocando "mes civil"
+    por um intervalo livre de datas. Nao mexe em get_month_comparison, que
+    continua exclusivamente mes atual vs. anterior pro card da Home. Unico
+    consumidor e a Exportacao PDF (services/pdfExport.ts) — antes recebia
+    so `days` (sempre terminando hoje); agora recebe o intervalo de verdade
+    escolhido no seletor de datas, que pode nao terminar hoje.
     """
-    current_end = date.today()
-    current_start = current_end - timedelta(days=days - 1)
+    validate_date_range(start_date, end_date)
+    days = (end_date - start_date).days + 1
+    current_start, current_end = start_date, end_date
     previous_end = current_start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=days - 1)
 

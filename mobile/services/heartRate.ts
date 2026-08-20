@@ -37,8 +37,19 @@ export interface HeartRateReport {
   resting_estimate: RestingHeartRateEstimate;
 }
 
-/** Sem "days", o backend usa o default de 30 — a tela de Relatorio de FC continua chamando assim. A Exportacao PDF passa 7 ou 30 explicitamente. */
-export async function getHeartRateReport(days?: 7 | 30): Promise<HeartRateReport> {
-  const response = await api.get<HeartRateReport>('/heart-rate/report', { params: days ? { days } : undefined });
+export interface HeartRateReportParams {
+  /** Janela deslizante terminando hoje — usado pela tela de Relatorio de FC. Ignorado se startDate/endDate forem informados. */
+  days?: number;
+  /** Intervalo livre ("YYYY-MM-DD") — usado pela Exportacao PDF, tem prioridade sobre days. Precisa vir junto com endDate. */
+  startDate?: string;
+  endDate?: string;
+}
+
+/** Sem parametros, o backend usa o default de 30 dias — a tela de Relatorio de FC continua chamando assim. A Exportacao PDF passa startDate/endDate do intervalo escolhido. */
+export async function getHeartRateReport(params: HeartRateReportParams = {}): Promise<HeartRateReport> {
+  const { days, startDate, endDate } = params;
+  const queryParams =
+    startDate && endDate ? { start_date: startDate, end_date: endDate } : days ? { days } : undefined;
+  const response = await api.get<HeartRateReport>('/heart-rate/report', { params: queryParams });
   return response.data;
 }
