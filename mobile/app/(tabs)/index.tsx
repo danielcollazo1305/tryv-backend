@@ -1,5 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -9,7 +20,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
 import { Button2 } from '@/components/Button2';
-import { HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
+import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
 import { ImageCoverCard } from '@/components/ImageCoverCard';
@@ -26,9 +37,10 @@ import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
 import {
   Challenge,
-  ChallengeCheckin,
+  buildAutomaticChallengeHeatmapDays,
   buildChallengeHeatmapDays,
   challengeDayProgress,
+  getChallengeProgress,
   listMyActiveChallenges,
   listMyChallengeCheckins,
 } from '@/services/challenges';
@@ -39,6 +51,14 @@ import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
+
+// Largura de cada "pagina" do carrossel de desafios oficiais — mesma conta
+// de largura util ja usada em graficos da tela (largura da tela menos o
+// padding horizontal do container, spacing2.containerMargin dos dois
+// lados), pra cada card do carrossel ocupar exatamente o espaco que o
+// card unico (sem carrossel) ja ocupava.
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CHALLENGE_CARD_WIDTH = SCREEN_WIDTH - spacing2.containerMargin * 2;
 
 function monthLabel(year: number, month: number): string {
   const label = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -97,9 +117,16 @@ export default function HomeScreen() {
   // Previa de progresso no card Desafios — so pra desafios da aba "App"
   // (is_official), conforme pedido (Personal fica no Perfil). Ciclo de
   // carregamento proprio e independente: uma falha aqui nao deve afetar o
-  // resto da Home, mesmo padrao do insight acima.
-  const [activeOfficialChallenge, setActiveOfficialChallenge] = useState<Challenge | null>(null);
-  const [activeChallengeCheckins, setActiveChallengeCheckins] = useState<ChallengeCheckin[]>([]);
+  // resto da Home, mesmo padrao do insight acima. Lista (nao mais so o mais
+  // recente) porque agora pode haver mais de um desafio oficial ativo ao
+  // mesmo tempo (ex: um de musculacao/corrida + um de alimentacao) — nesse
+  // caso vira carrossel; com 0 ou 1, comportamento identico a antes.
+  const [activeOfficialChallenges, setActiveOfficialChallenges] = useState<Challenge[]>([]);
+  // HeatmapDay[] ja pronto por desafio — computado na busca (checkins reais
+  // pra goal_type='manual', progresso calculado pros outros 3), pra nao
+  // duplicar a decisao de qual fonte usar tambem no render.
+  const [activeChallengeHeatmapById, setActiveChallengeHeatmapById] = useState<Record<string, HeatmapDay[]>>({});
+  const [challengeCarouselIndex, setChallengeCarouselIndex] = useState(0);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -210,28 +237,77 @@ export default function HomeScreen() {
     }, [fetchInsight])
   );
 
-  const fetchActiveOfficialChallenge = useCallback(async () => {
+  const fetchActiveOfficialChallenges = useCallback(async () => {
     try {
       const active = await listMyActiveChallenges({ is_official: true });
-      const mostRecent = active[0] ?? null;
-      setActiveOfficialChallenge(mostRecent);
-      setActiveChallengeCheckins(mostRecent ? await listMyChallengeCheckins(mostRecent.id) : []);
+      const heatmapByChallenge = Object.fromEntries(
+        await Promise.all(
+          active.map(async (challenge) => {
+            const days =
+              challenge.goal_type === 'manual'
+                ? buildChallengeHeatmapDays(challenge, await listMyChallengeCheckins(challenge.id))
+                : buildAutomaticChallengeHeatmapDays(challenge, await getChallengeProgress(challenge.id));
+            return [challenge.id, days] as const;
+          })
+        )
+      );
+      setActiveOfficialChallenges(active);
+      setActiveChallengeHeatmapById(heatmapByChallenge);
+      setChallengeCarouselIndex(0);
     } catch {
-      setActiveOfficialChallenge(null);
-      setActiveChallengeCheckins([]);
+      setActiveOfficialChallenges([]);
+      setActiveChallengeHeatmapById({});
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      fetchActiveOfficialChallenge();
-    }, [fetchActiveOfficialChallenge])
+      fetchActiveOfficialChallenges();
+    }, [fetchActiveOfficialChallenges])
   );
+
+  const handleChallengeCarouselScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / CHALLENGE_CARD_WIDTH);
+    setChallengeCarouselIndex(index);
+  };
 
   // Sinal explicito, alem do foco de navegacao: voltar de uma tela modal (ex:
   // /weight/new) nem sempre dispara o evento de foco do tab de forma
   // confiavel em todo dispositivo — isso garante o recarregamento mesmo assim.
   useEffect(() => subscribeToDashboardChanges(fetchSummary), [fetchSummary]);
+
+  // Extraida pra ser reaproveitada tanto no caso de 1 desafio so (sem
+  // carrossel, mesmo card/markup de sempre) quanto em cada pagina do
+  // carrossel quando ha mais de um — evita duplicar o JSX do card.
+  const renderChallengeProgressCard = (challenge: Challenge) => (
+    <Pressable
+      key={challenge.id}
+      style={activeOfficialChallenges.length > 1 ? styles.challengeCarouselItem : undefined}
+      onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: challenge.id } })}
+    >
+      <LiquiglassCard style={styles.challengeProgressCard}>
+        <View style={styles.challengeProgressHeader}>
+          <View style={styles.challengeProgressIconWrap}>
+            <Ionicons name="trophy" size={20} color={colors2.primary} />
+          </View>
+          <View style={styles.challengeProgressTexts}>
+            <Text style={styles.challengeProgressTitle}>{challenge.title}</Text>
+            <Text style={styles.challengeProgressSubtitle}>
+              Dia {challengeDayProgress(challenge).current} de {challengeDayProgress(challenge).total}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+        </View>
+        <HeatmapGrid
+          days={activeChallengeHeatmapById[challenge.id] ?? []}
+          todayKey={todayKey()}
+          cellSize={10}
+          showDayNumbers={false}
+          showWeekdayHeaders={false}
+        />
+      </LiquiglassCard>
+    </Pressable>
+  );
 
   const weightChangeLabel =
     summary?.weight_change_kg != null
@@ -355,40 +431,18 @@ export default function HomeScreen() {
       </LiquiglassCard>
 
       {/*
-        6. Desafios — se participa ativamente de um desafio "App" (oficial
-        Tryv), o card vira uma previa de progresso real (heatmap +
-        "Dia X de Y") em vez da imagem estatica, indo direto pro desafio em
-        questao. Sem participacao ativa em nenhum, continua como antes
-        (imagem + link generico pra aba Desafios). So considera desafios
-        "App" aqui, conforme pedido — progresso de desafios "Personal" fica
-        no Perfil.
+        6. Desafios — se participa ativamente de desafio(s) "App" (oficial
+        Tryv), o card vira uma previa de progresso real (heatmap + "Dia X
+        de Y") em vez da imagem estatica, indo direto pro desafio em
+        questao. Com mais de 1 desafio oficial ativo ao mesmo tempo (ex:
+        musculacao/corrida + alimentacao no mesmo mes), vira carrossel —
+        com 0 ou 1, comportamento identico a antes (sem carrossel
+        desnecessario). Sem participacao ativa em nenhum, continua como
+        antes (imagem + link generico pra aba Desafios). So considera
+        desafios "App" aqui, conforme pedido — progresso de desafios
+        "Personal" fica no Perfil.
       */}
-      {activeOfficialChallenge ? (
-        <Pressable onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: activeOfficialChallenge.id } })}>
-          <LiquiglassCard style={styles.challengeProgressCard}>
-            <View style={styles.challengeProgressHeader}>
-              <View style={styles.challengeProgressIconWrap}>
-                <Ionicons name="trophy" size={20} color={colors2.primary} />
-              </View>
-              <View style={styles.challengeProgressTexts}>
-                <Text style={styles.challengeProgressTitle}>{activeOfficialChallenge.title}</Text>
-                <Text style={styles.challengeProgressSubtitle}>
-                  Dia {challengeDayProgress(activeOfficialChallenge).current} de{' '}
-                  {challengeDayProgress(activeOfficialChallenge).total}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-            </View>
-            <HeatmapGrid
-              days={buildChallengeHeatmapDays(activeOfficialChallenge, activeChallengeCheckins)}
-              todayKey={todayKey()}
-              cellSize={10}
-              showDayNumbers={false}
-              showWeekdayHeaders={false}
-            />
-          </LiquiglassCard>
-        </Pressable>
-      ) : (
+      {activeOfficialChallenges.length === 0 ? (
         <ImageCoverCard
           image={require('../../assets/imagens/desafios-card.png')}
           title="Desafios"
@@ -396,6 +450,29 @@ export default function HomeScreen() {
           accessibilityLabel="Grupo de pessoas correndo a noite"
           onPress={() => router.push('/challenges')}
         />
+      ) : activeOfficialChallenges.length === 1 ? (
+        renderChallengeProgressCard(activeOfficialChallenges[0])
+      ) : (
+        <View>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CHALLENGE_CARD_WIDTH}
+            decelerationRate="fast"
+            onMomentumScrollEnd={handleChallengeCarouselScrollEnd}
+          >
+            {activeOfficialChallenges.map(renderChallengeProgressCard)}
+          </ScrollView>
+          <View style={styles.challengeCarouselDots}>
+            {activeOfficialChallenges.map((challenge, index) => (
+              <View
+                key={challenge.id}
+                style={[styles.challengeCarouselDot, index === challengeCarouselIndex && styles.challengeCarouselDotActive]}
+              />
+            ))}
+          </View>
+        </View>
       )}
 
       {/* 7. Treino com IA — novo. */}
@@ -504,6 +581,10 @@ const styles = StyleSheet.create({
   challengeProgressTexts: { flex: 1, gap: 2 },
   challengeProgressTitle: { ...typography2.bodyMd, fontWeight: '700' },
   challengeProgressSubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  challengeCarouselItem: { width: CHALLENGE_CARD_WIDTH },
+  challengeCarouselDots: { flexDirection: 'row', justifyContent: 'center', gap: spacing2.xs, marginTop: spacing2.sm },
+  challengeCarouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors2.outlineVariant },
+  challengeCarouselDotActive: { backgroundColor: colors2.violet, width: 16 },
   flex: { flex: 1 },
   container: { padding: spacing2.containerMargin, gap: spacing2.md },
   header: {
