@@ -8,18 +8,20 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Avatar } from '@/components/Avatar';
 import { Button2 } from '@/components/Button2';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
-import { HeatmapGrid, computeCurrentStreak, todayKey } from '@/components/HeatmapGrid';
+import { HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import {
   Challenge,
-  ChallengeCheckin,
+  buildAutomaticChallengeHeatmapDays,
   buildChallengeHeatmapDays,
   createChallengeCheckin,
+  describeChallengeGoal,
   formatChallengeDate,
   getChallenge,
+  getChallengeProgress,
   joinChallenge,
   leaveChallenge,
   listChallengeParticipants,
@@ -50,7 +52,7 @@ export default function ChallengeDetailScreen() {
   // null = nao autorizado a ver a lista (403) — esconde a secao em vez de mostrar erro.
   const [participants, setParticipants] = useState<UserBrief[] | null>(null);
   const [isParticipating, setIsParticipating] = useState(false);
-  const [checkins, setCheckins] = useState<ChallengeCheckin[]>([]);
+  const [heatmapDays, setHeatmapDays] = useState<HeatmapDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,12 +102,16 @@ export default function ChallengeDetailScreen() {
 
     if (participating) {
       try {
-        setCheckins(await listMyChallengeCheckins(id));
+        setHeatmapDays(
+          loadedChallenge.goal_type === 'manual'
+            ? buildChallengeHeatmapDays(loadedChallenge, await listMyChallengeCheckins(id))
+            : buildAutomaticChallengeHeatmapDays(loadedChallenge, await getChallengeProgress(id))
+        );
       } catch {
-        setCheckins([]);
+        setHeatmapDays([]);
       }
     } else {
-      setCheckins([]);
+      setHeatmapDays([]);
     }
 
     setLoading(false);
@@ -211,13 +217,16 @@ export default function ChallengeDetailScreen() {
     }
   };
 
-  const hasCheckedInToday = checkins.some((c) => c.date === todayKey());
-  // buildChallengeHeatmapDays cobre sempre o periodo inteiro do desafio
-  // (start_date ate hoje/end_date) — diferente da Frequencia de Treino
-  // (janela de 1 mes civil), aqui hitLeftEdge=true so significa "a
-  // sequencia cobre o desafio inteiro ate agora", um numero exato, nao um
-  // piso — por isso nao mostra "+" (comparar com TrainingFrequencyCard).
-  const heatmapDays = challenge ? buildChallengeHeatmapDays(challenge, checkins) : [];
+  // Funciona pros 2 casos (checkin manual real ou progresso automatico
+  // calculado) porque heatmapDays ja reflete a fonte certa desde o fetch —
+  // so olha se a celula de hoje tem intensidade (fez/bateu a meta).
+  const hasCheckedInToday = (heatmapDays.find((d) => d.date === todayKey())?.intensity ?? 0) > 0;
+  // buildChallengeHeatmapDays/buildAutomaticChallengeHeatmapDays cobrem
+  // sempre o periodo inteiro do desafio (start_date ate hoje/end_date) —
+  // diferente da Frequencia de Treino (janela de 1 mes civil), aqui
+  // hitLeftEdge=true so significa "a sequencia cobre o desafio inteiro ate
+  // agora", um numero exato, nao um piso — por isso nao mostra "+"
+  // (comparar com TrainingFrequencyCard).
   const consistencyStreak = computeCurrentStreak(heatmapDays, todayKey());
   const creatorLabel = creatorTrainer
     ? PROFESSIONAL_TYPE_LABEL[creatorTrainer.professional_type] ?? creatorTrainer.professional_type
@@ -315,7 +324,21 @@ export default function ChallengeDetailScreen() {
 
             {isParticipating && (
               <>
-                {hasCheckedInToday ? (
+                {challenge.goal_type !== 'manual' ? (
+                  // Metas automaticas nao usam check-in manual — o proprio
+                  // heatmap abaixo ja reflete o progresso calculado a
+                  // partir de Refeicoes/Corridas/Sessoes de treino, sem
+                  // acao nenhuma da pessoa. Mostrar o botao "Fiz hoje" aqui
+                  // seria enganoso (nao teria efeito nenhum no progresso).
+                  <LiquiglassCard style={styles.checkinDoneCard}>
+                    <Ionicons
+                      name={hasCheckedInToday ? 'checkmark-circle' : 'information-circle'}
+                      size={22}
+                      color={colors2.violet}
+                    />
+                    <Text style={styles.checkinDoneText}>{describeChallengeGoal(challenge)}</Text>
+                  </LiquiglassCard>
+                ) : hasCheckedInToday ? (
                   <LiquiglassCard style={styles.checkinDoneCard}>
                     <Ionicons name="checkmark-circle" size={22} color={colors2.violet} />
                     <Text style={styles.checkinDoneText}>Voce ja fez check-in hoje!</Text>

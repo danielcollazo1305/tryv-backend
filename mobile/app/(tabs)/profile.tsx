@@ -5,15 +5,16 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
-import { HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
+import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import {
   Challenge,
-  ChallengeCheckin,
+  buildAutomaticChallengeHeatmapDays,
   buildChallengeHeatmapDays,
+  getChallengeProgress,
   listMyActiveChallenges,
   listMyChallengeCheckins,
 } from '@/services/challenges';
@@ -26,7 +27,7 @@ import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 interface PersonalChallengeProgress {
   challenge: Challenge;
   trainer: TrainerPublic | null;
-  checkins: ChallengeCheckin[];
+  heatmapDays: HeatmapDay[];
 }
 
 /**
@@ -133,7 +134,10 @@ export default function ProfileScreen() {
             challenges.map(async (challenge) => ({
               challenge,
               trainer: challenge.trainer_id ? await getTrainer(challenge.trainer_id).catch(() => null) : null,
-              checkins: await listMyChallengeCheckins(challenge.id).catch(() => []),
+              heatmapDays: await (challenge.goal_type === 'manual'
+                ? listMyChallengeCheckins(challenge.id).then((checkins) => buildChallengeHeatmapDays(challenge, checkins))
+                : getChallengeProgress(challenge.id).then((progress) => buildAutomaticChallengeHeatmapDays(challenge, progress))
+              ).catch(() => []),
             }))
           );
           if (active) setPersonalChallenges(withDetails);
@@ -182,7 +186,7 @@ export default function ProfileScreen() {
         {personalChallenges.length > 0 && (
           <View style={styles.challengesSection}>
             <Text style={styles.sectionTitle}>Desafios de profissionais</Text>
-            {personalChallenges.map(({ challenge, trainer, checkins }) => (
+            {personalChallenges.map(({ challenge, trainer, heatmapDays }) => (
               <Pressable
                 key={challenge.id}
                 onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: challenge.id } })}
@@ -196,7 +200,7 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                   <HeatmapGrid
-                    days={buildChallengeHeatmapDays(challenge, checkins)}
+                    days={heatmapDays}
                     todayKey={todayKey()}
                     cellSize={10}
                     showDayNumbers={false}

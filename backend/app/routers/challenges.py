@@ -2,20 +2,25 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.challenge import Challenge, ChallengeCheckin
+from app.models.meal import Meal
+from app.models.run import Run
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
+from app.models.workout import WorkoutPlan, WorkoutSession
 from app.schemas.challenge import (
     ChallengeCategory,
     ChallengeCheckinCreate,
     ChallengeCheckinOut,
     ChallengeCreate,
     ChallengeOut,
+    ChallengeProgressDayOut,
 )
 from app.schemas.social import UserBrief
 
@@ -27,14 +32,124 @@ _CHALLENGE_ACTIVE_WINDOW_DAYS = 30
 _CHALLENGE_ACTIVE_FEE_PERCENT = 12.0
 
 
+def _day_goal_met(db: Session, challenge: Challenge, user_id, day: date) -> bool:
+    """
+    So pros 3 goal_type automaticos — 'manual' nunca chama isso (usa
+    ChallengeCheckin de verdade). Um unico dia: usado pelo
+    community_progress_percent ("bateu a meta HOJE"), onde uma checagem
+    pontual de existencia e mais barata que agrupar um intervalo inteiro
+    (ver _compute_goal_progress_days, usado quando o intervalo importa).
+
+    'distance'/'training_frequency' tem meta SEMANAL (target_frequency_per_week),
+    mas aqui so verifica se o dia teve um evento qualificado (corrida no
+    minimo/qualquer sessao de treino) — o mesmo criterio usado pra cada
+    celula do heatmap. Se a semana inteira bateu a frequencia e uma
+    pergunta diferente, que o heatmap ja deixa visivel de forma visual
+    (contar celulas preenchidas na semana) sem precisar calcular aqui.
+    """
+    start_dt = datetime.combine(day, datetime.min.time())
+    end_dt = datetime.combine(day, datetime.max.time())
+
+    if challenge.goal_type == "nutrition":
+        total_protein = (
+            db.query(func.sum(Meal.protein))
+            .filter(Meal.user_id == user_id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
+            .scalar()
+        )
+        return (total_protein or 0) >= (challenge.target_value or 0)
+
+    if challenge.goal_type == "distance":
+        qualifying_run = (
+            db.query(Run.id)
+            .filter(
+                Run.user_id == user_id,
+                Run.started_at >= start_dt,
+                Run.started_at <= end_dt,
+                Run.distance_meters >= (challenge.target_value or 0) * 1000,
+            )
+            .first()
+        )
+        return qualifying_run is not None
+
+    if challenge.goal_type == "training_frequency":
+        session_done = (
+            db.query(WorkoutSession.id)
+            .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutSession.completed_at >= start_dt,
+                WorkoutSession.completed_at <= end_dt,
+            )
+            .first()
+        )
+        return session_done is not None
+
+    return False
+
+
+def _compute_goal_progress_days(db: Session, challenge: Challenge, user_id, start_date: date, end_date: date) -> set[date]:
+    """
+    Dias (dentro de [start_date, end_date]) em que o goal_type automatico
+    do desafio foi cumprido — uma unica query agrupada por dia (mesmo
+    padrao de _compute_training_frequency/_compute_weekly_activity em
+    routers/dashboard.py), em vez de uma query por dia. So pros 3
+    goal_type automaticos, usado por GET /challenges/{id}/progress/me
+    (alimenta o heatmap de consistencia).
+    """
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+
+    if challenge.goal_type == "nutrition":
+        rows = (
+            db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.protein).label("total"))
+            .filter(Meal.user_id == user_id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
+            .group_by(func.date(Meal.logged_at))
+            .all()
+        )
+        return {row.day for row in rows if (row.total or 0) >= (challenge.target_value or 0)}
+
+    if challenge.goal_type == "distance":
+        rows = (
+            db.query(func.date(Run.started_at).label("day"))
+            .filter(
+                Run.user_id == user_id,
+                Run.started_at >= start_dt,
+                Run.started_at <= end_dt,
+                Run.distance_meters >= (challenge.target_value or 0) * 1000,
+            )
+            .distinct()
+            .all()
+        )
+        return {row.day for row in rows}
+
+    if challenge.goal_type == "training_frequency":
+        rows = (
+            db.query(func.date(WorkoutSession.completed_at).label("day"))
+            .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutSession.completed_at >= start_dt,
+                WorkoutSession.completed_at <= end_dt,
+            )
+            .distinct()
+            .all()
+        )
+        return {row.day for row in rows}
+
+    return set()
+
+
 def _challenge_out(db: Session, challenge: Challenge) -> ChallengeOut:
     participants_count = len(challenge.participant_ids or [])
 
-    # % dos participantes com check-in HOJE — consulta por desafio (N+1 nas
-    # listagens), aceitavel no volume atual do app (poucos desafios ativos
-    # por vez); otimizar com uma query agregada em lote so se isso virar
-    # gargalo de verdade.
-    if participants_count > 0:
+    # % dos participantes que bateram a meta HOJE. 'manual': check-in real
+    # (ChallengeCheckin) — consulta por desafio (N+1 nas listagens),
+    # aceitavel no volume atual do app (poucos desafios ativos por vez).
+    # Automaticos: mesmo espirito de N+1, so que por participante
+    # (_day_goal_met), pra saber quem bateu a meta automatica hoje.
+    if participants_count == 0:
+        community_progress_percent = 0
+    elif challenge.goal_type == "manual":
         checkins_today = (
             db.query(ChallengeCheckin)
             .filter(ChallengeCheckin.challenge_id == challenge.id, ChallengeCheckin.date == date.today())
@@ -42,7 +157,11 @@ def _challenge_out(db: Session, challenge: Challenge) -> ChallengeOut:
         )
         community_progress_percent = round(min(checkins_today, participants_count) / participants_count * 100)
     else:
-        community_progress_percent = 0
+        today = date.today()
+        met_today = sum(
+            1 for participant_id in challenge.participant_ids if _day_goal_met(db, challenge, participant_id, today)
+        )
+        community_progress_percent = round(met_today / participants_count * 100)
 
     return ChallengeOut(
         id=challenge.id,
@@ -54,6 +173,10 @@ def _challenge_out(db: Session, challenge: Challenge) -> ChallengeOut:
         participants_count=participants_count,
         is_official=challenge.is_official,
         category=challenge.category,
+        goal_type=challenge.goal_type,
+        target_value=challenge.target_value,
+        target_unit=challenge.target_unit,
+        target_frequency_per_week=challenge.target_frequency_per_week,
         community_progress_percent=community_progress_percent,
         created_at=challenge.created_at,
     )
@@ -145,9 +268,9 @@ def list_my_active_challenges(
 ):
     """
     Desafios ATIVOS (end_date no futuro) que o usuario logado participa —
-    usado pela previa de progresso no card Desafios da Home (is_official=true,
-    pega o mais recente) e pela secao de progresso em desafios de
-    profissional no Perfil (is_official=false).
+    usado pela previa de progresso no card Desafios da Home (is_official=true;
+    vira carrossel se houver mais de um) e pela secao de progresso em
+    desafios de profissional no Perfil (is_official=false).
     """
     challenges = (
         db.query(Challenge)
@@ -194,6 +317,10 @@ def create_challenge(
             participant_ids=[],
             is_official=True,
             category=payload.category,
+            goal_type=payload.goal_type,
+            target_value=payload.target_value,
+            target_unit=payload.target_unit,
+            target_frequency_per_week=payload.target_frequency_per_week,
         )
         db.add(challenge)
         db.commit()
@@ -211,6 +338,10 @@ def create_challenge(
         participant_ids=[],
         is_official=False,
         category=None,
+        goal_type=payload.goal_type,
+        target_value=payload.target_value,
+        target_unit=payload.target_unit,
+        target_frequency_per_week=payload.target_frequency_per_week,
     )
     db.add(challenge)
     db.commit()
@@ -406,3 +537,39 @@ def list_my_checkins(
         .all()
     )
     return checkins
+
+
+@router.get("/challenges/{challenge_id}/progress/me", response_model=list[ChallengeProgressDayOut])
+def get_my_goal_progress(
+    challenge_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Equivalente a /checkins/me pros 3 goal_type automaticos — dia a dia do
+    inicio do desafio ate hoje (ou end_date, o que vier primeiro), 'achieved'
+    calculado sob demanda a partir de Meal/Run/WorkoutSession
+    (_compute_goal_progress_days), nunca persistido. Alimenta o mesmo
+    heatmap de consistencia que /checkins/me alimenta pro goal_type='manual'
+    (ver buildAutomaticChallengeHeatmapDays no mobile).
+    """
+    challenge = _get_challenge_or_404(db, challenge_id)
+    if challenge.goal_type == "manual":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este desafio usa check-in manual — use GET /challenges/{id}/checkins/me",
+        )
+
+    start_date = challenge.start_date.date()
+    end_date = min(challenge.end_date.date(), date.today())
+    if end_date < start_date:
+        return []
+
+    achieved_days = _compute_goal_progress_days(db, challenge, current_user.id, start_date, end_date)
+
+    days: list[ChallengeProgressDayOut] = []
+    cursor = start_date
+    while cursor <= end_date:
+        days.append(ChallengeProgressDayOut(date=cursor, achieved=cursor in achieved_days))
+        cursor += timedelta(days=1)
+    return days

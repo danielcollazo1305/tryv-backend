@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 
 from app.core.database import Base
@@ -39,6 +39,28 @@ class Challenge(Base):
     # profissional nao sao categorizados nessas 2 categorias (a aba
     # "Personal" lista todos, sem filtro de categoria).
     category = Column(String, nullable=True)
+
+    # Progresso mensuravel por tipo de meta — 'manual' preserva o
+    # comportamento de sempre (check-in binario via ChallengeCheckin,
+    # default seguro pros 2 desafios oficiais ja existentes em producao,
+    # que continuam manuais ate serem reclassificados manualmente se fizer
+    # sentido). Os 3 automaticos ('nutrition'/'distance'/'training_frequency')
+    # nunca gravam ChallengeCheckin — o progresso e calculado sob demanda a
+    # partir de Meal/Run/WorkoutSession (ver _day_goal_met e
+    # _compute_goal_progress_days em routers/challenges.py), no mesmo
+    # espirito de _compute_training_frequency/_compute_weekly_activity em
+    # routers/dashboard.py (nunca persistido, sempre recalculado).
+    goal_type = Column(String, nullable=False, default="manual")
+    # 'nutrition': gramas de proteina/dia (ex: 160). 'distance': km minimos
+    # por corrida (ex: 5). Nulo pra 'training_frequency' e 'manual'.
+    target_value = Column(Float, nullable=True)
+    # ex: 'protein_g_per_day' | 'distance_km_per_run'. Nulo pra
+    # 'training_frequency' e 'manual' (mesma razao de target_value).
+    target_unit = Column(String, nullable=True)
+    # Usado por 'distance' (ex: 4 corridas qualificadas/semana) e
+    # 'training_frequency' (ex: 4 treinos/semana). Nulo pra 'nutrition'
+    # (meta e diaria, nao semanal) e 'manual'.
+    target_frequency_per_week = Column(Integer, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
