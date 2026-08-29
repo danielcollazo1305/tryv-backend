@@ -6,12 +6,12 @@ import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
+import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { requestHealthKitPermissions } from '@/services/healthkit';
 import {
   Challenge,
@@ -25,7 +25,7 @@ import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/so
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { getInitials } from '@/utils/text';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
 interface PersonalChallengeProgress {
   challenge: Challenge;
@@ -34,17 +34,20 @@ interface PersonalChallengeProgress {
 }
 
 /**
- * Migracao liquiglass do Perfil — so troca de tokens/componentes visuais
- * (colors -> colors2, Card -> LiquiglassCard, PostGrid/ProfileBadges ->
- * as versoes 2, avatar generico -> Avatar de iniciais). Toda a logica de
- * dados (badges, contagem de seguidores, deteccao de professor, posts)
- * continua exatamente igual — nenhum useFocusEffect foi alterado.
+ * Migrado pro tema claro "prism-glass" (colors3/GlassCard/ScreenBackground3)
+ * — segunda migracao visual desta tela (a primeira foi liquiglass/colors2,
+ * ver git log). So troca de tokens/componentes visuais, nenhum
+ * useFocusEffect ou logica de dados foi alterada.
  *
- * Cabecalho "Tryv" novo no topo (item 2 do pedido): reaproveita o unico
- * estilo de wordmark que ja existe no app (typography2.displayHero,
- * fontSize 36), o mesmo usado em Login/Cadastro — nao existia nenhum
- * cabecalho "Tryv" nas abas principais antes disso (confirmado na
- * investigacao: Home usa saudacao "Ola, {nome}", nao a marca).
+ * PostGrid2/ProfileBadges2 ainda sao compartilhados com telas que nao
+ * migraram (social/[userId].tsx, e settings/badges.tsx no caso do 2o) —
+ * ganharam uma prop `variant` (padrao 'dark', 'light' so aqui), mesmo
+ * padrao ja usado em EmptyFollowingState/ObscuredCard/TextField2 antes
+ * nesta sessao.
+ *
+ * Cabecalho "Tryv" no topo: mesmo estilo de wordmark ja usado em
+ * Home/Feed/Refeicoes/Login (typography3.displayLg, fontSize 36, weight
+ * 800, cor primary).
  */
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -194,7 +197,7 @@ export default function ProfileScreen() {
    */
 
   return (
-    <ScreenBackground2>
+    <ScreenBackground3>
       <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
         <Text style={styles.logo}>Tryv</Text>
 
@@ -222,8 +225,13 @@ export default function ProfileScreen() {
             continua mostrando TEAM normalmente nesses 2 lugares). PRO
             continua visivel normalmente. Nao apagar: so tirar o `teams: []`
             no relancamento.
+
+            variant="light" — ProfileBadges2 ainda e escuro por padrao (os 2
+            outros usos acima seguem sem migrar), mesmo padrao de prop
+            variant ja usado em EmptyFollowingState/ObscuredCard/TextField2
+            nesta sessao pra nao afetar quem ainda nao migrou.
           */}
-          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} />
+          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
         </View>
 
         {/*
@@ -263,10 +271,10 @@ export default function ProfileScreen() {
         */}
 
         <Pressable style={styles.optionWrap} onPress={() => router.push('/settings/calorie-goal')}>
-          <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
             <View style={styles.optionRow}>
               <View style={styles.optionIconWrap}>
-                <Ionicons name="flame" size={20} color={colors2.primary} />
+                <Ionicons name="flame" size={20} color={colors3.primary} />
               </View>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>Meta calórica diária</Text>
@@ -276,39 +284,39 @@ export default function ProfileScreen() {
                     : 'Nenhuma meta definida ainda'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
             </View>
-          </LiquiglassCard>
+          </GlassCard>
         </Pressable>
 
         <Pressable style={styles.optionWrap} onPress={() => router.push('/subscriptions/pro')}>
-          <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
             <View style={styles.optionRow}>
               <View style={styles.optionIconWrap}>
-                <Ionicons name="star" size={20} color={colors2.primary} />
+                <Ionicons name="star" size={20} color={colors3.primary} />
               </View>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>Tryv Pro</Text>
                 <Text style={styles.optionSubtitle}>Insights, prontidão, IA e mais</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
             </View>
-          </LiquiglassCard>
+          </GlassCard>
         </Pressable>
 
         <Pressable style={styles.optionWrap} onPress={() => router.push('/settings/badges')}>
-          <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
             <View style={styles.optionRow}>
               <View style={styles.optionIconWrap}>
-                <Ionicons name="ribbon" size={20} color={colors2.primary} />
+                <Ionicons name="ribbon" size={20} color={colors3.primary} />
               </View>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>Meus selos e conquistas</Text>
                 <Text style={styles.optionSubtitle}>Status Pro e vínculos com profissionais</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
             </View>
-          </LiquiglassCard>
+          </GlassCard>
         </Pressable>
 
         {/*
@@ -360,10 +368,10 @@ export default function ProfileScreen() {
 
         {/* DEBUG TEMPORARIO — ver handleDebugResetHealthKit acima. Remover apos confirmado. */}
         <Pressable style={styles.optionWrap} onPress={handleDebugResetHealthKit} disabled={resettingHealthKit}>
-          <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
             <View style={styles.optionRow}>
               <View style={styles.optionIconWrap}>
-                <Ionicons name="bug" size={20} color={colors2.danger} />
+                <Ionicons name="bug" size={20} color={colors3.error} />
               </View>
               <View style={styles.optionInfo}>
                 <Text style={styles.optionTitle}>[DEBUG] Resetar conexao HealthKit</Text>
@@ -371,21 +379,21 @@ export default function ProfileScreen() {
                   {resettingHealthKit ? 'Resetando...' : 'Limpa a flag local e pede autorizacao de novo'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
             </View>
-          </LiquiglassCard>
+          </GlassCard>
         </Pressable>
 
         <View style={styles.postsSection}>
           <Text style={styles.sectionTitle}>Meus posts</Text>
           {myPosts.length > 0 ? (
-            <PostGrid2 posts={myPosts} />
+            <PostGrid2 posts={myPosts} variant="light" />
           ) : (
             <Text style={styles.emptyText}>Você ainda não publicou nada.</Text>
           )}
         </View>
       </ScrollView>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -393,27 +401,27 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: {
     alignItems: 'center',
-    paddingTop: spacing2.xl,
-    padding: spacing2.containerMargin,
-    paddingBottom: spacing2.xl,
+    paddingTop: spacing3.xl,
+    padding: spacing3.containerMargin,
+    paddingBottom: spacing3.xl,
   },
-  logo: { ...typography2.displayHero, fontSize: 36, marginBottom: spacing2.lg },
-  avatar: { marginBottom: spacing2.md },
-  name: { ...typography2.headlineMd, fontSize: 22 },
-  email: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.xs, marginBottom: spacing2.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
+  avatar: { marginBottom: spacing3.md },
+  name: { ...typography3.headlineMd, fontSize: 22 },
+  email: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.xs, marginBottom: spacing3.sm },
 
   followStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.lg,
-    marginBottom: spacing2.lg,
+    gap: spacing3.lg,
+    marginBottom: spacing3.lg,
   },
   followStat: { alignItems: 'center', minWidth: 72 },
-  followStatDivider: { width: 1, height: 28, backgroundColor: colors2.outlineVariant },
-  followStatNumber: { ...typography2.metricMono, fontSize: 20 },
-  followStatLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant, marginTop: 2 },
+  followStatDivider: { width: 1, height: 28, backgroundColor: colors3.outlineVariant },
+  followStatNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 20, color: colors3.onSurface },
+  followStatLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, marginTop: 2 },
 
-  badgesWrap: { marginBottom: spacing2.lg, width: '100%' },
+  badgesWrap: { marginBottom: spacing3.lg, width: '100%' },
 
   challengesSection: { width: '100%', gap: spacing2.sm, marginBottom: spacing2.lg },
   challengeCard: { gap: spacing2.sm },
@@ -422,22 +430,22 @@ const styles = StyleSheet.create({
   challengeCardTitle: { ...typography2.bodyMd, fontWeight: '700', fontSize: 14 },
   challengeCardTrainer: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 
-  optionWrap: { width: '100%', marginBottom: spacing2.sm },
+  optionWrap: { width: '100%', marginBottom: spacing3.sm },
   optionCard: { width: '100%' },
-  optionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   optionIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionInfo: { flex: 1, gap: 4 },
-  optionTitle: { ...typography2.bodyMd, fontWeight: '700' },
-  optionSubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  optionTitle: { ...typography3.bodyMd, fontWeight: '700' },
+  optionSubtitle: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 
-  postsSection: { width: '100%', marginTop: spacing2.lg, gap: spacing2.sm },
-  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  postsSection: { width: '100%', marginTop: spacing3.lg, gap: spacing3.sm },
+  sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
 });
