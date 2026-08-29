@@ -21,7 +21,7 @@ export function Avatar({ initials, size = 40, style }: AvatarProps) {
 
   return (
     <LinearGradient
-      colors={[colors2.violet, colors2.primary]}
+      colors={[colors2.violet, colors2.onPrimaryContainer]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[
@@ -41,6 +41,8 @@ const styles = StyleSheet.create({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   initials: {
     color: colors2.white,

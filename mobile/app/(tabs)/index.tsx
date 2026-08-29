@@ -1,85 +1,46 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
-import { Button2 } from '@/components/Button2';
-import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { DesafiosCarouselSlide } from '@/components/DesafiosCarouselSlide';
+import { ExportPdfCard } from '@/components/ExportPdfCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
-import { ImageCoverCard } from '@/components/ImageCoverCard';
 import { InsightCard } from '@/components/InsightCard';
 import { MonthComparisonCard } from '@/components/MonthComparisonCard';
 import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ReadinessCard } from '@/components/ReadinessCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { TrainerPartnerRow } from '@/components/TrainerPartnerRow';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { ActivityProgressCard } from '@/components/ActivityProgressCard';
+import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
 import { WeightChart } from '@/components/WeightChart';
 import { getApiErrorMessage } from '@/services/api';
-import {
-  Challenge,
-  buildAutomaticChallengeHeatmapDays,
-  buildChallengeHeatmapDays,
-  challengeDayProgress,
-  getChallengeProgress,
-  listMyActiveChallenges,
-  listMyChallengeCheckins,
-} from '@/services/challenges';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
-import { exportPeriodReportPdf } from '@/services/pdfExport';
 import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
 type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
 
-// Largura de cada "pagina" do carrossel de desafios oficiais — mesma conta
-// de largura util ja usada em graficos da tela (largura da tela menos o
-// padding horizontal do container, spacing2.containerMargin dos dois
-// lados), pra cada card do carrossel ocupar exatamente o espaco que o
-// card unico (sem carrossel) ja ocupava.
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHALLENGE_CARD_WIDTH = SCREEN_WIDTH - spacing2.containerMargin * 2;
+/** "Qua, 19 de agosto" — mesmo formato do rotulo de data do mockup, abaixo da saudacao. */
+function todayLabel(): string {
+  const label = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'long' });
+  return label.charAt(0).toUpperCase() + label.slice(1).replace('.', '');
+}
 
 function monthLabel(year: number, month: number): string {
   const label = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function formatExportDate(date: Date): string {
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-// Mesmo teto de 90 dias ja validado nos 3 endpoints da Exportacao PDF
-// (home-summary, period-comparison, heart-rate/report) — checado aqui de
-// novo so pra dar feedback imediato no client, sem esperar o 400 do
-// backend ir e voltar.
-const MAX_EXPORT_RANGE_DAYS = 90;
-
-/** Numero de dias no intervalo [a, b], inclusive dos dois extremos — comparando so a parte de data, sem horario. */
-function daysBetween(a: Date, b: Date): number {
-  const start = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const end = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
 }
 
 export default function HomeScreen() {
@@ -98,35 +59,6 @@ export default function HomeScreen() {
   // uma falha nele nao deve travar o resto da Home.
   const [insight, setInsight] = useState<DailyInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(true);
-
-  // Exportacao de PDF com intervalo livre (item aprovado: sem atalhos
-  // fixos "7/30 dias", a pessoa escolhe as 2 datas). Default de 30 dias
-  // terminando hoje, so como ponto de partida razoavel (mesmo range do
-  // botao antigo mais usado) — a pessoa pode ajustar livremente.
-  const [exportStartDate, setExportStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 29);
-    return date;
-  });
-  const [exportEndDate, setExportEndDate] = useState(new Date());
-  const [showExportStartPicker, setShowExportStartPicker] = useState(false);
-  const [showExportEndPicker, setShowExportEndPicker] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  // Previa de progresso no card Desafios — so pra desafios da aba "App"
-  // (is_official), conforme pedido (Personal fica no Perfil). Ciclo de
-  // carregamento proprio e independente: uma falha aqui nao deve afetar o
-  // resto da Home, mesmo padrao do insight acima. Lista (nao mais so o mais
-  // recente) porque agora pode haver mais de um desafio oficial ativo ao
-  // mesmo tempo (ex: um de musculacao/corrida + um de alimentacao) — nesse
-  // caso vira carrossel; com 0 ou 1, comportamento identico a antes.
-  const [activeOfficialChallenges, setActiveOfficialChallenges] = useState<Challenge[]>([]);
-  // HeatmapDay[] ja pronto por desafio — computado na busca (checkins reais
-  // pra goal_type='manual', progresso calculado pros outros 3), pra nao
-  // duplicar a decisao de qual fonte usar tambem no render.
-  const [activeChallengeHeatmapById, setActiveChallengeHeatmapById] = useState<Record<string, HeatmapDay[]>>({});
-  const [challengeCarouselIndex, setChallengeCarouselIndex] = useState(0);
 
   const fetchSummary = useCallback(async () => {
     setLoading(true);
@@ -155,32 +87,6 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, [viewMode]);
-
-  const exportRangeDays = daysBetween(exportStartDate, exportEndDate);
-  const exportRangeValid = exportEndDate >= exportStartDate && exportRangeDays <= MAX_EXPORT_RANGE_DAYS;
-
-  const handleExportStartDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') setShowExportStartPicker(false);
-    if (event.type === 'set' && selectedDate) setExportStartDate(selectedDate);
-  };
-
-  const handleExportEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') setShowExportEndPicker(false);
-    if (event.type === 'set' && selectedDate) setExportEndDate(selectedDate);
-  };
-
-  const handleExportPdf = async () => {
-    if (!exportRangeValid) return;
-    setExporting(true);
-    setExportError(null);
-    try {
-      await exportPeriodReportPdf(user?.name ?? '', exportStartDate, exportEndDate);
-    } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Nao foi possivel exportar o relatorio em PDF.'));
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const goToPreviousMonth = () => {
     if (viewMode.type === 'rolling') {
@@ -237,77 +143,10 @@ export default function HomeScreen() {
     }, [fetchInsight])
   );
 
-  const fetchActiveOfficialChallenges = useCallback(async () => {
-    try {
-      const active = await listMyActiveChallenges({ is_official: true });
-      const heatmapByChallenge = Object.fromEntries(
-        await Promise.all(
-          active.map(async (challenge) => {
-            const days =
-              challenge.goal_type === 'manual'
-                ? buildChallengeHeatmapDays(challenge, await listMyChallengeCheckins(challenge.id))
-                : buildAutomaticChallengeHeatmapDays(challenge, await getChallengeProgress(challenge.id));
-            return [challenge.id, days] as const;
-          })
-        )
-      );
-      setActiveOfficialChallenges(active);
-      setActiveChallengeHeatmapById(heatmapByChallenge);
-      setChallengeCarouselIndex(0);
-    } catch {
-      setActiveOfficialChallenges([]);
-      setActiveChallengeHeatmapById({});
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchActiveOfficialChallenges();
-    }, [fetchActiveOfficialChallenges])
-  );
-
-  const handleChallengeCarouselScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / CHALLENGE_CARD_WIDTH);
-    setChallengeCarouselIndex(index);
-  };
-
   // Sinal explicito, alem do foco de navegacao: voltar de uma tela modal (ex:
   // /weight/new) nem sempre dispara o evento de foco do tab de forma
   // confiavel em todo dispositivo — isso garante o recarregamento mesmo assim.
   useEffect(() => subscribeToDashboardChanges(fetchSummary), [fetchSummary]);
-
-  // Extraida pra ser reaproveitada tanto no caso de 1 desafio so (sem
-  // carrossel, mesmo card/markup de sempre) quanto em cada pagina do
-  // carrossel quando ha mais de um — evita duplicar o JSX do card.
-  const renderChallengeProgressCard = (challenge: Challenge) => (
-    <Pressable
-      key={challenge.id}
-      style={activeOfficialChallenges.length > 1 ? styles.challengeCarouselItem : undefined}
-      onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: challenge.id } })}
-    >
-      <LiquiglassCard style={styles.challengeProgressCard}>
-        <View style={styles.challengeProgressHeader}>
-          <View style={styles.challengeProgressIconWrap}>
-            <Ionicons name="trophy" size={20} color={colors2.primary} />
-          </View>
-          <View style={styles.challengeProgressTexts}>
-            <Text style={styles.challengeProgressTitle}>{challenge.title}</Text>
-            <Text style={styles.challengeProgressSubtitle}>
-              Dia {challengeDayProgress(challenge).current} de {challengeDayProgress(challenge).total}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-        </View>
-        <HeatmapGrid
-          days={activeChallengeHeatmapById[challenge.id] ?? []}
-          todayKey={todayKey()}
-          cellSize={10}
-          showDayNumbers={false}
-          showWeekdayHeaders={false}
-        />
-      </LiquiglassCard>
-    </Pressable>
-  );
 
   const weightChangeLabel =
     summary?.weight_change_kg != null
@@ -317,34 +156,61 @@ export default function HomeScreen() {
   const deficitLabel = deficit != null ? `${Math.round(deficit)}` : '--';
 
   return (
-    <ScreenBackground2>
+    <ScreenBackground3>
     <ScrollView
       style={styles.flex}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing2.xl }]}
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingTop: insets.top + spacing3.md,
+          // Tab bar flutuante nao empurra mais o layout (era barra fixa
+          // antes, o React Navigation reservava esse espaco sozinho) —
+          // sem isso, o ultimo item do scroll (TrainerPartnerRow) fica
+          // parcialmente escondido atras dela. altura da barra +
+          // espaco ate a safe area + respiro extra pedido (spacing3.lg).
+          paddingBottom: insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + spacing3.lg,
+        },
+      ]}
     >
-      <View style={styles.header}>
-        <View>
-          {/*
-            "Tryv" pequeno acima da saudacao (nao o displayHero inteiro de
-            36px, que ficaria maior que a propria saudacao e competiria com
-            ela) — reaproveita fontFamily/color base de typography2.displayHero,
-            so com fontSize/lineHeight/letterSpacing reduzidos pra escala de
-            tag de marca, e colors2.primary pra reforcar que e um elemento
-            diferente da saudacao pessoal (essa fica em onSurface, cor padrao).
-          */}
+      {/*
+        O HTML de referencia tem uma TopAppBar fixa/sticky separada
+        (hamburger + "TRYV" central + avatar, sempre visivel por cima do
+        scroll) e a saudacao como uma secao a parte, mais abaixo, dentro do
+        scroll. Nao implementei a barra fixa de verdade (position fixed) —
+        exigiria reestruturar a tela em 2 camadas (header fora do
+        ScrollView) e um botao de menu hamburguer sem nenhum menu/drawer
+        real por tras dele (o app nao tem esse recurso) — mantive o "Tryv"
+        + avatar como a primeira linha do proprio scroll, igual a versao
+        anterior, so retemado. A saudacao abaixo segue exatamente a secao
+        "Header & Greeting" do HTML (so "Olá, Nome" + data, sem logo/avatar
+        junto).
+      */}
+      <View style={styles.headerBlock}>
+        <View style={styles.brandRow}>
           <Text style={styles.logo}>Tryv</Text>
-          <Text style={styles.greeting}>Olá, {firstName}</Text>
-          <Text style={styles.subtitle}>Vamos treinar hoje?</Text>
+          <View style={styles.headerActions}>
+            <ProfileAvatarButton size={32} />
+            <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
+              <Ionicons name="log-out-outline" size={20} color={colors3.onSurfaceVariant} />
+            </Pressable>
+          </View>
         </View>
-        <View style={styles.headerActions}>
-          <ProfileAvatarButton size={40} />
-          <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
-            <Ionicons name="log-out-outline" size={22} color={colors2.onSurfaceVariant} />
-          </Pressable>
+
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Olá, {firstName}</Text>
+          <Text style={styles.dateLabel}>{todayLabel()}</Text>
         </View>
       </View>
 
-      {/* 2. Card de Saude — primeiro bloco de conteudo depois da saudacao. */}
+      {/*
+        1. Hero "Começar treino" — religado (estava removido nesta mesma
+        migracao pro tema claro, ver historico) — so aparece com plano IA
+        ativo + dia real mapeado (day_of_week), ver TodayWorkoutCard.tsx.
+        Sem isso, a Home comeca direto no grid de saude, como antes.
+      */}
+      <TodayWorkoutCard />
+
+      {/* 2. Card de Saude. */}
       <HealthMetricsGrid />
 
       {/*
@@ -362,164 +228,67 @@ export default function HomeScreen() {
       <TrainingFrequencyCard />
 
       {/*
-        5. Exportar PDF — troca dos 2 atalhos fixos (7/30 dias) por um
-        seletor de intervalo livre, mesmo padrao de campo de data ja usado
-        em challenges/new.tsx (Pressable abrindo DateTimePicker inline no
-        iOS / modal no Android). Teto de 90 dias validado aqui pra feedback
-        imediato, e de novo no backend (validate_date_range) como rede de
-        seguranca.
+        5-8. Carrossel unificado "Para voce" — Treino com IA, Relatorio em
+        PDF e Desafios (cada slide e um componente auto-suficiente, mesmo
+        padrao ja usado por AiWorkoutCard/DesafiosCarouselSlide). O Desafios
+        "sabe" mostrar sozinho o progresso real quando ha desafio(s)
+        oficial(is) ativo(s), ou o convite generico quando nao ha nenhum —
+        ver DesafiosCarouselSlide.tsx.
+
+        O card de "Exportar PDF" (antes fixo aqui, com os 2 seletores de
+        data direto na Home) virou o slide ExportPdfCard.tsx: abre
+        app/export-pdf.tsx (modal com a mesma logica/validacao de antes,
+        so realocada) em vez de ficar sempre visivel ocupando espaco fixo.
+        Reaproveita a imagem "acompanhamento-profissional-card.png", que
+        ficou sem uso quando TrainersHighlight foi escondida do
+        marketplace pre-lancamento (ver comentario dela abaixo).
       */}
-      <LiquiglassCard style={styles.exportCard}>
-        <Text style={styles.exportLabel}>Exportar relatório em PDF</Text>
+      <Text style={styles.forYouTitle}>Para você</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.forYouRow}
+        style={styles.forYouScroll}
+      >
+        <AiWorkoutCard />
+        <ExportPdfCard />
+        {/* Marketplace desativado pre-lancamento — TrainersHighlight ("Acompanhamento
+            profissional") escondida do carrossel. Nao apagar: so reativar esta linha
+            quando o marketplace de profissionais for relancado. */}
+        <DesafiosCarouselSlide />
+      </ScrollView>
 
-        <View style={styles.exportDateField}>
-          <Text style={styles.exportDateLabel}>Data inicial</Text>
-          <Pressable style={styles.exportDateButton} onPress={() => setShowExportStartPicker(true)}>
-            <Ionicons name="calendar-outline" size={16} color={colors2.primary} />
-            <Text style={styles.exportDateButtonText}>{formatExportDate(exportStartDate)}</Text>
-          </Pressable>
-          {showExportStartPicker && (
-            <DateTimePicker
-              value={exportStartDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={handleExportStartDateChange}
-              maximumDate={exportEndDate}
-            />
-          )}
-          {Platform.OS === 'ios' && showExportStartPicker && (
-            <Button2 label="Concluir" variant="secondary" onPress={() => setShowExportStartPicker(false)} />
-          )}
-        </View>
-
-        <View style={styles.exportDateField}>
-          <Text style={styles.exportDateLabel}>Data final</Text>
-          <Pressable style={styles.exportDateButton} onPress={() => setShowExportEndPicker(true)}>
-            <Ionicons name="calendar-outline" size={16} color={colors2.primary} />
-            <Text style={styles.exportDateButtonText}>{formatExportDate(exportEndDate)}</Text>
-          </Pressable>
-          {showExportEndPicker && (
-            <DateTimePicker
-              value={exportEndDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={handleExportEndDateChange}
-              minimumDate={exportStartDate}
-              maximumDate={new Date()}
-            />
-          )}
-          {Platform.OS === 'ios' && showExportEndPicker && (
-            <Button2 label="Concluir" variant="secondary" onPress={() => setShowExportEndPicker(false)} />
-          )}
-        </View>
-
-        {!exportRangeValid && (
-          <Text style={styles.error}>
-            {exportEndDate < exportStartDate
-              ? 'A data final precisa ser igual ou posterior a data inicial.'
-              : `O período não pode ultrapassar ${MAX_EXPORT_RANGE_DAYS} dias (selecionado: ${exportRangeDays}).`}
-          </Text>
-        )}
-        {!!exportError && <Text style={styles.error}>{exportError}</Text>}
-
-        <Button2
-          label="Exportar relatório em PDF"
-          onPress={handleExportPdf}
-          loading={exporting}
-          disabled={!exportRangeValid}
-        />
-      </LiquiglassCard>
+      {/* Marketplace desativado pre-lancamento — TrainerPartnerRow ("seja nosso
+          parceiro") escondida. Nao apagar: so reativar esta linha quando o
+          marketplace de profissionais for relancado. Ver TrainerPartnerRow.tsx. */}
 
       {/*
-        6. Desafios — se participa ativamente de desafio(s) "App" (oficial
-        Tryv), o card vira uma previa de progresso real (heatmap + "Dia X
-        de Y") em vez da imagem estatica, indo direto pro desafio em
-        questao. Com mais de 1 desafio oficial ativo ao mesmo tempo (ex:
-        musculacao/corrida + alimentacao no mesmo mes), vira carrossel —
-        com 0 ou 1, comportamento identico a antes (sem carrossel
-        desnecessario). Sem participacao ativa em nenhum, continua como
-        antes (imagem + link generico pra aba Desafios). So considera
-        desafios "App" aqui, conforme pedido — progresso de desafios
-        "Personal" fica no Perfil.
+        Conteudo Pro existente (comparacao mensal, prontidao, insight do
+        dia, recordes pessoais, resumo do periodo e evolucao de peso) — nao
+        fazia parte da lista numerada de reorganizacao pedida, entao
+        mantive tudo junto (mesma adjacencia de antes) e movi pro fim da
+        Home: os itens 2-8 acima sao conteudo de "relance" + descoberta
+        (gratuitos), enquanto isso aqui e relatorio/analise mais profunda
+        (a maioria Pro) — faz mais sentido ficar depois, nao competindo com
+        os cards de entrada rapida do topo. Decisao de design minha, nao
+        especificada explicitamente no pedido.
+
+        O navegador de mes ("< Últimos 30 dias >") NAO foi removido — so
+        reposicionado pra dentro do titulo do card de estatisticas logo
+        abaixo (styles.statsCard), que e o unico conteudo que ele de fato
+        controla (getHomeSummary com viewMode.month). Ficava solto aqui em
+        cima, sem nenhum card visivel ao lado pra explicar o que ele fazia
+        — e a unica forma no app de ver o resumo de um mes especifico
+        (confirmado: getHomeSummary com `month` so e chamado aqui), entao
+        mantive a funcionalidade, so anexada ao lugar certo.
       */}
-      {activeOfficialChallenges.length === 0 ? (
-        <ImageCoverCard
-          image={require('../../assets/imagens/desafios-card.png')}
-          title="Desafios"
-          subtitle="Acompanhe desafios dos seus profissionais"
-          accessibilityLabel="Grupo de pessoas correndo a noite"
-          onPress={() => router.push('/challenges')}
-        />
-      ) : activeOfficialChallenges.length === 1 ? (
-        renderChallengeProgressCard(activeOfficialChallenges[0])
-      ) : (
-        <View>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={CHALLENGE_CARD_WIDTH}
-            decelerationRate="fast"
-            onMomentumScrollEnd={handleChallengeCarouselScrollEnd}
-          >
-            {activeOfficialChallenges.map(renderChallengeProgressCard)}
-          </ScrollView>
-          <View style={styles.challengeCarouselDots}>
-            {activeOfficialChallenges.map((challenge, index) => (
-              <View
-                key={challenge.id}
-                style={[styles.challengeCarouselDot, index === challengeCarouselIndex && styles.challengeCarouselDotActive]}
-              />
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* 7. Treino com IA — novo. */}
-      <AiWorkoutCard />
-
-      {/* 8. Acompanhamento profissional — agora fluxo em 2 passos (ver TrainersHighlight). */}
-      <TrainersHighlight />
-
-      {/*
-        Conteudo Pro existente (comparacao mensal, seletor de mes,
-        prontidao, insight do dia, recordes pessoais, resumo do periodo e
-        evolucao de peso) — nao fazia parte da lista numerada de reorganizacao
-        pedida, entao mantive tudo junto (mesma adjacencia de antes) e movi
-        pro fim da Home: os itens 2-8 acima sao conteudo de "relance" +
-        descoberta (gratuitos), enquanto isso aqui e relatorio/analise mais
-        profunda (a maioria Pro) — faz mais sentido ficar depois, nao
-        competindo com os cards de entrada rapida do topo. Decisao de
-        design minha, nao especificada explicitamente no pedido.
-      */}
-      <View style={styles.monthSelector}>
-        <Pressable onPress={goToPreviousMonth} hitSlop={8} style={styles.monthArrow}>
-          <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
-        </Pressable>
-        <Text style={styles.monthLabel}>
-          {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
-        </Text>
-        <Pressable
-          onPress={goToNextMonth}
-          hitSlop={8}
-          style={styles.monthArrow}
-          disabled={viewMode.type === 'rolling'}
-        >
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={viewMode.type === 'rolling' ? colors2.outlineVariant : colors2.onSurfaceVariant}
-          />
-        </Pressable>
-      </View>
-
       <MonthComparisonCard />
 
       <ReadinessCard />
 
       {insightLoading && (
         <View style={styles.insightLoading}>
-          <ActivityIndicator size="small" color={colors2.violet} />
+          <ActivityIndicator size="small" color={colors3.primary} />
         </View>
       )}
       {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
@@ -527,14 +296,31 @@ export default function HomeScreen() {
       <PersonalRecordsCard />
 
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+      {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
       {!loading && summary && (
         <>
           <LiquiglassCard style={styles.statsCard}>
-            <Text style={styles.cardTitle}>
-              {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
-            </Text>
+            <View style={styles.statsCardHeader}>
+              <Pressable onPress={goToPreviousMonth} hitSlop={8} style={styles.monthArrow}>
+                <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
+              </Pressable>
+              <Text style={[styles.cardTitle, styles.statsCardTitle]}>
+                {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
+              </Text>
+              <Pressable
+                onPress={goToNextMonth}
+                hitSlop={8}
+                style={styles.monthArrow}
+                disabled={viewMode.type === 'rolling'}
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={viewMode.type === 'rolling' ? colors2.outlineVariant : colors2.onSurfaceVariant}
+                />
+              </Pressable>
+            </View>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{weightChangeLabel}</Text>
@@ -563,63 +349,42 @@ export default function HomeScreen() {
         </>
       )}
     </ScrollView>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  challengeProgressCard: { gap: spacing2.md },
-  challengeProgressHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  challengeProgressIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: radius2.pill,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  challengeProgressTexts: { flex: 1, gap: 2 },
-  challengeProgressTitle: { ...typography2.bodyMd, fontWeight: '700' },
-  challengeProgressSubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
-  challengeCarouselItem: { width: CHALLENGE_CARD_WIDTH },
-  challengeCarouselDots: { flexDirection: 'row', justifyContent: 'center', gap: spacing2.xs, marginTop: spacing2.sm },
-  challengeCarouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors2.outlineVariant },
-  challengeCarouselDotActive: { backgroundColor: colors2.violet, width: 16 },
+  forYouTitle: { ...typography3.labelMd, textTransform: 'uppercase', color: colors3.onSurfaceVariant, marginBottom: -spacing3.xs },
+  forYouScroll: { marginHorizontal: -spacing3.containerMargin },
+  forYouRow: { gap: spacing3.md, paddingHorizontal: spacing3.containerMargin },
   flex: { flex: 1 },
-  container: { padding: spacing2.containerMargin, gap: spacing2.md },
-  header: {
+  container: { padding: spacing3.containerMargin, gap: spacing3.xl },
+  headerBlock: { gap: spacing3.md },
+  brandRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing2.md,
+    alignItems: 'center',
   },
   logo: {
-    ...typography2.displayHero,
-    fontSize: 18,
-    lineHeight: 20,
-    letterSpacing: -0.4,
-    color: colors2.primary,
-    marginBottom: 2,
+    ...typography3.displayLg,
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: colors3.primary,
   },
-  greeting: { ...typography2.headlineLgMobile, fontSize: 26 },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.xs },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  header: { gap: spacing3.sm },
+  greeting: { ...typography3.headlineLgMobile },
+  dateLabel: { ...typography3.labelSm, color: colors3.onSurfaceVariant, textTransform: 'uppercase' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
-    backgroundColor: colors2.surfaceContainer,
+    width: 32,
+    height: 32,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing2.md,
-    marginBottom: spacing2.sm,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
   },
   monthArrow: {
     width: 32,
@@ -627,28 +392,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthLabel: { ...typography2.bodyMd, fontWeight: '600', minWidth: 140, textAlign: 'center' },
-  exportCard: { gap: spacing2.md },
-  exportLabel: { ...typography2.labelCaps, textTransform: 'none' },
-  exportDateField: { gap: spacing2.xs },
-  exportDateLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
-  exportDateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing2.sm,
-    backgroundColor: colors2.surfaceContainer,
-    borderRadius: radius2.md,
-    borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    paddingHorizontal: spacing2.md,
-    paddingVertical: spacing2.sm + 4,
-  },
-  exportDateButtonText: { ...typography2.bodyMd },
-  error: { color: colors2.danger, textAlign: 'center' },
-  loading: { marginTop: spacing2.lg },
-  insightLoading: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
+  error: { color: colors3.error, textAlign: 'center' },
+  loading: { marginTop: spacing3.lg },
+  insightLoading: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
   statsCard: { gap: spacing2.md },
+  statsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { ...typography2.headlineMd, fontSize: 18 },
+  statsCardTitle: { flex: 1, textAlign: 'center' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'flex-start', flex: 1 },
   statNumber: { ...typography2.metricMono, fontSize: 22 },

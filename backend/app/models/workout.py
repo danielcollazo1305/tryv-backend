@@ -35,7 +35,19 @@ class WorkoutSession(Base):
     __tablename__ = "workout_sessions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    plan_id = Column(UUID(as_uuid=True), ForeignKey("workout_plans.id"), nullable=False)
+    # Nullable — sessao "livre" (sem plano associado, exercicios escolhidos
+    # manualmente pelo usuario) nao tem workout_plans.id nenhum pra
+    # referenciar. Sessoes vindas de um plano (POST /workout-plans/{id}/sessions)
+    # continuam preenchendo isso normalmente. Ver migration
+    # 20260825_plan_id_nullable_workout_sessions.
+    plan_id = Column(UUID(as_uuid=True), ForeignKey("workout_plans.id"), nullable=True)
+
+    # user_id direto na sessao (nao so via plan_id->user_id) — necessario
+    # pra sessao livre, que nao tem plano pra derivar o dono. Sessoes de
+    # plano tambem preenchem isso agora (redundante com plan.user_id, mas
+    # permite consultar TODO o historico do usuario num JOIN so, sem
+    # precisar de LEFT JOIN condicional plan/sem-plano).
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     exercises = Column(JSON, nullable=True)  # exercícios realizados na sessão
     calories_burned = Column(Float, nullable=True)

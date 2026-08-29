@@ -1,6 +1,8 @@
 import {
+  AuthorizationRequestStatus,
   CategoryValueSleepAnalysis,
   getMostRecentQuantitySample,
+  getRequestStatusForAuthorization,
   isHealthDataAvailable,
   queryCategorySamples,
   queryQuantitySamples,
@@ -11,8 +13,15 @@ import {
   WorkoutActivityType,
 } from '@kingstinct/react-native-healthkit';
 import type { Quantity, QuantityTypeIdentifier, UnitForIdentifier, WorkoutProxyTyped } from '@kingstinct/react-native-healthkit';
+import * as SecureStore from 'expo-secure-store';
 
 import { ActivityType, RoutePoint } from '@/services/activities';
+
+// Movido de components/HealthSummaryCard.tsx pra ca (services/healthkit.ts
+// re-exporta de la, ver comentario no arquivo original) — precisa estar
+// aqui porque ensureHealthKitAuthorized (abaixo) tambem le essa flag, e um
+// service nao deveria importar de um componente.
+export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
 
 export interface HealthKitWorkout {
   id: string;
@@ -60,23 +69,76 @@ export async function isHealthKitAvailable(): Promise<boolean> {
   return isHealthDataAvailable();
 }
 
+// Lista unica de tipos de leitura — usada tanto por requestHealthKitPermissions
+// (pede autorizacao) quanto por isHealthKitReallyAuthorized (checa se ja foi
+// autorizado) — as 2 chamadas precisam da MESMA lista, senao a checagem
+// poderia dizer "unnecessary" sem cobrir um tipo que o pedido de fato usa.
+// RespiratoryRate adicionado nesta tarefa (detalhe de Sono, ver
+// fetchSleepSessionDetail) — usuarios que ja conectaram antes disso vao
+// ficar com esse tipo especifico em notDetermined ate o app re-pedir (ver
+// ensureHealthKitAuthorized, que faz isso sozinho, sem exigir toque manual
+// em "Conectar" de novo).
+const HEALTHKIT_READ_TYPES = [
+  'HKWorkoutTypeIdentifier',
+  'HKQuantityTypeIdentifierHeartRate',
+  'HKQuantityTypeIdentifierStepCount',
+  'HKQuantityTypeIdentifierDistanceWalkingRunning',
+  'HKQuantityTypeIdentifierActiveEnergyBurned',
+  'HKCategoryTypeIdentifierSleepAnalysis',
+  'HKQuantityTypeIdentifierRespiratoryRate',
+  // Adicionado pro detalhe de Frequencia cardiaca (HeartRateDetailView) —
+  // valor de "Descansando" calculado pelo proprio algoritmo da Apple
+  // (periodos de baixa atividade + FC baixa ao longo do dia), mais preciso
+  // que so pegar o minimo bruto das amostras do dia.
+  'HKQuantityTypeIdentifierRestingHeartRate',
+] as const;
+
 /**
  * Solicita autorizacao de leitura para tudo que o hub de saude do Tryv usa. O
  * HealthKit mostra um unico dialogo com todos os tipos de uma vez (o usuario
  * escolhe o que autorizar ali), entao nao ha ganho em pedir incrementalmente
- * por secao — so multiplicaria os dialogos para os mesmos dados.
+ * por secao — so multiplicaria os dialogos para os mesmos dados. Tipos ja
+ * determinados (autorizados ou negados) antes NAO sao re-perguntados — so
+ * tipos novos/nao determinados aparecem no dialogo.
  */
 export async function requestHealthKitPermissions(): Promise<boolean> {
-  return requestAuthorization({
-    toRead: [
-      'HKWorkoutTypeIdentifier',
-      'HKQuantityTypeIdentifierHeartRate',
-      'HKQuantityTypeIdentifierStepCount',
-      'HKQuantityTypeIdentifierDistanceWalkingRunning',
-      'HKQuantityTypeIdentifierActiveEnergyBurned',
-      'HKCategoryTypeIdentifierSleepAnalysis',
-    ],
-  });
+  return requestAuthorization({ toRead: HEALTHKIT_READ_TYPES });
+}
+
+/**
+ * Fonte de verdade REAL de autorizacao (nao a flag local
+ * HEALTHKIT_CONNECTED_KEY, que so guarda "o usuario passou pelo fluxo uma
+ * vez" e sobrevive a reinstalacoes via Keychain — ver investigacao do bug
+ * "historico de Sono sempre dava erro"). `unnecessary` = todos os tipos de
+ * HEALTHKIT_READ_TYPES ja foram determinados (autorizados ou negados)
+ * pelo usuario NESTE binario — chamar requestAuthorization de novo nao
+ * mostraria dialogo nenhum.
+ */
+export async function isHealthKitReallyAuthorized(): Promise<boolean> {
+  const status = await getRequestStatusForAuthorization({ toRead: HEALTHKIT_READ_TYPES });
+  return status === AuthorizationRequestStatus.unnecessary;
+}
+
+/**
+ * Decide se pode seguir direto pra buscar dados. Ordem: (1) checa a
+ * autorizacao REAL primeiro; (2) so se isso falhar E a flag local disser
+ * "ja conectei antes", tenta re-pedir autorizacao sozinho (silencioso, sem
+ * exigir o usuario tocar em "Conectar" de novo) — cobre exatamente o caso
+ * de um tipo novo (ex: RespiratoryRate) ter sido adicionado depois que o
+ * usuario ja tinha conectado; os tipos ja determinados antes nao sao
+ * re-perguntados, entao isso nao reabre o dialogo inteiro à toa. So
+ * devolve false (manda pra tela de "Conectar") quando realmente nunca
+ * autorizou nada neste binario, ou quando o re-pedido falha/e negado.
+ */
+export async function ensureHealthKitAuthorized(): Promise<boolean> {
+  if (await isHealthKitReallyAuthorized()) return true;
+
+  const alreadyConnectedFlag = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
+  if (!alreadyConnectedFlag) return false;
+
+  const granted = await requestHealthKitPermissions();
+  if (!granted) return false;
+  return isHealthKitReallyAuthorized();
 }
 
 async function extractRoutePoints(workout: WorkoutProxyTyped): Promise<RoutePoint[] | null> {
@@ -246,6 +308,215 @@ async function safe<T>(promise: Promise<T>): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Detalhe da ultima noite de sono (estagios + timeline + FC/respiracao
+// durante o sono), usado pela tela de detalhe de Sono (SleepDetailView.tsx)
+// — MAIS detalhado que fetchLastNightSleepHours acima (que so soma um
+// total), inspirado no nivel de detalhe do Garmin Connect (so a estrutura/
+// dados, sem copiar o design — ver investigacao anterior).
+
+/** HealthKit nao tem estagio "leve" separado de "core" — Core JA E o sono leve (Deep/REM sao os outros 2 estagios reais monitorados). inBed listado a parte pra timeline (nao entra nos minutos por estagio, ver fetchSleepSessionDetail). */
+export type SleepStage = 'deep' | 'core' | 'rem' | 'awake' | 'inBed';
+
+export interface SleepStageSegment {
+  stage: SleepStage;
+  /** ISO, sempre dentro da janela da ultima noite. */
+  startDate: string;
+  endDate: string;
+}
+
+export interface SleepStageBreakdown {
+  deepMinutes: number;
+  /** Soma de amostras 'core' (rotulado "Leve" na UI) + 'asleepUnspecified' (fonte que nao diferencia estagio — tratada como generica/leve, nao descartada). */
+  lightMinutes: number;
+  remMinutes: number;
+  awakeMinutes: number;
+  /** deep + light + rem (nao inclui awake nem inBed). */
+  totalAsleepMinutes: number;
+}
+
+export interface SleepSessionDetail {
+  /** 'YYYY-MM-DD' do dia em que a pessoa ACORDOU — mesmo criterio ja usado em fetchSleepHistoryBuckets. */
+  date: string;
+  /** ISO do inicio/fim da sessao (primeiro/ultimo segmento da noite) — usados tambem como janela pra buscar FC/respiracao "durante o sono". */
+  startedAt: string;
+  endedAt: string;
+  breakdown: SleepStageBreakdown;
+  /** Ordenados cronologicamente — pra timeline visual (barra empilhada horizontal). */
+  segments: SleepStageSegment[];
+  /** HKQuantityTypeIdentifierHeartRate na janela [startedAt, endedAt] — null se nao houver amostra (ex: sem Apple Watch durante o sono). Mesmo formato de `respiratoryRate` abaixo (media + mais baixa, nao so 1 numero). */
+  heartRate: { average: number | null; lowest: number | null };
+  /** A partir de HKQuantityTypeIdentifierRespiratoryRate na mesma janela — precisa da permissao nova (ver HEALTHKIT_READ_TYPES). */
+  respiratoryRate: { average: number | null; lowest: number | null };
+}
+
+function categorySampleToStage(value: CategoryValueSleepAnalysis): SleepStage | null {
+  switch (value) {
+    case CategoryValueSleepAnalysis.inBed:
+      return 'inBed';
+    case CategoryValueSleepAnalysis.awake:
+      return 'awake';
+    case CategoryValueSleepAnalysis.asleepCore:
+    case CategoryValueSleepAnalysis.asleepUnspecified:
+      return 'core';
+    case CategoryValueSleepAnalysis.asleepDeep:
+      return 'deep';
+    case CategoryValueSleepAnalysis.asleepREM:
+      return 'rem';
+    default:
+      return null;
+  }
+}
+
+// Gap minimo (acordado, sem NENHUMA amostra de sono) pra considerar que
+// uma sessao terminou e outra comecou — tolera uma pausa normal no meio da
+// noite (banheiro, checar o celular) sem fragmentar a MESMA noite em 2
+// sessoes, mas separa corretamente sessoes de fato distintas (uma soneca
+// da tarde, ou a noite anterior, dentro das mesmas 32h de lookback).
+const SLEEP_SESSION_GAP_MINUTES = 90;
+
+/**
+ * Agrupa amostras cronologicas (ascending) em sessoes distintas, cortando
+ * sempre que o intervalo entre o fim de uma amostra (ou o maior fim ja
+ * visto no grupo atual, pra tolerar amostras fora de ordem/sobrepostas) e
+ * o inicio da proxima passar de SLEEP_SESSION_GAP_MINUTES. Sem isso,
+ * fetchSleepSessionDetail somava TODAS as amostras da janela de 32h como
+ * se fossem uma sessao so — bug confirmado (noite mostrando "31h na cama"
+ * por juntar 2+ noites/sonecos).
+ */
+function groupSamplesIntoSessions<T extends { startDate: Date; endDate: Date }>(samples: T[]): T[][] {
+  const sessions: T[][] = [];
+  let current: T[] = [];
+  let currentMaxEnd = 0;
+
+  for (const sample of samples) {
+    if (current.length === 0) {
+      current = [sample];
+      currentMaxEnd = sample.endDate.getTime();
+      continue;
+    }
+    const gapMinutes = (sample.startDate.getTime() - currentMaxEnd) / (1000 * 60);
+    if (gapMinutes > SLEEP_SESSION_GAP_MINUTES) {
+      sessions.push(current);
+      current = [sample];
+      currentMaxEnd = sample.endDate.getTime();
+    } else {
+      current.push(sample);
+      currentMaxEnd = Math.max(currentMaxEnd, sample.endDate.getTime());
+    }
+  }
+  if (current.length > 0) sessions.push(current);
+  return sessions;
+}
+
+/**
+ * Detalhe completo da ultima noite de sono. Busca candidatos nas ultimas
+ * 32h (mesma janela de fetchLastNightSleepHours) mas agora AGRUPA os
+ * candidatos por sessao (groupSamplesIntoSessions, gap de 90min) e usa SO
+ * a sessao mais recente — as 32h sao so o alcance da busca, nao a
+ * sessao em si (correcao do bug de noites/sonecas sendo somadas juntas).
+ * Busca FC/respiracao dentro do intervalo real [1o segmento, ultimo
+ * segmento] dessa sessao (nao um dia civil — queryStatisticsForQuantity
+ * aceita qualquer Date como startDate/endDate do filtro).
+ */
+export async function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
+  const since = daysAgo(32 / 24);
+  const allSamples = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
+    filter: { date: { startDate: since } },
+    limit: 0,
+    ascending: true,
+  });
+  if (allSamples.length === 0) return null;
+
+  const sessions = groupSamplesIntoSessions(allSamples);
+  const samples = sessions[sessions.length - 1];
+
+  const breakdown: SleepStageBreakdown = { deepMinutes: 0, lightMinutes: 0, remMinutes: 0, awakeMinutes: 0, totalAsleepMinutes: 0 };
+  const segments: SleepStageSegment[] = [];
+
+  for (const sample of samples) {
+    const stage = categorySampleToStage(sample.value as CategoryValueSleepAnalysis);
+    if (!stage) continue;
+
+    segments.push({ stage, startDate: sample.startDate.toISOString(), endDate: sample.endDate.toISOString() });
+
+    const minutes = (sample.endDate.getTime() - sample.startDate.getTime()) / (1000 * 60);
+    if (stage === 'deep') breakdown.deepMinutes += minutes;
+    else if (stage === 'core') breakdown.lightMinutes += minutes;
+    else if (stage === 'rem') breakdown.remMinutes += minutes;
+    else if (stage === 'awake') breakdown.awakeMinutes += minutes;
+    // 'inBed' fica de fora dos minutos por estagio de proposito — quando a
+    // fonte grava estagio real (Apple Watch) ela normalmente ja cobre o
+    // periodo inteiro sem precisar de inBed separado; contar os 2 juntos
+    // dobraria a duracao total nesses casos.
+  }
+
+  if (segments.length === 0) return null;
+  breakdown.totalAsleepMinutes = breakdown.deepMinutes + breakdown.lightMinutes + breakdown.remMinutes;
+
+  // Mesmo raciocinio do "inBed fica de fora dos minutos" acima, aplicado a
+  // timeline: se a fonte gravou estagio real (deep/core/rem), os segmentos
+  // 'inBed' normalmente SOBREPOEM o mesmo intervalo (nao sao adicionais) —
+  // incluir os 2 na timeline (que empilha por ORDEM, nao por eixo de tempo
+  // de verdade) contaria o mesmo periodo 2x, alongando a barra. Sem estagio
+  // nenhum (so uma fonte manual tipo "Cama", sem relogio), inBed e a UNICA
+  // informacao que existe — melhor mostrar do que deixar a timeline vazia.
+  const hasStageData = breakdown.deepMinutes > 0 || breakdown.lightMinutes > 0 || breakdown.remMinutes > 0;
+  const timelineSegments = hasStageData ? segments.filter((s) => s.stage !== 'inBed') : segments;
+
+  const startedAt = segments.reduce((min, s) => (s.startDate < min ? s.startDate : min), segments[0].startDate);
+  const endedAt = segments.reduce((max, s) => (s.endDate > max ? s.endDate : max), segments[0].endDate);
+  const windowStart = new Date(startedAt);
+  const windowEnd = new Date(endedAt);
+
+  const [heartRateStats, respiratoryStats] = await Promise.all([
+    safe(
+      queryStatisticsForQuantity('HKQuantityTypeIdentifierHeartRate', ['discreteAverage', 'discreteMin'], {
+        filter: { date: { startDate: windowStart, endDate: windowEnd } },
+        unit: 'count/min',
+      })
+    ),
+    safe(
+      queryStatisticsForQuantity('HKQuantityTypeIdentifierRespiratoryRate', ['discreteAverage', 'discreteMin'], {
+        filter: { date: { startDate: windowStart, endDate: windowEnd } },
+        unit: 'count/min',
+      })
+    ),
+  ]);
+
+  return {
+    date: toDateKey(windowEnd),
+    startedAt,
+    endedAt,
+    breakdown,
+    segments: timelineSegments,
+    heartRate: {
+      average: heartRateStats?.averageQuantity ? Math.round(heartRateStats.averageQuantity.quantity) : null,
+      lowest: heartRateStats?.minimumQuantity ? Math.round(heartRateStats.minimumQuantity.quantity) : null,
+    },
+    respiratoryRate: {
+      average: respiratoryStats?.averageQuantity ? Math.round(respiratoryStats.averageQuantity.quantity * 10) / 10 : null,
+      lowest: respiratoryStats?.minimumQuantity ? Math.round(respiratoryStats.minimumQuantity.quantity * 10) / 10 : null,
+    },
+  };
+}
+
+/**
+ * Media de FC (HeartRate) numa janela de tempo arbitraria — usada pelo
+ * "bpm med." de cada atividade na tela de detalhe de FC (HeartRateDetailView),
+ * mesma tecnica ja usada acima pra "FC durante o sono" (queryStatisticsForQuantity
+ * com filtro de data), so exportada/generalizada pra qualquer janela.
+ */
+export async function fetchAverageHeartRate(start: Date, end: Date): Promise<number | null> {
+  const stats = await safe(
+    queryStatisticsForQuantity('HKQuantityTypeIdentifierHeartRate', ['discreteAverage'], {
+      filter: { date: { startDate: start, endDate: end } },
+      unit: 'count/min',
+    })
+  );
+  return stats?.averageQuantity ? Math.round(stats.averageQuantity.quantity) : null;
 }
 
 const EMPTY_HEART_RATE: HealthSummary['heartRate'] = {
@@ -538,6 +809,146 @@ export async function fetchHealthMetricHistory(
     case 'sleep':
       return buildHistory(period, offset, fetchSleepHistoryBuckets);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Detalhe de Frequencia cardiaca (visao "1 dia" e "7 dias"), usado por
+// HeartRateDetailView.tsx — bem mais detalhado que fetchHealthMetricHistory
+// acima (que so agrega o dia/mes inteiro numa media, pro grid generico das
+// 4 metricas). Inspirado no nivel de detalhe do Garmin Connect (so
+// estrutura/dados, sem copiar o design — ver investigacao anterior).
+
+export interface HeartRateIntradayPoint {
+  /** ISO — inicio do bucket de 10min. */
+  time: string;
+  bpm: number;
+}
+
+export interface DayHeartRateDetail {
+  /** 'YYYY-MM-DD' local. */
+  date: string;
+  /** Buckets de 10min (nao amostra crua — ver investigacao: controla volume de dado de forma previsivel). */
+  points: HeartRateIntradayPoint[];
+  /** HKQuantityTypeIdentifierRestingHeartRate do dia (calculado pela Apple) — null se nao houver. */
+  restingBpm: number | null;
+  /** discreteMax das amostras de HeartRate do dia — nao existe tipo "pico" calculado pela Apple. */
+  peakBpm: number | null;
+}
+
+async function fetchIntradayHeartRatePoints(dayStart: Date, dayEnd: Date): Promise<HeartRateIntradayPoint[]> {
+  const buckets = await queryStatisticsCollectionForQuantity(
+    'HKQuantityTypeIdentifierHeartRate',
+    ['discreteAverage'],
+    dayStart,
+    { minute: 10 },
+    { filter: { date: { startDate: dayStart, endDate: dayEnd } }, unit: 'count/min' }
+  );
+
+  const points: HeartRateIntradayPoint[] = [];
+  for (const bucket of buckets) {
+    if (!bucket.startDate || !bucket.averageQuantity) continue;
+    points.push({ time: bucket.startDate.toISOString(), bpm: Math.round(bucket.averageQuantity.quantity) });
+  }
+  return points;
+}
+
+/** Detalhe de FC de 1 dia especifico (dayOffset=0 e hoje, 1 e ontem, etc). */
+export async function fetchDayHeartRateDetail(dayOffset = 0): Promise<DayHeartRateDetail> {
+  const day = addDays(startOfToday(), -dayOffset);
+  const dayEnd = endOfDay(day);
+
+  const [points, restingStats, peakStats] = await Promise.all([
+    fetchIntradayHeartRatePoints(day, dayEnd),
+    safe(
+      queryStatisticsForQuantity('HKQuantityTypeIdentifierRestingHeartRate', ['discreteAverage'], {
+        filter: { date: { startDate: day, endDate: dayEnd } },
+        unit: 'count/min',
+      })
+    ),
+    safe(
+      queryStatisticsForQuantity('HKQuantityTypeIdentifierHeartRate', ['discreteMax'], {
+        filter: { date: { startDate: day, endDate: dayEnd } },
+        unit: 'count/min',
+      })
+    ),
+  ]);
+
+  return {
+    date: toDateKey(day),
+    points,
+    restingBpm: restingStats?.averageQuantity ? Math.round(restingStats.averageQuantity.quantity) : null,
+    peakBpm: peakStats?.maximumQuantity ? Math.round(peakStats.maximumQuantity.quantity) : null,
+  };
+}
+
+export interface WeekHeartRateDayPoint {
+  date: string;
+  restingBpm: number | null;
+  peakBpm: number | null;
+}
+
+export interface WeekHeartRateDetail {
+  days: WeekHeartRateDayPoint[];
+  /** Media dos 'restingBpm' diarios existentes na semana — "Méd. repouso". */
+  avgRestingBpm: number | null;
+  /** Media dos 'peakBpm' diarios existentes na semana — "Média-Alto". */
+  avgPeakBpm: number | null;
+}
+
+/** 1 estatistica por dia (nao amostra bruta da semana inteira — ver investigacao, ponto 4) via queryStatisticsCollectionForQuantity com bucket diario. */
+async function fetchDailyQuantityStat<T extends QuantityTypeIdentifier>(
+  identifier: T,
+  unit: UnitForIdentifier<T>,
+  statistic: 'discreteAverage' | 'discreteMax',
+  start: Date,
+  end: Date
+): Promise<Map<string, number>> {
+  const buckets = await queryStatisticsCollectionForQuantity(identifier, [statistic], start, { day: 1 }, {
+    filter: { date: { startDate: start, endDate: endOfDay(end) } },
+    unit,
+  });
+
+  const byKey = new Map<string, number>();
+  for (const bucket of buckets) {
+    if (!bucket.startDate) continue;
+    const quantity = statistic === 'discreteMax' ? bucket.maximumQuantity : bucket.averageQuantity;
+    if (!quantity) continue;
+    byKey.set(toDateKey(bucket.startDate), quantity.quantity);
+  }
+  return byKey;
+}
+
+/** Detalhe de FC dos ultimos 7 dias (weekOffset=0), 1 min/max por dia — nao amostra crua da semana. */
+export async function fetchWeekHeartRateDetail(weekOffset = 0): Promise<WeekHeartRateDetail> {
+  const end = addDays(startOfToday(), -weekOffset * 7);
+  const start = addDays(end, -6);
+
+  const [restingByDay, peakByDay] = await Promise.all([
+    fetchDailyQuantityStat('HKQuantityTypeIdentifierRestingHeartRate', 'count/min', 'discreteAverage', start, end),
+    fetchDailyQuantityStat('HKQuantityTypeIdentifierHeartRate', 'count/min', 'discreteMax', start, end),
+  ]);
+
+  const days: WeekHeartRateDayPoint[] = [];
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(start, i);
+    const key = toDateKey(day);
+    days.push({
+      date: key,
+      restingBpm: restingByDay.has(key) ? Math.round(restingByDay.get(key)!) : null,
+      peakBpm: peakByDay.has(key) ? Math.round(peakByDay.get(key)!) : null,
+    });
+  }
+
+  const restingValues = days.map((d) => d.restingBpm).filter((v): v is number => v != null);
+  const peakValues = days.map((d) => d.peakBpm).filter((v): v is number => v != null);
+
+  return {
+    days,
+    avgRestingBpm: restingValues.length
+      ? Math.round(restingValues.reduce((sum, v) => sum + v, 0) / restingValues.length)
+      : null,
+    avgPeakBpm: peakValues.length ? Math.round(peakValues.reduce((sum, v) => sum + v, 0) / peakValues.length) : null,
+  };
 }
 
 export async function fetchHealthSummary(): Promise<HealthSummary> {

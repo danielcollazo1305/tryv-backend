@@ -3,12 +3,12 @@ import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text,
 import { Ionicons } from '@expo/vector-icons';
 import { StackedBarChart } from 'react-native-chart-kit';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { MealDailySummary, MealsSummary, MealsSummaryPeriod, getMealsSummary } from '@/services/meals';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
+const CHART_WIDTH = SCREEN_WIDTH - spacing3.lg * 4;
 const MIN_BAR_SLOT = 34;
 
 const PERIOD_OPTIONS: { value: MealsSummaryPeriod; label: string }[] = [
@@ -117,7 +117,7 @@ export function MealsHistoryCard() {
   const chartWidth = Math.max(CHART_WIDTH, daily.length * MIN_BAR_SLOT);
 
   return (
-    <LiquiglassCard style={styles.card}>
+    <GlassCard variant="glass" style={styles.card}>
       <Text style={styles.title}>Historico</Text>
 
       <View style={styles.periodRow}>
@@ -137,7 +137,7 @@ export function MealsHistoryCard() {
 
       <View style={styles.navRow}>
         <Pressable onPress={() => setOffset((prev) => prev + 1)} hitSlop={8} style={styles.navArrow}>
-          <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
+          <Ionicons name="chevron-back" size={20} color={colors3.onSurfaceVariant} />
         </Pressable>
         <Text style={styles.navLabel}>{summary ? formatWindowRange(summary) : ''}</Text>
         <Pressable
@@ -146,11 +146,11 @@ export function MealsHistoryCard() {
           style={styles.navArrow}
           disabled={offset === 0}
         >
-          <Ionicons name="chevron-forward" size={20} color={offset === 0 ? colors2.outlineVariant : colors2.onSurfaceVariant} />
+          <Ionicons name="chevron-forward" size={20} color={offset === 0 ? colors3.outlineVariant : colors3.onSurfaceVariant} />
         </Pressable>
       </View>
 
-      {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+      {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
       {!!error && <Text style={styles.error}>{error}</Text>}
 
       {!loading && !error && summary && (
@@ -177,10 +177,10 @@ export function MealsHistoryCard() {
               hideLegend
               withHorizontalLabels={false}
               chartConfig={{
-                backgroundGradientFrom: colors2.surfaceContainer,
-                backgroundGradientTo: colors2.surfaceContainer,
-                color: () => colors2.onSurfaceVariant,
-                labelColor: () => colors2.onSurfaceVariant,
+                backgroundGradientFrom: colors3.surfaceContainer,
+                backgroundGradientTo: colors3.surfaceContainer,
+                color: () => colors3.onSurfaceVariant,
+                labelColor: () => colors3.onSurfaceVariant,
                 propsForLabels: { fontSize: 10 },
               }}
               style={styles.chart}
@@ -218,55 +218,55 @@ export function MealsHistoryCard() {
           </View>
         </>
       )}
-    </LiquiglassCard>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing2.md },
-  title: { ...typography2.headlineMd, fontSize: 18 },
+  card: { gap: spacing3.md },
+  title: { ...typography3.headlineMd, fontSize: 18 },
 
-  periodRow: { flexDirection: 'row', gap: spacing2.xs },
+  periodRow: { flexDirection: 'row', gap: spacing3.xs },
   periodPill: {
     flex: 1,
-    paddingVertical: spacing2.sm - 2,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    paddingVertical: spacing3.sm - 2,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
     alignItems: 'center',
   },
-  periodPillSelected: { backgroundColor: colors2.violet, borderColor: colors2.violet },
-  periodPillText: { ...typography2.labelCaps, fontSize: 11 },
-  periodPillTextSelected: { color: colors2.white, fontWeight: '700' },
+  periodPillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
+  periodPillText: { ...typography3.labelSm, fontSize: 11 },
+  periodPillTextSelected: { color: colors3.white, fontWeight: '700' },
 
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navArrow: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { ...typography2.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1 },
+  navLabel: { ...typography3.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1 },
 
-  loading: { marginVertical: spacing2.lg },
-  error: { color: colors2.danger, textAlign: 'center' },
+  loading: { marginVertical: spacing3.lg },
+  error: { color: colors3.error, textAlign: 'center' },
 
   dayList: { gap: 2 },
   dayRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: spacing2.xs,
+    paddingVertical: spacing3.xs,
     borderBottomWidth: 1,
-    borderBottomColor: colors2.outlineVariant,
+    borderBottomColor: colors3.outlineVariant,
   },
-  dayLabel: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
-  dayValue: { ...typography2.bodyMd, fontSize: 13, fontWeight: '600' },
+  dayLabel: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
+  dayValue: { ...typography3.bodyMd, fontSize: 13, fontWeight: '600' },
 
-  chart: { borderRadius: radius2.md, marginLeft: -spacing2.md },
+  chart: { borderRadius: radius3.md, marginLeft: -spacing3.md },
 
-  legend: { flexDirection: 'row', gap: spacing2.md, justifyContent: 'center' },
+  legend: { flexDirection: 'row', gap: spacing3.md, justifyContent: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },
-  legendLabel: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
+  legendLabel: { ...typography3.labelSm, textTransform: 'none', fontSize: 11, color: colors3.onSurfaceVariant },
 
   averagesRow: { flexDirection: 'row', justifyContent: 'space-between' },
   averageStat: { alignItems: 'center', flex: 1 },
-  averageLabel: { ...typography2.labelCaps, textTransform: 'none', fontSize: 10, color: colors2.onSurfaceVariant },
-  averageValue: { ...typography2.metricMono, fontSize: 16, marginTop: 2 },
+  averageLabel: { ...typography3.labelSm, textTransform: 'none', fontSize: 10, color: colors3.onSurfaceVariant },
+  averageValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 16, marginTop: 2, color: colors3.onSurface },
 });

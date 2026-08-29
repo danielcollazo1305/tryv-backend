@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors2 } from '@/constants/theme';
+import { colors2, colors3, typography2, typography3 } from '@/constants/theme';
 
 export interface HeatmapDay {
   date: string;
@@ -25,6 +25,23 @@ export const HEATMAP_INTENSITY_COLORS = [
   'rgba(139, 92, 246, 0.35)',
   'rgba(139, 92, 246, 0.65)',
   colors2.violet,
+];
+
+/**
+ * Equivalente claro (sistema "prism-glass", ver colors3 em
+ * constants/theme.ts) — mesma progressao de opacidade crescente, so com o
+ * roxo do tema novo (#6b38d4) e um neutro claro pra intensidade 0 (o HTML
+ * de origem nao modela intensidade nenhuma nas celulas do calendario —
+ * todo dia nao-hoje usa a mesma cor estatica —, mas a Home precisa manter
+ * o dado real de "quantos treinos naquele dia", entao a progressao aqui e
+ * uma adaptacao pro tema claro do mesmo conceito, nao uma copia literal do
+ * HTML).
+ */
+export const HEATMAP_INTENSITY_COLORS_LIGHT = [
+  'rgba(229, 226, 225, 0.5)',
+  'rgba(107, 56, 212, 0.18)',
+  'rgba(107, 56, 212, 0.4)',
+  colors3.primary,
 ];
 
 function parseLocalDate(isoDate: string): Date {
@@ -85,6 +102,8 @@ interface HeatmapGridProps {
   showWeekdayHeaders?: boolean;
   intensityColors?: string[];
   onSelectDay?: (day: HeatmapDay) => void;
+  /** 'dark' (liquiglass, padrao — mantem todo uso existente inalterado) ou 'light' (prism-glass, Home). */
+  variant?: 'dark' | 'light';
 }
 
 /**
@@ -103,10 +122,31 @@ export function HeatmapGrid({
   cellSize = 34,
   showDayNumbers = true,
   showWeekdayHeaders = true,
-  intensityColors = HEATMAP_INTENSITY_COLORS,
+  intensityColors,
   onSelectDay,
+  variant = 'dark',
 }: HeatmapGridProps) {
   if (days.length === 0) return null;
+
+  const isLight = variant === 'light';
+  const resolvedIntensityColors = intensityColors ?? (isLight ? HEATMAP_INTENSITY_COLORS_LIGHT : HEATMAP_INTENSITY_COLORS);
+  const palette = isLight
+    ? {
+        onSurface: colors3.onSurface,
+        onSurfaceVariant: colors3.onSurfaceVariant,
+        white: colors3.onPrimary,
+        today: colors3.primary,
+        todayGlow: colors3.primaryContainer,
+        futureBorder: colors3.outlineVariant,
+      }
+    : {
+        onSurface: colors2.onSurface,
+        onSurfaceVariant: colors2.onSurfaceVariant,
+        white: colors2.white,
+        today: colors2.violet,
+        todayGlow: colors2.violetGlow,
+        futureBorder: colors2.outlineVariant,
+      };
 
   const leadingBlanks = parseLocalDate(days[0].date).getDay();
   const cells: Cell[] = [];
@@ -139,18 +179,30 @@ export function HeatmapGrid({
 
     let content: React.ReactNode = null;
     let cellStyle;
-    let numberColor: string = colors2.onSurface;
+    let numberColor: string = palette.onSurface;
 
     if (cell.isToday) {
-      cellStyle = [baseCellStyle, styles.cellToday];
-      numberColor = colors2.violet;
+      cellStyle = [
+        baseCellStyle,
+        {
+          backgroundColor: palette.today,
+          borderWidth: 2,
+          borderColor: palette.todayGlow,
+          shadowColor: palette.todayGlow,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.9,
+          shadowRadius: 8,
+          elevation: 6,
+        },
+      ];
+      numberColor = palette.white;
     } else if (cell.isFuture) {
-      cellStyle = [baseCellStyle, styles.cellFuture];
-      numberColor = colors2.onSurfaceVariant;
+      cellStyle = [baseCellStyle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: palette.futureBorder }];
+      numberColor = palette.onSurfaceVariant;
     } else {
-      const bg = intensityColors[cell.intensity ?? 0] ?? intensityColors[0];
+      const bg = resolvedIntensityColors[cell.intensity ?? 0] ?? resolvedIntensityColors[0];
       cellStyle = [baseCellStyle, { backgroundColor: bg }];
-      numberColor = (cell.intensity ?? 0) > 0 ? colors2.onSurface : colors2.onSurfaceVariant;
+      numberColor = (cell.intensity ?? 0) > 0 ? palette.onSurface : palette.onSurfaceVariant;
     }
 
     if (showDayNumbers) {
@@ -182,7 +234,10 @@ export function HeatmapGrid({
         <View style={styles.week}>
           {WEEKDAY_HEADERS.map((label, index) => (
             // eslint-disable-next-line react/no-array-index-key
-            <Text key={index} style={[styles.weekdayLabel, { width: cellSize }]}>
+            <Text
+              key={index}
+              style={[isLight ? styles.weekdayLabelLight : styles.weekdayLabelDark, { width: cellSize }]}
+            >
               {label}
             </Text>
           ))}
@@ -200,23 +255,33 @@ export function HeatmapGrid({
 
 const styles = StyleSheet.create({
   grid: { gap: 4 },
-  week: { flexDirection: 'row', gap: 4 },
-  weekdayLabel: {
-    fontSize: 11,
+  // `week` (linha de 7 celulas de largura FIXA, cellSize) e filho de
+  // `grid` (coluna) sem largura propria — herda o alignItems:'stretch'
+  // padrao do RN e vira tao largo quanto o card (menos o padding do
+  // GlassCard/LiquiglassCard). Sem justifyContent, os 7 itens de largura
+  // fixa ficam colados a esquerda (flex-start, o padrao) e toda a sobra
+  // vira um vao vazio so do lado direito — mesma causa raiz do card de
+  // progresso (ActivityProgressCard.tsx: la os itens eram largura fixa
+  // dentro de uma linha mais larga que o conteudo real). A correcao aqui
+  // e diferente porque as celulas do calendario PRECISAM ficar com
+  // tamanho fixo (sao circulos, esticar deformaria); em vez de crescer os
+  // itens (flex:1, como no grafico de barras), so distribui o espaco
+  // sobrando igualmente entre eles.
+  week: { flexDirection: 'row', gap: 4, justifyContent: 'space-between' },
+  weekdayLabelDark: {
+    ...typography2.labelCaps,
+    fontSize: 9,
+    letterSpacing: 0.9,
     textAlign: 'center',
-    color: colors2.onSurfaceVariant,
+    color: '#6B7280',
+  },
+  weekdayLabelLight: {
+    ...typography3.labelSm,
+    fontSize: 10,
+    textAlign: 'center',
+    color: colors3.outline,
   },
   cellCenter: { alignItems: 'center', justifyContent: 'center' },
-  cellToday: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: colors2.violet,
-  },
-  cellFuture: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-  },
   dayNumber: {
     fontWeight: '600',
   },

@@ -9,9 +9,11 @@ import { HealthMetricRow } from '@/components/HealthMetricRow';
 import { HealthWeeklyBarChart } from '@/components/HealthWeeklyBarChart';
 import { formatDistanceKm } from '@/services/activities';
 import {
+  ensureHealthKitAuthorized,
   fetchActiveEnergyLast7Days,
   fetchHealthSummary,
   fetchStepsLast7Days,
+  HEALTHKIT_CONNECTED_KEY,
   HealthSummary,
   isHealthKitAvailable,
   requestHealthKitPermissions,
@@ -19,13 +21,12 @@ import {
 import { syncRecentHeartRate } from '@/services/heartRateSync';
 import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
 
-// So guarda "o usuario ja passou pelo fluxo de conectar" — nao revela se
-// cada tipo de dado foi de fato autorizado (o HealthKit nao expoe isso por
-// privacidade), so evita mostrar o card de "Conectar" de novo a cada abertura
-// do app depois que o usuario ja decidiu uma vez. Exportada porque outros
-// consumidores de HealthKit (ex: ReadinessCard) tambem precisam saber se o
-// usuario ja passou por esse fluxo, sem duplicar o proprio fluxo de conexao.
-export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
+// Definicao real agora em services/healthkit.ts (um service nao devia
+// importar de um componente, e ensureHealthKitAuthorized la precisa dessa
+// constante) — re-exportada aqui pra nao quebrar os outros 4 arquivos que
+// ja importavam ela DESTE modulo (HealthMetricsGrid, profile.tsx,
+// app/health/[metric].tsx, ReadinessCard).
+export { HEALTHKIT_CONNECTED_KEY };
 
 function formatHeartRateDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', {
@@ -89,8 +90,13 @@ export function HealthSummaryCard() {
           setStatus('unavailable');
           return;
         }
-        const alreadyConnected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
-        if (alreadyConnected) {
+        // ensureHealthKitAuthorized checa a autorizacao REAL (nao so a flag
+        // local) e, se a flag disser "ja conectei" mas faltar autorizar
+        // algum tipo novo (ex: RespiratoryRate), tenta re-pedir sozinho —
+        // ver comentario da funcao em services/healthkit.ts.
+        const authorized = await ensureHealthKitAuthorized();
+        if (authorized) {
+          await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
           await loadSummary();
         } else {
           setStatus('disconnected');

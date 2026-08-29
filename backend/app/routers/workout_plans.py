@@ -141,6 +141,7 @@ def log_session(
 
     session = WorkoutSession(
         plan_id=plan.id,
+        user_id=current_user.id,
         exercises={
             "day": payload.day,
             "focus": payload.focus,

@@ -1,14 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { BarChart } from 'react-native-chart-kit';
 
-import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { GlassCard } from '@/components/GlassCard';
+import { HeartRateDetailView } from '@/components/HeartRateDetailView';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { SleepDetailView } from '@/components/SleepDetailView';
 import {
+  ensureHealthKitAuthorized,
+  HEALTHKIT_CONNECTED_KEY,
   HealthHistoryGranularity,
   HealthHistoryPeriod,
   HealthMetricHistory,
@@ -16,13 +18,18 @@ import {
   fetchHealthMetricHistory,
   isHealthKitAvailable,
 } from '@/services/healthkit';
-import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
+
+// Fonte monoespacada pros numeros (media do periodo, valores/rotulos do
+// grafico e da lista) — mockup original (Tryv Metricas.dc.html) pede
+// 'JetBrains Mono' explicitamente pra esses elementos, mesmo o resto do
+// tema "prism-glass" (colors3/typography3) sendo so Inter. Ja carregada
+// globalmente (fontsToLoad2, app/_layout.tsx) independente de tema —
+// hardcoded aqui (nao exportada de theme.ts) porque so este arquivo usa
+// mono fora do tema escuro.
+const METRIC_MONO_BOLD = 'JetBrainsMono_700Bold';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
-const MIN_BAR_SLOT = 34;
 
 const PERIOD_OPTIONS: { value: HealthHistoryPeriod; label: string }[] = [
   { value: '1d', label: '1D' },
@@ -30,6 +37,26 @@ const PERIOD_OPTIONS: { value: HealthHistoryPeriod; label: string }[] = [
   { value: '4w', label: '4 SEM' },
   { value: '1y', label: '1 ANO' },
 ];
+
+// Rotulo do "vs. X" do badge de variacao — combinado com o offset+1 de
+// fetchHealthMetricHistory (mesmo periodo, janela anterior) pra virar um
+// numero real, nao ilustrativo (ver investigacao/aprovacao anterior).
+const PERIOD_COMPARISON_LABEL: Record<HealthHistoryPeriod, string> = {
+  '1d': 'dia ant.',
+  '7d': 'sem. ant.',
+  '4w': '4 sem. ant.',
+  '1y': 'ano ant.',
+};
+
+// Cores do badge de variacao — valores exatos do mockup aprovado (Tryv
+// Metricas.dc.html: deltaBg/deltaFg), nao uma aproximacao via opacidade de
+// colors3.success (que nem existe — colors3 nao tem token semantico de
+// sucesso/erro separado, so "up" verde e "neutro" roxo-acinzentado, iguais
+// aos do design de origem).
+const DELTA_UP_BG = '#eaf7ef';
+const DELTA_UP_FG = '#1f7a44';
+const DELTA_DOWN_BG = '#f6f2fc';
+const DELTA_DOWN_FG = '#494454';
 
 const METRIC_CONFIG: Record<
   HealthMetricKey,
@@ -105,6 +132,12 @@ function formatWindowRange(history: HealthMetricHistory): string {
   return `${startLabel} - ${endLabel}`;
 }
 
+/** Abreviacao do dia da semana ("Qua", "Qui"...) pra lista de dias — so faz sentido pra granularidade diaria (7D/4SEM), nao mensal (1ANO). */
+function formatWeekdayLabel(dateStr: string): string {
+  const label = parseLocalDate(dateStr).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /** As cores de metrica sao hex fixo (#RRGGBB) — mesmo utilitario de HealthWeeklyBarChart.tsx/HealthMetricsGrid.tsx. */
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -126,14 +159,27 @@ export default function HealthMetricDetailScreen() {
   const { metric: rawMetric } = useLocalSearchParams<{ metric: string }>();
   const metric = isMetricKey(rawMetric) ? rawMetric : null;
   const config = metric ? METRIC_CONFIG[metric] : null;
+  // As 4 metricas (Passos/Calorias/Sono/FC) estao todas no tema claro
+  // "prism-glass" agora — Sono e FC migraram nesta tarefa (seguindo o
+  // mockup aprovado Tryv FC e Sono.dc.html), completando a migracao que
+  // Passos/Calorias ja tinham feito antes. SleepDetailView/HeartRateDetailView
+  // tem seu proprio StyleSheet com colors3 importado independentemente —
+  // esse arquivo so precisa do header/fundo compartilhado, sem branch de
+  // tema nenhum mais.
 
   const [status, setStatus] = useState<Status>('checking');
   const [period, setPeriod] = useState<HealthHistoryPeriod>('7d');
   const [offset, setOffset] = useState(0);
   const [history, setHistory] = useState<HealthMetricHistory | null>(null);
+  /** Media do MESMO periodo, 1 janela atras (offset+1) — so pro badge de variacao percentual real (ver comentario acima de PERIOD_COMPARISON_LABEL). */
+  const [previousAverage, setPreviousAverage] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    if (!metric) return;
+    // Sono e Frequencia cardiaca tem tela propria (SleepDetailView /
+    // HeartRateDetailView, mais abaixo) — nao usam o fluxo generico de
+    // periodo/historico deste componente, e cuidam da propria checagem de
+    // disponibilidade/autorizacao sozinhas.
+    if (!metric || metric === 'sleep' || metric === 'heartRate') return;
     if (Platform.OS !== 'ios') {
       setStatus('unavailable');
       return;
@@ -145,14 +191,30 @@ export default function HealthMetricDetailScreen() {
         setStatus('unavailable');
         return;
       }
-      const connected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
-      if (!connected) {
+      // ensureHealthKitAuthorized checa a autorizacao REAL (nao so a flag
+      // local) — ver services/healthkit.ts.
+      const authorized = await ensureHealthKitAuthorized();
+      if (!authorized) {
         setStatus('disconnected');
         return;
       }
-      setHistory(await fetchHealthMetricHistory(metric, period, offset));
+      await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
+      const [current, previous] = await Promise.all([
+        fetchHealthMetricHistory(metric, period, offset),
+        fetchHealthMetricHistory(metric, period, offset + 1),
+      ]);
+      setHistory(current);
+      setPreviousAverage(previous.average);
       setStatus('ready');
-    } catch {
+    } catch (err) {
+      // DEBUG TEMPORARIO — o catch generico anterior descartava a excecao
+      // de verdade (nunca logada em lugar nenhum), tornando impossivel
+      // saber SE era permissao/rede/exception nativa do HealthKit sem isso.
+      // Remover depois de identificada a causa raiz real.
+      console.error(
+        `[DEBUG health/[metric]] falha ao buscar historico (metric=${metric}, period=${period}, offset=${offset}):`,
+        err
+      );
       setStatus('error');
     }
   }, [metric, period, offset]);
@@ -169,32 +231,48 @@ export default function HealthMetricDetailScreen() {
   };
 
   const daily = history?.points ?? [];
-  const chartWidth = Math.max(CHART_WIDTH, daily.length * MIN_BAR_SLOT);
+  const maxValue = Math.max(1, ...daily.map((p) => p.value ?? 0));
+
+  // Variacao percentual real: media do periodo atual vs. media do MESMO
+  // periodo, 1 janela atras (offset+1) — nao um numero ilustrativo (ver
+  // investigacao/aprovacao anterior). null quando falta um dos dois lados
+  // (ex: sem dado no periodo anterior) — nesse caso o badge nao aparece.
+  const deltaPercent =
+    history?.average != null && previousAverage != null && previousAverage !== 0
+      ? ((history.average - previousAverage) / previousAverage) * 100
+      : null;
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+          <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>{config?.label ?? 'Saude'}</Text>
+        <View style={styles.headerTitleRow}>
+          {!!config && <View style={[styles.headerDot, { backgroundColor: config.color }]} />}
+          <Text style={styles.headerTitle}>{config?.label ?? 'Saude'}</Text>
+        </View>
         <View style={{ width: 22 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {!config ? (
           <Text style={styles.error}>Metrica invalida.</Text>
+        ) : metric === 'sleep' ? (
+          <SleepDetailView />
+        ) : metric === 'heartRate' ? (
+          <HeartRateDetailView />
         ) : status === 'unavailable' ? (
           <Text style={styles.emptyText}>Historico de saude disponivel so no iPhone, via Apple Health.</Text>
         ) : status === 'disconnected' ? (
           <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
             <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar Apple Health</Text>
-            <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
+            <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
           </Pressable>
         ) : status === 'error' ? (
           <Text style={styles.error}>Nao foi possivel carregar o historico.</Text>
         ) : (
-          <LiquiglassCard style={styles.card}>
+          <GlassCard variant="glass" style={styles.card}>
             <View style={styles.periodRow}>
               {PERIOD_OPTIONS.map((option) => {
                 const selected = option.value === period;
@@ -214,7 +292,7 @@ export default function HealthMetricDetailScreen() {
 
             <View style={styles.navRow}>
               <Pressable onPress={() => setOffset((prev) => prev + 1)} hitSlop={8} style={styles.navArrow}>
-                <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
+                <Ionicons name="chevron-back" size={20} color={colors3.onSurfaceVariant} />
               </Pressable>
               <Text style={styles.navLabel}>{history ? formatWindowRange(history) : ''}</Text>
               <Pressable
@@ -226,62 +304,121 @@ export default function HealthMetricDetailScreen() {
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color={offset === 0 ? colors2.outlineVariant : colors2.onSurfaceVariant}
+                  color={offset === 0 ? colors3.outlineVariant : colors3.onSurfaceVariant}
                 />
               </Pressable>
             </View>
 
-            {status === 'checking' && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+            {status === 'checking' && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
             {status === 'ready' && history && (
-              <>
-                <Text style={styles.averageText}>
-                  Media do periodo:{' '}
-                  {history.average != null ? `${config.formatValue(history.average)} ${config.unitLabel}` : '--'}
-                </Text>
+              <View style={styles.readyContent}>
+                <View style={styles.averageCard}>
+                  <Text style={styles.averageEyebrow}>Média do período</Text>
+                  <View style={styles.averageRow}>
+                    <Text style={styles.averageValue}>
+                      {history.average != null ? config.formatValue(history.average) : '--'}
+                    </Text>
+                    <Text style={styles.averageUnit}>{config.unitLabel}</Text>
+                    {deltaPercent != null && (
+                      <View
+                        style={[
+                          styles.deltaBadge,
+                          { backgroundColor: deltaPercent >= 0 ? DELTA_UP_BG : DELTA_DOWN_BG },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.deltaBadgeText, { color: deltaPercent >= 0 ? DELTA_UP_FG : DELTA_DOWN_FG }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
+                        >
+                          {deltaPercent >= 0 ? '+' : '−'}
+                          {Math.abs(Math.round(deltaPercent))}% vs. {PERIOD_COMPARISON_LABEL[period]}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/*
+                    Barras em flexbox puro (nao react-native-chart-kit) —
+                    mesma decisao ja tomada em Sono/FC: da controle total
+                    pra posicionar a linha tracejada da media exatamente na
+                    altura certa, sem lutar com o padding interno de uma lib
+                    de grafico. Altura de cada barra = valor/maxValue do
+                    periodo (barra do valor maximo em cor solida, as demais
+                    num tom mais claro — hexToRgba com opacidade reduzida).
+                  */}
+                  <View style={styles.chartArea}>
+                    <View
+                      style={[
+                        styles.avgLine,
+                        { bottom: history.average != null ? `${Math.min(100, (history.average / maxValue) * 100)}%` : 0 },
+                      ]}
+                    />
+                    {daily.map((point) => {
+                      const value = point.value ?? 0;
+                      const isPeak = value > 0 && value === maxValue;
+                      const heightPct = Math.max(4, (value / maxValue) * 100);
+                      return (
+                        <View key={point.date} style={styles.barSlot}>
+                          {isPeak && (
+                            <Text style={styles.barCap} numberOfLines={1}>
+                              {config.formatValue(value)}
+                            </Text>
+                          )}
+                          <View
+                            style={[
+                              styles.bar,
+                              {
+                                height: `${heightPct}%`,
+                                backgroundColor: isPeak ? config.color : hexToRgba(config.color, 0.35),
+                              },
+                            ]}
+                          />
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <View style={styles.chartDayLabelsRow}>
+                    {daily.map((point) => (
+                      <Text key={point.date} style={styles.chartDayLabel}>
+                        {formatBucketLabel(point.date, history.granularity)}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
 
                 <View style={styles.dayList}>
-                  {daily.map((point) => (
-                    <View key={point.date} style={styles.dayRow}>
-                      <Text style={styles.dayLabel}>{formatBucketLabel(point.date, history.granularity)}</Text>
+                  {daily.map((point, index) => (
+                    <View
+                      key={point.date}
+                      style={[styles.dayRow, index === daily.length - 1 && styles.dayRowLast]}
+                    >
+                      <Text style={styles.dayNumber}>{formatBucketLabel(point.date, history.granularity)}</Text>
+                      {history.granularity === 'day' && (
+                        <Text style={styles.dayWeekday}>{formatWeekdayLabel(point.date)}</Text>
+                      )}
+                      <View style={styles.dayBarTrack}>
+                        <View
+                          style={[
+                            styles.dayBarFill,
+                            { width: `${Math.round(((point.value ?? 0) / maxValue) * 100)}%`, backgroundColor: config.color },
+                          ]}
+                        />
+                      </View>
                       <Text style={styles.dayValue}>
                         {point.value != null ? `${config.formatValue(point.value)} ${config.unitLabel}` : '--'}
                       </Text>
                     </View>
                   ))}
                 </View>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <BarChart
-                    data={{
-                      labels: daily.map((point) => formatBucketLabel(point.date, history.granularity)),
-                      datasets: [{ data: daily.map((point) => point.value ?? 0) }],
-                    }}
-                    width={chartWidth}
-                    height={200}
-                    fromZero
-                    withInnerLines={false}
-                    yAxisLabel=""
-                    yAxisSuffix=""
-                    chartConfig={{
-                      backgroundGradientFrom: colors2.surfaceContainer,
-                      backgroundGradientTo: colors2.surfaceContainer,
-                      decimalPlaces: 0,
-                      color: (opacity = 1) => hexToRgba(config.color, opacity),
-                      labelColor: () => colors2.onSurfaceVariant,
-                      barPercentage: 0.6,
-                      propsForBackgroundLines: { stroke: colors2.outlineVariant },
-                      propsForLabels: { fontSize: 10 },
-                    }}
-                    style={styles.chart}
-                  />
-                </ScrollView>
-              </>
+              </View>
             )}
-          </LiquiglassCard>
+          </GlassCard>
         )}
       </ScrollView>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -291,58 +428,157 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg, paddingBottom: spacing2.xl },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
+  headerDot: { width: 8, height: 8, borderRadius: 3 },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.lg, paddingBottom: spacing3.xl },
 
-  card: { gap: spacing2.md },
-  error: { color: colors2.danger, textAlign: 'center', marginTop: spacing2.xl },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center', marginTop: spacing2.xl },
+  // A partir daqui — card/periodRow/navRow/averageCard/chart/dayList — SO
+  // renderiza pra Passos/Calorias (Sono/FC retornam antes, via seus
+  // proprios componentes SleepDetailView/HeartRateDetailView, que tem seu
+  // proprio StyleSheet colors3 importado independentemente).
+  card: { gap: spacing3.md },
+  error: { color: colors3.error, textAlign: 'center', marginTop: spacing3.xl },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
 
   connectHint: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    marginTop: spacing2.xl,
+    marginTop: spacing3.xl,
   },
-  connectHintText: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
+  connectHintText: { ...typography3.bodyMd, color: colors3.primary, fontWeight: '700' },
 
-  periodRow: { flexDirection: 'row', gap: spacing2.xs },
+  periodRow: { flexDirection: 'row', gap: spacing3.xs },
   periodPill: {
     flex: 1,
-    paddingVertical: spacing2.sm - 2,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    paddingVertical: spacing3.sm - 2,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
     alignItems: 'center',
   },
-  periodPillSelected: { backgroundColor: colors2.violet, borderColor: colors2.violet },
-  periodPillText: { ...typography2.labelCaps, fontSize: 11 },
-  periodPillTextSelected: { color: colors2.white, fontWeight: '700' },
+  periodPillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
+  periodPillText: { ...typography3.labelSm, fontSize: 11 },
+  periodPillTextSelected: { color: colors3.white, fontWeight: '700' },
 
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navArrow: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { ...typography2.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1 },
+  navLabel: { ...typography3.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1 },
 
-  loading: { marginVertical: spacing2.lg },
+  loading: { marginVertical: spacing3.lg },
 
-  averageText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  readyContent: { gap: spacing3.md },
+
+  averageCard: {
+    borderRadius: radius3.lg,
+    padding: spacing3.md,
+    backgroundColor: colors3.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
+  },
+  averageEyebrow: {
+    ...typography3.labelSm,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: colors3.onSurfaceVariant,
+    marginBottom: spacing3.sm,
+  },
+  averageRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: spacing3.lg, flexWrap: 'wrap' },
+  // BUG 1 (numero com glitch/sobreposto) — causa raiz: esta regra fazia
+  // `...typography2.metricMono` (fontSize base 20, lineHeight 24) e so
+  // sobrescrevia fontSize pra 38, deixando lineHeight=24 MENOR que o
+  // fontSize=38. Com a caixa da linha mais baixa que o glifo, o proprio
+  // texto se desenha "espremido"/sobreposto verticalmente — nao eram 2
+  // Text nem fonte nao carregada. Corrigido usando os valores EXATOS do
+  // mockup aprovado (44px/44px, -2.2px de letter-spacing), fontFamily
+  // 'JetBrains Mono' hardcoded (ver METRIC_MONO_BOLD no topo do arquivo).
+  averageValue: {
+    fontFamily: METRIC_MONO_BOLD,
+    fontSize: 44,
+    lineHeight: 48,
+    letterSpacing: -2.2,
+    color: colors3.onSurface,
+  },
+  averageUnit: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
+  // BUG 2 (badge cortado na borda) — causa raiz: `marginLeft:'auto'` numa
+  // row sem `flexWrap` e sem `flexShrink` no badge — com o numero grande
+  // (ex: "15.215") ja ocupando a maior parte da largura, nao sobrava
+  // espaco pro badge, que simplesmente estourava a borda direita do card
+  // (LiquiglassCard/GlassCard corta overflow). Corrigido em 2 frentes:
+  // `averageRow` ganhou `flexWrap:'wrap'` (o badge cai pra proxima linha
+  // se realmente nao couber, em vez de estourar), e o badge ganhou
+  // `flexShrink:1`/`minWidth:0` + o texto ganhou `numberOfLines`/
+  // `adjustsFontSizeToFit` (mesmo padrao ja usado nos tiles de
+  // HealthMetricsGrid) — encolhe a fonte antes de cortar, nunca extrapola.
+  deltaBadge: {
+    marginLeft: 'auto',
+    flexShrink: 1,
+    minWidth: 0,
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: 4,
+    borderRadius: radius3.pill,
+  },
+  deltaBadgeText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11, fontWeight: '700' },
+
+  // Altura fixa (nao flex:1 num pai sem altura definida) — barras dentro
+  // usam height:'%' relativo a ISSO, precisa de um numero de referencia.
+  chartArea: { position: 'relative', height: 132, flexDirection: 'row', alignItems: 'flex-end', gap: spacing3.xs },
+  avgLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    borderTopWidth: 1,
+    borderTopColor: colors3.outlineVariant,
+    borderStyle: 'dashed',
+  },
+  barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  barCap: { fontFamily: METRIC_MONO_BOLD, fontSize: 9, lineHeight: 12, color: colors3.onSurfaceVariant, marginBottom: 4 },
+  bar: { width: '100%', borderRadius: radius3.sm },
+  chartDayLabelsRow: { flexDirection: 'row', gap: spacing3.xs, marginTop: spacing3.xs },
+  chartDayLabel: {
+    fontFamily: METRIC_MONO_BOLD,
+    fontSize: 10,
+    lineHeight: 13,
+    color: colors3.onSurfaceVariant,
+    textAlign: 'center',
+    flex: 1,
+  },
 
   dayList: { gap: 2 },
   dayRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing2.xs,
+    alignItems: 'center',
+    gap: spacing3.sm,
+    paddingVertical: spacing3.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors2.outlineVariant,
+    borderBottomColor: colors3.outlineVariant,
   },
-  dayLabel: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
-  dayValue: { ...typography2.bodyMd, fontSize: 13, fontWeight: '600' },
-
-  chart: { borderRadius: radius2.md, marginLeft: -spacing2.md },
+  dayRowLast: { borderBottomWidth: 0 },
+  dayNumber: { fontFamily: METRIC_MONO_BOLD, fontSize: 15, lineHeight: 18, color: colors3.onSurface, width: 26 },
+  dayWeekday: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant, width: 32 },
+  dayBarTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: colors3.surfaceContainerHigh,
+    overflow: 'hidden',
+  },
+  dayBarFill: { height: '100%', borderRadius: 3 },
+  dayValue: {
+    fontFamily: METRIC_MONO_BOLD,
+    fontSize: 13,
+    lineHeight: 16,
+    color: colors3.onSurface,
+    fontWeight: '600',
+    minWidth: 82,
+    textAlign: 'right',
+  },
 });

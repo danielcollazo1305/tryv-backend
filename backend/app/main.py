@@ -25,6 +25,7 @@ from app.routers import (
     webhooks,
     weight_logs,
     workout_plans,
+    workout_sessions,
 )
 
 # Convivio com Alembic: cria tabelas que ainda nao existem, para facilitar
@@ -40,6 +41,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(meals.router)
 app.include_router(workout_plans.router)
+app.include_router(workout_sessions.router)
 app.include_router(smartwatch.router)
 app.include_router(runs.router)
 app.include_router(trainers.router)

@@ -3,18 +3,19 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
+import { Button3 } from '@/components/Button3';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { DietPlanBanner } from '@/components/DietPlanBanner';
 import { MacrosGrid } from '@/components/MacrosGrid';
 import { MealCard } from '@/components/MealCard';
 import { MealsHistoryCard } from '@/components/MealsHistoryCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, isToday, listMeals } from '@/services/meals';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 export default function MealsScreen() {
   const { user } = useAuth();
@@ -69,13 +70,13 @@ export default function MealsScreen() {
   };
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <FlatList
         data={todaysMeals}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors2.violet} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors3.primary} />
         }
         ListHeaderComponent={
           <View style={styles.header}>
@@ -85,7 +86,7 @@ export default function MealsScreen() {
                 <Text style={styles.title}>Refeições</Text>
                 <Text style={styles.subtitle}>Hoje</Text>
               </View>
-              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton/Avatar sao compartilhados e ja funcionam no claro (mesmo componente ja usado por Home/Feed) — nao precisaram mudar. */}
               <ProfileAvatarButton size={36} />
             </View>
 
@@ -104,87 +105,89 @@ export default function MealsScreen() {
             <MealsHistoryCard />
 
             <Pressable onPress={() => router.push('/meal/photos')}>
-              <LiquiglassCard style={styles.photosLink} padding={spacing2.md}>
+              <GlassCard variant="glass" style={styles.photosLink}>
                 <View style={styles.photosLinkIconWrap}>
-                  <Ionicons name="images" size={18} color={colors2.violet} />
+                  <Ionicons name="images" size={18} color={colors3.primary} />
                 </View>
                 <Text style={styles.photosLinkText}>Historico de fotos</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-              </LiquiglassCard>
+                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+              </GlassCard>
             </Pressable>
 
             {!!error && <Text style={styles.error}>{error}</Text>}
-            {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+            {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
             <Text style={styles.sectionTitle}>Refeições de hoje</Text>
+
+            {/*
+              Card fixo "Adicionar refeicao" — substitui o FAB flutuante
+              (recem corrigido de posicao, mas o pedido agora e nao ser mais
+              flutuante). Sempre visivel aqui dentro do ListHeaderComponent
+              (renderizado 1x, antes da lista/estado vazio), entao aparece
+              tanto com refeicoes ja registradas quanto no estado vazio —
+              nao depende de `todaysMeals.length`. Mesma acao de antes
+              (abrir app/meal/add.tsx), nenhuma logica nova.
+            */}
+            <GlassCard variant="glass" style={styles.addMealCard}>
+              <View style={styles.addMealHeader}>
+                <View style={styles.addMealIconWrap}>
+                  <Ionicons name="add" size={20} color={colors3.primary} />
+                </View>
+                <Text style={styles.addMealTitle}>Adicionar refeição</Text>
+              </View>
+              <Button3 label="Registrar refeição" onPress={() => router.push('/meal/add')} />
+            </GlassCard>
           </View>
         }
         renderItem={({ item }) => <MealCard meal={item} />}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.sm }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.sm }} />}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="restaurant-outline" size={32} color={colors2.onSurfaceVariant} />
+              <Ionicons name="restaurant-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>Nenhuma refeicao registrada hoje ainda.</Text>
             </View>
           ) : null
         }
       />
-
-      {/*
-        Nota de escopo: o mockup refeicoes.html mostra "Registrar por foto
-        (IA)" e "Registro manual" como botoes na propria tela. No app real
-        esses dois fluxos vivem em app/meal/add.tsx (aberto por este FAB),
-        uma tela separada que nao foi nomeada neste pedido — nao toquei
-        nela, mesmo precedente de workout-plan/generate.tsx e share.tsx na
-        migracao do Treino.
-      */}
-      <Pressable style={styles.fab} onPress={() => router.push('/meal/add')}>
-        <Ionicons name="add" size={28} color={colors2.white} />
-      </Pressable>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl * 2 },
-  header: { gap: spacing2.md, marginBottom: spacing2.md },
-  logo: { ...typography2.displayHero, fontSize: 36 },
+  listContent: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl * 2 },
+  header: { gap: spacing3.md, marginBottom: spacing3.md },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  title: { ...typography2.headlineLgMobile, fontSize: 26 },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: -spacing2.sm },
-  error: { color: colors2.danger, textAlign: 'center' },
-  loading: { marginTop: spacing2.sm },
-  sectionTitle: { ...typography2.headlineMd, fontSize: 18, marginTop: spacing2.xs },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  title: { ...typography3.headlineLgMobile, fontSize: 26 },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: -spacing3.sm },
+  error: { color: colors3.error, textAlign: 'center' },
+  loading: { marginTop: spacing3.sm },
+  sectionTitle: { ...typography3.headlineMd, fontSize: 18, marginTop: spacing3.xs },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  photosLink: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  photosLink: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   photosLinkIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: radius2.sm,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.sm,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photosLinkText: { ...typography2.bodyMd, fontWeight: '600', flex: 1 },
+  photosLinkText: { ...typography3.bodyMd, fontWeight: '600', flex: 1 },
 
-  fab: {
-    position: 'absolute',
-    right: spacing2.lg,
-    bottom: spacing2.lg,
-    width: 56,
-    height: 56,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.violet,
+  addMealCard: { gap: spacing3.md },
+  addMealHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  addMealIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radius3.sm,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors2.violet,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
   },
+  addMealTitle: { ...typography3.bodyMd, fontWeight: '700' },
 });

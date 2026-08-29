@@ -2,18 +2,18 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { Meal, formatMealTime } from '@/services/meals';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 export function MealCard({ meal }: { meal: Meal }) {
   return (
-    <LiquiglassCard style={styles.card} padding={spacing2.md}>
+    <GlassCard variant="card" style={styles.card}>
       {meal.photo_url ? (
         <Image source={{ uri: meal.photo_url }} style={styles.photo} />
       ) : (
         <View style={styles.photoPlaceholder}>
-          <Ionicons name="restaurant" size={22} color={colors2.primary} />
+          <Ionicons name="restaurant" size={22} color={colors3.primary} />
         </View>
       )}
 
@@ -33,33 +33,33 @@ export function MealCard({ meal }: { meal: Meal }) {
           <Text style={styles.macro}>G {Math.round(meal.fat ?? 0)}g</Text>
         </View>
       </View>
-    </LiquiglassCard>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    gap: spacing2.md,
+    gap: spacing3.md,
     alignItems: 'center',
   },
   photo: {
     width: 64,
     height: 64,
-    borderRadius: radius2.md,
-    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius3.md,
+    backgroundColor: colors3.surfaceVariant,
   },
   photoPlaceholder: {
     width: 64,
     height: 64,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: {
     flex: 1,
-    gap: spacing2.xs,
+    gap: spacing3.xs,
   },
   headerRow: {
     flexDirection: 'row',
@@ -67,13 +67,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   description: {
-    ...typography2.bodyMd,
+    ...typography3.bodyMd,
     fontWeight: '600',
     flex: 1,
-    marginRight: spacing2.sm,
+    marginRight: spacing3.sm,
   },
-  time: { ...typography2.labelCaps, textTransform: 'none' },
-  calories: { ...typography2.headlineMd, fontSize: 18 },
-  macrosRow: { flexDirection: 'row', gap: spacing2.md },
-  macro: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
+  time: { ...typography3.labelSm, textTransform: 'none' },
+  calories: { ...typography3.headlineMd, fontSize: 18 },
+  macrosRow: { flexDirection: 'row', gap: spacing3.md },
+  macro: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
 });

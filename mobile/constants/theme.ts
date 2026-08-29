@@ -262,3 +262,186 @@ export const fontsToLoad2 = {
 };
 
 export const theme2 = { colors: colors2, spacing: spacing2, radius: radius2, typography: typography2 };
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * Sistema visual novo (redesign "prism-glass", ago/2026) — extraido do HTML
+ * "TRYV - Dashboard" (tailwind.config inline + classes .prism-glass/
+ * .prism-glass-card). Fundo claro + cards em vidro fosco (branco translucido
+ * + blur), no lugar do fundo escuro + glow roxo neon do sistema "2"
+ * (liquiglass) acima.
+ *
+ * Mesma convivencia que colors2 tem com colors: comeca pela Home, migra
+ * tela por tela — NAO usar os tokens deste bloco em telas que ainda nao
+ * foram migradas (Feed/Refeicoes/Treino/Desafios continuam no sistema "2"
+ * ate serem migradas tambem), e vice-versa, pra nao misturar paleta dentro
+ * da mesma tela.
+ *
+ * Nomes de cor seguem 1:1 as chaves do tailwind.config do HTML (mesmo
+ * criterio de fidelidade do bloco colors2 acima) — inclui toda a paleta
+ * Material exportada la, mesmo a que a Home nao usa ainda (secondary/
+ * tertiary), pra as proximas telas migradas nao precisarem redescobrir os
+ * hex certos.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+export const colors3 = {
+  background: '#fcf9f8',
+  surface: '#fcf9f8',
+  surfaceDim: '#dcd9d9',
+  surfaceBright: '#fcf9f8',
+
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#f6f3f2',
+  surfaceContainer: '#f0edec',
+  surfaceContainerHigh: '#ebe7e7',
+  surfaceContainerHighest: '#e5e2e1',
+  surfaceVariant: '#e5e2e1',
+
+  onSurface: '#1c1b1b',
+  onSurfaceVariant: '#494454',
+  onBackground: '#1c1b1b',
+  inverseSurface: '#313030',
+  inverseOnSurface: '#f3f0ef',
+
+  outline: '#7b7486',
+  outlineVariant: '#cbc3d7',
+
+  primary: '#6b38d4',
+  primaryContainer: '#8455ef',
+  onPrimary: '#ffffff',
+  onPrimaryContainer: '#fffbff',
+  primaryFixed: '#e9ddff',
+  primaryFixedDim: '#d0bcff',
+  onPrimaryFixed: '#23005c',
+  onPrimaryFixedVariant: '#5516be',
+  inversePrimary: '#d0bcff',
+  surfaceTint: '#6d3bd7',
+
+  // Nao aparecem em nenhum elemento visivel da Home hoje — inclusos pra
+  // fidelidade ao tailwind.config de origem (proximas telas migradas podem
+  // precisar).
+  secondary: '#006b5f',
+  secondaryContainer: '#62fae3',
+  onSecondary: '#ffffff',
+  onSecondaryContainer: '#007165',
+  secondaryFixed: '#62fae3',
+  secondaryFixedDim: '#3cddc7',
+  onSecondaryFixed: '#00201c',
+  onSecondaryFixedVariant: '#005047',
+
+  // "tertiary" no HTML de origem e um tom quente (ambar/laranja), usado no
+  // pill "Corrida" selecionado ([#ffb869]/[#2c1700] hardcoded no HTML em
+  // vez das chaves tertiary-*, mas sao os mesmos tons) — mesmo papel que
+  // metricColors.steps ja cobre no sistema antigo.
+  tertiary: '#855000',
+  tertiaryContainer: '#a76500',
+  onTertiary: '#ffffff',
+  onTertiaryContainer: '#fffbff',
+  tertiaryFixed: '#ffdcbb',
+  tertiaryFixedDim: '#ffb869',
+  onTertiaryFixed: '#2c1700',
+  onTertiaryFixedVariant: '#673d00',
+
+  error: '#ba1a1a',
+  errorContainer: '#ffdad6',
+  onError: '#ffffff',
+  onErrorContainer: '#93000a',
+
+  white: '#ffffff',
+} as const;
+
+export const spacing3 = {
+  xs: 4,
+  sm: 8, // "unit"
+  md: 16, // "gutter"
+  lg: 24, // "container-margin"
+  xl: 48, // "section-gap"
+  containerMargin: 24,
+  sectionGap: 48,
+} as const;
+
+export const radius3 = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16, // rounded-2xl usado nos cards de vidro — nao esta no tailwind.config (que so define ate "xl"=12), mas e o valor de fato usado em toda classe rounded-2xl do HTML.
+  pill: 9999,
+} as const;
+
+/** Nomes de fonte identicos aos de fonts2 (mesma familia Inter ja carregada em app/_layout.tsx) — o HTML nao usa JetBrains Mono em lugar nenhum, so Inter. */
+const fonts3 = {
+  interRegular: 'Inter_400Regular',
+  interMedium: 'Inter_400Regular', // 500 nao esta entre os pesos carregados (400/600/700/800) — 400 e a aproximacao mais proxima disponivel pra label-md (peso 600 real, ver abaixo) sem baixar um peso novo so pra isso.
+  interSemiBold: 'Inter_600SemiBold',
+  interBold: 'Inter_700Bold',
+  interExtraBold: 'Inter_800ExtraBold', // usado tambem onde o HTML pede peso 900 (font-black) — 900 nao esta entre os pesos carregados, 800 e o mais proximo disponivel.
+} as const;
+
+export const typography3 = {
+  displayLg: {
+    fontFamily: fonts3.interBold,
+    fontSize: 48,
+    lineHeight: 56,
+    letterSpacing: -0.96,
+    color: colors3.onSurface,
+  },
+  headlineLg: {
+    fontFamily: fonts3.interBold,
+    fontSize: 32,
+    lineHeight: 40,
+    letterSpacing: -0.32,
+    color: colors3.onSurface,
+  },
+  headlineLgMobile: {
+    fontFamily: fonts3.interBold,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.28,
+    color: colors3.onSurface,
+  },
+  headlineMd: {
+    fontFamily: fonts3.interSemiBold,
+    fontSize: 24,
+    lineHeight: 32,
+    color: colors3.onSurface,
+  },
+  bodyLg: {
+    fontFamily: fonts3.interRegular,
+    fontSize: 18,
+    lineHeight: 28,
+    color: colors3.onSurface,
+  },
+  bodyMd: {
+    fontFamily: fonts3.interRegular,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors3.onSurface,
+  },
+  labelMd: {
+    fontFamily: fonts3.interSemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.28,
+    color: colors3.onSurface,
+  },
+  labelSm: {
+    fontFamily: fonts3.interMedium,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.48,
+    color: colors3.onSurfaceVariant,
+  },
+} as const;
+
+/**
+ * RN nao suporta multiplas camadas de box-shadow — aproximacao de 1 camada
+ * so pras 2 sombras do HTML (`shadow-glass`/`shadow-glass-lg`, ambas com 2
+ * camadas sobrepostas de preto bem sutil). Ver GlassCard.tsx.
+ */
+export const shadows3 = {
+  glass: { shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 24 },
+  glassLg: { shadowColor: '#000000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.07, shadowRadius: 32 },
+} as const;
+
+export const theme3 = { colors: colors3, spacing: spacing3, radius: radius3, typography: typography3, shadows: shadows3 };

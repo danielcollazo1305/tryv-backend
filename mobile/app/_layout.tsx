@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { WorkoutSessionDraftProvider } from '@/context/WorkoutSessionDraftContext';
 // Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
@@ -27,8 +28,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
+      <WorkoutSessionDraftProvider>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </WorkoutSessionDraftProvider>
     </AuthProvider>
   );
 }
@@ -74,6 +77,7 @@ function RootNavigator() {
         <Stack.Screen name="challenges/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/category/[category]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="export-pdf" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token}>
         <Stack.Screen name="(auth)" />

@@ -1,13 +1,18 @@
 import React, { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
-import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { HealthMetricKey, HealthSummary, fetchHealthSummary, isHealthKitAvailable } from '@/services/healthkit';
-import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
+import { GlassCard } from '@/components/GlassCard';
+import {
+  ensureHealthKitAuthorized,
+  fetchHealthSummary,
+  HEALTHKIT_CONNECTED_KEY,
+  HealthMetricKey,
+  HealthSummary,
+  isHealthKitAvailable,
+} from '@/services/healthkit';
+import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
 
@@ -24,22 +29,37 @@ const SLEEP_REFERENCE_HOURS = 8;
 const ACTIVE_ENERGY_REFERENCE_KCAL = 500;
 const HR_RANGE = { min: 40, max: 120 };
 
+/**
+ * Abaixo de 1000: numero cheio (ex: "488"). A partir de 1000: abreviado em
+ * milhares com 1 casa decimal (ex: 19488 -> "19,4K") — reduz a quantidade
+ * de digitos exibidos (Passos e Calorias sao os 2 valores deste grid que
+ * podem realmente passar de 4-5 digitos; FC nunca passa de 3).
+ */
+function formatCompactNumber(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded < 1000) return rounded.toLocaleString('pt-BR');
+  return `${(rounded / 1000).toFixed(1).replace('.', ',')}K`;
+}
+
 interface Tile {
   key: HealthMetricKey;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
   label: string;
   value: string;
+  /** Mesma linha do valor (ex: "bpm", "de 10k"), nao e dado adicional. */
+  unit: string;
   progress: number | null; // 0-1, null = sem barra (sem dado)
 }
 
 /**
- * Card novo da Home: grid 2x2 com batimentos, passos, sono e calorias.
- * Reaproveita o MESMO servico ja usado pelo card de Apple Health da tela
- * de Atividades (services/healthkit.ts, fetchHealthSummary) — leitura
- * nativa do HealthKit, nao as tabelas smartwatch_data/heart_rate_samples
- * do backend (que existem mas nao sao escritas pelo app hoje; ver relatorio
- * de investigacao). So iOS tem HealthKit — Android nunca mostra este card,
+ * Faixa compacta de 4 metricas de saude da Home (sem card/titulo por
+ * cima) — tema visual novo "prism-glass" (ver colors3 em
+ * constants/theme.ts), cada tile e um GlassCard variant="card". Reaproveita
+ * o MESMO servico ja usado pelo card de Apple Health da tela de Atividades
+ * (services/healthkit.ts, fetchHealthSummary) — leitura nativa do
+ * HealthKit, nao as tabelas smartwatch_data/heart_rate_samples do backend
+ * (que existem mas nao sao escritas pelo app hoje; ver relatorio de
+ * investigacao). So iOS tem HealthKit — Android nunca mostra este bloco,
  * mesmo padrao ja usado por HealthSummaryCard.
  *
  * Cada tile e tocavel e leva pra app/health/[metric].tsx (historico com
@@ -62,14 +82,21 @@ export function HealthMetricsGrid() {
         setStatus('unavailable');
         return;
       }
-      const connected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
-      if (!connected) {
+      const authorized = await ensureHealthKitAuthorized();
+      if (!authorized) {
         setStatus('disconnected');
         return;
       }
+      await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
       setSummary(await fetchHealthSummary());
       setStatus('ready');
-    } catch {
+    } catch (err) {
+      // DEBUG TEMPORARIO — mesmo motivo do catch em app/health/[metric].tsx:
+      // ver se o resumo (fetchHealthSummary, consulta mais simples) tambem
+      // falha, ou so o historico por periodo (fetchHealthMetricHistory) —
+      // isola se e permissao (os 2 falhariam) ou algo especifico da consulta
+      // de historico. Remover junto com o outro debug.
+      console.error('[DEBUG HealthMetricsGrid] falha ao buscar resumo de saude:', err);
       setStatus('error');
     }
   }, []);
@@ -85,10 +112,10 @@ export function HealthMetricsGrid() {
   const tiles: Tile[] = [
     {
       key: 'heartRate',
-      icon: 'heart',
       color: metricColors.heartRate,
-      label: 'Batimentos',
+      label: 'Batim.',
       value: summary?.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm}` : '--',
+      unit: 'bpm',
       progress:
         summary?.heartRate.mostRecentBpm != null
           ? clamp01((summary.heartRate.mostRecentBpm - HR_RANGE.min) / (HR_RANGE.max - HR_RANGE.min))
@@ -96,18 +123,18 @@ export function HealthMetricsGrid() {
     },
     {
       key: 'steps',
-      icon: 'footsteps',
       color: metricColors.steps,
       label: 'Passos',
-      value: summary?.stepsToday != null ? summary.stepsToday.toLocaleString('pt-BR') : '--',
+      value: summary?.stepsToday != null ? formatCompactNumber(summary.stepsToday) : '--',
+      unit: 'de 10k',
       progress: summary?.stepsToday != null ? clamp01(summary.stepsToday / STEPS_REFERENCE) : null,
     },
     {
       key: 'sleep',
-      icon: 'moon',
       color: metricColors.sleep,
       label: 'Sono',
       value: summary?.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--',
+      unit: 'ontem',
       progress:
         summary?.sleepLastNightHours != null
           ? clamp01(summary.sleepLastNightHours / SLEEP_REFERENCE_HOURS)
@@ -115,10 +142,10 @@ export function HealthMetricsGrid() {
     },
     {
       key: 'calories',
-      icon: 'flame',
       color: metricColors.energy,
-      label: 'Calorias ativas',
-      value: summary?.activeEnergyTodayKcal != null ? `${summary.activeEnergyTodayKcal}` : '--',
+      label: 'Calorias',
+      value: summary?.activeEnergyTodayKcal != null ? formatCompactNumber(summary.activeEnergyTodayKcal) : '--',
+      unit: 'kcal',
       progress:
         summary?.activeEnergyTodayKcal != null
           ? clamp01(summary.activeEnergyTodayKcal / ACTIVE_ENERGY_REFERENCE_KCAL)
@@ -128,32 +155,46 @@ export function HealthMetricsGrid() {
 
   const showConnectHint = status === 'disconnected' || status === 'error' || status === 'checking';
 
-  return (
-    <LiquiglassCard style={styles.card}>
-      <Text style={styles.cardTitle}>Saude</Text>
+  const renderTile = (tile: Tile) => (
+    <Pressable
+      key={tile.key}
+      style={styles.tileWrap}
+      onPress={() => router.push({ pathname: '/health/[metric]', params: { metric: tile.key } })}
+    >
+      <GlassCard variant="card" padding={spacing3.md} style={styles.tileCard}>
+        <Text style={styles.tileLabel} numberOfLines={1}>
+          {tile.label}
+        </Text>
+        <View style={styles.tileValueRow}>
+          <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {tile.value}
+          </Text>
+          <Text style={styles.tileUnit} numberOfLines={1}>
+            {' '}
+            {tile.unit}
+          </Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View
+            style={[styles.progressFill, { width: `${(tile.progress ?? 0) * 100}%`, backgroundColor: tile.color }]}
+          />
+        </View>
+      </GlassCard>
+    </Pressable>
+  );
 
+  return (
+    <View style={styles.wrap}>
+      {/*
+        Grade 2x2 (era 1 linha x 4 colunas) — estrutura inspirada no Garmin
+        Connect (so o tamanho/proporcao dos cards, sem os aneis/graficos
+        circulares dele, mantendo cores/tipografia colors3 do Tryv). 2
+        Views de linha explicitas em vez de flexWrap: mais previsivel com
+        `gap` do que confiar em porcentagem de largura quebrando sozinha.
+      */}
       <View style={styles.grid}>
-        {tiles.map((tile) => (
-          <Pressable
-            key={tile.key}
-            style={styles.tile}
-            onPress={() => router.push({ pathname: '/health/[metric]', params: { metric: tile.key } })}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: hexToRgba(tile.color, 0.12) }]}>
-              <Ionicons name={tile.icon} size={18} color={tile.color} />
-            </View>
-            <Text style={styles.tileLabel}>{tile.label}</Text>
-            <Text style={styles.tileValue}>{tile.value}</Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${(tile.progress ?? 0) * 100}%`, backgroundColor: tile.color },
-                ]}
-              />
-            </View>
-          </Pressable>
-        ))}
+        <View style={styles.gridRow}>{tiles.slice(0, 2).map(renderTile)}</View>
+        <View style={styles.gridRow}>{tiles.slice(2, 4).map(renderTile)}</View>
       </View>
 
       {showConnectHint && (
@@ -162,10 +203,9 @@ export function HealthMetricsGrid() {
             {status === 'error' ? 'Nao foi possivel carregar seus dados de saude.' : 'Nenhum dado sincronizado ainda.'}{' '}
             Conectar Apple Health
           </Text>
-          <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
         </Pressable>
       )}
-    </LiquiglassCard>
+    </View>
   );
 }
 
@@ -173,53 +213,36 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-/** As cores de metrica sao hex fixo (#RRGGBB) — converte pra rgba() (mesmo utilitario de HealthWeeklyBarChart.tsx). */
-function hexToRgba(hex: string, opacity: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
 const styles = StyleSheet.create({
-  card: { gap: spacing2.md },
-  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
-  tile: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    gap: spacing2.xs,
-    padding: spacing2.md,
-    borderRadius: radius2.md,
-    backgroundColor: colors2.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-  },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius2.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
-  tileValue: { ...typography2.metricMono, fontSize: 22 },
+  wrap: { gap: spacing3.xs },
+  grid: { gap: spacing3.sm },
+  gridRow: { flexDirection: 'row', gap: spacing3.sm },
+  tileWrap: { flex: 1, minWidth: 0 },
+  tileCard: { justifyContent: 'space-between' },
+  tileLabel: { ...typography3.labelSm, color: colors3.onSurfaceVariant },
+  tileValueRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: spacing3.md },
+  // fontSize 18->32 — card 2x2 tem bem mais espaco que a faixa de 4
+  // colunas de antes (que forcava um numero pequeno pra caber numa faixa
+  // estreita); flexShrink:1 continua valendo, o adjustsFontSizeToFit ainda
+  // reduz a fonte se algum numero grande demais nao couber numa linha so.
+  tileValue: { ...typography3.headlineLg, fontSize: 32, lineHeight: 36, color: colors3.onSurface, flexShrink: 1 },
+  // flexShrink:0 — nunca disputa espaco com tileValue, entao o texto
+  // secundario (ex: "kcal", "ontem", "de 10k") sempre aparece inteiro, e e
+  // o numero (tileValue) que cede espaco/encolhe fonte quando precisar.
+  tileUnit: { ...typography3.labelSm, color: colors3.outline, flexShrink: 0 },
   progressTrack: {
-    height: 4,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainer,
+    height: 3,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceVariant,
     overflow: 'hidden',
-    marginTop: 2,
+    marginTop: spacing3.md,
   },
-  progressFill: { height: '100%', borderRadius: radius2.pill },
+  progressFill: { height: '100%', borderRadius: radius3.pill },
 
-  connectHint: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingTop: spacing2.xs },
+  connectHint: { paddingTop: spacing3.xs },
   connectHintText: {
-    ...typography2.labelCaps,
-    textTransform: 'none',
-    color: colors2.primary,
+    ...typography3.labelSm,
+    color: colors3.primary,
     fontWeight: '700',
-    flex: 1,
   },
 });

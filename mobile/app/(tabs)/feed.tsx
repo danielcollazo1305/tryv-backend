@@ -1,22 +1,25 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { EmptyFollowingState } from '@/components/EmptyFollowingState';
 import { PostCard2 } from '@/components/PostCard2';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
 const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<Post[]>([]);
   // Badges (Pro/Team) do autor de cada post — GET /users/{id}/badges,
   // mesmo endpoint usado no Perfil Publico, so que buscado em paralelo pra
@@ -123,13 +126,13 @@ export default function FeedScreen() {
   const showEmptyFollowingState = !loading && followingCount === 0;
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <FlatList
         data={showEmptyFollowingState ? [] : posts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors2.violet} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors3.primary} />
         }
         ListHeaderComponent={
           <View style={styles.header}>
@@ -145,14 +148,14 @@ export default function FeedScreen() {
                   (decisao minha, documentada aqui).
                 */}
                 <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
-                  <Ionicons name="search" size={22} color={colors2.onSurfaceVariant} />
+                  <Ionicons name="search" size={22} color={colors3.onSurfaceVariant} />
                 </Pressable>
-                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton/Avatar sao compartilhados e ja funcionam no claro (mesmo componente ja usado pela Home) — nao precisaram mudar. */}
                 <ProfileAvatarButton size={32} />
               </View>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
-            {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+            {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
           </View>
         }
         renderItem={({ item }) => (
@@ -166,19 +169,19 @@ export default function FeedScreen() {
             }
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
         onEndReachedThreshold={0.4}
         onEndReached={handleLoadMore}
         ListFooterComponent={
-          loadingMore ? <ActivityIndicator color={colors2.violet} style={styles.footerLoading} /> : null
+          loadingMore ? <ActivityIndicator color={colors3.primary} style={styles.footerLoading} /> : null
         }
         ListEmptyComponent={
           !loading ? (
             showEmptyFollowingState ? (
-              <EmptyFollowingState />
+              <EmptyFollowingState variant="light" />
             ) : (
               <View style={styles.empty}>
-                <Ionicons name="images-outline" size={32} color={colors2.onSurfaceVariant} />
+                <Ionicons name="images-outline" size={32} color={colors3.onSurfaceVariant} />
                 <Text style={styles.emptyText}>Nenhum post ainda. Siga outras pessoas ou crie o primeiro!</Text>
               </View>
             )
@@ -186,40 +189,50 @@ export default function FeedScreen() {
         }
       />
 
-      <Pressable style={styles.fab} onPress={() => router.push('/social/new')}>
-        <Ionicons name="add" size={28} color={colors2.white} />
+      {/*
+        FAB "+" -> /social/new — ja existia no codigo antes desta tarefa (nao
+        e novo, so recolorido pro claro). `bottom` calculado a partir da tab
+        bar flutuante (TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_GAP + safe area, mesma
+        formula ja usada no paddingBottom do scroll da Home em (tabs)/index.tsx)
+        — antes usava so spacing3.lg fixo, que nao considerava a altura da
+        tab bar e por isso o botao ficava parcialmente atras dela.
+      */}
+      <Pressable
+        style={[styles.fab, { bottom: insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + spacing3.lg }]}
+        onPress={() => router.push('/social/new')}
+      >
+        <Ionicons name="add" size={28} color={colors3.onPrimary} />
       </Pressable>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl * 2 },
-  header: { gap: spacing2.xs, marginBottom: spacing2.md },
-  logo: { ...typography2.displayHero, fontSize: 36 },
+  listContent: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl * 2 },
+  header: { gap: spacing3.xs, marginBottom: spacing3.md },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
-  title: { ...typography2.headlineLgMobile, fontSize: 26 },
-  error: { color: colors2.danger, textAlign: 'center' },
-  loading: { marginTop: spacing2.sm },
-  footerLoading: { marginVertical: spacing2.md },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
+  title: { ...typography3.headlineLgMobile, fontSize: 26 },
+  error: { color: colors3.error, textAlign: 'center' },
+  loading: { marginTop: spacing3.sm },
+  footerLoading: { marginVertical: spacing3.md },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
   fab: {
     position: 'absolute',
-    right: spacing2.lg,
-    bottom: spacing2.lg,
+    right: spacing3.lg,
     width: 56,
     height: 56,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.violet,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors2.violet,
+    shadowColor: colors3.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },

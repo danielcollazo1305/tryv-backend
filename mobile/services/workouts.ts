@@ -13,6 +13,11 @@ export interface WorkoutExercise {
 
 export interface WorkoutDay {
   day: string;
+  // 0=domingo...6=sabado — Date.getDay() nativo do JS, nao ISO (ver
+  // comentario em backend/app/services/workout_generator.py._DAY_SCHEMA).
+  // Opcional: planos gerados antes desse campo existir nao tem essa chave
+  // (plan_data e JSON solto, sem migration pra backfill).
+  day_of_week?: number | null;
   focus: string;
   exercises: WorkoutExercise[];
   estimated_duration_minutes?: number | null;
@@ -40,6 +45,36 @@ export interface WorkoutPlan {
 export function isWorkoutPlanExpired(plan: WorkoutPlan): boolean {
   if (!plan.expires_at) return false;
   return parseUtcDate(plan.expires_at).getTime() <= Date.now();
+}
+
+export interface TodayWorkoutResult {
+  day: WorkoutDay;
+  isToday: boolean;
+}
+
+/**
+ * Acha o dia do plano que bate com hoje (day_of_week === Date.getDay()) —
+ * ou, se hoje for dia de descanso, o proximo day_of_week futuro mais
+ * proximo (rotacionando pra semana seguinte se nenhum dia do plano cair
+ * mais adiante nesta semana). Retorna null se o plano nao tiver
+ * plan_data, ou se NENHUM dia tiver day_of_week definido (planos gerados
+ * antes desse campo existir) — nesse caso nao ha como saber com confianca
+ * qual e "o treino de hoje", entao o chamador nao deve mostrar nada em vez
+ * de adivinhar. Usado por TodayWorkoutCard.tsx (hero "Começar treino" da
+ * Home).
+ */
+export function getTodayOrNextWorkoutDay(plan: WorkoutPlan): TodayWorkoutResult | null {
+  const days = plan.plan_data?.days ?? [];
+  const withDayOfWeek = days.filter((d): d is WorkoutDay & { day_of_week: number } => d.day_of_week != null);
+  if (withDayOfWeek.length === 0) return null;
+
+  const todayDow = new Date().getDay();
+  const today = withDayOfWeek.find((d) => d.day_of_week === todayDow);
+  if (today) return { day: today, isToday: true };
+
+  const sortedByDow = [...withDayOfWeek].sort((a, b) => a.day_of_week - b.day_of_week);
+  const next = sortedByDow.find((d) => d.day_of_week > todayDow) ?? sortedByDow[0];
+  return { day: next, isToday: false };
 }
 
 /** null quando o plano nao tem validade (expires_at nulo) ou ja expirou. */
@@ -101,8 +136,11 @@ export interface WorkoutExerciseLog {
 }
 
 export interface WorkoutSessionCreate {
-  day: string;
-  focus: string;
+  /** So usado por logFreeWorkoutSession (POST /workout-sessions) — em logWorkoutSession o plano vem da URL, este campo e ignorado. */
+  plan_id?: string | null;
+  /** Obrigatorio numa sessao de plano; None numa sessao livre (ver FreeSessionState). */
+  day?: string | null;
+  focus?: string | null;
   exercises: WorkoutExerciseLog[];
   duration_minutes?: number | null;
   calories_burned?: number | null;
@@ -110,8 +148,10 @@ export interface WorkoutSessionCreate {
 
 export interface WorkoutSession {
   id: string;
-  plan_id: string;
-  exercises: { day: string; focus: string; exercises: WorkoutExerciseLog[] } | null;
+  /** null numa sessao livre (sem plano associado). */
+  plan_id: string | null;
+  user_id: string;
+  exercises: { day: string | null; focus: string | null; exercises: WorkoutExerciseLog[] } | null;
   calories_burned: number | null;
   duration_minutes: number | null;
   completed_at: string;
@@ -120,5 +160,48 @@ export interface WorkoutSession {
 /** Registra o que foi de fato executado num dia do plano (peso/reps por serie). */
 export async function logWorkoutSession(planId: string, payload: WorkoutSessionCreate): Promise<WorkoutSession> {
   const response = await api.post<WorkoutSession>(`/workout-plans/${planId}/sessions`, payload);
+  return response.data;
+}
+
+/**
+ * Registra uma sessao "livre" — exercicios escolhidos manualmente pelo
+ * usuario, sem nenhum plano associado (POST /workout-sessions, fora do
+ * prefixo /workout-plans). `payload.plan_id` fica undefined/None aqui.
+ */
+export async function logFreeWorkoutSession(payload: WorkoutSessionCreate): Promise<WorkoutSession> {
+  const response = await api.post<WorkoutSession>('/workout-sessions/', payload);
+  return response.data;
+}
+
+export interface WorkoutLastExercise {
+  exercise_name: string;
+  completed_at: string;
+  sets: WorkoutSetLog[];
+}
+
+/**
+ * Peso/reps da ultima vez que este exercicio foi registrado (por NOME,
+ * case/espaco insensivel no backend) — cobre sessao de plano E sessao
+ * livre (busca em TODAS as sessoes do usuario). null quando nunca foi
+ * registrado (nao e erro, e a primeira vez). Usado pelo hint "Última vez:
+ * Xkg × Y" em SetLogSection (WorkoutDayCard.tsx).
+ */
+export async function getLastExercisePerformance(exerciseName: string): Promise<WorkoutLastExercise | null> {
+  const response = await api.get<WorkoutLastExercise | null>('/workout-sessions/last-exercise', {
+    params: { exercise_name: exerciseName },
+  });
+  return response.data;
+}
+
+/**
+ * Lista sessoes de treino (plano OU livre) do usuario, filtradas por
+ * intervalo de completed_at — usada pelos marcadores de atividade "treino
+ * de forca" na tela de detalhe de Frequencia cardiaca (HeartRateDetailView),
+ * ao lado de corrida/pedalada (services/activities.ts) e sono (HealthKit).
+ */
+export async function listWorkoutSessions(startDate: Date, endDate: Date): Promise<WorkoutSession[]> {
+  const response = await api.get<WorkoutSession[]>('/workout-sessions/', {
+    params: { start_date: startDate.toISOString(), end_date: endDate.toISOString() },
+  });
   return response.data;
 }

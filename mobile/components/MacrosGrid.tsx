@@ -1,9 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
+import { GlassCard } from '@/components/GlassCard';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 interface MacrosGridProps {
   calories: number;
@@ -28,22 +27,23 @@ function clamp01(value: number): number {
  * Só o tile de Calorias tem barra de progresso: é a única meta individual
  * que existe de verdade (User.daily_calorie_goal — não há meta de grama
  * por macro em lugar nenhum do backend). Os outros 3 tiles mostram só o
- * valor absoluto, sem barra — uma barra "decorativa" sem meta real por
- * trás pareceria indicar um alvo que não existe, o que não é consistente
- * com o resto do app (ex: ObscuredCard/HealthMetricsGrid só usam barra
- * quando há uma referência real ou uma diretriz pública conhecida; não há
- * equivalente pra gramas de macro).
+ * valor absoluto, sem barra.
+ *
+ * Migrado pro tema claro "prism-glass" (GlassCard/colors3) seguindo o
+ * mockup aprovado da tela de Refeicoes.
+ *
+ * Sem icone nos tiles (removido a pedido — cards ficam so com label +
+ * valor, ver historico do componente se precisar recuperar as cores por
+ * metrica: Calorias = colors3.primary, Proteina = #FB7185, Carboidrato =
+ * #F5A524, Gordura = #818CF8).
  */
 export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: MacrosGridProps) {
   const calorieProgress = calorieGoal ? clamp01(calories / calorieGoal) : null;
 
   return (
-    <LiquiglassCard style={styles.card}>
+    <GlassCard variant="glass" style={styles.card}>
       <View style={styles.grid}>
         <View style={styles.tile}>
-          <View style={[styles.iconWrap, { backgroundColor: hexToRgba(colors2.violet, 0.12) }]}>
-            <Ionicons name="flame" size={18} color={colors2.violet} />
-          </View>
           <Text style={styles.label}>Calorias</Text>
           <Text style={styles.value}>
             {Math.round(calories)}
@@ -52,15 +52,12 @@ export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: Macro
           </Text>
           {calorieProgress != null && (
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${calorieProgress * 100}%`, backgroundColor: colors2.violet }]} />
+              <View style={[styles.progressFill, { width: `${calorieProgress * 100}%`, backgroundColor: colors3.primary }]} />
             </View>
           )}
         </View>
 
         <View style={styles.tile}>
-          <View style={[styles.iconWrap, { backgroundColor: hexToRgba(metricColors.energy, 0.12) }]}>
-            <Ionicons name="barbell" size={18} color={metricColors.energy} />
-          </View>
           <Text style={styles.label}>Proteina</Text>
           <Text style={styles.value}>
             {Math.round(protein)}
@@ -69,9 +66,6 @@ export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: Macro
         </View>
 
         <View style={styles.tile}>
-          <View style={[styles.iconWrap, { backgroundColor: hexToRgba(metricColors.steps, 0.12) }]}>
-            <Ionicons name="leaf" size={18} color={metricColors.steps} />
-          </View>
           <Text style={styles.label}>Carboidrato</Text>
           <Text style={styles.value}>
             {Math.round(carbs)}
@@ -80,9 +74,6 @@ export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: Macro
         </View>
 
         <View style={styles.tile}>
-          <View style={[styles.iconWrap, { backgroundColor: hexToRgba(metricColors.sleep, 0.12) }]}>
-            <Ionicons name="water" size={18} color={metricColors.sleep} />
-          </View>
           <Text style={styles.label}>Gordura</Text>
           <Text style={styles.value}>
             {Math.round(fat)}
@@ -90,48 +81,33 @@ export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: Macro
           </Text>
         </View>
       </View>
-    </LiquiglassCard>
+    </GlassCard>
   );
 }
 
-/** As cores de metrica sao hex fixo (#RRGGBB) — converte pra rgba() (mesmo utilitario ja usado em HealthMetricsGrid/HealthWeeklyBarChart). */
-function hexToRgba(hex: string, opacity: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
 const styles = StyleSheet.create({
-  card: { gap: spacing2.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
+  card: { gap: spacing3.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   tile: {
     flexBasis: '47%',
     flexGrow: 1,
-    gap: spacing2.xs,
-    padding: spacing2.md,
-    borderRadius: radius2.md,
-    backgroundColor: colors2.surfaceContainerHigh,
+    gap: spacing3.xs,
+    padding: spacing3.md,
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.74)',
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
   },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius2.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
-  value: { ...typography2.metricMono, fontSize: 22 },
-  valueGoal: { ...typography2.metricMono, fontSize: 14, color: colors2.onSurfaceVariant },
-  unit: { ...typography2.bodyMd, fontSize: 12, color: colors2.onSurfaceVariant },
+  label: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+  value: { ...typography3.bodyMd, fontFamily: 'JetBrainsMono_700Bold', fontSize: 22, color: colors3.onSurface },
+  valueGoal: { fontFamily: 'JetBrainsMono_600SemiBold', fontSize: 14, color: colors3.onSurfaceVariant },
+  unit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   progressTrack: {
     height: 4,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainer,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceVariant,
     overflow: 'hidden',
     marginTop: 2,
   },
-  progressFill: { height: '100%', borderRadius: radius2.pill },
+  progressFill: { height: '100%', borderRadius: radius3.pill },
 });

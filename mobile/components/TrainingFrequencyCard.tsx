@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 
-import { HEATMAP_INTENSITY_COLORS, HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey as getTodayKey } from '@/components/HeatmapGrid';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
+import { HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey as getTodayKey } from '@/components/HeatmapGrid';
 import { TrainingDay, getTrainingFrequency, parseLocalDate } from '@/services/dashboard';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 function currentMonthParam(): string {
   const now = new Date();
@@ -36,12 +37,19 @@ function formatSelectedDate(dateStr: string): string {
  * atual, sem depender do seletor de mes que continua exclusivo das
  * estatisticas pagas mais abaixo na tela.
  *
- * Calendario estilo Strava (HeatmapGrid): celulas circulares com o numero
- * do dia dentro, hoje com contorno em vez de preenchimento, dias futuros
- * apagados. Um toque na celula ainda mostra a data + intensidade em texto
- * abaixo (mantido do design anterior). Sequencia atual (streak) calculada
- * so sobre o mes civil buscado — ver comentario junto de `streak` abaixo
- * pra limitacao quando a sequencia cruza a virada do mes.
+ * Retemado pro sistema visual novo "prism-glass" (ver colors3 em
+ * constants/theme.ts) — GlassCard no lugar do FlatCard (o tema claro nao
+ * distingue card "flat" vs "glass", todo card e prism-glass), calendario
+ * usa HeatmapGrid variant="light".
+ *
+ * O painel de sequencia atual (fundo roxo translucido + icone circular em
+ * gradiente) e uma adicao real (dado ja existente, days_trained/
+ * days_total) que o HTML de referencia nao modela (a versao dele so mostra
+ * um calendario estatico sem streak nenhum) — mantive porque e um recurso
+ * de verdade ja aprovado antes, so retemado pra paleta clara. O mockup
+ * tambem sugere "Melhor sequência: N dias" nesse tipo de painel, que NAO
+ * tem fonte real (nao existe calculo de maior sequencia historica em lugar
+ * nenhum do backend) — continua omitido.
  *
  * userId opcional: reaproveitado no perfil publico de outra pessoa
  * (social/[userId].tsx) — mesma decisao de visibilidade do
@@ -49,6 +57,8 @@ function formatSelectedDate(dateStr: string): string {
  */
 export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
   const [days, setDays] = useState<TrainingDay[] | null>(null);
+  const [daysTrained, setDaysTrained] = useState(0);
+  const [daysTotal, setDaysTotal] = useState(0);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<TrainingDay | null>(null);
 
@@ -57,6 +67,8 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
     try {
       const data = await getTrainingFrequency({ month: currentMonthParam() }, userId);
       setDays(data.training_frequency);
+      setDaysTrained(data.days_trained);
+      setDaysTotal(data.days_total);
       setSelected(null);
     } catch {
       setError(true);
@@ -102,6 +114,7 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
           days={days as HeatmapDay[]}
           todayKey={todayKey}
           onSelectDay={(day) => setSelected({ date: day.date, intensity: day.intensity })}
+          variant="light"
         />
 
         <View style={styles.footer}>
@@ -110,57 +123,85 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
               ? `${formatSelectedDate(selected.date)} — ${intensityLabel(selected.intensity)}`
               : 'Toque num dia para ver o detalhe'}
           </Text>
-          <View style={styles.legend}>
-            <Text style={styles.legendLabel}>Menos</Text>
-            {HEATMAP_INTENSITY_COLORS.map((color, index) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <View key={index} style={[styles.legendSwatch, { backgroundColor: color }]} />
-            ))}
-            <Text style={styles.legendLabel}>Mais</Text>
-          </View>
         </View>
       </>
     );
   }
 
   return (
-    <LiquiglassCard style={styles.card}>
+    <GlassCard style={styles.card} padding={24}>
       <View style={styles.header}>
-        <Text style={styles.cardTitle}>{monthTitle()}</Text>
-        {!!streak && streak.count > 0 && (
-          <View style={styles.streakBadge}>
-            <Ionicons name="flame" size={14} color={colors2.violet} />
-            <Text style={styles.streakText}>
-              {streak.count}
-              {streak.hitLeftEdge ? '+' : ''} {streak.count === 1 ? 'dia seguido' : 'dias seguidos'}
+        <Text style={styles.eyebrow}>Constância</Text>
+        <Text style={styles.monthLabel}>{monthTitle()}</Text>
+      </View>
+
+      {!!streak && streak.count > 0 && (
+        <View style={styles.streakPanel}>
+          <LinearGradient
+            colors={[colors3.primary, colors3.onPrimaryFixed]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.streakIcon}
+          >
+            <Ionicons name="arrow-up" size={16} color={colors3.onPrimary} />
+          </LinearGradient>
+          <View style={styles.streakTexts}>
+            <View style={styles.streakCountRow}>
+              <Text style={styles.streakCount}>
+                {streak.count}
+                {streak.hitLeftEdge ? '+' : ''}
+              </Text>
+              <Text style={styles.streakCountLabel}>{streak.count === 1 ? 'dia seguido' : 'dias seguidos'}</Text>
+            </View>
+            <Text style={styles.streakNote}>
+              {daysTrained} de {daysTotal} dias ativos
             </Text>
           </View>
-        )}
-      </View>
+        </View>
+      )}
+
       {content}
-    </LiquiglassCard>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing2.md },
+  card: { gap: spacing3.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
-  streakBadge: {
+  eyebrow: { ...typography3.labelMd, textTransform: 'uppercase', color: colors3.onSurfaceVariant },
+  monthLabel: { ...typography3.bodyMd, color: colors3.onSurface },
+
+  streakPanel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderRadius: 999,
-    paddingHorizontal: spacing2.sm,
-    paddingVertical: 4,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: radius3.lg,
+    backgroundColor: 'rgba(107, 56, 212, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(107, 56, 212, 0.25)',
   },
-  streakText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.violet, fontWeight: '700' },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  streakIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors3.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  streakTexts: { flex: 1, gap: 2 },
+  streakCountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
+  streakCount: { ...typography3.headlineMd, fontSize: 22, lineHeight: 24, letterSpacing: -0.8, color: colors3.onSurface },
+  streakCountLabel: { ...typography3.bodyMd, fontSize: 13, lineHeight: 18, fontWeight: '700', color: colors3.primary },
+  streakNote: { ...typography3.bodyMd, fontSize: 11, lineHeight: 15, color: colors3.onSurfaceVariant, marginTop: 2 },
 
-  footer: { gap: spacing2.xs, marginTop: spacing2.xs },
-  selectedText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
-  legend: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendLabel: { ...typography2.labelCaps, textTransform: 'none', fontSize: 10, color: colors2.onSurfaceVariant },
-  legendSwatch: { width: 10, height: 10, borderRadius: 2 },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+
+  footer: { gap: spacing3.xs, marginTop: spacing3.xs, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.5)', paddingTop: spacing3.md },
+  selectedText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant, textAlign: 'center' },
 });

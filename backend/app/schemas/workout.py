@@ -28,6 +28,13 @@ class WorkoutExerciseOut(BaseModel):
 
 class WorkoutDayOut(BaseModel):
     day: str
+    # 0=domingo...6=sabado (indice nativo do JS, nao ISO — ver comentario em
+    # workout_generator.py._DAY_SCHEMA). Nullable pra nao quebrar planos
+    # gerados antes desse campo existir (plan_data e um JSON solto, entao
+    # planos antigos simplesmente nao tem essa chave — sem migration
+    # necessaria). Usado pelo app pra saber com confianca qual dia do plano
+    # e "hoje" (ver getTodayOrNextWorkoutDay no mobile).
+    day_of_week: int | None = None
     focus: str
     exercises: list[WorkoutExerciseOut]
     estimated_duration_minutes: int | None = None
@@ -82,21 +89,39 @@ class WorkoutExerciseLog(BaseModel):
 
 class WorkoutSessionCreate(BaseModel):
     """
-    plan_id vem da URL (POST /workout-plans/{plan_id}/sessions), nao do
-    corpo. day/focus sao snapshot de qual dia do plano foi executado —
-    WorkoutSession nao tem coluna propria pra isso (nao precisou de
+    Em POST /workout-plans/{plan_id}/sessions, plan_id vem da URL (nao do
+    corpo) — o campo `plan_id` aqui fica None/ignorado nesse caso. Em POST
+    /workout-sessions (sessao livre, sem plano), plan_id vem do corpo,
+    podendo ser None de verdade. day/focus sao snapshot de qual dia do
+    plano foi executado — obrigatorios pra sessao de plano, None numa
+    sessao livre (nao ha "dia"/"foco" de um plano pra registrar).
+    WorkoutSession nao tem coluna propria pra day/focus (nao precisou de
     migration, ver workout_sessions.exercises abaixo).
     """
-    day: str
-    focus: str
+    plan_id: uuid.UUID | None = None
+    day: str | None = None
+    focus: str | None = None
     exercises: list[WorkoutExerciseLog]
     duration_minutes: int | None = None
     calories_burned: float | None = None
 
 
+class WorkoutLastExerciseOut(BaseModel):
+    """
+    Resposta de GET /workout-sessions/last-exercise — busca por
+    exercise_name (string, snapshot salvo em WorkoutSession.exercises), nao
+    por plano/dia/indice, entao cobre sessao de plano E sessao livre com a
+    mesma consulta (ver routers/workout_sessions.py.get_last_exercise).
+    """
+    exercise_name: str
+    completed_at: datetime
+    sets: list[WorkoutSetLog]
+
+
 class WorkoutSessionOut(BaseModel):
     id: uuid.UUID
-    plan_id: uuid.UUID
+    plan_id: uuid.UUID | None = None
+    user_id: uuid.UUID
     exercises: dict | None = None
     calories_burned: float | None = None
     duration_minutes: int | None = None

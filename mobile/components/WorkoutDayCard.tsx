@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -6,8 +6,17 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { MuscleDiagram } from '@/components/MuscleDiagram';
 import { getDayMuscleGroups, getExerciseInfo } from '@/constants/exerciseLibrary';
-import { WorkoutDay } from '@/services/workouts';
+import { WorkoutDay, WorkoutLastExercise, getLastExercisePerformance } from '@/services/workouts';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+
+/** "40kg × 10" a partir da ULTIMA serie com peso+reps preenchidos — null quando nenhuma serie da sessao passada tem os 2 dados (ex: so marcada como concluida, sem numero). */
+function formatLastPerformance(last: WorkoutLastExercise | null): string | null {
+  if (!last) return null;
+  const withData = last.sets.filter((set) => set.weight_kg != null && set.reps != null);
+  if (withData.length === 0) return null;
+  const mostRecent = withData[withData.length - 1];
+  return `${mostRecent.weight_kg}kg × ${mostRecent.reps}`;
+}
 
 /** Estado local (nao salvo ainda) de uma serie sendo registrada — valores como texto pra aceitar digitacao livre (vazio, "22,5" etc.) antes de virar numero no save. */
 export interface SetEntry {
@@ -75,18 +84,43 @@ function ExerciseVideoBlock({ videoUrl }: { videoUrl?: string | null }) {
  * passa log/onSetsChange (plano ja salvo, com plan_id pra associar a
  * sessao) — na etapa de revisao do gerador de treino (plano ainda nao
  * salvo), esses props ficam undefined e a secao nao renderiza, ja que nao
- * haveria onde persistir o registro.
+ * haveria onde persistir o registro. Exportado — reaproveitado tambem por
+ * FreeWorkoutLogView.tsx (sessao livre, sem plano/dia/exercicio-indice).
  */
-function SetLogSection({
+export function SetLogSection({
   plannedSets,
   sets,
   onChange,
+  exerciseName,
 }: {
   plannedSets: number;
   sets: SetEntry[] | undefined;
   onChange: (sets: SetEntry[]) => void;
+  /**
+   * Nome do exercicio pra buscar o hint "Última vez: Xkg × Y" (GET
+   * /workout-sessions/last-exercise). Opcional pra nao quebrar nenhum
+   * outro uso futuro deste componente que nao tenha nome (nao existe hoje,
+   * os 2 call sites atuais sempre passam).
+   */
+  exerciseName?: string;
 }) {
   const rows = sets ?? buildDefaultSets(plannedSets);
+  const [lastPerformance, setLastPerformance] = useState<WorkoutLastExercise | null>(null);
+
+  useEffect(() => {
+    if (!exerciseName) return;
+    let active = true;
+    getLastExercisePerformance(exerciseName)
+      .then((result) => {
+        if (active) setLastPerformance(result);
+      })
+      .catch(() => {
+        if (active) setLastPerformance(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [exerciseName]);
 
   const updateRow = (index: number, patch: Partial<SetEntry>) => {
     const next = rows.map((row, i) => (i === index ? { ...row, ...patch } : row));
@@ -97,8 +131,16 @@ function SetLogSection({
     onChange([...rows, { weightKg: '', reps: '', completed: false }]);
   };
 
+  const lastPerformanceLabel = formatLastPerformance(lastPerformance);
+
   return (
     <View style={styles.logSection}>
+      {!!lastPerformanceLabel && (
+        <View style={styles.lastPerformanceRow}>
+          <Ionicons name="time-outline" size={12} color={colors2.onSurfaceVariant} />
+          <Text style={styles.lastPerformanceText}>Última vez: {lastPerformanceLabel}</Text>
+        </View>
+      )}
       <View style={styles.logHeaderRow}>
         <Text style={[styles.logHeaderCell, styles.logSerieCell]}>Serie</Text>
         <Text style={[styles.logHeaderCell, styles.logInputCell]}>Peso (kg)</Text>
@@ -224,6 +266,7 @@ export function WorkoutDayCard({ day, log, onSetsChange }: WorkoutDayCardProps) 
                 plannedSets={exercise.sets}
                 sets={log?.[index]}
                 onChange={(sets) => onSetsChange(index, sets)}
+                exerciseName={exercise.name}
               />
             )}
           </LiquiglassCard>
@@ -293,6 +336,8 @@ const styles = StyleSheet.create({
     borderRadius: radius2.sm,
     padding: spacing2.sm,
   },
+  lastPerformanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  lastPerformanceText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
   logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
   logHeaderCell: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },

@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { listMyDietPlans } from '@/services/dietPlans';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /**
  * So aparece se o aluno tiver ao menos um plano alimentar ativo — mesmo
@@ -35,31 +35,31 @@ export function DietPlanBanner() {
 
   return (
     <Pressable onPress={() => router.push('/diet-plan')}>
-      <LiquiglassCard style={styles.card}>
+      <GlassCard variant="glass" style={styles.card}>
         <View style={styles.iconWrap}>
-          <Ionicons name="nutrition" size={20} color={colors2.primary} />
+          <Ionicons name="nutrition" size={20} color={colors3.primary} />
         </View>
         <View style={styles.info}>
           <Text style={styles.title}>Seu plano alimentar</Text>
           <Text style={styles.subtitle}>Veja as refeicoes sugeridas pelo seu nutricionista</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-      </LiquiglassCard>
+        <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+      </GlassCard>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   iconWrap: {
     width: 40,
     height: 40,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: { flex: 1, gap: spacing2.xs },
-  title: { ...typography2.bodyMd, fontWeight: '600' },
-  subtitle: { ...typography2.labelCaps, textTransform: 'none' },
+  info: { flex: 1, gap: spacing3.xs },
+  title: { ...typography3.bodyMd, fontWeight: '600' },
+  subtitle: { ...typography3.labelSm, textTransform: 'none' },
 });

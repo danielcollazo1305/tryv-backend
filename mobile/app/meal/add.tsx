@@ -14,15 +14,22 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
-import { Badge } from '@/components/Badge';
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
 import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+
+// NOTA DE ESCOPO — migracao parcial, ver relatorio final. ChoiceGroup2
+// (pills "Como registrar"/"Compartilhar no Feed") e TextField2 (campos de
+// calorias/proteina/etc.) sao compartilhados por ~20 outras telas ainda
+// escuras (registro, desafios, cadastro de profissional...) — migrar esses
+// 2 componentes globalmente e um trabalho maior (construir TextField3/
+// ChoiceGroup3 do zero), fora do escopo de "so reskinar este modal".
+// Mantidos como estavam (colors2/dark) de proposito, nao esquecimento.
 
 type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
 type Mode = 'photo' | 'manual';
@@ -228,7 +235,7 @@ export default function AddMealScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Nova refeicao</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
+          <Ionicons name="close" size={26} color={colors3.onSurfaceVariant} />
         </Pressable>
       </View>
 
@@ -243,15 +250,17 @@ export default function AddMealScreen() {
           <View style={styles.photoSection}>
             <View style={styles.photoSectionHeader}>
               <Text style={styles.photoSectionTitle}>Registrar por foto</Text>
-              <Badge label="IA" variant="primary" />
+              <View style={styles.iaBadge}>
+                <Text style={styles.iaBadgeText}>IA</Text>
+              </View>
             </View>
             <View style={styles.pickButtons}>
               <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
-                <Ionicons name="camera" size={28} color={colors2.primary} />
+                <Ionicons name="camera" size={28} color={colors3.primary} />
                 <Text style={styles.pickButtonText}>Tirar foto</Text>
               </Pressable>
               <Pressable style={styles.pickButton} onPress={handlePickFromLibrary}>
-                <Ionicons name="images" size={28} color={colors2.primary} />
+                <Ionicons name="images" size={28} color={colors3.primary} />
                 <Text style={styles.pickButtonText}>Escolher da galeria</Text>
               </Pressable>
             </View>
@@ -261,7 +270,7 @@ export default function AddMealScreen() {
         {mode === 'photo' && stage === 'analyzing' && (
           <View style={styles.centered}>
             {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
-            <ActivityIndicator size="large" color={colors2.violet} style={styles.analyzingSpinner} />
+            <ActivityIndicator size="large" color={colors3.primary} style={styles.analyzingSpinner} />
             <Text style={styles.analyzingText}>Analisando sua refeicao...</Text>
           </View>
         )}
@@ -272,7 +281,9 @@ export default function AddMealScreen() {
 
             <View style={styles.descriptionRow}>
               <Text style={styles.description}>{analysis.description}</Text>
-              <Badge label="IA" variant="primary" />
+              <View style={styles.iaBadge}>
+                <Text style={styles.iaBadgeText}>IA</Text>
+              </View>
             </View>
             <Text style={styles.confidence}>
               {CONFIDENCE_LABEL[analysis.confidence] ?? `Confianca: ${analysis.confidence}`}
@@ -290,12 +301,12 @@ export default function AddMealScreen() {
               onChange={setShareVisibility}
             />
 
-            <Button2
+            <Button3
               label={stage === 'uploading' ? 'Enviando foto...' : 'Confirmar'}
               onPress={handleConfirm}
               loading={stage === 'uploading' || stage === 'saving'}
             />
-            <Button2
+            <Button3
               label="Tirar outra foto"
               variant="secondary"
               onPress={handleRetry}
@@ -354,7 +365,7 @@ export default function AddMealScreen() {
               onChange={setShareVisibility}
             />
 
-            <Button2 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
+            <Button3 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
           </View>
         )}
       </ScrollView>
@@ -363,46 +374,53 @@ export default function AddMealScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
+  flex: { flex: 1, backgroundColor: colors3.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  title: { ...typography2.headlineMd },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
-  error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },
+  title: { ...typography3.headlineMd },
+  content: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.md },
+  error: { color: colors3.error, textAlign: 'center', marginBottom: spacing3.sm },
 
-  photoSection: { gap: spacing2.md, marginTop: spacing2.md },
-  photoSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  photoSectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+  photoSection: { gap: spacing3.md, marginTop: spacing3.md },
+  photoSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  photoSectionTitle: { ...typography3.headlineMd, fontSize: 18 },
+  iaBadge: {
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
+    borderRadius: radius3.pill,
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: 2,
+  },
+  iaBadgeText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, fontWeight: '700' },
 
-  pickButtons: { gap: spacing2.md },
+  pickButtons: { gap: spacing3.md },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.md,
-    backgroundColor: colors2.surfaceContainer,
+    gap: spacing3.md,
+    backgroundColor: colors3.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: radius2.lg,
-    padding: spacing2.lg,
+    borderColor: colors3.outlineVariant,
+    borderRadius: radius3.lg,
+    padding: spacing3.lg,
   },
-  pickButtonText: { ...typography2.headlineMd, fontSize: 16 },
-  centered: { alignItems: 'center', marginTop: spacing2.xl },
+  pickButtonText: { ...typography3.headlineMd, fontSize: 16 },
+  centered: { alignItems: 'center', marginTop: spacing3.xl },
   previewLarge: {
     width: '100%',
     height: 220,
-    borderRadius: radius2.lg,
-    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius3.lg,
+    backgroundColor: colors3.surfaceContainerHigh,
   },
-  analyzingSpinner: { marginTop: spacing2.lg },
-  analyzingText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.md },
-  reviewContainer: { gap: spacing2.sm },
-  descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm, marginTop: spacing2.md },
-  description: { ...typography2.headlineMd, fontSize: 18, flex: 1 },
-  confidence: { ...typography2.labelCaps, textTransform: 'none', marginBottom: spacing2.sm },
+  analyzingSpinner: { marginTop: spacing3.lg },
+  analyzingText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.md },
+  reviewContainer: { gap: spacing3.sm },
+  descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, marginTop: spacing3.md },
+  description: { ...typography3.headlineMd, fontSize: 18, flex: 1 },
+  confidence: { ...typography3.labelSm, textTransform: 'none', marginBottom: spacing3.sm },
 });

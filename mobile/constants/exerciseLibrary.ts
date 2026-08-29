@@ -25,43 +25,51 @@ import type { Slug } from 'react-native-body-highlighter';
  * videoUrl: sempre undefined hoje (nenhum video gravado ainda, ver item 2
  * do pedido) — campo pronto pra quando existir uma biblioteca real de
  * videos por exercicio.
+ *
+ * name: rotulo canonico em portugues (1 por entrada) — adicionado pra
+ * servir de segundo proposito a esta mesma tabela: alem do match por
+ * keyword (usado pelo diagrama muscular de planos de IA, texto livre),
+ * agora tambem alimenta a lista de selecao manual de exercicio da sessao
+ * livre (ver ExercisePickerModal). Aditivo — nao muda em nada o
+ * comportamento de getExerciseInfo()/getDayMuscleGroups() que ja existiam.
  */
 export interface ExerciseLibraryEntry {
+  name: string;
   keywords: string[];
   muscles: Slug[];
   videoUrl?: string;
 }
 
 export const EXERCISE_LIBRARY: ExerciseLibraryEntry[] = [
-  { keywords: ['supino'], muscles: ['chest', 'triceps', 'deltoids'] },
-  { keywords: ['crucifixo', 'peck deck', 'crossover'], muscles: ['chest'] },
-  { keywords: ['flexão', 'flexao de braço', 'push up', 'push-up'], muscles: ['chest', 'triceps'] },
-  { keywords: ['desenvolvimento'], muscles: ['deltoids', 'triceps'] },
-  { keywords: ['elevação lateral'], muscles: ['deltoids'] },
-  { keywords: ['elevação frontal'], muscles: ['deltoids'] },
-  { keywords: ['remada'], muscles: ['upper-back', 'biceps'] },
-  { keywords: ['puxada', 'pulldown', 'pull down'], muscles: ['upper-back', 'biceps'] },
-  { keywords: ['barra fixa', 'pull up', 'pull-up'], muscles: ['upper-back', 'biceps'] },
-  { keywords: ['face pull'], muscles: ['trapezius', 'deltoids'] },
-  { keywords: ['encolhimento', 'shrug'], muscles: ['trapezius'] },
-  { keywords: ['levantamento terra', 'terra'], muscles: ['lower-back', 'hamstring', 'gluteal'] },
-  { keywords: ['agachamento', 'squat'], muscles: ['quadriceps', 'gluteal', 'hamstring'] },
-  { keywords: ['leg press'], muscles: ['quadriceps', 'gluteal'] },
-  { keywords: ['cadeira extensora', 'extensora'], muscles: ['quadriceps'] },
-  { keywords: ['mesa flexora', 'cadeira flexora', 'flexora'], muscles: ['hamstring'] },
-  { keywords: ['stiff'], muscles: ['hamstring', 'gluteal'] },
-  { keywords: ['afundo', 'lunge', 'passada'], muscles: ['quadriceps', 'gluteal'] },
-  { keywords: ['panturrilha', 'calf', 'gêmeos'], muscles: ['calves'] },
-  { keywords: ['rosca'], muscles: ['biceps'] },
-  { keywords: ['tríceps', 'triceps'], muscles: ['triceps'] },
-  { keywords: ['abdominal', 'crunch', 'prancha', 'plank'], muscles: ['abs'] },
-  { keywords: ['oblíquo'], muscles: ['obliques'] },
-  { keywords: ['glúteo', 'hip thrust', 'elevação pélvica'], muscles: ['gluteal'] },
-  { keywords: ['adutor', 'adução'], muscles: ['adductors'] },
-  { keywords: ['abdutor', 'abdução'], muscles: ['gluteal'] },
-  { keywords: ['elevação de pernas', 'infra'], muscles: ['abs'] },
-  { keywords: ['voador'], muscles: ['chest'] },
-  { keywords: ['pullover'], muscles: ['chest', 'upper-back'] },
+  { name: 'Supino Reto', keywords: ['supino'], muscles: ['chest', 'triceps', 'deltoids'] },
+  { name: 'Crucifixo', keywords: ['crucifixo', 'peck deck', 'crossover'], muscles: ['chest'] },
+  { name: 'Flexão de Braço', keywords: ['flexão', 'flexao de braço', 'push up', 'push-up'], muscles: ['chest', 'triceps'] },
+  { name: 'Desenvolvimento de Ombro', keywords: ['desenvolvimento'], muscles: ['deltoids', 'triceps'] },
+  { name: 'Elevação Lateral', keywords: ['elevação lateral'], muscles: ['deltoids'] },
+  { name: 'Elevação Frontal', keywords: ['elevação frontal'], muscles: ['deltoids'] },
+  { name: 'Remada', keywords: ['remada'], muscles: ['upper-back', 'biceps'] },
+  { name: 'Puxada', keywords: ['puxada', 'pulldown', 'pull down'], muscles: ['upper-back', 'biceps'] },
+  { name: 'Barra Fixa', keywords: ['barra fixa', 'pull up', 'pull-up'], muscles: ['upper-back', 'biceps'] },
+  { name: 'Face Pull', keywords: ['face pull'], muscles: ['trapezius', 'deltoids'] },
+  { name: 'Encolhimento', keywords: ['encolhimento', 'shrug'], muscles: ['trapezius'] },
+  { name: 'Levantamento Terra', keywords: ['levantamento terra', 'terra'], muscles: ['lower-back', 'hamstring', 'gluteal'] },
+  { name: 'Agachamento', keywords: ['agachamento', 'squat'], muscles: ['quadriceps', 'gluteal', 'hamstring'] },
+  { name: 'Leg Press', keywords: ['leg press'], muscles: ['quadriceps', 'gluteal'] },
+  { name: 'Cadeira Extensora', keywords: ['cadeira extensora', 'extensora'], muscles: ['quadriceps'] },
+  { name: 'Mesa Flexora', keywords: ['mesa flexora', 'cadeira flexora', 'flexora'], muscles: ['hamstring'] },
+  { name: 'Stiff', keywords: ['stiff'], muscles: ['hamstring', 'gluteal'] },
+  { name: 'Afundo', keywords: ['afundo', 'lunge', 'passada'], muscles: ['quadriceps', 'gluteal'] },
+  { name: 'Panturrilha', keywords: ['panturrilha', 'calf', 'gêmeos'], muscles: ['calves'] },
+  { name: 'Rosca Direta', keywords: ['rosca'], muscles: ['biceps'] },
+  { name: 'Tríceps Corda', keywords: ['tríceps', 'triceps'], muscles: ['triceps'] },
+  { name: 'Abdominal', keywords: ['abdominal', 'crunch', 'prancha', 'plank'], muscles: ['abs'] },
+  { name: 'Oblíquo', keywords: ['oblíquo'], muscles: ['obliques'] },
+  { name: 'Hip Thrust', keywords: ['glúteo', 'hip thrust', 'elevação pélvica'], muscles: ['gluteal'] },
+  { name: 'Adutor', keywords: ['adutor', 'adução'], muscles: ['adductors'] },
+  { name: 'Abdutor', keywords: ['abdutor', 'abdução'], muscles: ['gluteal'] },
+  { name: 'Elevação de Pernas', keywords: ['elevação de pernas', 'infra'], muscles: ['abs'] },
+  { name: 'Voador (Peck Deck)', keywords: ['voador'], muscles: ['chest'] },
+  { name: 'Pullover', keywords: ['pullover'], muscles: ['chest', 'upper-back'] },
 ];
 
 /** Remove acentos e caixa alta pra comparar por palavra-chave de forma tolerante. */
@@ -88,4 +96,34 @@ export function getDayMuscleGroups(exerciseNames: string[]): Slug[] {
     info?.muscles.forEach((slug) => slugs.add(slug));
   });
   return Array.from(slugs);
+}
+
+/** Busca por `name` (nao por keyword) — usado pelo ExercisePickerModal (selecao manual, sessao livre). Vazio/so espaco devolve a lista inteira (sem filtro). */
+export function searchExerciseLibrary(query: string): ExerciseLibraryEntry[] {
+  const normalized = normalize(query.trim());
+  if (!normalized) return EXERCISE_LIBRARY;
+  return EXERCISE_LIBRARY.filter((entry) => normalize(entry.name).includes(normalized));
+}
+
+/** Rotulo em portugues do grupo muscular PRIMARIO (muscles[0]) de uma entrada — usado so pra agrupar a lista do ExercisePickerModal, nao pro diagrama muscular (que usa Slug bruto do react-native-body-highlighter). Cobre so os slugs que de fato aparecem em EXERCISE_LIBRARY hoje; um slug novo cai no fallback (o proprio slug, sem tradução). */
+const MUSCLE_GROUP_LABELS: Partial<Record<Slug, string>> = {
+  chest: 'Peito',
+  triceps: 'Tríceps',
+  deltoids: 'Ombros',
+  'upper-back': 'Costas',
+  biceps: 'Bíceps',
+  trapezius: 'Trapézio',
+  'lower-back': 'Lombar',
+  hamstring: 'Posterior de Coxa',
+  gluteal: 'Glúteos',
+  quadriceps: 'Quadríceps',
+  calves: 'Panturrilha',
+  abs: 'Abdômen',
+  obliques: 'Oblíquos',
+  adductors: 'Adutores',
+};
+
+export function getPrimaryMuscleGroupLabel(entry: ExerciseLibraryEntry): string {
+  const primary = entry.muscles[0];
+  return (primary && MUSCLE_GROUP_LABELS[primary]) || primary || 'Outros';
 }

@@ -28,6 +28,22 @@ _DAY_SCHEMA = {
     "type": "object",
     "properties": {
         "day": {"type": "string", "description": "Ex: 'Segunda-feira' ou 'Dia 1'"},
+        # Convencao: indice nativo do JS (Date.getDay()), 0=domingo ... 6=sabado
+        # — NAO ISO (que comeca em segunda=0/1). Escolhido pra nao exigir
+        # conversao no client (mobile e 100% TS/JS). Usado pelo app pra saber
+        # com confianca qual dia do plano e "hoje" (ver
+        # getTodayOrNextWorkoutDay em services/workouts.ts do mobile).
+        "day_of_week": {
+            "type": "integer",
+            "description": (
+                "Indice do dia da semana em que ESSE treino especifico deve "
+                "ser feito: 0=domingo, 1=segunda, 2=terca, 3=quarta, "
+                "4=quinta, 5=sexta, 6=sabado. Distribua os dias de treino "
+                "de forma realista e espacada ao longo da semana (ex: 3x/"
+                "semana deve virar segunda=1, quarta=3, sexta=5 — nunca "
+                "3 dias seguidos), nao apenas 0,1,2... em sequencia."
+            ),
+        },
         "focus": {"type": "string", "description": "Grupo muscular ou tipo de treino do dia"},
         "exercises": {"type": "array", "items": _EXERCISE_SCHEMA},
         "estimated_duration_minutes": {
@@ -41,6 +57,7 @@ _DAY_SCHEMA = {
     },
     "required": [
         "day",
+        "day_of_week",
         "focus",
         "exercises",
         "estimated_duration_minutes",
@@ -84,7 +101,12 @@ _SYSTEM_PROMPT = (
     "Para cada dia, estime tambem a duracao total do treino em minutos "
     "(estimated_duration_minutes) e o gasto calorico aproximado "
     "(estimated_calories), considerando o volume, a intensidade e o "
-    "numero de exercicios daquele dia especifico."
+    "numero de exercicios daquele dia especifico.\n\n"
+    "Alem disso, atribua a cada dia um day_of_week (0=domingo...6=sabado) "
+    "que represente em que dia real da semana esse treino especifico deve "
+    "ser feito, distribuindo os dias de treino de forma espacada e "
+    "realista ao longo da semana (nunca todos em sequencia, a nao ser que "
+    "days_per_week cubra a semana inteira)."
 )
 
 
