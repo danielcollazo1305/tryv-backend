@@ -186,12 +186,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="challenges"
+        name="ranking"
         options={{
-          title: 'Desafios',
+          title: 'Ranking',
           tabBarIcon: ({ color, size }) => <Ionicons name="trophy" color={color} size={size} />,
         }}
       />
+      {/*
+        Desafios saiu da tab bar (deu lugar ao Ranking) mas continua
+        existindo como rota — mesmo padrao de href:null ja usado pro
+        Perfil logo abaixo. Nao apagada: acessivel pelo carrossel "Para
+        voce" da Home (DesafiosCarouselSlide.tsx).
+      */}
+      <Tabs.Screen name="challenges" options={{ href: null }} />
       {/*
         Perfil saiu da tab bar (item 3 do pedido original) mas continua
         existindo como rota dentro do grupo (tabs) — href: null so tira o
