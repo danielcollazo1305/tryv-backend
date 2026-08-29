@@ -40,6 +40,16 @@ class TrainingFrequencyOut(BaseModel):
     days_total: int
 
 
+class TrainingStreaksOut(BaseModel):
+    """Sequencia atual e melhor sequencia historica — sobre TODO o
+    historico do usuario, sem limite de periodo (diferente de
+    TrainingFrequencyOut, que so cobre a janela pedida e por isso nao
+    consegue calcular nem a sequencia atual real quando ela atravessa o
+    limite da janela, nem a melhor sequencia historica)."""
+    current_streak_days: int
+    best_streak_days: int
+
+
 class DailyDistanceKm(BaseModel):
     date: date
     distance_km: float

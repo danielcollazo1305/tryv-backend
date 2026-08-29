@@ -27,6 +27,7 @@ from app.schemas.dashboard import (
     RunProgressOut,
     TrainingDay,
     TrainingFrequencyOut,
+    TrainingStreaksOut,
     WeeklyActivityOut,
     WeightPoint,
     WorkoutProgressOut,
@@ -177,6 +178,69 @@ def get_user_training_frequency(
         days_trained=days_trained,
         days_total=days_total,
     )
+
+
+def _compute_training_streaks(db: Session, user_id) -> tuple[int, int]:
+    """
+    Sequencia atual e melhor sequencia historica de dias treinados (mesmo
+    criterio de "dia treinado" que _compute_training_frequency: Run OU
+    ManualActivity naquele dia) — SEM filtro de periodo, sobre todo o
+    historico do usuario. Diferente de _compute_training_frequency, que so
+    olha pra uma janela: aqui a query busca so as datas distintas (nao 1
+    linha por dia do periodo), entao o volume retornado do banco e
+    proporcional aos dias em que a pessoa de fato treinou, nao ao tamanho
+    da janela.
+    """
+    run_dates = {
+        row[0]
+        for row in db.query(func.date(Run.started_at)).filter(Run.user_id == user_id).distinct().all()
+    }
+    manual_dates = {
+        row[0]
+        for row in db.query(func.date(ManualActivity.performed_at))
+        .filter(ManualActivity.user_id == user_id)
+        .distinct()
+        .all()
+    }
+    trained_dates = sorted(run_dates | manual_dates)
+    if not trained_dates:
+        return 0, 0
+
+    best_streak = 1
+    current_run = 1
+    for previous_date, next_date in zip(trained_dates, trained_dates[1:]):
+        if (next_date - previous_date).days == 1:
+            current_run += 1
+            best_streak = max(best_streak, current_run)
+        else:
+            current_run = 1
+
+    trained_set = set(trained_dates)
+    today = date.today()
+    cursor = today if today in trained_set else today - timedelta(days=1)
+    current_streak = 0
+    while cursor in trained_set:
+        current_streak += 1
+        cursor -= timedelta(days=1)
+
+    return current_streak, best_streak
+
+
+@router.get("/training-streaks", response_model=TrainingStreaksOut)
+def get_training_streaks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Sequencia atual e melhor sequencia historica, sobre TODO o historico do
+    usuario — diferente de /training-frequency, que so cobre uma janela
+    (mes/periodo) e por isso nao consegue calcular nem a sequencia atual
+    real quando ela atravessa o limite da janela, nem a melhor sequencia
+    historica (nao caberia numa janela fixa). Livre (sem Pro-gate), mesmo
+    criterio de "dia treinado" ja usado em training-frequency.
+    """
+    current_streak_days, best_streak_days = _compute_training_streaks(db, current_user.id)
+    return TrainingStreaksOut(current_streak_days=current_streak_days, best_streak_days=best_streak_days)
 
 
 def _compute_weekly_activity(db: Session, user_id) -> list[DailyDistanceKm]:

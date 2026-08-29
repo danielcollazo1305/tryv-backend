@@ -21,11 +21,18 @@ import {
   listMyActiveChallenges,
   listMyChallengeCheckins,
 } from '@/services/challenges';
+import { getTrainingFrequency, getTrainingStreaks, getWorkoutProgress } from '@/services/dashboard';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { getInitials } from '@/utils/text';
 import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+
+/** "2026-08" — mesmo formato/convencao ja usado em TrainingFrequencyCard.tsx (mes civil atual). */
+function currentMonthParam(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
 interface PersonalChallengeProgress {
   challenge: Challenge;
@@ -56,6 +63,26 @@ export default function ProfileScreen() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [resettingHealthKit, setResettingHealthKit] = useState(false);
+
+  // Grid de consistencia (6 cards) — dados reais:
+  // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
+  //   (endpoint novo, sem filtro de periodo — sobre TODO o historico do
+  //   usuario). Antes a sequencia atual vinha de computeCurrentStreak()
+  //   sobre o training_frequency do MES atual, o que sub-contava sempre
+  //   que a sequencia real comecasse antes do dia 1 (bug corrigido junto
+  //   com a adicao de "Melhor sequencia", que nao tinha fonte nenhuma —
+  //   ver investigacao). Mesmo bug documentado (e mitigado com um "N+")
+  //   em TrainingFrequencyCard.tsx da Home, que continua como estava —
+  //   fica pendente pra decidirem depois se corrigem la tambem.
+  // - Dias ativos no mes: days_trained de /dashboard/training-frequency
+  //   (esse SIM e por design um dado mensal, sem bug — nao mudou).
+  // - Total de treinos: sessions_count de /dashboard/progress/workout
+  //   (period=monthly) — nao dá pra somar as intensidades do heatmap pra
+  //   isso (intensity satura em "3 ou mais", perde precisao).
+  const [daysTrainedThisMonth, setDaysTrainedThisMonth] = useState(0);
+  const [sessionsThisMonth, setSessionsThisMonth] = useState<number | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState<number | null>(null);
 
   // DEBUG TEMPORARIO — investigacao do bug "historico de Saude sempre da
   // erro": a flag HEALTHKIT_CONNECTED_KEY (Keychain via expo-secure-store)
@@ -164,6 +191,62 @@ export default function ProfileScreen() {
     }, [user])
   );
 
+  // Grid de consistencia — falha em qualquer uma das chamadas so deixa o
+  // card correspondente sem numero (0/"--"), nao bloqueia o resto do perfil.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getTrainingFrequency({ month: currentMonthParam() })
+        .then((data) => {
+          if (active) setDaysTrainedThisMonth(data.days_trained);
+        })
+        .catch(() => {
+          if (active) setDaysTrainedThisMonth(0);
+        });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getWorkoutProgress('monthly')
+        .then((data) => {
+          if (active) setSessionsThisMonth(data.sessions_count);
+        })
+        .catch(() => {
+          if (active) setSessionsThisMonth(null);
+        });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getTrainingStreaks()
+        .then((data) => {
+          if (active) {
+            setCurrentStreak(data.current_streak_days);
+            setBestStreak(data.best_streak_days);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setCurrentStreak(0);
+            setBestStreak(null);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
   /*
    * Marketplace desativado pre-lancamento — secao "Desafios de
    * profissionais" comentada mais abaixo (junto com este fetch, exclusivo
@@ -232,6 +315,66 @@ export default function ProfileScreen() {
             nesta sessao pra nao afetar quem ainda nao migrou.
           */}
           <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
+        </View>
+
+        {/*
+          Grid de consistencia (2x3) — resumo visual, nao substitui nenhuma
+          navegacao (Meta calorica/Tryv Pro continuam como itens de lista
+          normais mais abaixo). Sequencia atual e Melhor sequencia vem de
+          GET /dashboard/training-streaks (endpoint novo, sobre todo o
+          historico do usuario — ver services/dashboard.ts). Se a chamada
+          falhar, bestStreak fica null e mostra "--" (nao 0, pra nao
+          confundir "sem dado" com "sequencia zero").
+        */}
+        <View style={styles.statsGrid}>
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Sequência atual</Text>
+            <Text style={styles.statValue}>
+              {currentStreak}
+              <Text style={styles.statUnit}> {currentStreak === 1 ? 'dia' : 'dias'}</Text>
+            </Text>
+          </GlassCard>
+
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Melhor sequência</Text>
+            {bestStreak != null ? (
+              <Text style={styles.statValue}>
+                {bestStreak}
+                <Text style={styles.statUnit}> {bestStreak === 1 ? 'dia' : 'dias'}</Text>
+              </Text>
+            ) : (
+              <Text style={[styles.statValue, styles.statValueMuted]}>--</Text>
+            )}
+          </GlassCard>
+
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Total de treinos</Text>
+            <Text style={styles.statValue}>{sessionsThisMonth ?? '--'}</Text>
+          </GlassCard>
+
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Dias ativos no mês</Text>
+            <Text style={styles.statValue}>{daysTrainedThisMonth}</Text>
+          </GlassCard>
+
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Meta calórica</Text>
+            {user?.daily_calorie_goal != null ? (
+              <Text style={styles.statValue}>
+                {Math.round(user.daily_calorie_goal)}
+                <Text style={styles.statUnit}> kcal/dia</Text>
+              </Text>
+            ) : (
+              <Text style={[styles.statValue, styles.statValueMuted]}>Não definida</Text>
+            )}
+          </GlassCard>
+
+          <GlassCard variant="card" style={styles.statTile}>
+            <Text style={styles.statLabel}>Tryv Pro</Text>
+            <Text style={[styles.statValue, badges?.is_pro && styles.statValuePro]}>
+              {badges?.is_pro ? 'PRO' : 'Assinar'}
+            </Text>
+          </GlassCard>
         </View>
 
         {/*
@@ -423,6 +566,17 @@ const styles = StyleSheet.create({
 
   badgesWrap: { marginBottom: spacing3.lg, width: '100%' },
 
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm, width: '100%', marginBottom: spacing3.lg },
+  statTile: { flexBasis: '47%', flexGrow: 1, gap: spacing3.xs },
+  statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+  statValue: { ...typography3.bodyMd, fontFamily: 'JetBrainsMono_700Bold', fontSize: 20, color: colors3.onSurface },
+  statValueMuted: { fontFamily: 'JetBrainsMono_600SemiBold', fontSize: 16, color: colors3.onSurfaceVariant },
+  statValuePro: { color: colors3.primary },
+  statUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
+
+  // challengesSection/challengeCard* — usados so pelo bloco "Desafios de
+  // profissionais" comentado (marketplace escondido pre-lancamento, ver
+  // acima). Deixados como estavam (colors2), inertes, ate o relancamento.
   challengesSection: { width: '100%', gap: spacing2.sm, marginBottom: spacing2.lg },
   challengeCard: { gap: spacing2.sm },
   challengeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },

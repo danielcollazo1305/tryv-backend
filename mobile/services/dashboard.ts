@@ -61,6 +61,23 @@ export async function getTrainingFrequency(params: HomeSummaryParams, userId?: s
   return response.data;
 }
 
+export interface TrainingStreaks {
+  current_streak_days: number;
+  best_streak_days: number;
+}
+
+/**
+ * Sequencia atual e melhor sequencia historica, sobre TODO o historico do
+ * usuario (sem filtro de periodo) — diferente de getTrainingFrequency, que
+ * so cobre uma janela (mes/periodo) e por isso nao consegue calcular a
+ * sequencia atual real quando ela atravessa o limite da janela, nem a
+ * melhor sequencia historica. Usado pelo grid de consistencia do Perfil.
+ */
+export async function getTrainingStreaks(): Promise<TrainingStreaks> {
+  const response = await api.get<TrainingStreaks>('/dashboard/training-streaks');
+  return response.data;
+}
+
 export interface DailyDistanceKm {
   date: string;
   distance_km: number;
