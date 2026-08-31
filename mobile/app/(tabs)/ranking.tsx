@@ -15,11 +15,18 @@ import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
 type RankingViewMode = 'individual' | 'squad';
 
+/** Mudanca de posicao em relacao ao periodo anterior — mock, sem fonte real ainda. */
+interface MockTrend {
+  direction: 'up' | 'down' | 'same';
+  positions: number;
+}
+
 interface MockIndividualRanking {
   position: number;
   name: string;
   squadName: string | null;
   weeklyXp: number;
+  trend: MockTrend;
 }
 
 interface MockSquadRanking {
@@ -28,6 +35,9 @@ interface MockSquadRanking {
   memberCount: number;
   territoryPercent: number;
   weeklyXp: number;
+  trend: MockTrend;
+  /** Nomes pra alimentar o avatar stack (item 4) — nao precisa ter memberCount entradas, so o suficiente pra render os 3-4 visiveis (o resto vira "+N" com base em memberCount, nao no tamanho deste array). */
+  memberNames: string[];
 }
 
 /**
@@ -59,40 +69,110 @@ const mockUserSquad = {
   name: 'Squad Fênix',
   memberCount: 6,
   maxMembers: 9,
+  // MOCK — so pro avatar stack (item 4); nao precisa ter memberCount nomes.
+  memberNames: ['Marina Alves', 'Rafael Nunes', 'Camila Torres', 'Bruno Castro'],
 };
 
 // MOCK — trocar por dado real quando o backend de squad/pontos existir.
+// bestStreakDays: mesmo conceito do campo best_streak_days ja real no
+// endpoint /dashboard/training-streaks (usado no Perfil) — aqui continua
+// mock, ja que o Ranking em si (squad/pontos) nao tem backend ainda.
 const mockSquadStats = {
   cityPosition: 12,
   streakDays: 14,
+  bestStreakDays: 20,
   weeklyXp: 1240,
   territoryPercent: 8,
 };
 
 // MOCK — trocar por dado real quando o backend de squad/pontos existir.
 const MOCK_INDIVIDUAL_RANKING: MockIndividualRanking[] = [
-  { position: 1, name: 'Marina Alves', squadName: 'Squad Fênix', weeklyXp: 2840 },
-  { position: 2, name: 'Rafael Nunes', squadName: 'Lobos do Ipiranga', weeklyXp: 2715 },
-  { position: 3, name: 'Camila Torres', squadName: 'Trovão Vermelho', weeklyXp: 2603 },
-  { position: 4, name: 'Bruno Castro', squadName: 'Squad Fênix', weeklyXp: 2410 },
-  { position: 5, name: 'Juliana Prado', squadName: null, weeklyXp: 2298 },
-  { position: 6, name: 'Diego Farias', squadName: 'Alcateia Sul', weeklyXp: 2150 },
-  { position: 7, name: 'Larissa Gomes', squadName: 'Lobos do Ipiranga', weeklyXp: 1987 },
-  { position: 8, name: 'Thiago Batista', squadName: null, weeklyXp: 1902 },
-  { position: 9, name: 'Fernanda Melo', squadName: 'Trovão Vermelho', weeklyXp: 1845 },
-  { position: 10, name: 'Pedro Lacerda', squadName: 'Alcateia Sul', weeklyXp: 1790 },
+  { position: 1, name: 'Marina Alves', squadName: 'Squad Fênix', weeklyXp: 2840, trend: { direction: 'up', positions: 2 } },
+  { position: 2, name: 'Rafael Nunes', squadName: 'Lobos do Ipiranga', weeklyXp: 2715, trend: { direction: 'same', positions: 0 } },
+  { position: 3, name: 'Camila Torres', squadName: 'Trovão Vermelho', weeklyXp: 2603, trend: { direction: 'down', positions: 1 } },
+  { position: 4, name: 'Bruno Castro', squadName: 'Squad Fênix', weeklyXp: 2410, trend: { direction: 'up', positions: 5 } },
+  { position: 5, name: 'Juliana Prado', squadName: null, weeklyXp: 2298, trend: { direction: 'down', positions: 3 } },
+  { position: 6, name: 'Diego Farias', squadName: 'Alcateia Sul', weeklyXp: 2150, trend: { direction: 'up', positions: 1 } },
+  { position: 7, name: 'Larissa Gomes', squadName: 'Lobos do Ipiranga', weeklyXp: 1987, trend: { direction: 'same', positions: 0 } },
+  { position: 8, name: 'Thiago Batista', squadName: null, weeklyXp: 1902, trend: { direction: 'down', positions: 2 } },
+  { position: 9, name: 'Fernanda Melo', squadName: 'Trovão Vermelho', weeklyXp: 1845, trend: { direction: 'up', positions: 4 } },
+  { position: 10, name: 'Pedro Lacerda', squadName: 'Alcateia Sul', weeklyXp: 1790, trend: { direction: 'down', positions: 1 } },
 ];
 
 // MOCK — trocar por dado real quando o backend de squad/pontos existir.
 const MOCK_SQUAD_RANKING: MockSquadRanking[] = [
-  { position: 1, name: 'Squad Fênix', memberCount: 9, territoryPercent: 14, weeklyXp: 18420 },
-  { position: 2, name: 'Trovão Vermelho', memberCount: 8, territoryPercent: 11, weeklyXp: 17205 },
-  { position: 3, name: 'Lobos do Ipiranga', memberCount: 7, territoryPercent: 9, weeklyXp: 15980 },
-  { position: 4, name: 'Alcateia Sul', memberCount: 6, territoryPercent: 7, weeklyXp: 13640 },
-  { position: 5, name: 'Guardiões da Zona Leste', memberCount: 5, territoryPercent: 6, weeklyXp: 11290 },
-  { position: 6, name: 'Falcões Noturnos', memberCount: 8, territoryPercent: 5, weeklyXp: 10475 },
-  { position: 7, name: 'Correntes de Aço', memberCount: 4, territoryPercent: 3, weeklyXp: 8920 },
-  { position: 8, name: 'Vento Norte', memberCount: 6, territoryPercent: 2, weeklyXp: 7615 },
+  {
+    position: 1,
+    name: 'Squad Fênix',
+    memberCount: 9,
+    territoryPercent: 14,
+    weeklyXp: 18420,
+    trend: { direction: 'up', positions: 1 },
+    memberNames: ['Marina Alves', 'Rafael Nunes', 'Camila Torres', 'Bruno Castro'],
+  },
+  {
+    position: 2,
+    name: 'Trovão Vermelho',
+    memberCount: 8,
+    territoryPercent: 11,
+    weeklyXp: 17205,
+    trend: { direction: 'same', positions: 0 },
+    memberNames: ['Fernanda Melo', 'Diego Farias', 'Camila Torres'],
+  },
+  {
+    position: 3,
+    name: 'Lobos do Ipiranga',
+    memberCount: 7,
+    territoryPercent: 9,
+    weeklyXp: 15980,
+    trend: { direction: 'down', positions: 1 },
+    memberNames: ['Larissa Gomes', 'Pedro Lacerda', 'Rafael Nunes'],
+  },
+  {
+    position: 4,
+    name: 'Alcateia Sul',
+    memberCount: 6,
+    territoryPercent: 7,
+    weeklyXp: 13640,
+    trend: { direction: 'up', positions: 2 },
+    memberNames: ['Diego Farias', 'Pedro Lacerda'],
+  },
+  {
+    position: 5,
+    name: 'Guardiões da Zona Leste',
+    memberCount: 5,
+    territoryPercent: 6,
+    weeklyXp: 11290,
+    trend: { direction: 'down', positions: 2 },
+    memberNames: ['Thiago Batista', 'Juliana Prado'],
+  },
+  {
+    position: 6,
+    name: 'Falcões Noturnos',
+    memberCount: 8,
+    territoryPercent: 5,
+    weeklyXp: 10475,
+    trend: { direction: 'same', positions: 0 },
+    memberNames: ['Bruno Castro', 'Fernanda Melo'],
+  },
+  {
+    position: 7,
+    name: 'Correntes de Aço',
+    memberCount: 4,
+    territoryPercent: 3,
+    weeklyXp: 8920,
+    trend: { direction: 'up', positions: 3 },
+    memberNames: ['Marina Alves', 'Larissa Gomes'],
+  },
+  {
+    position: 8,
+    name: 'Vento Norte',
+    memberCount: 6,
+    territoryPercent: 2,
+    weeklyXp: 7615,
+    trend: { direction: 'down', positions: 1 },
+    memberNames: ['Juliana Prado', 'Thiago Batista'],
+  },
 ];
 
 function formatXp(value: number): string {
@@ -103,6 +183,99 @@ function handleComingSoon() {
   Alert.alert('Em breve', 'Squads ainda não existem no Tryv — essa funcionalidade está chegando em breve.');
 }
 
+/** "ago" (sem ponto) a partir de um Date — mesma convencao ja usada em outras telas (ex: HomeScreen.todayLabel). */
+function monthAbbrev(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+}
+
+/**
+ * Periodo/reset do ranking (item 3) — calculado de verdade a partir da
+ * semana atual (segunda a domingo), sem depender de backend nenhum: o
+ * "periodo" e so uma janela de calendario, nao um dado de squad/pontos.
+ * Reset = virada de domingo pra segunda, 00h.
+ */
+function getWeekPeriodInfo(): { rangeLabel: string; daysUntilReset: number } {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = domingo .. 6 = sabado
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const nextMonday = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 1);
+
+  const daysUntilReset = Math.max(
+    1,
+    Math.ceil((nextMonday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  );
+  const rangeLabel =
+    monday.getMonth() === sunday.getMonth()
+      ? `${monday.getDate()} a ${sunday.getDate()} de ${monthAbbrev(sunday)}`
+      : `${monday.getDate()} de ${monthAbbrev(monday)} a ${sunday.getDate()} de ${monthAbbrev(sunday)}`;
+
+  return { rangeLabel, daysUntilReset };
+}
+
+/**
+ * Avatar stack (item 4) — fileira de avatares sobrepostos representando
+ * membros de um squad, mesmo componente Avatar (iniciais + gradiente) ja
+ * usado no resto do app, so em tamanho reduzido. Mostra no maximo
+ * AVATAR_STACK_MAX_VISIBLE avatares reais + um chip "+N" com o restante,
+ * baseado em totalMembers (numero real do squad), nao no tamanho de
+ * memberNames (que so precisa ter nomes suficientes pra preencher os
+ * visiveis).
+ */
+const AVATAR_STACK_MAX_VISIBLE = 4;
+const AVATAR_STACK_SIZE = 22;
+
+function AvatarStack({ memberNames, totalMembers }: { memberNames: string[]; totalMembers: number }) {
+  const visible = memberNames.slice(0, AVATAR_STACK_MAX_VISIBLE);
+  const remaining = totalMembers - visible.length;
+
+  return (
+    <View style={styles.avatarStack}>
+      {visible.map((name, index) => (
+        <Avatar
+          key={name}
+          initials={getInitials(name)}
+          size={AVATAR_STACK_SIZE}
+          style={[
+            styles.avatarStackItem,
+            { marginLeft: index === 0 ? 0 : -AVATAR_STACK_SIZE * 0.35, zIndex: visible.length - index },
+          ]}
+        />
+      ))}
+      {remaining > 0 && (
+        <View style={[styles.avatarStackMore, { marginLeft: -AVATAR_STACK_SIZE * 0.35 }]}>
+          <Text style={styles.avatarStackMoreText}>+{remaining}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Indicador de mudanca de posicao (item 2) — seta + numero de posicoes,
+ * verde subindo / vermelho descendo / "—" cinza sem mudanca. Aplicado nas
+ * 2 listas (Individual e Squad).
+ */
+function TrendIndicator({ trend }: { trend: MockTrend }) {
+  if (trend.direction === 'same') {
+    return <Text style={styles.trendSame}>—</Text>;
+  }
+  const isUp = trend.direction === 'up';
+  return (
+    <View style={styles.trendRow}>
+      <Ionicons name={isUp ? 'caret-up' : 'caret-down'} size={10} color={isUp ? DELTA_UP_COLOR : DELTA_DOWN_COLOR} />
+      <Text style={[styles.trendText, isUp ? styles.trendTextUp : styles.trendTextDown]}>{trend.positions}</Text>
+    </View>
+  );
+}
+
+// colors3 nao tem tokens semanticos de sucesso/queda (so error) — mesma
+// resolucao caso a caso ja usada em outros lugares do app (ex:
+// DELTA_UP_BG/FG em app/health/[metric].tsx).
+const DELTA_UP_COLOR = '#15803d';
+const DELTA_DOWN_COLOR = colors3.error;
+
 export default function RankingScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -110,6 +283,10 @@ export default function RankingScreen() {
 
   const hasSquad = MOCK_HAS_SQUAD;
   const xpProgress = Math.max(0, Math.min(1, mockUserProgress.xpCurrent / mockUserProgress.xpNextLevel));
+  // Item 3 — periodo/reset: calculado de verdade a partir da data de hoje,
+  // nao depende do mock de squad/pontos (so recalcula 1x por render, sem
+  // precisar de estado/efeito).
+  const weekPeriod = getWeekPeriodInfo();
 
   return (
     <ScreenBackground3 style={styles.flex}>
@@ -144,6 +321,10 @@ export default function RankingScreen() {
                     : 'Solo · sem squad'}
                 </Text>
               </View>
+              {/* Item 4 — avatar stack dos membros do squad. */}
+              {hasSquad && (
+                <AvatarStack memberNames={mockUserSquad.memberNames} totalMembers={mockUserSquad.memberCount} />
+              )}
             </View>
           </View>
 
@@ -169,6 +350,10 @@ export default function RankingScreen() {
               <Text style={styles.statValue}>
                 {mockSquadStats.streakDays}
                 <Text style={styles.statUnit}> {mockSquadStats.streakDays === 1 ? 'dia' : 'dias'}</Text>
+              </Text>
+              {/* Item 1 — melhor sequencia como sub-dado, sem virar 5o tile. */}
+              <Text style={styles.statRecord}>
+                Recorde: <Text style={styles.statRecordValue}>{mockSquadStats.bestStreakDays} dias</Text>
               </Text>
             </GlassCard>
             <GlassCard variant="card" style={styles.statTile}>
@@ -216,11 +401,25 @@ export default function RankingScreen() {
           </Pressable>
         </View>
 
+        {/* Item 3 — periodo/reset do ranking. */}
+        <View style={styles.periodLine}>
+          <Ionicons name="time-outline" size={13} color={colors3.onSurfaceVariant} />
+          <Text style={styles.periodText}>
+            Semana de {weekPeriod.rangeLabel} ·{' '}
+            <Text style={styles.periodTextStrong}>
+              reseta em {weekPeriod.daysUntilReset} {weekPeriod.daysUntilReset === 1 ? 'dia' : 'dias'}
+            </Text>
+          </Text>
+        </View>
+
         <View style={styles.list}>
           {viewMode === 'individual'
             ? MOCK_INDIVIDUAL_RANKING.map((person) => (
                 <GlassCard key={person.position} variant="card" style={styles.listRow}>
-                  <Text style={styles.listPosition}>{person.position}</Text>
+                  <View style={styles.listPositionWrap}>
+                    <Text style={styles.listPosition}>{person.position}</Text>
+                    <TrendIndicator trend={person.trend} />
+                  </View>
                   <Avatar initials={getInitials(person.name)} size={36} />
                   <View style={styles.listInfo}>
                     <Text style={styles.listName} numberOfLines={1}>
@@ -234,8 +433,11 @@ export default function RankingScreen() {
                 </GlassCard>
               ))
             : MOCK_SQUAD_RANKING.map((squad) => (
-                <GlassCard key={squad.position} variant="card" style={styles.listRow}>
-                  <Text style={styles.listPosition}>{squad.position}</Text>
+                <GlassCard key={squad.position} variant="card" style={[styles.listRow, styles.listRowSquad]}>
+                  <View style={styles.listPositionWrap}>
+                    <Text style={styles.listPosition}>{squad.position}</Text>
+                    <TrendIndicator trend={squad.trend} />
+                  </View>
                   <View style={styles.squadIconWrap}>
                     <Ionicons name="shield" size={18} color={colors3.primary} />
                   </View>
@@ -246,6 +448,8 @@ export default function RankingScreen() {
                     <Text style={styles.listSubInfo} numberOfLines={1}>
                       {squad.memberCount} membros · {squad.territoryPercent}% território
                     </Text>
+                    {/* Item 4 — avatar stack tambem na lista de squads. */}
+                    <AvatarStack memberNames={squad.memberNames} totalMembers={squad.memberCount} />
                   </View>
                   <Text style={styles.listXp}>{formatXp(squad.weeklyXp)} XP</Text>
                 </GlassCard>
@@ -300,6 +504,23 @@ const styles = StyleSheet.create({
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   statValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 20, color: colors3.onSurface },
   statUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
+  statRecord: { ...typography3.labelSm, textTransform: 'none', fontSize: 10.5, color: colors3.onSurfaceVariant, marginTop: -2 },
+  statRecordValue: { fontWeight: '700', color: colors3.onSurface },
+
+  // Item 4 — avatar stack (usado no card do usuario e na lista de squads).
+  avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  avatarStackItem: { borderWidth: 2, borderColor: colors3.background },
+  avatarStackMore: {
+    width: AVATAR_STACK_SIZE,
+    height: AVATAR_STACK_SIZE,
+    borderRadius: AVATAR_STACK_SIZE / 2,
+    backgroundColor: colors3.surfaceContainerHigh,
+    borderWidth: 2,
+    borderColor: colors3.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarStackMoreText: { fontSize: 8.5, fontWeight: '700', color: colors3.onSurfaceVariant },
 
   soloCard: { gap: spacing3.sm },
   soloTitle: { ...typography3.headlineMd, fontSize: 18 },
@@ -321,15 +542,30 @@ const styles = StyleSheet.create({
   pillText: { ...typography3.labelSm, fontSize: 13 },
   pillTextSelected: { color: colors3.white, fontWeight: '700' },
 
+  // Item 3 — periodo/reset do ranking.
+  periodLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  periodText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11.5, color: colors3.onSurfaceVariant },
+  periodTextStrong: { fontWeight: '700', color: colors3.onSurface },
+
   list: { gap: spacing3.sm },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  // Linhas de squad ficam mais altas (nome + sub-info + avatar stack) — o
+  // icone/posicao alinham melhor no topo do que centralizados, diferente
+  // das linhas Individual (so 2 linhas de texto, centralizado funciona bem).
+  listRowSquad: { alignItems: 'flex-start' },
+  listPositionWrap: { width: 24, alignItems: 'center', gap: 1 },
   listPosition: {
     ...typography3.bodyMd,
     fontWeight: '700',
     color: colors3.onSurfaceVariant,
-    width: 20,
     textAlign: 'center',
   },
+  // Item 2 — indicacao de mudanca de posicao.
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  trendSame: { fontSize: 11, color: colors3.outline },
+  trendText: { fontSize: 10, fontWeight: '700' },
+  trendTextUp: { color: DELTA_UP_COLOR },
+  trendTextDown: { color: DELTA_DOWN_COLOR },
   squadIconWrap: {
     width: 36,
     height: 36,
