@@ -85,7 +85,6 @@ export default function ProfileScreen() {
   const [badges, setBadges] = useState<UserBadges | null>(null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [resettingHealthKit, setResettingHealthKit] = useState(false);
 
   // Grid de consistencia (6 cards) — dados reais:
   // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
@@ -107,37 +106,43 @@ export default function ProfileScreen() {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState<number | null>(null);
 
-  // DEBUG TEMPORARIO — investigacao do bug "historico de Saude sempre da
-  // erro": a flag HEALTHKIT_CONNECTED_KEY (Keychain via expo-secure-store)
-  // sobrevive a desinstalar/reinstalar o app (Keychain no iOS nao e limpo
-  // por reinstalacao), entao um device que testou o HealthKit antes do
-  // build atual pode ter essa flag "true" sem nunca ter concluido uma
-  // autorizacao de verdade NESTE binario — o app entao pula
-  // requestAuthorization achando que ja esta conectado. Este botao apaga a
-  // flag e chama requestHealthKitPermissions() de novo, forcando o dialogo
-  // real do sistema a aparecer. Remover depois de confirmado.
-  const handleDebugResetHealthKit = async () => {
-    setResettingHealthKit(true);
-    try {
-      await SecureStore.deleteItemAsync(HEALTHKIT_CONNECTED_KEY);
-      const granted = await requestHealthKitPermissions();
-      console.log('[DEBUG resetHealthKit] requestHealthKitPermissions() ->', granted);
-      if (granted) {
-        await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
-      }
-      Alert.alert(
-        'HealthKit resetado',
-        granted
-          ? 'Flag limpa e permissao solicitada de novo. Confira Ajustes > Saude > Acesso a Apps agora — o Tryv deveria aparecer na lista.'
-          : 'Flag limpa, mas requestHealthKitPermissions() retornou false (ou lancou excecao — ver console). O app ainda pode nao aparecer em Ajustes > Saude.'
-      );
-    } catch (err) {
-      console.error('[DEBUG resetHealthKit] falhou:', err);
-      Alert.alert('Erro ao resetar', 'Veja o console pra detalhes.');
-    } finally {
-      setResettingHealthKit(false);
-    }
-  };
+  /*
+   * DEBUG TEMPORARIO — investigacao do bug "historico de Saude sempre da
+   * erro": a flag HEALTHKIT_CONNECTED_KEY (Keychain via expo-secure-store)
+   * sobrevive a desinstalar/reinstalar o app (Keychain no iOS nao e limpo
+   * por reinstalacao), entao um device que testou o HealthKit antes do
+   * build atual pode ter essa flag "true" sem nunca ter concluido uma
+   * autorizacao de verdade NESTE binario — o app entao pula
+   * requestAuthorization achando que ja esta conectado. Este botao apaga a
+   * flag e chama requestHealthKitPermissions() de novo, forcando o dialogo
+   * real do sistema a aparecer.
+   *
+   * debug de HealthKit, escondido pre-lancamento — reativar manualmente
+   * durante desenvolvimento se necessario.
+   *
+   * const handleDebugResetHealthKit = async () => {
+   *   setResettingHealthKit(true);
+   *   try {
+   *     await SecureStore.deleteItemAsync(HEALTHKIT_CONNECTED_KEY);
+   *     const granted = await requestHealthKitPermissions();
+   *     console.log('[DEBUG resetHealthKit] requestHealthKitPermissions() ->', granted);
+   *     if (granted) {
+   *       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
+   *     }
+   *     Alert.alert(
+   *       'HealthKit resetado',
+   *       granted
+   *         ? 'Flag limpa e permissao solicitada de novo. Confira Ajustes > Saude > Acesso a Apps agora — o Tryv deveria aparecer na lista.'
+   *         : 'Flag limpa, mas requestHealthKitPermissions() retornou false (ou lancou excecao — ver console). O app ainda pode nao aparecer em Ajustes > Saude.'
+   *     );
+   *   } catch (err) {
+   *     console.error('[DEBUG resetHealthKit] falhou:', err);
+   *     Alert.alert('Erro ao resetar', 'Veja o console pra detalhes.');
+   *   } finally {
+   *     setResettingHealthKit(false);
+   *   }
+   * };
+   */
 
   /*
    * Marketplace desativado pre-lancamento — este fetch (isTrainer) so
@@ -551,22 +556,28 @@ export default function ProfileScreen() {
           </Pressable>
         */}
 
-        <Pressable style={styles.optionWrap} onPress={handleDebugResetHealthKit} disabled={resettingHealthKit}>
-          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
-            <View style={styles.optionRow}>
-              <View style={styles.optionIconWrap}>
-                <Ionicons name="bug" size={20} color={colors3.error} />
+        {/*
+          debug de HealthKit, escondido pre-lancamento — reativar
+          manualmente durante desenvolvimento se necessario. Ver
+          handleDebugResetHealthKit comentado acima.
+
+          <Pressable style={styles.optionWrap} onPress={handleDebugResetHealthKit} disabled={resettingHealthKit}>
+            <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+              <View style={styles.optionRow}>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="bug" size={20} color={colors3.error} />
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={styles.optionTitle}>[DEBUG] Resetar conexao HealthKit</Text>
+                  <Text style={styles.optionSubtitle}>
+                    {resettingHealthKit ? 'Resetando...' : 'Limpa a flag local e pede autorizacao de novo'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
               </View>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>[DEBUG] Resetar conexao HealthKit</Text>
-                <Text style={styles.optionSubtitle}>
-                  {resettingHealthKit ? 'Resetando...' : 'Limpa a flag local e pede autorizacao de novo'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
-            </View>
-          </GlassCard>
-        </Pressable>
+            </GlassCard>
+          </Pressable>
+        */}
 
         <View style={styles.postsSection}>
           <Text style={styles.sectionTitle}>Meus posts</Text>
