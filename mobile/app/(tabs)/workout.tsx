@@ -4,11 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { AiWorkoutSection } from '@/components/AiWorkoutSection';
-import { Button2 } from '@/components/Button2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { Button3 } from '@/components/Button3';
+import { GlassCard } from '@/components/GlassCard';
 import { ObscuredCard } from '@/components/ObscuredCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
 import { WorkoutAccessGate } from '@/components/WorkoutAccessGate';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +16,7 @@ import { getApiErrorMessage } from '@/services/api';
 import { ACTIVITY_TYPE_LABELS, GpsActivityType } from '@/services/activities';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { WorkoutPlan, listWorkoutPlans } from '@/services/workouts';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const GPS_FAB_OPTIONS: { type: GpsActivityType; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
   { type: 'run', icon: 'walk' },
@@ -45,7 +45,7 @@ function StartActivityFab() {
   return (
     <>
       <Pressable style={styles.fab} onPress={() => setOpen(true)}>
-        <Ionicons name="add" size={28} color={colors2.white} />
+        <Ionicons name="add" size={28} color={colors3.onPrimary} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -61,7 +61,7 @@ function StartActivityFab() {
             */}
             <Pressable style={styles.modalOption} onPress={() => setOpen(false)}>
               <View style={styles.modalOptionIconWrap}>
-                <Ionicons name="barbell" size={20} color={colors2.primary} />
+                <Ionicons name="barbell" size={20} color={colors3.primary} />
               </View>
               <View style={styles.modalOptionTexts}>
                 <Text style={styles.modalOptionTitle}>Treino do dia</Text>
@@ -72,7 +72,7 @@ function StartActivityFab() {
             {GPS_FAB_OPTIONS.map((option) => (
               <Pressable key={option.type} style={styles.modalOption} onPress={() => handleSelectGps(option.type)}>
                 <View style={styles.modalOptionIconWrap}>
-                  <Ionicons name={option.icon} size={20} color={colors2.primary} />
+                  <Ionicons name={option.icon} size={20} color={colors3.primary} />
                 </View>
                 <View style={styles.modalOptionTexts}>
                   <Text style={styles.modalOptionTitle}>{ACTIVITY_TYPE_LABELS[option.type]}</Text>
@@ -99,6 +99,11 @@ function StartActivityFab() {
  *
  * 4 casos (A/B/C/D) — ver WorkoutAccessGate, TrainerWorkoutSection,
  * AiWorkoutSection.
+ *
+ * Migrado pro tema claro "prism-glass" — so troca de tokens/componentes
+ * visuais (ScreenBackground2 -> 3, Button2 -> Button3, LiquiglassCard ->
+ * GlassCard, colors2 -> colors3), nenhuma logica de acesso/geracao/
+ * navegacao foi alterada.
  */
 export default function WorkoutScreen() {
   const { user } = useAuth();
@@ -134,9 +139,9 @@ export default function WorkoutScreen() {
 
   if (loading) {
     return (
-      <ScreenBackground2 style={styles.centeredFlex}>
-        <ActivityIndicator size="large" color={colors2.violet} />
-      </ScreenBackground2>
+      <ScreenBackground3 style={styles.centeredFlex}>
+        <ActivityIndicator size="large" color={colors3.primary} />
+      </ScreenBackground3>
     );
   }
 
@@ -155,7 +160,7 @@ export default function WorkoutScreen() {
   // Trainer, e um recurso gratuito independente do plano estruturado.
   if (!isPro && !hasPersonalTrainer) {
     return (
-      <ScreenBackground2>
+      <ScreenBackground3>
         {/*
           Entrada pro Perfil tambem aqui no Caso A — faltava antes desta
           tarefa (so o retorno principal abaixo tinha avatar), o que
@@ -168,18 +173,18 @@ export default function WorkoutScreen() {
         <WorkoutAccessGate>
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrap}>
-              <Ionicons name="barbell" size={32} color={colors2.violet} />
+              <Ionicons name="barbell" size={32} color={colors3.primary} />
             </View>
             <Text style={styles.emptyTitle}>Nenhum plano de treino ainda</Text>
           </View>
         </WorkoutAccessGate>
         <StartActivityFab />
-      </ScreenBackground2>
+      </ScreenBackground3>
     );
   }
 
   return (
-    <ScreenBackground2>
+    <ScreenBackground3>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <View style={styles.headerWrap}>
           <Text style={styles.logo}>Tryv</Text>
@@ -209,15 +214,15 @@ export default function WorkoutScreen() {
         {!isPro && hasPersonalTrainer && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Treino gerado por IA</Text>
-            <ObscuredCard>
-              <LiquiglassCard style={styles.lockedPreview}>
+            <ObscuredCard tint="light">
+              <GlassCard variant="glass" style={styles.lockedPreview}>
                 <View style={styles.emptyIconWrap}>
-                  <Ionicons name="barbell" size={24} color={colors2.violet} />
+                  <Ionicons name="barbell" size={24} color={colors3.primary} />
                 </View>
                 <Text style={styles.lockedPreviewText}>Gere um plano semanal personalizado com IA</Text>
-              </LiquiglassCard>
+              </GlassCard>
             </ObscuredCard>
-            <Button2
+            <Button3
               label="Assinar Tryv Pro para desbloquear"
               variant="secondary"
               onPress={() => router.push('/subscriptions/pro')}
@@ -226,7 +231,7 @@ export default function WorkoutScreen() {
         )}
       </ScrollView>
       <StartActivityFab />
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -240,90 +245,90 @@ const styles = StyleSheet.create({
   gateHeader: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
   },
-  content: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl, gap: spacing2.lg },
-  headerWrap: { gap: spacing2.xs },
-  logo: { ...typography2.displayHero, fontSize: 36 },
+  content: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl, gap: spacing3.lg },
+  headerWrap: { gap: spacing3.xs },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { ...typography2.headlineLgMobile, fontSize: 26 },
-  error: { color: colors2.danger, textAlign: 'center' },
+  title: { ...typography3.headlineLgMobile, fontSize: 26 },
+  error: { color: colors3.error, textAlign: 'center' },
 
-  section: { gap: spacing2.md },
-  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
-  lockedPreview: { alignItems: 'center', gap: spacing2.sm },
-  lockedPreviewText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  section: { gap: spacing3.md },
+  sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
+  lockedPreview: { alignItems: 'center', gap: spacing3.sm },
+  lockedPreviewText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing2.xl,
-    gap: spacing2.sm,
+    padding: spacing3.xl,
+    gap: spacing3.sm,
   },
   emptyIconWrap: {
     width: 72,
     height: 72,
-    borderRadius: radius2.lg,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.lg,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing2.md,
+    marginBottom: spacing3.md,
   },
-  emptyTitle: { ...typography2.headlineMd, textAlign: 'center' },
+  emptyTitle: { ...typography3.headlineMd, textAlign: 'center' },
 
   fab: {
     position: 'absolute',
-    right: spacing2.lg,
-    bottom: spacing2.lg,
+    right: spacing3.lg,
+    bottom: spacing3.lg,
     width: 56,
     height: 56,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.violet,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors2.violet,
+    shadowColor: colors3.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors2.surfaceContainer,
-    borderTopLeftRadius: radius2.lg,
-    borderTopRightRadius: radius2.lg,
+    backgroundColor: colors3.surfaceContainer,
+    borderTopLeftRadius: radius3.lg,
+    borderTopRightRadius: radius3.lg,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    padding: spacing2.lg,
-    paddingBottom: spacing2.xl,
-    gap: spacing2.sm,
+    borderColor: colors3.outlineVariant,
+    padding: spacing3.lg,
+    paddingBottom: spacing3.xl,
+    gap: spacing3.sm,
   },
   modalHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors2.outlineVariant,
+    backgroundColor: colors3.outlineVariant,
     alignSelf: 'center',
-    marginBottom: spacing2.xs,
+    marginBottom: spacing3.xs,
   },
-  modalTitle: { ...typography2.headlineMd, fontSize: 18, marginBottom: spacing2.xs },
+  modalTitle: { ...typography3.headlineMd, fontSize: 18, marginBottom: spacing3.xs },
   modalOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.md,
-    paddingVertical: spacing2.sm,
+    gap: spacing3.md,
+    paddingVertical: spacing3.sm,
   },
   modalOptionIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalOptionTexts: { flex: 1, gap: 2 },
-  modalOptionTitle: { ...typography2.bodyMd, fontWeight: '700' },
-  modalOptionSubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  modalOptionTitle: { ...typography3.bodyMd, fontWeight: '700' },
+  modalOptionSubtitle: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 });

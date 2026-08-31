@@ -3,9 +3,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { router } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { SetEntry, WorkoutDayCard } from '@/components/WorkoutDayCard';
 import { WorkoutPlanData, logWorkoutSession } from '@/services/workouts';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
 interface WorkoutPlanViewProps {
   planData: WorkoutPlanData;
@@ -27,6 +28,14 @@ interface WorkoutPlanViewProps {
    * escondida (nao ha onde persistir).
    */
   planId?: string;
+  /**
+   * 'dark' (padrao) = colors2/Button2, usado hoje pela etapa de revisao do
+   * gerador de treino (workout-plan/generate.tsx, ainda escuro). 'light' =
+   * colors3/Button3/GlassCard, so via AiWorkoutSection/TrainerWorkoutSection
+   * (aba Treino, ja migrada) — mesmo padrao de variant ja usado em
+   * WorkoutDayCard/TextField2/ProfileBadges2 nesta sessao.
+   */
+  variant?: 'dark' | 'light';
 }
 
 /**
@@ -39,7 +48,15 @@ interface WorkoutPlanViewProps {
  * completo, que so essa prop era usada mesmo. Nao reimplementa nada, so
  * generaliza o que ja existia.
  */
-export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = true, planId }: WorkoutPlanViewProps) {
+export function WorkoutPlanView({
+  planData,
+  onGenerateNew,
+  showCompleteAction = true,
+  planId,
+  variant = 'dark',
+}: WorkoutPlanViewProps) {
+  const isLight = variant === 'light';
+  const s = isLight ? stylesLight : styles;
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   // [indice do dia][indice do exercicio] -> series registradas. Mantido por
   // dia pra nao perder o que ja foi preenchido se a pessoa navegar entre as
@@ -100,19 +117,19 @@ export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = 
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.summary}>{planData.summary}</Text>
+    <View style={s.container}>
+      <Text style={s.summary}>{planData.summary}</Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayPills}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.dayPills}>
         {days.map((day, index) => {
           const selected = index === selectedDayIndex;
           return (
             <Pressable
               key={`${day.day}-${index}`}
               onPress={() => setSelectedDayIndex(index)}
-              style={[styles.dayPill, selected && styles.dayPillSelected]}
+              style={[s.dayPill, selected && s.dayPillSelected]}
             >
-              <Text style={[styles.dayPillText, selected && styles.dayPillTextSelected]}>{day.day}</Text>
+              <Text style={[s.dayPillText, selected && s.dayPillTextSelected]}>{day.day}</Text>
             </Pressable>
           );
         })}
@@ -123,14 +140,25 @@ export function WorkoutPlanView({ planData, onGenerateNew, showCompleteAction = 
           day={selectedDay}
           log={planId ? logByDay[selectedDayIndex] : undefined}
           onSetsChange={planId ? handleSetsChange : undefined}
+          variant={variant}
         />
       )}
 
       {selectedDay && showCompleteAction && (
-        <Button2 label="Concluir esse treino" onPress={handleComplete} loading={saving} />
+        isLight ? (
+          <Button3 label="Concluir esse treino" onPress={handleComplete} loading={saving} />
+        ) : (
+          <Button2 label="Concluir esse treino" onPress={handleComplete} loading={saving} />
+        )
       )}
 
-      {!!onGenerateNew && <Button2 label="Gerar novo plano" variant="secondary" onPress={onGenerateNew} />}
+      {!!onGenerateNew && (
+        isLight ? (
+          <Button3 label="Gerar novo plano" variant="secondary" onPress={onGenerateNew} />
+        ) : (
+          <Button2 label="Gerar novo plano" variant="secondary" onPress={onGenerateNew} />
+        )
+      )}
     </View>
   );
 }
@@ -153,4 +181,24 @@ const styles = StyleSheet.create({
   },
   dayPillText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurface },
   dayPillTextSelected: { color: colors2.white, fontWeight: '700' },
+});
+
+const stylesLight = StyleSheet.create({
+  container: { gap: spacing3.md },
+  summary: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  dayPills: { gap: spacing3.sm, paddingVertical: spacing3.xs },
+  dayPill: {
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
+  },
+  dayPillSelected: {
+    backgroundColor: colors3.primary,
+    borderColor: colors3.primary,
+  },
+  dayPillText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurface },
+  dayPillTextSelected: { color: colors3.white, fontWeight: '700' },
 });
