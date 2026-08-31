@@ -3,9 +3,9 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { Button3 } from '@/components/Button3';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { UserListRow } from '@/components/UserListRow';
 import {
   DeviceContact,
@@ -15,7 +15,7 @@ import {
 } from '@/services/contacts';
 import { MatchedContact, UserSearchResult, followUser, matchContacts, searchUsers, unfollowUser } from '@/services/social';
 import { shareInvite } from '@/utils/invite';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Tab = 'search' | 'contacts';
 type ContactsState = 'checking' | 'explain' | 'denied' | 'loading' | 'ready' | 'error';
@@ -31,6 +31,13 @@ type ContactsListItem =
  * usuarios no projeto antes desta (confirmado por busca no codigo antes
  * de comecar). Duas abas (Pesquisar/Contatos) + entrada de "Convidar
  * amigos" acima delas.
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (ScreenBackground2 ->
+ * ScreenBackground3, LiquiglassCard -> GlassCard, Button2 -> Button3,
+ * colors2 -> colors3) — so troca de tokens/componentes visuais, nenhuma
+ * logica de busca/permissao de contatos/seguir foi alterada. UserListRow
+ * ganhou variant="light" (prop nova, padrao 'dark' preservado pra
+ * social/follows.tsx, que ainda nao migrou).
  */
 export default function DiscoverScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('search');
@@ -160,10 +167,10 @@ export default function DiscoverScreen() {
   ];
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+          <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
         <Text style={styles.headerTitle}>Descobrir</Text>
         <View style={{ width: 22 }} />
@@ -172,10 +179,10 @@ export default function DiscoverScreen() {
       <View style={styles.content}>
         <Pressable style={styles.inviteRow} onPress={shareInvite}>
           <View style={styles.inviteIconWrap}>
-            <Ionicons name="paper-plane-outline" size={18} color={colors2.violet} />
+            <Ionicons name="paper-plane-outline" size={18} color={colors3.primary} />
           </View>
           <Text style={styles.inviteText}>Convidar amigos</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors2.onSurfaceVariant} />
+          <Ionicons name="chevron-forward" size={16} color={colors3.onSurfaceVariant} />
         </Pressable>
 
         <View style={styles.tabRow}>
@@ -206,16 +213,16 @@ export default function DiscoverScreen() {
             ListHeaderComponent={
               <>
                 <View style={styles.searchBar}>
-                  <Ionicons name="search" size={18} color={colors2.onSurfaceVariant} />
+                  <Ionicons name="search" size={18} color={colors3.onSurfaceVariant} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Pesquisar"
-                    placeholderTextColor={colors2.onSurfaceVariant}
+                    placeholderTextColor={colors3.onSurfaceVariant}
                     value={query}
                     onChangeText={setQuery}
                     autoCapitalize="none"
                   />
-                  {searching && <ActivityIndicator size="small" color={colors2.violet} />}
+                  {searching && <ActivityIndicator size="small" color={colors3.primary} />}
                 </View>
                 {!!searchError && <Text style={styles.error}>{searchError}</Text>}
               </>
@@ -228,47 +235,48 @@ export default function DiscoverScreen() {
                 actionLoading={!!followBusy[item.id]}
                 onPressAction={() => handleToggleFollowSearch(item)}
                 onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: item.id } })}
+                variant="light"
               />
             )}
-            ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+            ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
             ListEmptyComponent={
               !searching && query.trim() ? <Text style={styles.emptyText}>Nenhum usuario encontrado.</Text> : null
             }
           />
         ) : contactsState === 'checking' || contactsState === 'loading' ? (
-          <ActivityIndicator color={colors2.violet} style={styles.contactsLoading} />
+          <ActivityIndicator color={colors3.primary} style={styles.contactsLoading} />
         ) : contactsState === 'explain' ? (
-          <LiquiglassCard style={styles.explainCard}>
+          <GlassCard variant="card" style={styles.explainCard}>
             <View style={styles.explainIconWrap}>
-              <Ionicons name="people" size={24} color={colors2.violet} />
+              <Ionicons name="people" size={24} color={colors3.primary} />
             </View>
             <Text style={styles.explainTitle}>Encontre amigos que ja usam o Tryv</Text>
             <Text style={styles.explainText}>
               O Tryv acessa sua agenda so pra comparar numeros de telefone com quem ja tem conta -- nenhum outro
               dado do seu contato (nome, foto, e-mail) e enviado.
             </Text>
-            <Button2 label="Permitir acesso aos contatos" onPress={handleRequestPermission} />
-          </LiquiglassCard>
+            <Button3 label="Permitir acesso aos contatos" onPress={handleRequestPermission} />
+          </GlassCard>
         ) : contactsState === 'denied' ? (
-          <LiquiglassCard style={styles.explainCard}>
+          <GlassCard variant="card" style={styles.explainCard}>
             <View style={styles.explainIconWrap}>
-              <Ionicons name="lock-closed-outline" size={24} color={colors2.onSurfaceVariant} />
+              <Ionicons name="lock-closed-outline" size={24} color={colors3.onSurfaceVariant} />
             </View>
             <Text style={styles.explainTitle}>Acesso aos contatos negado</Text>
             <Text style={styles.explainText}>
               Voce pode permitir o acesso depois nas configuracoes do sistema, ou buscar pessoas pelo nome por
               enquanto.
             </Text>
-            <Button2 label="Tentar novamente" onPress={handleRequestPermission} />
+            <Button3 label="Tentar novamente" onPress={handleRequestPermission} />
             <Pressable onPress={() => setActiveTab('search')} hitSlop={8} style={styles.explainLink}>
               <Text style={styles.explainLinkText}>Ir para Pesquisar</Text>
             </Pressable>
-          </LiquiglassCard>
+          </GlassCard>
         ) : contactsState === 'error' ? (
-          <LiquiglassCard style={styles.explainCard}>
+          <GlassCard variant="card" style={styles.explainCard}>
             <Text style={styles.explainTitle}>Nao foi possivel ler seus contatos</Text>
-            <Button2 label="Tentar novamente" onPress={loadContacts} />
-          </LiquiglassCard>
+            <Button3 label="Tentar novamente" onPress={loadContacts} />
+          </GlassCard>
         ) : contactsListData.length === 0 ? (
           <Text style={styles.emptyText}>Nenhum contato com telefone encontrado na sua agenda.</Text>
         ) : (
@@ -290,6 +298,7 @@ export default function DiscoverScreen() {
                     actionLoading={!!matchedBusy[contact.id]}
                     onPressAction={() => handleToggleFollowMatched(contact)}
                     onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: contact.id } })}
+                    variant="light"
                   />
                 );
               }
@@ -300,14 +309,15 @@ export default function DiscoverScreen() {
                   subtitle={contact.phoneNumbers[0]}
                   actionLabel="Convidar"
                   onPressAction={shareInvite}
+                  variant="light"
                 />
               );
             }}
-            ItemSeparatorComponent={() => <View style={{ height: spacing2.sm }} />}
+            ItemSeparatorComponent={() => <View style={{ height: spacing3.sm }} />}
           />
         )}
       </View>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -317,81 +327,81 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { flex: 1, paddingHorizontal: spacing2.containerMargin, gap: spacing2.md },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { flex: 1, paddingHorizontal: spacing3.containerMargin, gap: spacing3.md },
 
   inviteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.sm,
-    backgroundColor: colors2.surfaceContainerHigh,
-    borderRadius: radius2.md,
+    gap: spacing3.sm,
+    backgroundColor: colors3.surfaceContainerHigh,
+    borderRadius: radius3.md,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    padding: spacing2.md,
+    borderColor: colors3.outlineVariant,
+    padding: spacing3.md,
   },
   inviteIconWrap: {
     width: 32,
     height: 32,
-    borderRadius: radius2.sm,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.sm,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inviteText: { ...typography2.bodyMd, fontWeight: '600', flex: 1 },
+  inviteText: { ...typography3.bodyMd, fontWeight: '600', flex: 1 },
 
-  tabRow: { flexDirection: 'row', gap: spacing2.sm },
+  tabRow: { flexDirection: 'row', gap: spacing3.sm },
   tabPill: {
     flex: 1,
-    paddingVertical: spacing2.sm + 2,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    paddingVertical: spacing3.sm + 2,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
     alignItems: 'center',
   },
   tabPillSelected: {
-    backgroundColor: colors2.violet,
-    borderColor: colors2.violet,
+    backgroundColor: colors3.primary,
+    borderColor: colors3.primary,
   },
-  tabPillText: { ...typography2.labelCaps, textTransform: 'none' },
-  tabPillTextSelected: { color: colors2.white, fontWeight: '700' },
+  tabPillText: { ...typography3.labelSm, textTransform: 'none' },
+  tabPillTextSelected: { color: colors3.onPrimary, fontWeight: '700' },
 
-  listContent: { paddingBottom: spacing2.xl, gap: spacing2.md },
+  listContent: { paddingBottom: spacing3.xl, gap: spacing3.md },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.sm,
-    backgroundColor: colors2.surfaceContainerHigh,
-    borderRadius: radius2.pill,
+    gap: spacing3.sm,
+    backgroundColor: colors3.surfaceContainerHigh,
+    borderRadius: radius3.pill,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    paddingHorizontal: spacing2.md,
-    marginBottom: spacing2.sm,
+    borderColor: colors3.outlineVariant,
+    paddingHorizontal: spacing3.md,
+    marginBottom: spacing3.sm,
   },
-  searchInput: { flex: 1, paddingVertical: spacing2.sm + 4, color: colors2.onSurface, fontSize: 16 },
-  error: { color: colors2.danger, textAlign: 'center' },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center', paddingVertical: spacing2.xl },
+  searchInput: { flex: 1, paddingVertical: spacing3.sm + 4, color: colors3.onSurface, fontSize: 16 },
+  error: { color: colors3.error, textAlign: 'center' },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', paddingVertical: spacing3.xl },
 
-  contactsLoading: { marginTop: spacing2.xl },
-  explainCard: { alignItems: 'center', gap: spacing2.sm, marginTop: spacing2.md },
+  contactsLoading: { marginTop: spacing3.xl },
+  explainCard: { alignItems: 'center', gap: spacing3.sm, marginTop: spacing3.md },
   explainIconWrap: {
     width: 56,
     height: 56,
-    borderRadius: radius2.pill,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing2.xs,
+    marginBottom: spacing3.xs,
   },
-  explainTitle: { ...typography2.headlineMd, fontSize: 17, textAlign: 'center' },
-  explainText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center', marginBottom: spacing2.sm },
-  explainLink: { paddingVertical: spacing2.sm },
-  explainLinkText: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
+  explainTitle: { ...typography3.headlineMd, fontSize: 17, textAlign: 'center' },
+  explainText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginBottom: spacing3.sm },
+  explainLink: { paddingVertical: spacing3.sm },
+  explainLinkText: { ...typography3.bodyMd, color: colors3.primary, fontWeight: '700' },
 
-  sectionTitle: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant, marginTop: spacing2.sm },
+  sectionTitle: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, marginTop: spacing3.sm },
 });

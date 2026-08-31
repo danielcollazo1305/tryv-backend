@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
 
 interface UserListRowProps {
@@ -14,6 +14,13 @@ interface UserListRowProps {
   actionActive?: boolean;
   actionLoading?: boolean;
   onPressAction: () => void;
+  /**
+   * 'dark' (padrao) = colors2, usado hoje em social/follows.tsx (ainda
+   * escura, fora desta migracao). 'light' = colors3, so pra
+   * social/discover.tsx (migrada nesta tarefa) — mesmo padrao de variant ja
+   * usado em ChallengeCard2/ProfileBadges2/WorkoutDayCard nesta sessao.
+   */
+  variant?: 'dark' | 'light';
 }
 
 /**
@@ -30,17 +37,28 @@ export function UserListRow({
   actionActive,
   actionLoading,
   onPressAction,
+  variant = 'dark',
 }: UserListRowProps) {
+  const isLight = variant === 'light';
+  const s = isLight ? stylesLight : styles;
+  const loadingColor = isLight
+    ? actionActive
+      ? colors3.primary
+      : colors3.onPrimary
+    : actionActive
+      ? colors2.primary
+      : colors2.white;
+
   return (
-    <View style={styles.row}>
-      <Pressable style={styles.info} onPress={onPress} disabled={!onPress} hitSlop={4}>
+    <View style={s.row}>
+      <Pressable style={s.info} onPress={onPress} disabled={!onPress} hitSlop={4}>
         <Avatar initials={getInitials(name)} size={44} />
-        <View style={styles.textWrap}>
-          <Text style={styles.name} numberOfLines={1}>
+        <View style={s.textWrap}>
+          <Text style={s.name} numberOfLines={1}>
             {name}
           </Text>
           {!!subtitle && (
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={s.subtitle} numberOfLines={1}>
               {subtitle}
             </Text>
           )}
@@ -48,17 +66,15 @@ export function UserListRow({
       </Pressable>
 
       <Pressable
-        style={[styles.actionBtn, actionActive ? styles.actionBtnActive : styles.actionBtnPrimary]}
+        style={[s.actionBtn, actionActive ? s.actionBtnActive : s.actionBtnPrimary]}
         onPress={onPressAction}
         disabled={actionLoading}
         hitSlop={4}
       >
         {actionLoading ? (
-          <ActivityIndicator size="small" color={actionActive ? colors2.primary : colors2.white} />
+          <ActivityIndicator size="small" color={loadingColor} />
         ) : (
-          <Text style={[styles.actionText, actionActive ? styles.actionTextActive : styles.actionTextPrimary]}>
-            {actionLabel}
-          </Text>
+          <Text style={[s.actionText, actionActive ? s.actionTextActive : s.actionTextPrimary]}>{actionLabel}</Text>
         )}
       </Pressable>
     </View>
@@ -85,4 +101,26 @@ const styles = StyleSheet.create({
   actionText: { ...typography2.bodyMd, fontSize: 13, fontWeight: '700' },
   actionTextPrimary: { color: colors2.white },
   actionTextActive: { color: colors2.primary },
+});
+
+const stylesLight = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  info: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  textWrap: { flex: 1, gap: 2 },
+  name: { ...typography3.bodyMd, fontWeight: '600' },
+  subtitle: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+
+  actionBtn: {
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm - 2,
+    borderRadius: radius3.pill,
+    minWidth: 92,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnPrimary: { backgroundColor: colors3.primary },
+  actionBtnActive: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors3.primary },
+  actionText: { ...typography3.bodyMd, fontSize: 13, fontWeight: '700' },
+  actionTextPrimary: { color: colors3.onPrimary },
+  actionTextActive: { color: colors3.primary },
 });
