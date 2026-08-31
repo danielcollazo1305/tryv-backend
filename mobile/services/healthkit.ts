@@ -285,15 +285,30 @@ const ASLEEP_VALUES = new Set<CategoryValueSleepAnalysis>([
   CategoryValueSleepAnalysis.asleepREM,
 ]);
 
-/** Exportada tambem isoladamente (alem de compor fetchHealthSummary) para o Score de Prontidao, que so precisa do sono. */
+/**
+ * Exportada tambem isoladamente (alem de compor fetchHealthSummary) para o
+ * Score de Prontidao, que so precisa do sono.
+ *
+ * Reaproveita groupSamplesIntoSessions() (definida mais abaixo, hoisting de
+ * function declaration cobre a chamada aqui em cima) e usa so a sessao mais
+ * recente — mesma correcao ja aplicada em fetchSleepSessionDetail(). Antes
+ * somava TODAS as amostras da janela de 32h sem agrupar por sessao, o
+ * mesmo bug ja corrigido la, so que esta funcao tinha ficado de fora do
+ * escopo daquela correcao — causa raiz confirmada do tile de Sono da Home
+ * (e do Score de Prontidao) mostrando um total diferente da tela de
+ * detalhe de Sono pra "a mesma" noite.
+ */
 export async function fetchLastNightSleepHours(): Promise<number | null> {
   const since = daysAgo(32 / 24);
-  const samples = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
+  const allSamples = await queryCategorySamples('HKCategoryTypeIdentifierSleepAnalysis', {
     filter: { date: { startDate: since } },
     limit: 0,
-    ascending: false,
+    ascending: true,
   });
-  if (samples.length === 0) return null;
+  if (allSamples.length === 0) return null;
+
+  const sessions = groupSamplesIntoSessions(allSamples);
+  const samples = sessions[sessions.length - 1];
 
   const totalMs = samples
     .filter((sample) => ASLEEP_VALUES.has(sample.value as CategoryValueSleepAnalysis))
