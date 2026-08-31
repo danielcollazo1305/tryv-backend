@@ -16,24 +16,31 @@ import type { Quantity, QuantityTypeIdentifier, UnitForIdentifier, WorkoutProxyT
 import * as SecureStore from 'expo-secure-store';
 
 import { ActivityType, RoutePoint } from '@/services/activities';
+import type {
+  DailyQuantityPoint,
+  DayHeartRateDetail,
+  HealthHistoryGranularity,
+  HealthHistoryPeriod,
+  HealthHistoryPoint,
+  HealthKitWorkout,
+  HealthMetricHistory,
+  HealthMetricKey,
+  HealthSummary,
+  HeartRateIntradayPoint,
+  HeartRateSamplePoint,
+  SleepSessionDetail,
+  SleepStage,
+  SleepStageBreakdown,
+  SleepStageSegment,
+  WeekHeartRateDayPoint,
+  WeekHeartRateDetail,
+} from './health.types';
 
 // Movido de components/HealthSummaryCard.tsx pra ca (services/healthkit.ts
 // re-exporta de la, ver comentario no arquivo original) — precisa estar
 // aqui porque ensureHealthKitAuthorized (abaixo) tambem le essa flag, e um
 // service nao deveria importar de um componente.
 export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
-
-export interface HealthKitWorkout {
-  id: string;
-  activityType: ActivityType;
-  startedAt: string;
-  finishedAt: string;
-  durationSeconds: number;
-  distanceMeters: number | null;
-  caloriesBurned: number | null;
-  /** Presente so quando o treino tem uma rota de GPS (HKWorkoutRoute) associada. */
-  routePoints: RoutePoint[] | null;
-}
 
 /** So os tipos que o app ja usa (run/bike/swim/fight/hiit/other) — o resto cai em 'other'. */
 const WORKOUT_TYPE_MAP: Partial<Record<WorkoutActivityType, ActivityType>> = {
@@ -181,22 +188,6 @@ export async function fetchRecentWorkouts(sinceDate: Date): Promise<HealthKitWor
   return results;
 }
 
-export interface HealthSummary {
-  stepsToday: number | null;
-  steps7d: number | null;
-  distanceTodayMeters: number | null;
-  distance7dMeters: number | null;
-  activeEnergyTodayKcal: number | null;
-  activeEnergy7dKcal: number | null;
-  heartRate: {
-    mostRecentBpm: number | null;
-    mostRecentAt: string | null;
-    average7dBpm: number | null;
-  };
-  /** Soma dos intervalos "dormindo" (exclui "na cama" e "acordado") nas ultimas ~32h. */
-  sleepLastNightHours: number | null;
-}
-
 function startOfToday(): Date {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -233,11 +224,6 @@ async function fetchHeartRateSummary(since: Date): Promise<HealthSummary['heartR
     mostRecentAt: mostRecent ? mostRecent.endDate.toISOString() : null,
     average7dBpm: stats.averageQuantity ? Math.round(stats.averageQuantity.quantity) : null,
   };
-}
-
-export interface HeartRateSamplePoint {
-  bpm: number;
-  recordedAt: string;
 }
 
 /**
@@ -331,41 +317,6 @@ async function safe<T>(promise: Promise<T>): Promise<T | null> {
 // — MAIS detalhado que fetchLastNightSleepHours acima (que so soma um
 // total), inspirado no nivel de detalhe do Garmin Connect (so a estrutura/
 // dados, sem copiar o design — ver investigacao anterior).
-
-/** HealthKit nao tem estagio "leve" separado de "core" — Core JA E o sono leve (Deep/REM sao os outros 2 estagios reais monitorados). inBed listado a parte pra timeline (nao entra nos minutos por estagio, ver fetchSleepSessionDetail). */
-export type SleepStage = 'deep' | 'core' | 'rem' | 'awake' | 'inBed';
-
-export interface SleepStageSegment {
-  stage: SleepStage;
-  /** ISO, sempre dentro da janela da ultima noite. */
-  startDate: string;
-  endDate: string;
-}
-
-export interface SleepStageBreakdown {
-  deepMinutes: number;
-  /** Soma de amostras 'core' (rotulado "Leve" na UI) + 'asleepUnspecified' (fonte que nao diferencia estagio — tratada como generica/leve, nao descartada). */
-  lightMinutes: number;
-  remMinutes: number;
-  awakeMinutes: number;
-  /** deep + light + rem (nao inclui awake nem inBed). */
-  totalAsleepMinutes: number;
-}
-
-export interface SleepSessionDetail {
-  /** 'YYYY-MM-DD' do dia em que a pessoa ACORDOU — mesmo criterio ja usado em fetchSleepHistoryBuckets. */
-  date: string;
-  /** ISO do inicio/fim da sessao (primeiro/ultimo segmento da noite) — usados tambem como janela pra buscar FC/respiracao "durante o sono". */
-  startedAt: string;
-  endedAt: string;
-  breakdown: SleepStageBreakdown;
-  /** Ordenados cronologicamente — pra timeline visual (barra empilhada horizontal). */
-  segments: SleepStageSegment[];
-  /** HKQuantityTypeIdentifierHeartRate na janela [startedAt, endedAt] — null se nao houver amostra (ex: sem Apple Watch durante o sono). Mesmo formato de `respiratoryRate` abaixo (media + mais baixa, nao so 1 numero). */
-  heartRate: { average: number | null; lowest: number | null };
-  /** A partir de HKQuantityTypeIdentifierRespiratoryRate na mesma janela — precisa da permissao nova (ver HEALTHKIT_READ_TYPES). */
-  respiratoryRate: { average: number | null; lowest: number | null };
-}
 
 function categorySampleToStage(value: CategoryValueSleepAnalysis): SleepStage | null {
   switch (value) {
@@ -540,13 +491,6 @@ const EMPTY_HEART_RATE: HealthSummary['heartRate'] = {
   average7dBpm: null,
 };
 
-export interface DailyQuantityPoint {
-  /** 'YYYY-MM-DD' em horario local. */
-  date: string;
-  /** null = sem dado nesse dia (HealthKit nao distingue "zero" de "sem amostra" na resposta agregada). */
-  value: number | null;
-}
-
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -616,27 +560,6 @@ export async function fetchActiveEnergyLast7Days(): Promise<DailyQuantityPoint[]
 // em 12 meses civis) espelha _resolve_summary_window de app/routers/meals.py
 // de proposito, pra manter os dois historicos do app com o mesmo
 // comportamento de navegacao.
-export type HealthHistoryPeriod = '1d' | '7d' | '4w' | '1y';
-export type HealthHistoryGranularity = 'day' | 'month';
-export type HealthMetricKey = 'heartRate' | 'steps' | 'sleep' | 'calories';
-
-export interface HealthHistoryPoint {
-  /** 'YYYY-MM-DD' (granularity='day') ou 'YYYY-MM' (granularity='month'), sempre local. */
-  date: string;
-  value: number | null;
-}
-
-export interface HealthMetricHistory {
-  period: HealthHistoryPeriod;
-  granularity: HealthHistoryGranularity;
-  offset: number;
-  startDate: string;
-  endDate: string;
-  points: HealthHistoryPoint[];
-  /** Media so sobre os pontos com dado (null nao entra), igual a avg_calories etc. de MealsSummary. */
-  average: number | null;
-}
-
 function addDays(d: Date, days: number): Date {
   const result = new Date(d);
   result.setDate(result.getDate() + days);
@@ -833,23 +756,6 @@ export async function fetchHealthMetricHistory(
 // 4 metricas). Inspirado no nivel de detalhe do Garmin Connect (so
 // estrutura/dados, sem copiar o design — ver investigacao anterior).
 
-export interface HeartRateIntradayPoint {
-  /** ISO — inicio do bucket de 10min. */
-  time: string;
-  bpm: number;
-}
-
-export interface DayHeartRateDetail {
-  /** 'YYYY-MM-DD' local. */
-  date: string;
-  /** Buckets de 10min (nao amostra crua — ver investigacao: controla volume de dado de forma previsivel). */
-  points: HeartRateIntradayPoint[];
-  /** HKQuantityTypeIdentifierRestingHeartRate do dia (calculado pela Apple) — null se nao houver. */
-  restingBpm: number | null;
-  /** discreteMax das amostras de HeartRate do dia — nao existe tipo "pico" calculado pela Apple. */
-  peakBpm: number | null;
-}
-
 async function fetchIntradayHeartRatePoints(dayStart: Date, dayEnd: Date): Promise<HeartRateIntradayPoint[]> {
   const buckets = await queryStatisticsCollectionForQuantity(
     'HKQuantityTypeIdentifierHeartRate',
@@ -894,20 +800,6 @@ export async function fetchDayHeartRateDetail(dayOffset = 0): Promise<DayHeartRa
     restingBpm: restingStats?.averageQuantity ? Math.round(restingStats.averageQuantity.quantity) : null,
     peakBpm: peakStats?.maximumQuantity ? Math.round(peakStats.maximumQuantity.quantity) : null,
   };
-}
-
-export interface WeekHeartRateDayPoint {
-  date: string;
-  restingBpm: number | null;
-  peakBpm: number | null;
-}
-
-export interface WeekHeartRateDetail {
-  days: WeekHeartRateDayPoint[];
-  /** Media dos 'restingBpm' diarios existentes na semana — "Méd. repouso". */
-  avgRestingBpm: number | null;
-  /** Media dos 'peakBpm' diarios existentes na semana — "Média-Alto". */
-  avgPeakBpm: number | null;
 }
 
 /** 1 estatistica por dia (nao amostra bruta da semana inteira — ver investigacao, ponto 4) via queryStatisticsCollectionForQuantity com bucket diario. */

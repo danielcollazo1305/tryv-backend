@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { fetchHeartRateSamplesSince } from '@/services/healthkit';
+import { fetchHeartRateSamplesSince } from '@/services/health';
 import { syncHeartRateSamples } from '@/services/heartRate';
 
 const LAST_SYNC_KEY = 'heart_rate_last_synced_at';

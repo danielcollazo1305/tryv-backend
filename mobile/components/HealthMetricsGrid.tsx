@@ -5,13 +5,13 @@ import * as SecureStore from 'expo-secure-store';
 
 import { GlassCard } from '@/components/GlassCard';
 import {
-  ensureHealthKitAuthorized,
+  ensureHealthAuthorized,
   fetchHealthSummary,
   HEALTHKIT_CONNECTED_KEY,
   HealthMetricKey,
   HealthSummary,
-  isHealthKitAvailable,
-} from '@/services/healthkit';
+  isHealthAvailable,
+} from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
@@ -77,12 +77,12 @@ export function HealthMetricsGrid() {
       return;
     }
     try {
-      const available = await isHealthKitAvailable();
+      const available = await isHealthAvailable();
       if (!available) {
         setStatus('unavailable');
         return;
       }
-      const authorized = await ensureHealthKitAuthorized();
+      const authorized = await ensureHealthAuthorized();
       if (!authorized) {
         setStatus('disconnected');
         return;

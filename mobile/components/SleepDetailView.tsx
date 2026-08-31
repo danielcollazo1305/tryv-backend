@@ -6,13 +6,13 @@ import * as SecureStore from 'expo-secure-store';
 
 import { GlassCard } from '@/components/GlassCard';
 import {
-  ensureHealthKitAuthorized,
+  ensureHealthAuthorized,
   fetchSleepSessionDetail,
   HEALTHKIT_CONNECTED_KEY,
-  isHealthKitAvailable,
+  isHealthAvailable,
   SleepSessionDetail,
   SleepStage,
-} from '@/services/healthkit';
+} from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 // Pesos de JetBrains Mono REALMENTE carregados (fontsToLoad2, app/_layout.tsx)
@@ -137,12 +137,12 @@ export function SleepDetailView() {
       return;
     }
     try {
-      const available = await isHealthKitAvailable();
+      const available = await isHealthAvailable();
       if (!available) {
         setStatus('unavailable');
         return;
       }
-      const authorized = await ensureHealthKitAuthorized();
+      const authorized = await ensureHealthAuthorized();
       if (!authorized) {
         setStatus('disconnected');
         return;

@@ -13,7 +13,7 @@ import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
-import { requestHealthKitPermissions } from '@/services/healthkit';
+import { requestHealthPermissions } from '@/services/health';
 import {
   Challenge,
   buildAutomaticChallengeHeatmapDays,
@@ -114,7 +114,7 @@ export default function ProfileScreen() {
    * build atual pode ter essa flag "true" sem nunca ter concluido uma
    * autorizacao de verdade NESTE binario — o app entao pula
    * requestAuthorization achando que ja esta conectado. Este botao apaga a
-   * flag e chama requestHealthKitPermissions() de novo, forcando o dialogo
+   * flag e chama requestHealthPermissions() de novo, forcando o dialogo
    * real do sistema a aparecer.
    *
    * debug de HealthKit, escondido pre-lancamento — reativar manualmente
@@ -124,8 +124,8 @@ export default function ProfileScreen() {
    *   setResettingHealthKit(true);
    *   try {
    *     await SecureStore.deleteItemAsync(HEALTHKIT_CONNECTED_KEY);
-   *     const granted = await requestHealthKitPermissions();
-   *     console.log('[DEBUG resetHealthKit] requestHealthKitPermissions() ->', granted);
+   *     const granted = await requestHealthPermissions();
+   *     console.log('[DEBUG resetHealthKit] requestHealthPermissions() ->', granted);
    *     if (granted) {
    *       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
    *     }
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
    *       'HealthKit resetado',
    *       granted
    *         ? 'Flag limpa e permissao solicitada de novo. Confira Ajustes > Saude > Acesso a Apps agora — o Tryv deveria aparecer na lista.'
-   *         : 'Flag limpa, mas requestHealthKitPermissions() retornou false (ou lancou excecao — ver console). O app ainda pode nao aparecer em Ajustes > Saude.'
+   *         : 'Flag limpa, mas requestHealthPermissions() retornou false (ou lancou excecao — ver console). O app ainda pode nao aparecer em Ajustes > Saude.'
    *     );
    *   } catch (err) {
    *     console.error('[DEBUG resetHealthKit] falhou:', err);

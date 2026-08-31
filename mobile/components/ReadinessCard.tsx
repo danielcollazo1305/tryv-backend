@@ -6,7 +6,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
-import { fetchLastNightSleepHours } from '@/services/healthkit';
+import { fetchLastNightSleepHours } from '@/services/health';
 import { getTodayReadiness, Readiness } from '@/services/readiness';
 import { colors2, spacing2, typography2 } from '@/constants/theme';
 

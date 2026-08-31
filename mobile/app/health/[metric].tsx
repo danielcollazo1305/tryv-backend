@@ -9,15 +9,15 @@ import { HeartRateDetailView } from '@/components/HeartRateDetailView';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { SleepDetailView } from '@/components/SleepDetailView';
 import {
-  ensureHealthKitAuthorized,
+  ensureHealthAuthorized,
   HEALTHKIT_CONNECTED_KEY,
   HealthHistoryGranularity,
   HealthHistoryPeriod,
   HealthMetricHistory,
   HealthMetricKey,
   fetchHealthMetricHistory,
-  isHealthKitAvailable,
-} from '@/services/healthkit';
+  isHealthAvailable,
+} from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
 
 // Fonte monoespacada pros numeros (media do periodo, valores/rotulos do
@@ -186,14 +186,14 @@ export default function HealthMetricDetailScreen() {
     }
     setStatus((prev) => (prev === 'ready' ? prev : 'checking'));
     try {
-      const available = await isHealthKitAvailable();
+      const available = await isHealthAvailable();
       if (!available) {
         setStatus('unavailable');
         return;
       }
-      // ensureHealthKitAuthorized checa a autorizacao REAL (nao so a flag
+      // ensureHealthAuthorized checa a autorizacao REAL (nao so a flag
       // local) — ver services/healthkit.ts.
-      const authorized = await ensureHealthKitAuthorized();
+      const authorized = await ensureHealthAuthorized();
       if (!authorized) {
         setStatus('disconnected');
         return;

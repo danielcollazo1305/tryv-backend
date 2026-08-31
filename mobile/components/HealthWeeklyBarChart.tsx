@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 
-import { DailyQuantityPoint } from '@/services/healthkit';
+import { DailyQuantityPoint } from '@/services/health';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;

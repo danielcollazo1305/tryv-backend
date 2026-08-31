@@ -46,7 +46,7 @@ import {
   startBackgroundTracking,
   stopBackgroundTrackingAndFlush,
 } from '@/services/backgroundLocation';
-import { fetchRecentHeartRateBpm } from '@/services/healthkit';
+import { fetchRecentHeartRateBpm } from '@/services/health';
 import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 

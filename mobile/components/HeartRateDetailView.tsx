@@ -18,13 +18,13 @@ import {
   DayHeartRateDetail,
   HEALTHKIT_CONNECTED_KEY,
   WeekHeartRateDetail,
-  ensureHealthKitAuthorized,
+  ensureHealthAuthorized,
   fetchAverageHeartRate,
   fetchDayHeartRateDetail,
   fetchSleepSessionDetail,
   fetchWeekHeartRateDetail,
-  isHealthKitAvailable,
-} from '@/services/healthkit';
+  isHealthAvailable,
+} from '@/services/health';
 import { WorkoutSession, listWorkoutSessions } from '@/services/workouts';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -249,12 +249,12 @@ export function HeartRateDetailView() {
     }
     setStatus((prev) => (prev === 'ready' ? prev : 'checking'));
     try {
-      const available = await isHealthKitAvailable();
+      const available = await isHealthAvailable();
       if (!available) {
         setStatus('unavailable');
         return;
       }
-      const authorized = await ensureHealthKitAuthorized();
+      const authorized = await ensureHealthAuthorized();
       if (!authorized) {
         setStatus('disconnected');
         return;

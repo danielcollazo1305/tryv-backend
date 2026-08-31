@@ -19,7 +19,7 @@ import {
   parseUtcDate,
   Run,
 } from '@/services/activities';
-import { fetchRecentWorkouts, HealthKitWorkout, isHealthKitAvailable, requestHealthKitPermissions } from '@/services/healthkit';
+import { fetchRecentWorkouts, HealthKitWorkout, isHealthAvailable, requestHealthPermissions } from '@/services/health';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 type Stage = 'idle' | 'checking' | 'list';
@@ -55,11 +55,11 @@ export default function HealthKitImportScreen() {
       if (Platform.OS !== 'ios') {
         throw new Error('Apple Health so esta disponivel em iPhones.');
       }
-      const available = await isHealthKitAvailable();
+      const available = await isHealthAvailable();
       if (!available) {
         throw new Error('Apple Health nao esta disponivel neste dispositivo.');
       }
-      const granted = await requestHealthKitPermissions();
+      const granted = await requestHealthPermissions();
       if (!granted) {
         throw new Error('Permissao do Apple Health negada. Habilite nas configuracoes do celular.');
       }

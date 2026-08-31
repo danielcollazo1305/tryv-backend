@@ -9,20 +9,20 @@ import { HealthMetricRow } from '@/components/HealthMetricRow';
 import { HealthWeeklyBarChart } from '@/components/HealthWeeklyBarChart';
 import { formatDistanceKm } from '@/services/activities';
 import {
-  ensureHealthKitAuthorized,
+  ensureHealthAuthorized,
   fetchActiveEnergyLast7Days,
   fetchHealthSummary,
   fetchStepsLast7Days,
   HEALTHKIT_CONNECTED_KEY,
   HealthSummary,
-  isHealthKitAvailable,
-  requestHealthKitPermissions,
-} from '@/services/healthkit';
+  isHealthAvailable,
+  requestHealthPermissions,
+} from '@/services/health';
 import { syncRecentHeartRate } from '@/services/heartRateSync';
 import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
 
-// Definicao real agora em services/healthkit.ts (um service nao devia
-// importar de um componente, e ensureHealthKitAuthorized la precisa dessa
+// Definicao real agora em services/health.ts (um service nao devia
+// importar de um componente, e ensureHealthAuthorized la precisa dessa
 // constante) — re-exportada aqui pra nao quebrar os outros 4 arquivos que
 // ja importavam ela DESTE modulo (HealthMetricsGrid, profile.tsx,
 // app/health/[metric].tsx, ReadinessCard).
@@ -85,16 +85,16 @@ export function HealthSummaryCard() {
         return;
       }
       try {
-        const available = await isHealthKitAvailable();
+        const available = await isHealthAvailable();
         if (!available) {
           setStatus('unavailable');
           return;
         }
-        // ensureHealthKitAuthorized checa a autorizacao REAL (nao so a flag
+        // ensureHealthAuthorized checa a autorizacao REAL (nao so a flag
         // local) e, se a flag disser "ja conectei" mas faltar autorizar
         // algum tipo novo (ex: RespiratoryRate), tenta re-pedir sozinho —
         // ver comentario da funcao em services/healthkit.ts.
-        const authorized = await ensureHealthKitAuthorized();
+        const authorized = await ensureHealthAuthorized();
         if (authorized) {
           await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
           await loadSummary();
@@ -110,7 +110,7 @@ export function HealthSummaryCard() {
   const handleConnect = async () => {
     setConnecting(true);
     try {
-      const granted = await requestHealthKitPermissions();
+      const granted = await requestHealthPermissions();
       if (granted) {
         await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
         await loadSummary();
