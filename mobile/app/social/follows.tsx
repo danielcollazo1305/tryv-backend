@@ -3,9 +3,9 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { EmptyFollowingState } from '@/components/EmptyFollowingState';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { UserListRow } from '@/components/UserListRow';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -18,7 +18,7 @@ import {
   unfollowUser,
 } from '@/services/social';
 import { shareProfile } from '@/utils/invite';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Tab = 'followers' | 'following' | 'suggestions';
 
@@ -37,6 +37,13 @@ function isTab(value: unknown): value is Tab {
  * a partir do Perfil (contadores clicaveis). Param opcional `tab` abre
  * direto numa aba (usado pelo botao "Revisar sugestoes" do estado vazio
  * do Feed, ver EmptyFollowingState).
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (ScreenBackground2 ->
+ * ScreenBackground3, Button2 -> Button3, colors2 -> colors3) — so troca de
+ * tokens/componentes visuais, nenhuma logica de seguir/deixar de seguir ou
+ * navegacao foi alterada. UserListRow e EmptyFollowingState ja tinham
+ * variant="light" pronto (de discover.tsx e do Feed, respectivamente) — so
+ * passada a prop aqui, sem editar nenhum dos 2 componentes.
  */
 export default function FollowsScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
@@ -92,7 +99,7 @@ export default function FollowsScreen() {
   };
 
   const renderList = () => {
-    if (loading) return <ActivityIndicator color={colors2.violet} style={styles.loading} />;
+    if (loading) return <ActivityIndicator color={colors3.primary} style={styles.loading} />;
     if (error) return <Text style={styles.error}>{error}</Text>;
 
     if (activeTab === 'followers') {
@@ -100,13 +107,13 @@ export default function FollowsScreen() {
         return (
           <View style={styles.empty}>
             <View style={styles.emptyIconWrap}>
-              <Ionicons name="person-add-outline" size={28} color={colors2.onSurfaceVariant} />
+              <Ionicons name="person-add-outline" size={28} color={colors3.onSurfaceVariant} />
             </View>
             <Text style={styles.emptyTitle}>Nenhum seguidor</Text>
             <Text style={styles.emptySubtitle}>
               Voce pode compartilhar seu perfil com outras pessoas para comecar.
             </Text>
-            <Button2 label="Compartilhar perfil" onPress={() => shareProfile(user?.name ?? 'eu')} />
+            <Button3 label="Compartilhar perfil" onPress={() => shareProfile(user?.name ?? 'eu')} />
           </View>
         );
       }
@@ -125,16 +132,17 @@ export default function FollowsScreen() {
                 actionLoading={!!busy[item.id]}
                 onPressAction={() => handleToggleFollow(item.id, isFollowing)}
                 onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: item.id } })}
+                variant="light"
               />
             );
           }}
-          ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
         />
       );
     }
 
     if (activeTab === 'following') {
-      if (following.length === 0) return <EmptyFollowingState />;
+      if (following.length === 0) return <EmptyFollowingState variant="light" />;
       return (
         <FlatList
           data={following}
@@ -148,9 +156,10 @@ export default function FollowsScreen() {
               actionLoading={!!busy[item.id]}
               onPressAction={() => handleToggleFollow(item.id, true)}
               onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: item.id } })}
+              variant="light"
             />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+          ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
         />
       );
     }
@@ -160,7 +169,7 @@ export default function FollowsScreen() {
       return (
         <View style={styles.empty}>
           <View style={styles.emptyIconWrap}>
-            <Ionicons name="sparkles-outline" size={28} color={colors2.onSurfaceVariant} />
+            <Ionicons name="sparkles-outline" size={28} color={colors3.onSurfaceVariant} />
           </View>
           <Text style={styles.emptyTitle}>Sem sugestoes</Text>
           <Text style={styles.emptySubtitle}>
@@ -182,18 +191,19 @@ export default function FollowsScreen() {
             actionLoading={!!busy[item.id]}
             onPressAction={() => handleToggleFollow(item.id, item.is_following)}
             onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: item.id } })}
+            variant="light"
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
       />
     );
   };
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+          <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
         <Text style={styles.headerTitle}>Tryv</Text>
         <View style={{ width: 22 }} />
@@ -215,7 +225,7 @@ export default function FollowsScreen() {
       </View>
 
       <View style={styles.content}>{renderList()}</View>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -225,50 +235,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18, color: colors3.primary, fontWeight: '800' },
 
-  tabRow: { flexDirection: 'row', gap: spacing2.sm, paddingHorizontal: spacing2.containerMargin, marginBottom: spacing2.md },
+  tabRow: { flexDirection: 'row', gap: spacing3.sm, paddingHorizontal: spacing3.containerMargin, marginBottom: spacing3.md },
   tabPill: {
     flex: 1,
-    paddingVertical: spacing2.sm + 2,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    paddingVertical: spacing3.sm + 2,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
     alignItems: 'center',
   },
   tabPillSelected: {
-    backgroundColor: colors2.violet,
-    borderColor: colors2.violet,
+    backgroundColor: colors3.primary,
+    borderColor: colors3.primary,
   },
-  tabPillText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 12 },
-  tabPillTextSelected: { color: colors2.white, fontWeight: '700' },
+  tabPillText: { ...typography3.labelSm, textTransform: 'none', fontSize: 12 },
+  tabPillTextSelected: { color: colors3.onPrimary, fontWeight: '700' },
 
-  content: { flex: 1, paddingHorizontal: spacing2.containerMargin },
-  listContent: { paddingBottom: spacing2.xl },
-  loading: { marginTop: spacing2.xl },
-  error: { color: colors2.danger, textAlign: 'center', marginTop: spacing2.xl },
+  content: { flex: 1, paddingHorizontal: spacing3.containerMargin },
+  listContent: { paddingBottom: spacing3.xl },
+  loading: { marginTop: spacing3.xl },
+  error: { color: colors3.error, textAlign: 'center', marginTop: spacing3.xl },
 
-  empty: { alignItems: 'center', justifyContent: 'center', gap: spacing2.sm, paddingVertical: spacing2.xl },
+  empty: { alignItems: 'center', justifyContent: 'center', gap: spacing3.sm, paddingVertical: spacing3.xl },
   emptyIconWrap: {
     width: 64,
     height: 64,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing2.xs,
+    marginBottom: spacing3.xs,
   },
-  emptyTitle: { ...typography2.headlineMd, fontSize: 17, textAlign: 'center' },
+  emptyTitle: { ...typography3.headlineMd, fontSize: 17, textAlign: 'center' },
   emptySubtitle: {
-    ...typography2.bodyMd,
-    color: colors2.onSurfaceVariant,
+    ...typography3.bodyMd,
+    color: colors3.onSurfaceVariant,
     textAlign: 'center',
-    marginBottom: spacing2.sm,
+    marginBottom: spacing3.sm,
     maxWidth: 260,
   },
 });
