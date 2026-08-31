@@ -9,7 +9,7 @@ import { WorkoutSessionDraftProvider } from '@/context/WorkoutSessionDraftContex
 // Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
-import { colors, fontsToLoad2 } from '@/constants/theme';
+import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
 
 export default function RootLayout() {
   // Fontes do design novo (liquiglass) — telas ainda no sistema antigo nao
@@ -20,8 +20,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, backgroundColor: colors3.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors3.primary} />
       </View>
     );
   }
@@ -41,8 +41,8 @@ function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={{ flex: 1, backgroundColor: colors3.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors3.primary} />
       </View>
     );
   }
