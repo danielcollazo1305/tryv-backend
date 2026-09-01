@@ -7,6 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
+import { GlassCard } from '@/components/GlassCard';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { DesafiosCarouselSlide } from '@/components/DesafiosCarouselSlide';
 import { ExportPdfCard } from '@/components/ExportPdfCard';
@@ -300,12 +301,12 @@ export default function HomeScreen() {
 
       {!loading && summary && (
         <>
-          <LiquiglassCard style={styles.statsCard}>
+          <GlassCard style={styles.statsCard}>
             <View style={styles.statsCardHeader}>
               <Pressable onPress={goToPreviousMonth} hitSlop={8} style={styles.monthArrow}>
-                <Ionicons name="chevron-back" size={20} color={colors2.onSurfaceVariant} />
+                <Ionicons name="chevron-back" size={20} color={colors3.onSurfaceVariant} />
               </Pressable>
-              <Text style={[styles.cardTitle, styles.statsCardTitle]}>
+              <Text style={styles.statsCardTitle}>
                 {viewMode.type === 'rolling' ? 'Últimos 30 dias' : monthLabel(viewMode.year, viewMode.month)}
               </Text>
               <Pressable
@@ -317,7 +318,7 @@ export default function HomeScreen() {
                 <Ionicons
                   name="chevron-forward"
                   size={20}
-                  color={viewMode.type === 'rolling' ? colors2.outlineVariant : colors2.onSurfaceVariant}
+                  color={viewMode.type === 'rolling' ? colors3.outlineVariant : colors3.onSurfaceVariant}
                 />
               </Pressable>
             </View>
@@ -335,7 +336,7 @@ export default function HomeScreen() {
                 <Text style={styles.statLabel}>kcal déficit/dia</Text>
               </View>
             </View>
-          </LiquiglassCard>
+          </GlassCard>
 
           <LiquiglassCard style={styles.sectionCard}>
             <View style={styles.cardHeader}>
@@ -395,15 +396,20 @@ const styles = StyleSheet.create({
   error: { color: colors3.error, textAlign: 'center' },
   loading: { marginTop: spacing3.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
-  statsCard: { gap: spacing2.md },
+  // statsCard (navegador de mes + peso/dias treinados/deficit) migrado pro
+  // tema claro nesta tarefa -- cardTitle abaixo continua colors2/typography2
+  // de proposito, ainda usado pelo sectionCard ("Evolucao de peso", fora de
+  // escopo aqui), por isso statsCardTitle tem sua propria tipografia
+  // completa em vez de estender cardTitle.
+  statsCard: { gap: spacing3.md },
   statsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
-  statsCardTitle: { flex: 1, textAlign: 'center' },
+  statsCardTitle: { ...typography3.headlineMd, fontSize: 18, flex: 1, textAlign: 'center' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'flex-start', flex: 1 },
-  statNumber: { ...typography2.metricMono, fontSize: 22 },
-  statLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: spacing2.xs },
+  statNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 22, color: colors3.onSurface },
+  statLabel: { ...typography3.labelSm, textTransform: 'none', marginTop: spacing3.xs },
 
+  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
   sectionCard: { gap: spacing2.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
