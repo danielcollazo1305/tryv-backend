@@ -4,21 +4,26 @@ import { useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import Svg, { Circle } from 'react-native-svg';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { fetchLastNightSleepHours } from '@/services/health';
 import { getTodayReadiness, Readiness } from '@/services/readiness';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 const RING_SIZE = 64;
 const RING_STROKE = 6;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
+// colors3 nao tem tokens semanticos de success/danger — resolvido caso a
+// caso com hex literal, mesmo padrao ja usado em MonthComparisonCard
+// (isUp/isDown) e Profile (streak).
+const SCORE_COLOR_SUCCESS = '#15803d';
+
 function scoreColor(score: number): string {
-  if (score >= 70) return colors2.success;
-  if (score >= 40) return colors2.violet;
-  return colors2.danger;
+  if (score >= 70) return SCORE_COLOR_SUCCESS;
+  if (score >= 40) return colors3.primary;
+  return colors3.error;
 }
 
 /**
@@ -28,6 +33,11 @@ function scoreColor(score: number): string {
  * HealthSummaryCard, que nao tem nada sem HealthKit), aqui mostramos o score
  * parcial e so avisamos que falta o sono — mesmo espirito do fallback do
  * daily_insight no backend (nunca "sem dado nenhum", sempre algo util).
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (LiquiglassCard ->
+ * GlassCard, colors2 -> colors3) — exclusivo da Home (confirmado, nenhum
+ * outro import real do componente), migracao direta sem prop variant. So
+ * recoloracao, nenhuma logica de calculo de prontidao alterada.
  */
 export function ReadinessCard() {
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -64,7 +74,7 @@ export function ReadinessCard() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={colors2.violet} />
+        <ActivityIndicator size="small" color={colors3.primary} />
       </View>
     );
   }
@@ -75,7 +85,7 @@ export function ReadinessCard() {
   const progress = Math.max(0, Math.min(1, readiness.final_score / 100));
 
   return (
-    <LiquiglassCard style={styles.card}>
+    <GlassCard style={styles.card}>
       <View style={styles.row}>
         <View style={styles.ringWrap}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -83,7 +93,7 @@ export function ReadinessCard() {
               cx={RING_SIZE / 2}
               cy={RING_SIZE / 2}
               r={RING_RADIUS}
-              stroke={colors2.surfaceContainerHigh}
+              stroke={colors3.surfaceContainerHigh}
               strokeWidth={RING_STROKE}
               fill="none"
             />
@@ -114,18 +124,18 @@ export function ReadinessCard() {
           Conecte o Apple Health na aba Atividades para incluir seu sono nessa pontuação.
         </Text>
       )}
-    </LiquiglassCard>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing2.xs },
-  card: { gap: spacing2.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
+  card: { gap: spacing3.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   ringWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   ringNumber: { position: 'absolute', fontSize: 18, fontWeight: '800' },
-  info: { flex: 1, gap: spacing2.xs },
-  title: { ...typography2.headlineMd, fontSize: 16, lineHeight: 20 },
-  recommendation: { ...typography2.bodyMd, fontSize: 14, lineHeight: 20, color: colors2.onSurfaceVariant },
-  hint: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
+  info: { flex: 1, gap: spacing3.xs },
+  title: { ...typography3.headlineMd, fontSize: 16, lineHeight: 20 },
+  recommendation: { ...typography3.bodyMd, fontSize: 14, lineHeight: 20, color: colors3.onSurfaceVariant },
+  hint: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
 });
