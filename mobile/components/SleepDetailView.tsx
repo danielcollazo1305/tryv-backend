@@ -15,14 +15,15 @@ import {
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
-// Pesos de JetBrains Mono REALMENTE carregados (fontsToLoad2, app/_layout.tsx)
-// sao so 600SemiBold e 700Bold — nao existe peso 500 carregado. Usar um
-// nome de fonte nao carregado cai num fallback silencioso (mesma classe de
-// bug ja diagnosticada antes nesta tela: numero "glitchado" por causa de
-// mismatch de fonte/lineHeight) — MONO_MEDIUM aponta pro 600SemiBold (peso
-// mais proximo de fato carregado), nao um "500Medium" inexistente.
-const MONO_MEDIUM = 'JetBrainsMono_600SemiBold';
-const MONO_BOLD = 'JetBrainsMono_700Bold';
+// Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
+// consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
+// pedia Mono aqui, mas o padrao virou Inter em todas as outras telas
+// migradas). Inter_600SemiBold/Inter_700Bold ja estao carregados em
+// fontsToLoad2 (app/_layout.tsx) -- sem risco do bug de peso nao carregado
+// ja diagnosticado antes (numero "glitchado"), que era especifico de
+// JetBrainsMono_500Medium nunca ter sido adicionado a lista.
+const INTER_MEDIUM = 'Inter_600SemiBold';
+const INTER_BOLD = 'Inter_700Bold';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'empty' | 'ready' | 'error';
 
@@ -391,23 +392,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors3.onSurfaceVariant,
   },
+  // letterSpacing padrao de typography3.headlineLg (-0.32) em vez do -2.2
+  // antigo -- calibrado pros glifos de largura fixa do JetBrains Mono,
+  // cramped/errado agora que o texto e Inter proporcional.
   totalValue: {
-    fontFamily: MONO_BOLD,
+    ...typography3.headlineLg,
     fontSize: 44,
     lineHeight: 48,
-    letterSpacing: -2.2,
     color: colors3.onSurface,
   },
-  rangeText: { fontFamily: MONO_MEDIUM, fontSize: 12, color: colors3.onSurfaceVariant, marginBottom: spacing3.sm },
+  rangeText: { fontFamily: INTER_MEDIUM, fontSize: 12, color: colors3.onSurfaceVariant, marginBottom: spacing3.sm },
 
   stagesList: { gap: spacing3.md, marginTop: spacing3.xs },
   stageBlock: { gap: 6 },
   stageHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   stageDot: { width: 8, height: 8, borderRadius: 3 },
   stageLabel: { ...typography3.bodyMd, fontSize: 12, fontWeight: '600', flex: 1, color: colors3.onSurface },
-  stageDuration: { fontFamily: MONO_BOLD, fontSize: 12, color: colors3.onSurface },
+  stageDuration: { fontFamily: INTER_BOLD, fontSize: 12, color: colors3.onSurface },
   stagePct: {
-    fontFamily: MONO_MEDIUM,
+    fontFamily: INTER_MEDIUM,
     fontSize: 10,
     color: colors3.onSurfaceVariant,
     minWidth: 30,
@@ -435,7 +438,7 @@ const styles = StyleSheet.create({
   timelineSegmentFull: { height: '100%' },
   timelineSegmentAwake: { height: 13, alignSelf: 'flex-start' },
   timelineLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing3.xs },
-  timelineLabelText: { fontFamily: MONO_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
+  timelineLabelText: { fontFamily: INTER_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
 
   selectedPill: {
     flexDirection: 'row',
@@ -450,7 +453,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(107, 56, 212, 0.16)',
   },
   selectedStageText: { ...typography3.bodyMd, fontSize: 12, fontWeight: '600', flex: 1, color: colors3.onSurface },
-  selectedRangeText: { fontFamily: MONO_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
+  selectedRangeText: { fontFamily: INTER_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
 
   metricsRow: { flexDirection: 'row', gap: spacing3.sm },
   metricCard: { flex: 1, gap: spacing3.sm },
@@ -463,15 +466,15 @@ const styles = StyleSheet.create({
   metricIconRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   metricIconWrap: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   metricEyebrow: {
-    fontFamily: MONO_MEDIUM,
+    fontFamily: INTER_MEDIUM,
     fontSize: 9,
     letterSpacing: 0.9,
     textTransform: 'uppercase',
     color: colors3.onSurfaceVariant,
   },
   metricValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  metricValue: { fontFamily: MONO_BOLD, fontSize: 30, lineHeight: 32, letterSpacing: -1.4, color: colors3.onSurface },
+  metricValue: { ...typography3.headlineLg, fontSize: 30, lineHeight: 32, color: colors3.onSurface },
   metricValueEmpty: { color: colors3.outlineVariant },
-  metricUnit: { fontFamily: MONO_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
+  metricUnit: { fontFamily: INTER_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
   metricSubtext: { ...typography3.bodyMd, fontSize: 11, color: colors3.onSurfaceVariant },
 });

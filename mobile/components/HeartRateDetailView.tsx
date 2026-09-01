@@ -28,10 +28,12 @@ import {
 import { WorkoutSession, listWorkoutSessions } from '@/services/workouts';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
-// Pesos de JetBrains Mono realmente carregados (fontsToLoad2) sao so
-// 600SemiBold/700Bold — mesmo cuidado ja tomado em SleepDetailView.tsx.
-const MONO_MEDIUM = 'JetBrainsMono_600SemiBold';
-const MONO_BOLD = 'JetBrainsMono_700Bold';
+// Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
+// consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
+// pedia Mono aqui, mas o padrao virou Inter em todas as outras telas
+// migradas). Mesmo ajuste feito em SleepDetailView.tsx.
+const INTER_MEDIUM = 'Inter_600SemiBold';
+const INTER_BOLD = 'Inter_700Bold';
 
 // Cores exatas do mockup aprovado (Tryv FC e Sono.dc.html) pra esta tela
 // especificamente — nao e metricColors.heartRate (#F87171, usado em
@@ -648,22 +650,25 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: spacing3.lg, marginBottom: spacing3.xs },
   summaryItem: { flex: 1 },
   summaryValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  summaryValue: { fontFamily: MONO_BOLD, fontSize: 38, letterSpacing: -2, color: colors3.onSurface },
-  summaryUnit: { fontFamily: MONO_MEDIUM, fontSize: 12, color: colors3.onSurfaceVariant },
+  // letterSpacing padrao de typography3.headlineLg (-0.32) em vez do -2
+  // antigo -- aquele valor era calibrado pros glifos de largura fixa do
+  // JetBrains Mono, cramped/errado agora que o texto e Inter proporcional.
+  summaryValue: { ...typography3.headlineLg, fontSize: 38, color: colors3.onSurface },
+  summaryUnit: { fontFamily: INTER_MEDIUM, fontSize: 12, color: colors3.onSurfaceVariant },
   summaryLabel: { ...typography3.bodyMd, fontSize: 11, color: colors3.onSurfaceVariant, marginTop: 4 },
 
   chartWrap: { position: 'relative', marginTop: spacing3.xs },
   chartAxisLabel: {
     position: 'absolute',
     left: -2,
-    fontFamily: MONO_MEDIUM,
+    fontFamily: INTER_MEDIUM,
     fontSize: 9,
     color: colors3.outline,
   },
-  chartAxisLabelStatic: { fontFamily: MONO_MEDIUM, fontSize: 9, color: colors3.outline },
+  chartAxisLabelStatic: { fontFamily: INTER_MEDIUM, fontSize: 9, color: colors3.outline },
 
   hourLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing3.xs },
-  hourLabelText: { fontFamily: MONO_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
+  hourLabelText: { fontFamily: INTER_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
 
   markersTrack: {
     position: 'relative',
@@ -686,7 +691,7 @@ const styles = StyleSheet.create({
     maxWidth: 160,
   },
   markerDot: { width: 15, height: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  markerText: { fontFamily: MONO_MEDIUM, fontSize: 9 },
+  markerText: { fontFamily: INTER_MEDIUM, fontSize: 9 },
 
   sectionTitle: { ...typography3.bodyMd, fontSize: 13, fontWeight: '700', color: colors3.onSurface, marginHorizontal: 4 },
   listCard: { padding: 0, gap: 0 },
@@ -704,11 +709,11 @@ const styles = StyleSheet.create({
   activityIconWrap: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   activityInfo: { flex: 1, gap: 1 },
   activityName: { ...typography3.bodyMd, fontSize: 13, fontWeight: '600', color: colors3.onSurface },
-  activitySubtitle: { fontFamily: MONO_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
+  activitySubtitle: { fontFamily: INTER_MEDIUM, fontSize: 11, color: colors3.onSurfaceVariant },
   activityBpmWrap: { alignItems: 'flex-end' },
-  activityBpmValue: { fontFamily: MONO_BOLD, fontSize: 13, color: colors3.onSurface },
+  activityBpmValue: { fontFamily: INTER_BOLD, fontSize: 13, color: colors3.onSurface },
   activityBpmLabel: {
-    fontFamily: MONO_MEDIUM,
+    fontFamily: INTER_MEDIUM,
     fontSize: 9,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -724,7 +729,7 @@ const styles = StyleSheet.create({
   weekAxisCol: { justifyContent: 'space-between', height: 108, paddingBottom: 4 },
   weekChartArea: { flex: 1 },
   weekLabelsRow: { flexDirection: 'row', marginTop: spacing3.xs },
-  weekChartLabel: { flex: 1, textAlign: 'center', fontFamily: MONO_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
+  weekChartLabel: { flex: 1, textAlign: 'center', fontFamily: INTER_MEDIUM, fontSize: 9, color: colors3.onSurfaceVariant },
 
   weekDayRow: {
     flexDirection: 'row',
@@ -738,6 +743,6 @@ const styles = StyleSheet.create({
   weekDayLabel: { ...typography3.bodyMd, fontSize: 12, fontWeight: '600', flex: 1, color: colors3.onSurface },
   weekDayValueWrap: { flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 74, justifyContent: 'flex-end' },
   weekDayDot: { width: 7, height: 7, borderRadius: 4 },
-  weekDayValueText: { fontFamily: MONO_BOLD, fontSize: 12, color: colors3.onSurfaceVariant },
+  weekDayValueText: { fontFamily: INTER_BOLD, fontSize: 12, color: colors3.onSurfaceVariant },
   weekDayValueTextPeak: { color: colors3.onSurface },
 });

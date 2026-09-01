@@ -20,14 +20,11 @@ import {
 } from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
 
-// Fonte monoespacada pros numeros (media do periodo, valores/rotulos do
-// grafico e da lista) — mockup original (Tryv Metricas.dc.html) pede
-// 'JetBrains Mono' explicitamente pra esses elementos, mesmo o resto do
-// tema "prism-glass" (colors3/typography3) sendo so Inter. Ja carregada
-// globalmente (fontsToLoad2, app/_layout.tsx) independente de tema —
-// hardcoded aqui (nao exportada de theme.ts) porque so este arquivo usa
-// mono fora do tema escuro.
-const METRIC_MONO_BOLD = 'JetBrainsMono_700Bold';
+// Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
+// consistencia com o resto do app (o mockup aprovado, Tryv Metricas.dc.html,
+// pedia Mono aqui, mas o padrao virou Inter em todas as outras telas
+// migradas). Inter_700Bold ja carregado globalmente (fontsToLoad2).
+const INTER_BOLD = 'Inter_700Bold';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
 
@@ -491,19 +488,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing3.sm,
   },
   averageRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: spacing3.lg, flexWrap: 'wrap' },
-  // BUG 1 (numero com glitch/sobreposto) — causa raiz: esta regra fazia
-  // `...typography2.metricMono` (fontSize base 20, lineHeight 24) e so
-  // sobrescrevia fontSize pra 38, deixando lineHeight=24 MENOR que o
-  // fontSize=38. Com a caixa da linha mais baixa que o glifo, o proprio
-  // texto se desenha "espremido"/sobreposto verticalmente — nao eram 2
-  // Text nem fonte nao carregada. Corrigido usando os valores EXATOS do
-  // mockup aprovado (44px/44px, -2.2px de letter-spacing), fontFamily
-  // 'JetBrains Mono' hardcoded (ver METRIC_MONO_BOLD no topo do arquivo).
+  // BUG 1 (numero com glitch/sobreposto), historico — causa raiz: esta
+  // regra fazia `...typography2.metricMono` (fontSize base 20, lineHeight
+  // 24) e so sobrescrevia fontSize pra 38, deixando lineHeight=24 MENOR
+  // que o fontSize=38. Com a caixa da linha mais baixa que o glifo, o
+  // proprio texto se desenhava "espremido"/sobreposto verticalmente — nao
+  // eram 2 Text nem fonte nao carregada. Corrigido na epoca com
+  // fontSize/lineHeight proporcionais (mantido aqui). fontFamily migrado
+  // de JetBrains Mono pra Inter nesta tarefa (decisao deliberada) — o
+  // letterSpacing -2.2 do mockup era calibrado pros glifos de largura
+  // fixa do Mono; usando typography3.headlineLg (-0.32) em vez disso pra
+  // nao ficar cramped com Inter proporcional.
   averageValue: {
-    fontFamily: METRIC_MONO_BOLD,
+    ...typography3.headlineLg,
     fontSize: 44,
     lineHeight: 48,
-    letterSpacing: -2.2,
     color: colors3.onSurface,
   },
   averageUnit: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
@@ -540,11 +539,11 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
-  barCap: { fontFamily: METRIC_MONO_BOLD, fontSize: 9, lineHeight: 12, color: colors3.onSurfaceVariant, marginBottom: 4 },
+  barCap: { fontFamily: INTER_BOLD, fontSize: 9, lineHeight: 12, color: colors3.onSurfaceVariant, marginBottom: 4 },
   bar: { width: '100%', borderRadius: radius3.sm },
   chartDayLabelsRow: { flexDirection: 'row', gap: spacing3.xs, marginTop: spacing3.xs },
   chartDayLabel: {
-    fontFamily: METRIC_MONO_BOLD,
+    fontFamily: INTER_BOLD,
     fontSize: 10,
     lineHeight: 13,
     color: colors3.onSurfaceVariant,
@@ -562,7 +561,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors3.outlineVariant,
   },
   dayRowLast: { borderBottomWidth: 0 },
-  dayNumber: { fontFamily: METRIC_MONO_BOLD, fontSize: 15, lineHeight: 18, color: colors3.onSurface, width: 26 },
+  dayNumber: { fontFamily: INTER_BOLD, fontSize: 15, lineHeight: 18, color: colors3.onSurface, width: 26 },
   dayWeekday: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant, width: 32 },
   dayBarTrack: {
     flex: 1,
@@ -573,7 +572,7 @@ const styles = StyleSheet.create({
   },
   dayBarFill: { height: '100%', borderRadius: 3 },
   dayValue: {
-    fontFamily: METRIC_MONO_BOLD,
+    fontFamily: INTER_BOLD,
     fontSize: 13,
     lineHeight: 16,
     color: colors3.onSurface,
