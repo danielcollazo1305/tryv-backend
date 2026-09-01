@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   statTile: { flexBasis: '47%', flexGrow: 1, gap: spacing3.xs },
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
-  statValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 20, color: colors3.onSurface },
+  statValue: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   statUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   statRecord: { ...typography3.labelSm, textTransform: 'none', fontSize: 10.5, color: colors3.onSurfaceVariant, marginTop: -2 },
   statRecordValue: { fontWeight: '700', color: colors3.onSurface },
@@ -577,5 +577,5 @@ const styles = StyleSheet.create({
   listInfo: { flex: 1, gap: 2, minWidth: 0 },
   listName: { ...typography3.bodyMd, fontWeight: '700' },
   listSubInfo: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
-  listXp: { fontFamily: 'JetBrainsMono_600SemiBold', fontSize: 13, color: colors3.onSurface },
+  listXp: { ...typography3.headlineMd, fontSize: 13, lineHeight: 16, color: colors3.onSurface },
 });

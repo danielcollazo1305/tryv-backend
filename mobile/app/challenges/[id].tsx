@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
 
   statsRow: { flexDirection: 'row', gap: spacing3.sm },
   statTile: { flex: 1, alignItems: 'center', gap: spacing3.xs },
-  statNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 24, color: colors3.onSurface },
+  statNumber: { ...typography3.headlineLg, fontSize: 24, lineHeight: 28, color: colors3.onSurface },
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, textAlign: 'center' },
 
   deniedCard: { alignItems: 'center', gap: spacing3.sm },

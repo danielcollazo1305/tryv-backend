@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   },
   followStat: { alignItems: 'center', minWidth: 72 },
   followStatDivider: { width: 1, height: 28, backgroundColor: colors3.outlineVariant },
-  followStatNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 20, color: colors3.onSurface },
+  followStatNumber: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   followStatLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, marginTop: 2 },
 
   badgesWrap: { marginBottom: spacing3.lg, width: '100%' },
@@ -649,14 +649,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+  // Unificado pro mesmo token de HealthMetricsGrid (typography3.headlineLg,
+  // Inter_700Bold) -- era JetBrainsMono, inconsistente com o padrao de
+  // referencia do mockup original (ver MonthComparisonCard/"Ultimos 30
+  // dias" na Home, corrigidos antes).
   tileValue: {
-    ...typography3.bodyMd,
-    fontFamily: 'JetBrainsMono_700Bold',
+    ...typography3.headlineLg,
     fontSize: 24,
+    lineHeight: 28,
     letterSpacing: -0.5,
     color: colors3.onSurface,
   },
-  tileValueMuted: { fontFamily: 'JetBrainsMono_600SemiBold', fontSize: 16, color: colors3.onSurfaceVariant },
+  tileValueMuted: { ...typography3.headlineMd, fontSize: 16, lineHeight: 20, color: colors3.onSurfaceVariant },
   tileValuePro: { color: colors3.primary },
   tileUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
 

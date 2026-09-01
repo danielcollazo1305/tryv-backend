@@ -424,7 +424,7 @@ const stylesLight = StyleSheet.create({
     justifyContent: 'center',
   },
   statIconWrapDanger: { backgroundColor: 'rgba(186, 26, 26, 0.1)' },
-  statValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 18, color: colors3.onSurface },
+  statValue: { ...typography3.headlineLg, fontSize: 18, lineHeight: 22, color: colors3.onSurface },
   statUnit: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
 
   sectionTitle: { ...typography3.headlineMd, fontSize: 16 },
@@ -444,7 +444,7 @@ const stylesLight = StyleSheet.create({
   exerciseInfo: { flex: 1, gap: 4 },
   exerciseName: { ...typography3.bodyMd, fontSize: 16, fontWeight: '700' },
   exerciseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
-  exerciseSets: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 13, color: colors3.onSurfaceVariant },
+  exerciseSets: { ...typography3.headlineLg, fontSize: 13, lineHeight: 16, color: colors3.onSurfaceVariant },
   exerciseMetaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors3.outlineVariant },
   exerciseRestRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   exerciseRest: { ...typography3.labelSm, textTransform: 'none' },

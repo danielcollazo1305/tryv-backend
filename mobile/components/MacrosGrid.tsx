@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     borderColor: colors3.outlineVariant,
   },
   label: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
-  value: { ...typography3.bodyMd, fontFamily: 'JetBrainsMono_700Bold', fontSize: 22, color: colors3.onSurface },
-  valueGoal: { fontFamily: 'JetBrainsMono_600SemiBold', fontSize: 14, color: colors3.onSurfaceVariant },
+  value: { ...typography3.headlineLg, fontSize: 22, lineHeight: 26, color: colors3.onSurface },
+  valueGoal: { ...typography3.headlineMd, fontSize: 14, lineHeight: 18, color: colors3.onSurfaceVariant },
   unit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   progressTrack: {
     height: 4,

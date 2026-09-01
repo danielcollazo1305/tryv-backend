@@ -268,5 +268,5 @@ const styles = StyleSheet.create({
   averagesRow: { flexDirection: 'row', justifyContent: 'space-between' },
   averageStat: { alignItems: 'center', flex: 1 },
   averageLabel: { ...typography3.labelSm, textTransform: 'none', fontSize: 10, color: colors3.onSurfaceVariant },
-  averageValue: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 16, marginTop: 2, color: colors3.onSurface },
+  averageValue: { ...typography3.headlineLg, fontSize: 16, lineHeight: 20, marginTop: 2, color: colors3.onSurface },
 });
