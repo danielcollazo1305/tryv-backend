@@ -254,6 +254,7 @@ export const typography2 = {
 /** Nomes de fonte pra passar direto ao useFonts em app/_layout.tsx. */
 export const fontsToLoad2 = {
   Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
+  Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
   Inter_600SemiBold: require('@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf'),
   Inter_700Bold: require('@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf'),
   Inter_800ExtraBold: require('@expo-google-fonts/inter/800ExtraBold/Inter_800ExtraBold.ttf'),
@@ -372,7 +373,7 @@ export const radius3 = {
 /** Nomes de fonte identicos aos de fonts2 (mesma familia Inter ja carregada em app/_layout.tsx) — o HTML nao usa JetBrains Mono em lugar nenhum, so Inter. */
 const fonts3 = {
   interRegular: 'Inter_400Regular',
-  interMedium: 'Inter_400Regular', // 500 nao esta entre os pesos carregados (400/600/700/800) — 400 e a aproximacao mais proxima disponivel pra label-md (peso 600 real, ver abaixo) sem baixar um peso novo so pra isso.
+  interMedium: 'Inter_500Medium', // peso real, carregado em fontsToLoad2 -- antes era uma aproximacao pra Inter_400Regular (achado na investigacao de "fontes diferentes", corrigido).
   interSemiBold: 'Inter_600SemiBold',
   interBold: 'Inter_700Bold',
   interExtraBold: 'Inter_800ExtraBold', // usado tambem onde o HTML pede peso 900 (font-black) — 900 nao esta entre os pesos carregados, 800 e o mais proximo disponivel.
