@@ -4,14 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { ChallengeCard2 } from '@/components/ChallengeCard2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { Challenge, listTrainerChallenges, parseUtcDate } from '@/services/challenges';
 import { listMyDietPlans } from '@/services/dietPlans';
 import { TrainerPublic, getMyTrainerProfile, getTrainer, licenseLabel } from '@/services/trainers';
 import { listWorkoutPlans } from '@/services/workouts';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 interface ChallengeWithCreator {
   challenge: Challenge;
@@ -29,6 +29,12 @@ type TopTab = 'app' | 'personal';
  * ja reflete o mesmo par de conceitos usado no resto do app (conteudo do
  * Tryv vs. marketplace de profissionais, ex: "Treino com IA" vs. secao do
  * Personal Trainer em (tabs)/workout.tsx).
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (ScreenBackground2 ->
+ * ScreenBackground3, LiquiglassCard -> GlassCard, colors2 -> colors3) — so
+ * troca de tokens/componentes visuais, nenhuma logica de dados alterada.
+ * ChallengeCard2 ganhou uma prop variant ('dark' padrao, 'light' aqui) pra
+ * nao afetar o uso ainda escuro em trainers/[id].tsx.
  */
 const TOP_TABS: { key: TopTab; label: string }[] = [
   { key: 'app', label: 'App' },
@@ -121,12 +127,12 @@ function PersonalTab() {
         <View style={styles.personalHeader}>
           {canCreate && (
             <Pressable style={styles.createButton} onPress={() => router.push('/challenges/new')}>
-              <Ionicons name="add" size={16} color={colors2.white} />
+              <Ionicons name="add" size={16} color={colors3.onPrimary} />
               <Text style={styles.createButtonText}>Criar</Text>
             </Pressable>
           )}
           {!!error && <Text style={styles.error}>{error}</Text>}
-          {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+          {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
         </View>
       }
       renderItem={({ item }) => (
@@ -136,13 +142,14 @@ function PersonalTab() {
           creatorCredential={
             item.creator ? `${licenseLabel(item.creator.professional_type)} ${item.creator.license_number}` : undefined
           }
+          variant="light"
         />
       )}
-      ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+      ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
       ListEmptyComponent={
         !loading ? (
           <View style={styles.empty}>
-            <Ionicons name="trophy-outline" size={32} color={colors2.onSurfaceVariant} />
+            <Ionicons name="trophy-outline" size={32} color={colors3.onSurfaceVariant} />
             <Text style={styles.emptyText}>
               {hasKnownTrainers
                 ? 'Nenhum desafio ativo dos seus profissionais no momento.'
@@ -167,31 +174,31 @@ function AppTab() {
       <Pressable
         onPress={() => router.push({ pathname: '/challenges/category/[category]', params: { category: 'musculacao_corrida' } })}
       >
-        <LiquiglassCard style={styles.categoryCard}>
+        <GlassCard variant="card" style={styles.categoryCard}>
           <View style={styles.categoryIconWrap}>
-            <Ionicons name="barbell" size={24} color={colors2.primary} />
+            <Ionicons name="barbell" size={24} color={colors3.primary} />
           </View>
           <View style={styles.categoryInfo}>
             <Text style={styles.categoryTitle}>Musculação/Corrida</Text>
             <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv de treino e corrida</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-        </LiquiglassCard>
+          <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+        </GlassCard>
       </Pressable>
 
       <Pressable
         onPress={() => router.push({ pathname: '/challenges/category/[category]', params: { category: 'alimentacao' } })}
       >
-        <LiquiglassCard style={styles.categoryCard}>
+        <GlassCard variant="card" style={styles.categoryCard}>
           <View style={styles.categoryIconWrap}>
-            <Ionicons name="restaurant" size={24} color={colors2.primary} />
+            <Ionicons name="restaurant" size={24} color={colors3.primary} />
           </View>
           <View style={styles.categoryInfo}>
             <Text style={styles.categoryTitle}>Alimentação</Text>
             <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv de alimentação</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-        </LiquiglassCard>
+          <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+        </GlassCard>
       </Pressable>
     </View>
   );
@@ -201,7 +208,7 @@ export default function ChallengesScreen() {
   const [activeTab, setActiveTab] = useState<TopTab>('app');
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Desafios</Text>
         <View style={styles.tabSwitcher}>
@@ -221,57 +228,57 @@ export default function ChallengesScreen() {
       </View>
 
       {activeTab === 'app' ? <AppTab /> : <PersonalTab />}
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  header: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.md, gap: spacing2.md },
-  title: { ...typography2.headlineLgMobile, fontSize: 26 },
+  header: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.md, gap: spacing3.md },
+  title: { ...typography3.headlineLgMobile, fontSize: 26 },
 
   tabSwitcher: {
     flexDirection: 'row',
-    backgroundColor: colors2.surfaceContainer,
-    borderRadius: radius2.pill,
+    backgroundColor: colors3.surfaceContainer,
+    borderRadius: radius3.pill,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
     padding: 4,
   },
-  tabButton: { flex: 1, alignItems: 'center', paddingVertical: spacing2.sm, borderRadius: radius2.pill },
-  tabButtonSelected: { backgroundColor: colors2.violet },
-  tabButtonText: { ...typography2.bodyMd, fontSize: 14, fontWeight: '600', color: colors2.onSurfaceVariant },
-  tabButtonTextSelected: { color: colors2.white },
+  tabButton: { flex: 1, alignItems: 'center', paddingVertical: spacing3.sm, borderRadius: radius3.pill },
+  tabButtonSelected: { backgroundColor: colors3.primary },
+  tabButtonText: { ...typography3.bodyMd, fontSize: 14, fontWeight: '600', color: colors3.onSurfaceVariant },
+  tabButtonTextSelected: { color: colors3.onPrimary },
 
-  appTabContent: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
-  categoryCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md },
+  appTabContent: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.md },
+  categoryCard: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   categoryIconWrap: {
     width: 48,
     height: 48,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryInfo: { flex: 1, gap: 4 },
-  categoryTitle: { ...typography2.bodyMd, fontSize: 16, fontWeight: '700' },
-  categorySubtitle: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
+  categoryTitle: { ...typography3.bodyMd, fontSize: 16, fontWeight: '700' },
+  categorySubtitle: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 
-  listContent: { padding: spacing2.containerMargin, paddingTop: 0, paddingBottom: spacing2.xl },
-  personalHeader: { gap: spacing2.sm, marginBottom: spacing2.md },
+  listContent: { padding: spacing3.containerMargin, paddingTop: 0, paddingBottom: spacing3.xl },
+  personalHeader: { gap: spacing3.sm, marginBottom: spacing3.md },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 4,
-    backgroundColor: colors2.violet,
+    backgroundColor: colors3.primary,
     borderRadius: 999,
-    paddingHorizontal: spacing2.md,
-    paddingVertical: spacing2.sm,
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm,
   },
-  createButtonText: { ...typography2.labelCaps, color: colors2.white },
-  error: { color: colors2.danger, textAlign: 'center' },
-  loading: { marginTop: spacing2.sm },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  createButtonText: { ...typography3.labelSm, textTransform: 'none', color: colors3.onPrimary, fontWeight: '700' },
+  error: { color: colors3.error, textAlign: 'center' },
+  loading: { marginTop: spacing3.sm },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 });

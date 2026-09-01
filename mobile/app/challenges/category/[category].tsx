@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { ChallengeCard2 } from '@/components/ChallengeCard2';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { Challenge, ChallengeCategory, listChallenges } from '@/services/challenges';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 const CATEGORY_TITLE: Record<ChallengeCategory, string> = {
   musculacao_corrida: 'Musculação/Corrida',
@@ -41,33 +41,33 @@ export default function ChallengeCategoryScreen() {
   );
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>{CATEGORY_TITLE[category] ?? 'Desafios'}</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
+          <Ionicons name="close" size={26} color={colors3.onSurfaceVariant} />
         </Pressable>
       </View>
 
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+      {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => <ChallengeCard2 challenge={item} />}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+        renderItem={({ item }) => <ChallengeCard2 challenge={item} variant="light" />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="trophy-outline" size={32} color={colors2.onSurfaceVariant} />
+              <Ionicons name="trophy-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>Nenhum desafio oficial nesta categoria no momento.</Text>
             </View>
           ) : null
         }
       />
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -77,14 +77,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  title: { ...typography2.headlineMd, fontSize: 20 },
-  error: { color: colors2.danger, textAlign: 'center', marginHorizontal: spacing2.containerMargin },
-  loading: { marginTop: spacing2.md },
-  listContent: { padding: spacing2.containerMargin, paddingTop: 0, paddingBottom: spacing2.xl },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  title: { ...typography3.headlineMd, fontSize: 20 },
+  error: { color: colors3.error, textAlign: 'center', marginHorizontal: spacing3.containerMargin },
+  loading: { marginTop: spacing3.md },
+  listContent: { padding: spacing3.containerMargin, paddingTop: 0, paddingBottom: spacing3.xl },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 });

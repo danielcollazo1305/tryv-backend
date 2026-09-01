@@ -6,11 +6,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/Avatar';
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
+// ChoiceGroup2 continua escuro de proposito — compartilhado com ~20 outras
+// telas ainda nao migradas (mesmo caso ja documentado na migracao de
+// Refeicoes: TextField2/ChoiceGroup2 ficam pra depois). Nao faz parte desta
+// tarefa (so ChallengeCard2 foi pedido).
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { GlassCard } from '@/components/GlassCard';
 import { HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey } from '@/components/HeatmapGrid';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import {
@@ -30,7 +34,7 @@ import {
 import { uploadMedia } from '@/services/media';
 import { SHARE_VISIBILITY_OPTIONS, ShareVisibility, UserBrief, createPost } from '@/services/social';
 import { TrainerPublic, getTrainer, licenseLabel } from '@/services/trainers';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -43,6 +47,14 @@ const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
   nutritionist: 'Nutricionista',
 };
 
+/**
+ * Migrado pro tema claro "prism-glass" nesta tarefa (ScreenBackground2 ->
+ * ScreenBackground3, LiquiglassCard -> GlassCard, Button2 -> Button3,
+ * colors2 -> colors3) — mockup aprovado "Tryv Desafio Detalhe". So troca de
+ * tokens/componentes visuais, nenhuma logica de goal_type/check-in/
+ * participacao foi alterada. HeatmapGrid ganhou variant="light" (ja
+ * suportado pelo componente).
+ */
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
@@ -233,18 +245,18 @@ export default function ChallengeDetailScreen() {
     : null;
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Desafio</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors2.onSurfaceVariant} />
+          <Ionicons name="close" size={26} color={colors3.onSurfaceVariant} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors2.violet} />
+            <ActivityIndicator size="large" color={colors3.primary} />
           </View>
         )}
 
@@ -253,7 +265,7 @@ export default function ChallengeDetailScreen() {
         {!loading && challenge && (
           <>
             <View style={styles.titleBlock}>
-              <Ionicons name="trophy" size={22} color={colors2.primary} />
+              <Ionicons name="trophy" size={22} color={colors3.primary} />
               <Text style={styles.challengeTitle}>{challenge.title}</Text>
             </View>
             <Text style={styles.dates}>
@@ -263,13 +275,13 @@ export default function ChallengeDetailScreen() {
             <View style={styles.tagsRow}>
               {challenge.is_official ? (
                 <View style={styles.tag}>
-                  <Ionicons name="shield-checkmark" size={13} color={colors2.primary} />
+                  <Ionicons name="shield-checkmark" size={13} color={colors3.primary} />
                   <Text style={styles.tagText}>Desafio oficial Tryv</Text>
                 </View>
               ) : (
                 creatorTrainer && (
                   <View style={styles.tag}>
-                    <Ionicons name="checkmark-circle" size={13} color={colors2.primary} />
+                    <Ionicons name="checkmark-circle" size={13} color={colors3.primary} />
                     <Text style={styles.tagText} numberOfLines={1}>
                       Desafio de {creatorTrainer.user_name} — {creatorLabel} (
                       {licenseLabel(creatorTrainer.professional_type)} {creatorTrainer.license_number})
@@ -287,22 +299,22 @@ export default function ChallengeDetailScreen() {
             {!!challenge.description && <Text style={styles.description}>{challenge.description}</Text>}
 
             <View style={styles.statsRow}>
-              <LiquiglassCard style={styles.statTile}>
+              <GlassCard variant="card" style={styles.statTile}>
                 <Text style={styles.statNumber}>{challenge.participants_count}</Text>
                 <Text style={styles.statLabel}>Participantes</Text>
-              </LiquiglassCard>
-              <LiquiglassCard style={styles.statTile}>
+              </GlassCard>
+              <GlassCard variant="card" style={styles.statTile}>
                 <Text style={styles.statNumber}>{challenge.community_progress_percent}%</Text>
                 <Text style={styles.statLabel}>Fizeram check-in hoje</Text>
-              </LiquiglassCard>
+              </GlassCard>
             </View>
 
             {joinDenied && (
-              <LiquiglassCard style={styles.deniedCard}>
-                <Ionicons name="lock-closed" size={20} color={colors2.danger} />
+              <GlassCard variant="card" style={styles.deniedCard}>
+                <Ionicons name="lock-closed" size={20} color={colors3.error} />
                 <Text style={styles.deniedText}>Voce precisa ser aluno deste professor para participar.</Text>
                 {!!challenge.trainer_id && (
-                  <Button2
+                  <Button3
                     label="Ver perfil do professor"
                     variant="secondary"
                     onPress={() =>
@@ -310,12 +322,12 @@ export default function ChallengeDetailScreen() {
                     }
                   />
                 )}
-              </LiquiglassCard>
+              </GlassCard>
             )}
 
             {!!joinError && <Text style={styles.error}>{joinError}</Text>}
 
-            <Button2
+            <Button3
               label={isParticipating ? 'Sair' : 'Participar'}
               variant={isParticipating ? 'secondary' : 'primary'}
               onPress={isParticipating ? handleLeave : handleJoin}
@@ -330,32 +342,32 @@ export default function ChallengeDetailScreen() {
                   // partir de Refeicoes/Corridas/Sessoes de treino, sem
                   // acao nenhuma da pessoa. Mostrar o botao "Fiz hoje" aqui
                   // seria enganoso (nao teria efeito nenhum no progresso).
-                  <LiquiglassCard style={styles.checkinDoneCard}>
+                  <GlassCard variant="card" style={styles.checkinDoneCard}>
                     <Ionicons
                       name={hasCheckedInToday ? 'checkmark-circle' : 'information-circle'}
                       size={22}
-                      color={colors2.violet}
+                      color={colors3.primary}
                     />
                     <Text style={styles.checkinDoneText}>{describeChallengeGoal(challenge)}</Text>
-                  </LiquiglassCard>
+                  </GlassCard>
                 ) : hasCheckedInToday ? (
-                  <LiquiglassCard style={styles.checkinDoneCard}>
-                    <Ionicons name="checkmark-circle" size={22} color={colors2.violet} />
+                  <GlassCard variant="card" style={styles.checkinDoneCard}>
+                    <Ionicons name="checkmark-circle" size={22} color={colors3.primary} />
                     <Text style={styles.checkinDoneText}>Voce ja fez check-in hoje!</Text>
-                  </LiquiglassCard>
+                  </GlassCard>
                 ) : (
-                  <LiquiglassCard style={styles.checkinCard}>
+                  <GlassCard variant="card" style={styles.checkinCard}>
                     <Text style={styles.sectionTitle}>Check-in de hoje</Text>
 
                     {checkinPhotoUri && <Image source={{ uri: checkinPhotoUri }} style={styles.checkinPreview} />}
 
                     <View style={styles.checkinPhotoButtons}>
                       <Pressable style={styles.checkinPhotoButton} onPress={handleTakeCheckinPhoto}>
-                        <Ionicons name="camera" size={18} color={colors2.primary} />
+                        <Ionicons name="camera" size={18} color={colors3.primary} />
                         <Text style={styles.checkinPhotoButtonText}>Tirar foto</Text>
                       </Pressable>
                       <Pressable style={styles.checkinPhotoButton} onPress={handlePickCheckinPhoto}>
-                        <Ionicons name="images" size={18} color={colors2.primary} />
+                        <Ionicons name="images" size={18} color={colors3.primary} />
                         <Text style={styles.checkinPhotoButtonText}>Galeria</Text>
                       </Pressable>
                     </View>
@@ -370,24 +382,24 @@ export default function ChallengeDetailScreen() {
 
                     {!!checkinError && <Text style={styles.error}>{checkinError}</Text>}
 
-                    <Button2 label="Fiz hoje" onPress={handleCheckin} loading={checkinSaving} />
-                  </LiquiglassCard>
+                    <Button3 label="Fiz hoje" onPress={handleCheckin} loading={checkinSaving} />
+                  </GlassCard>
                 )}
 
-                <LiquiglassCard style={styles.heatmapCard}>
+                <GlassCard variant="card" style={styles.heatmapCard}>
                   <View style={styles.heatmapHeader}>
                     <Text style={styles.sectionTitle}>Sua consistencia</Text>
                     {consistencyStreak.count > 0 && (
                       <View style={styles.streakBadge}>
-                        <Ionicons name="flame" size={14} color={colors2.violet} />
+                        <Ionicons name="flame" size={14} color={colors3.primary} />
                         <Text style={styles.streakText}>
                           {consistencyStreak.count} {consistencyStreak.count === 1 ? 'dia seguido' : 'dias seguidos'}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <HeatmapGrid days={heatmapDays} todayKey={todayKey()} />
-                </LiquiglassCard>
+                  <HeatmapGrid days={heatmapDays} todayKey={todayKey()} variant="light" />
+                </GlassCard>
               </>
             )}
 
@@ -409,7 +421,7 @@ export default function ChallengeDetailScreen() {
           </>
         )}
       </ScrollView>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -419,81 +431,81 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  title: { ...typography2.headlineMd, fontSize: 20 },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
-  centered: { alignItems: 'center', marginTop: spacing2.xl },
-  error: { color: colors2.danger, textAlign: 'center' },
+  title: { ...typography3.headlineMd, fontSize: 20 },
+  content: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.md },
+  centered: { alignItems: 'center', marginTop: spacing3.xl },
+  error: { color: colors3.error, textAlign: 'center' },
 
-  titleBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  challengeTitle: { ...typography2.headlineLgMobile, fontSize: 24, flexShrink: 1 },
-  dates: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: -spacing2.xs },
-  description: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  titleBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  challengeTitle: { ...typography3.headlineLgMobile, fontSize: 24, flexShrink: 1 },
+  dates: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: -spacing3.xs },
+  description: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
 
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing2.md - 4,
+    paddingHorizontal: spacing3.md - 4,
     paddingVertical: 5,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainerHigh,
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(208, 188, 255, 0.2)',
+    borderColor: 'rgba(107, 56, 212, 0.18)',
     maxWidth: '100%',
   },
-  tagText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, flexShrink: 1 },
+  tagText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, flexShrink: 1 },
 
-  statsRow: { flexDirection: 'row', gap: spacing2.sm },
-  statTile: { flex: 1, alignItems: 'center', gap: spacing2.xs },
-  statNumber: { ...typography2.metricMono, fontSize: 24 },
-  statLabel: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant, textAlign: 'center' },
+  statsRow: { flexDirection: 'row', gap: spacing3.sm },
+  statTile: { flex: 1, alignItems: 'center', gap: spacing3.xs },
+  statNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 24, color: colors3.onSurface },
+  statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  deniedCard: { alignItems: 'center', gap: spacing2.sm },
-  deniedText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  deniedCard: { alignItems: 'center', gap: spacing3.sm },
+  deniedText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
+  sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
 
-  checkinCard: { gap: spacing2.sm },
-  checkinPreview: { width: '100%', height: 160, borderRadius: radius2.md, backgroundColor: colors2.surfaceContainerHigh },
-  checkinPhotoButtons: { flexDirection: 'row', gap: spacing2.sm },
+  checkinCard: { gap: spacing3.sm },
+  checkinPreview: { width: '100%', height: 160, borderRadius: radius3.md, backgroundColor: colors3.surfaceContainerHigh },
+  checkinPhotoButtons: { flexDirection: 'row', gap: spacing3.sm },
   checkinPhotoButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing2.xs,
-    backgroundColor: colors2.surfaceContainer,
+    gap: spacing3.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: radius2.md,
-    paddingVertical: spacing2.sm,
+    borderColor: colors3.outlineVariant,
+    borderRadius: radius3.md,
+    paddingVertical: spacing3.sm,
   },
-  checkinPhotoButtonText: { ...typography2.bodyMd, fontSize: 13 },
-  checkinHint: { ...typography2.bodyMd, fontSize: 12, fontStyle: 'italic', color: colors2.onSurfaceVariant },
+  checkinPhotoButtonText: { ...typography3.bodyMd, fontSize: 13 },
+  checkinHint: { ...typography3.bodyMd, fontSize: 12, fontStyle: 'italic', color: colors3.onSurfaceVariant },
 
-  checkinDoneCard: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  checkinDoneText: { ...typography2.bodyMd, fontWeight: '600' },
+  checkinDoneCard: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  checkinDoneText: { ...typography3.bodyMd, fontWeight: '600' },
 
-  heatmapCard: { gap: spacing2.md },
+  heatmapCard: { gap: spacing3.md },
   heatmapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     borderRadius: 999,
-    paddingHorizontal: spacing2.sm,
+    paddingHorizontal: spacing3.sm,
     paddingVertical: 4,
   },
-  streakText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.violet, fontWeight: '700' },
+  streakText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11, color: colors3.primary, fontWeight: '700' },
 
-  participantsSection: { gap: spacing2.sm, marginTop: spacing2.md },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-  participantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  participantName: { ...typography2.bodyMd, fontSize: 14 },
+  participantsSection: { gap: spacing3.sm, marginTop: spacing3.md },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  participantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  participantName: { ...typography3.bodyMd, fontSize: 14 },
 });
