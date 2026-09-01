@@ -3,11 +3,11 @@ import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View }
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, formatMealDateTime, listMeals } from '@/services/meals';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /**
  * Historico visual de fotos de refeicao ("feed pessoal") — item 4. Tela
@@ -23,6 +23,12 @@ import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
  * persistido de verdade hoje (confirmado no fluxo de meal/add.tsx:
  * uploadMedia() sobe a foto pro S3 antes de createMeal()), entao esse
  * historico usa dado real, nao inventado.
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (ScreenBackground2 ->
+ * ScreenBackground3, LiquiglassCard -> GlassCard, colors2 -> colors3) — so
+ * troca de tokens/componentes visuais, nenhuma logica alterada. Tela
+ * autocontida (sem componente compartilhado com telas ainda escuras) —
+ * migracao direta, sem prop variant.
  */
 export default function MealPhotosScreen() {
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -51,10 +57,10 @@ export default function MealPhotosScreen() {
   const photosOnly = meals.filter((meal) => !!meal.photo_url);
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+          <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
         <Text style={styles.headerTitle}>Historico de fotos</Text>
         <View style={{ width: 22 }} />
@@ -65,7 +71,7 @@ export default function MealPhotosScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <LiquiglassCard style={styles.photoCard} padding={0}>
+          <GlassCard variant="card" style={styles.photoCard} padding={0}>
             <Image source={{ uri: item.photo_url! }} style={styles.photo} />
             <View style={styles.info}>
               <Text style={styles.description} numberOfLines={1}>
@@ -76,22 +82,22 @@ export default function MealPhotosScreen() {
                 <Text style={styles.meta}>{Math.round(item.calories ?? 0)} kcal</Text>
               </View>
             </View>
-          </LiquiglassCard>
+          </GlassCard>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.md }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="images-outline" size={32} color={colors2.onSurfaceVariant} />
+              <Ionicons name="images-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>
                 {error ?? 'Nenhuma refeicao com foto registrada ainda.'}
               </Text>
             </View>
           ) : null
         }
-        ListFooterComponent={loading ? <ActivityIndicator color={colors2.violet} style={styles.loading} /> : null}
+        ListFooterComponent={loading ? <ActivityIndicator color={colors3.primary} style={styles.loading} /> : null}
       />
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -101,21 +107,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  listContent: { padding: spacing2.containerMargin, paddingTop: 0, paddingBottom: spacing2.xl },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  listContent: { padding: spacing3.containerMargin, paddingTop: 0, paddingBottom: spacing3.xl },
 
   photoCard: { overflow: 'hidden' },
-  photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors2.surfaceContainerHigh },
-  info: { padding: spacing2.md, gap: spacing2.xs },
-  description: { ...typography2.bodyMd, fontWeight: '600', fontSize: 16 },
+  photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors3.surfaceContainerHigh },
+  info: { padding: spacing3.md, gap: spacing3.xs },
+  description: { ...typography3.bodyMd, fontWeight: '600', fontSize: 16 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  meta: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
+  meta: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
 
-  loading: { marginVertical: spacing2.lg },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl * 2, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  loading: { marginVertical: spacing3.lg },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl * 2, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 });
