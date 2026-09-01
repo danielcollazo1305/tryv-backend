@@ -28,9 +28,22 @@ export interface Run {
   finished_at: string;
 }
 
+export interface RunSplit {
+  km: number;
+  distance_meters: number;
+  duration_seconds: number;
+  avg_pace_seconds_per_km: number | null;
+  /** true so no ultimo split quando a corrida nao fecha um km inteiro no final. */
+  is_partial: boolean;
+}
+
 export interface RunDetail extends Run {
   heart_rate_avg: number | null;
   heart_rate_max: number | null;
+  /** Soma so das subidas (dead-band de 1m contra ruido de GPS) — calculado sob demanda no backend a partir de route_points, ver run_calculator.py. */
+  elevation_gain_meters: number;
+  /** Splits por km calculados sob demanda a partir de route_points — [] se a corrida tiver menos de 2 pontos de rota. */
+  splits: RunSplit[];
 }
 
 export interface RunCreateResult extends Run {

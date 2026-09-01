@@ -54,11 +54,25 @@ class RunOut(BaseModel):
         from_attributes = True
 
 
+class SplitOut(BaseModel):
+    km: int
+    distance_meters: float
+    duration_seconds: int
+    avg_pace_seconds_per_km: float | None = None
+    # True so no ultimo split quando a corrida nao fecha um km inteiro no
+    # final (distance_meters < 1000 nesse caso).
+    is_partial: bool = False
+
+
 class RunDetailOut(RunOut):
     """Usado so em GET /runs/{id} — FC calculada sob demanda a partir das
-    amostras de HeartRateSample dentro da janela started_at..finished_at."""
+    amostras de HeartRateSample dentro da janela started_at..finished_at.
+    elevation_gain_meters/splits tambem calculados sob demanda a partir de
+    route_points (ver app/services/run_calculator.py), nao armazenados."""
     heart_rate_avg: float | None = None
     heart_rate_max: int | None = None
+    elevation_gain_meters: float = 0.0
+    splits: list[SplitOut] = []
 
 
 class RunCreateOut(RunOut):

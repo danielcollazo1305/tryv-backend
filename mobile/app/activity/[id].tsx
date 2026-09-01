@@ -152,6 +152,10 @@ export default function ActivityDetailScreen() {
                 <Text style={styles.statNumber}>{formatPace(run.avg_pace_seconds_per_km)}</Text>
                 <Text style={styles.statLabel}>pace</Text>
               </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{Math.round(run.elevation_gain_meters)}</Text>
+                <Text style={styles.statLabel}>elev. (m)</Text>
+              </View>
             </View>
             <View style={styles.statsRow}>
               {run.calories_burned != null && (
@@ -173,6 +177,25 @@ export default function ActivityDetailScreen() {
                 </View>
               )}
             </View>
+          </LiquiglassCard>
+        )}
+
+        {!loading && run && run.splits.length > 0 && (
+          <LiquiglassCard style={styles.splitsCard}>
+            <Text style={styles.splitsTitle}>Splits por km</Text>
+            {run.splits.map((split, index) => (
+              <View
+                key={split.km}
+                style={[styles.splitRow, index === run.splits.length - 1 && styles.splitRowLast]}
+              >
+
+                <Text style={styles.splitLabel}>
+                  Km {split.km}
+                  {split.is_partial ? ` (parcial, ${formatDistanceKm(split.distance_meters)} km)` : ''}
+                </Text>
+                <Text style={styles.splitPace}>{formatPace(split.avg_pace_seconds_per_km)}</Text>
+              </View>
+            ))}
           </LiquiglassCard>
         )}
 
@@ -250,6 +273,20 @@ const styles = StyleSheet.create({
   statNumber: { ...typography2.metricMono, fontSize: 22 },
   statLabel: { ...typography2.labelCaps, textTransform: 'none', marginTop: 2, color: colors2.onSurfaceVariant },
   notes: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+
+  splitsCard: { gap: spacing2.sm },
+  splitsTitle: { ...typography2.headlineMd, fontSize: 18, marginBottom: spacing2.xs },
+  splitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing2.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors2.outlineVariant,
+  },
+  splitRowLast: { borderBottomWidth: 0 },
+  splitLabel: { ...typography2.bodyMd, fontSize: 14 },
+  splitPace: { ...typography2.metricMono, fontSize: 14, color: colors2.onSurfaceVariant },
 
   insightCard: { gap: spacing2.sm },
   insightSummary: { ...typography2.bodyMd },

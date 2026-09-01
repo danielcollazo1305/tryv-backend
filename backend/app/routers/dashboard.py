@@ -16,6 +16,7 @@ from app.models.run import Run
 from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutPlan, WorkoutSession
+from app.services.run_calculator import elevation_gain_meters
 from app.schemas.dashboard import (
     CalorieSummary,
     DailyDistanceKm,
@@ -306,43 +307,6 @@ def get_user_weekly_activity(
     return WeeklyActivityOut(daily=_compute_weekly_activity(db, parsed_id))
 
 
-# Ganho de elevacao — limiar minimo de variacao pra contar como subida de
-# verdade (dead-band simples), pra nao inflar o total com ruido do GPS
-# (altitude de celular oscila alguns metros mesmo parado). Nao e um filtro
-# sofisticado (tipo suavizacao/media movel), so o suficiente pra evitar que
-# jitter puro vire "ganho de elevacao" — validar com dado real de device
-# depois se precisar refinar.
-_ELEVATION_GAIN_THRESHOLD_M = 1.0
-
-
-def _elevation_gain_meters(route_points: list[dict] | None) -> float:
-    """
-    Soma so as subidas (delta positivo acima do limiar) entre pontos
-    consecutivos com altitude presente. alt ausente (rota gravada antes da
-    captura de altitude existir, ou ponto sem leitura de altitude do GPS)
-    quebra a sequencia em vez de contar como salto de/pra 0.
-    """
-    if not route_points:
-        return 0.0
-    gain = 0.0
-    prev_alt = None
-    for point in route_points:
-        alt = point.get("alt") if isinstance(point, dict) else None
-        if alt is None:
-            prev_alt = None
-            continue
-        if prev_alt is not None:
-            delta = alt - prev_alt
-            if abs(delta) >= _ELEVATION_GAIN_THRESHOLD_M:
-                if delta > 0:
-                    gain += delta
-                prev_alt = alt
-            # delta pequeno (ruido): mantem prev_alt como estava
-        else:
-            prev_alt = alt
-    return gain
-
-
 def _compute_run_this_week(db: Session, user_id) -> tuple[float, float, float]:
     """(distance_km, duration_minutes, elevation_gain_m) somados dos ultimos 7 dias (hoje incluso), fixo — nao muda com o toggle Semanal/Mensal do card."""
     end_date = date.today()
@@ -357,7 +321,7 @@ def _compute_run_this_week(db: Session, user_id) -> tuple[float, float, float]:
     )
     distance_km = round(sum(r.distance_meters for r in runs) / 1000, 2)
     duration_minutes = round(sum(r.duration_seconds for r in runs) / 60, 1)
-    elevation_gain_m = round(sum(_elevation_gain_meters(r.route_points) for r in runs), 1)
+    elevation_gain_m = round(sum(elevation_gain_meters(r.route_points) for r in runs), 1)
     return distance_km, duration_minutes, elevation_gain_m
 
 

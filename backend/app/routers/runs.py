@@ -32,6 +32,8 @@ from app.services.run_calculator import (
     calculate_calories_burned,
     calculate_distance_meters,
     calculate_duration_seconds,
+    calculate_km_splits,
+    elevation_gain_meters,
 )
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -231,6 +233,8 @@ def get_run(
         **RunOut.model_validate(run).model_dump(),
         heart_rate_avg=heart_rate_avg,
         heart_rate_max=heart_rate_max,
+        elevation_gain_meters=elevation_gain_meters(run.route_points),
+        splits=calculate_km_splits(run.route_points),
     )
 
 
