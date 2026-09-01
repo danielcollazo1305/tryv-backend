@@ -57,6 +57,15 @@ const LIVE_UPDATE_THROTTLE_MS = 5000;
 // Uma leitura de FC mais velha que isso nao e mostrada como "ao vivo" —
 // melhor omitir do que enganar o professor com um numero de minutos atras.
 const LIVE_HEART_RATE_MAX_AGE_MS = 2 * 60 * 1000;
+// Distancia minima pra calcular pace ao vivo (mesmo valor de
+// distanceInterval do watchPositionAsync abaixo — ruido de GPS parado
+// ainda pode gerar um "movimento" de poucos centimetros entre pings do
+// timeInterval, mesmo sem deslocamento real). Sem esse piso, elapsed /
+// (distancia quase zero) vira um numero absurdo (bug: pace mostrando
+// "421894213468:56 / km" nos primeiros segundos de corrida) — simplesmente
+// checar "> 0" nao bastava, precisa de uma distancia minima que faca
+// sentido pra um calculo de pace de verdade.
+const MIN_DISTANCE_METERS_FOR_PACE = 10;
 
 type Stage = 'select' | 'tracking' | 'manual-form' | 'saving' | 'result';
 
@@ -165,7 +174,7 @@ export default function NewActivityScreen() {
     const activityId = liveActivityIdRef.current;
     const last = routePoints[routePoints.length - 1];
     const elapsed = Math.floor((now - startedAt.getTime()) / 1000);
-    const pace = liveDistanceMeters > 0 ? elapsed / (liveDistanceMeters / 1000) : null;
+    const pace = liveDistanceMeters >= MIN_DISTANCE_METERS_FOR_PACE ? elapsed / (liveDistanceMeters / 1000) : null;
 
     (async () => {
       // Melhor esforco: so vem algo aqui se o usuario tiver Apple Watch (ou
@@ -426,7 +435,8 @@ export default function NewActivityScreen() {
   };
 
   if (stage === 'tracking') {
-    const livePaceSecondsPerKm = liveDistanceMeters > 0 ? elapsedSeconds / (liveDistanceMeters / 1000) : null;
+    const livePaceSecondsPerKm =
+      liveDistanceMeters >= MIN_DISTANCE_METERS_FOR_PACE ? elapsedSeconds / (liveDistanceMeters / 1000) : null;
 
     return (
       <View style={styles.trackingFlex}>
