@@ -15,6 +15,7 @@
       }
     },
     "android": {
+      "package": "com.danielcollazo.tryvmobile",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0F",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -68,7 +69,18 @@
           "contactsPermission": "O Tryv acessa seus contatos para encontrar amigos que ja usam o app. So os numeros de telefone sao usados, nunca enviados ou salvos alem da checagem de correspondencia."
         }
       ],
-      "expo-video"
+      "expo-video",
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
