@@ -94,7 +94,11 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeekly
           labelColor: () => colors2.onSurfaceVariant,
           barPercentage: 0.6,
           propsForBackgroundLines: { stroke: colors2.outlineVariant },
-          propsForLabels: { fontSize: 11 },
+          // fontFamily adicionado -- sem isso, chart-kit desenha o rotulo
+          // na fonte padrao do SO (SVG Text sem fontFamily explicito) em
+          // vez de Inter. Ainda colors2 (tela nao migrada), mas Inter_400Regular
+          // e a mesma string em fonts2.interRegular e fonts3.interRegular.
+          propsForLabels: { fontSize: 11, fontFamily: 'Inter_400Regular' },
         }}
         style={styles.chart}
       />

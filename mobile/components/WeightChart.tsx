@@ -3,11 +3,11 @@ import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 
 import { WeightPoint, formatShortDate } from '@/services/dashboard';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-// Largura da tela menos o padding do container da Home e o padding interno do LiquiglassCard (spacing2.lg dos dois lados, duas vezes).
-const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
+// Largura da tela menos o padding do container da Home e o padding interno do LiquiglassCard/GlassCard (spacing3.lg dos dois lados, duas vezes -- mesmo valor numerico de spacing2.lg, 24).
+const CHART_WIDTH = SCREEN_WIDTH - spacing3.lg * 4;
 
 interface SelectedPoint {
   x: number;
@@ -16,6 +16,16 @@ interface SelectedPoint {
   weight: number;
 }
 
+/**
+ * Migrado pro tema claro "prism-glass" nesta tarefa (colors2 -> colors3) —
+ * exclusivo da Home (confirmado, nenhum outro import real do componente;
+ * HealthWeeklyBarChart.tsx/WeeklyActivityChart.tsx so mencionam "WeightChart"
+ * em comentario, nao importam), migracao direta sem prop variant. So
+ * recoloracao, nenhuma logica de grafico/tooltip alterada.
+ *
+ * Achado fora de escopo: a Home (app/(tabs)/index.tsx) ainda envolve este
+ * componente num LiquiglassCard (nao migrado) — fora desta tarefa.
+ */
 export function WeightChart({ data }: { data: WeightPoint[] }) {
   const [selected, setSelected] = useState<SelectedPoint | null>(null);
 
@@ -48,13 +58,18 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
         withOuterLines={false}
         segments={4}
         chartConfig={{
-          backgroundGradientFrom: colors2.surfaceContainer,
-          backgroundGradientTo: colors2.surfaceContainer,
+          backgroundGradientFrom: colors3.surfaceContainer,
+          backgroundGradientTo: colors3.surfaceContainer,
           decimalPlaces: 1,
-          color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-          labelColor: () => colors2.onSurfaceVariant,
-          propsForDots: { r: '3', strokeWidth: '2', stroke: colors2.violet },
-          propsForBackgroundLines: { stroke: colors2.outlineVariant },
+          color: (opacity = 1) => `rgba(107, 56, 212, ${opacity})`,
+          labelColor: () => colors3.onSurfaceVariant,
+          propsForDots: { r: '3', strokeWidth: '2', stroke: colors3.primary },
+          propsForBackgroundLines: { stroke: colors3.outlineVariant },
+          // Sem isso, react-native-chart-kit desenha os rotulos do eixo na
+          // fonte padrao do SO (SVG Text sem fontFamily explicito) em vez
+          // de Inter -- inconsistencia real encontrada na investigacao de
+          // "fontes diferentes dentro da mesma tela".
+          propsForLabels: { fontFamily: 'Inter_400Regular' },
         }}
         onDataPointClick={({ x, y, index }) => {
           setSelected({ x, y, date: data[index].date, weight: data[index].weight_kg });
@@ -77,19 +92,19 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
 }
 
 const styles = StyleSheet.create({
-  chart: { borderRadius: radius2.md },
-  empty: { paddingVertical: spacing2.xl, alignItems: 'center' },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  chart: { borderRadius: radius3.md },
+  empty: { paddingVertical: spacing3.xl, alignItems: 'center' },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
   tooltip: {
     position: 'absolute',
-    backgroundColor: colors2.surfaceContainerHigh,
-    borderRadius: radius2.sm,
+    backgroundColor: colors3.surfaceContainerHigh,
+    borderRadius: radius3.sm,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    paddingHorizontal: spacing2.sm,
-    paddingVertical: spacing2.xs,
+    borderColor: colors3.outlineVariant,
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: spacing3.xs,
     alignItems: 'center',
   },
-  tooltipWeight: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurface, fontWeight: '700' },
-  tooltipDate: { ...typography2.labelCaps, textTransform: 'none' },
+  tooltipWeight: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurface, fontWeight: '700' },
+  tooltipDate: { ...typography3.labelSm, textTransform: 'none' },
 });
