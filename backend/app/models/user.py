@@ -56,4 +56,10 @@ class User(Base):
     # deste trabalho.
     phone_number = Column(String, nullable=True, index=True)
 
+    # Territorio (Ranking/Squad) -- texto livre preenchido manualmente uma
+    # vez no perfil/cadastro, nao capturado via GPS/geocoding (decisao de
+    # custo). Risco aceito: "Sao Paulo" vs "sao paulo" vs "SP" fragmentam o
+    # calculo de squad dono da cidade -- normalizacao fica pra fase futura.
+    city = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
