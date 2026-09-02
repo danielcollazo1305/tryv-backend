@@ -7,7 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { getUserBadges } from '@/services/user';
 import { getInitials } from '@/utils/text';
-import { colors2 } from '@/constants/theme';
+import { colors3 } from '@/constants/theme';
 
 interface ProfileAvatarButtonProps {
   size?: number;
@@ -31,6 +31,13 @@ interface ProfileAvatarButtonProps {
  * badge) — o caminho completo pra assinatura ja existe de la (Perfil ->
  * card "Tryv Pro" -> Assinatura), entao um atalho direto so duplicaria
  * rota sem necessidade real. Documentado tambem no resumo da tarefa.
+ *
+ * Migrado pro tema claro "prism-glass" nesta tarefa (colors2 -> colors3),
+ * sem prop variant — usado em 5 headers ja migrados (Home/Feed/
+ * Refeicoes/Ranking/Treino), todos no mesmo tema, entao nao ha caso de
+ * uso escuro pra preservar (diferente de ChallengeCard2/UserListRow, que
+ * ainda tem consumidor escuro). So recoloracao, nenhuma logica de status
+ * Pro alterada.
  */
 export function ProfileAvatarButton({ size = 36, isPro: isProOverride }: ProfileAvatarButtonProps) {
   const { user } = useAuth();
@@ -69,7 +76,7 @@ export function ProfileAvatarButton({ size = 36, isPro: isProOverride }: Profile
               { width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2 },
             ]}
           >
-            <Ionicons name="star" size={Math.round(size * 0.24)} color={colors2.white} />
+            <Ionicons name="star" size={Math.round(size * 0.24)} color={colors3.onPrimary} />
           </View>
         )}
       </View>
@@ -82,12 +89,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: colors2.violet,
+    backgroundColor: colors3.primary,
     borderWidth: 1.5,
-    borderColor: colors2.background,
+    borderColor: colors3.background,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors2.violet,
+    shadowColor: colors3.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 4,

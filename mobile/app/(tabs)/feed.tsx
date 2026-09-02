@@ -150,7 +150,7 @@ export default function FeedScreen() {
                 <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
                   <Ionicons name="search" size={22} color={colors3.onSurfaceVariant} />
                 </Pressable>
-                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton/Avatar sao compartilhados e ja funcionam no claro (mesmo componente ja usado pela Home) — nao precisaram mudar. */}
+                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton e compartilhado com Home/Refeicoes/Ranking/Treino — estava 100% colors2 ate ser migrado numa tarefa separada (achado na investigacao anterior, comentario antigo aqui estava incorreto). */}
                 <ProfileAvatarButton size={32} />
               </View>
             </View>
