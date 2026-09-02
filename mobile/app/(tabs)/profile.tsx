@@ -660,7 +660,20 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     color: colors3.onSurface,
   },
-  tileValueMuted: { ...typography3.headlineMd, fontSize: 16, lineHeight: 20, color: colors3.onSurfaceVariant },
+  // letterSpacing:0 explicito -- sem isso, o -0.5 de tileValue (calibrado
+  // pro numero grande em Bold) vazava aqui via [tileValue, tileValueMuted]
+  // (RN so sobrescreve as chaves que tileValueMuted de fato redefine; como
+  // ele nunca mexia em letterSpacing, o -0.5 continuava valendo). Pra um
+  // numero curto ("--") isso e imperceptivel, mas pra "Nao definida" (13
+  // caracteres) o tracking negativo acumulado fazia as letras
+  // se espremerem/sobrepor — causa real do espacamento estranho relatado.
+  tileValueMuted: {
+    ...typography3.headlineMd,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 0,
+    color: colors3.onSurfaceVariant,
+  },
   tileValuePro: { color: colors3.primary },
   tileUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
 
