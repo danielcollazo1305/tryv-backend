@@ -6,6 +6,7 @@ export interface UserUpdatePayload {
   height?: number;
   goal?: string;
   daily_calorie_goal?: number;
+  daily_protein_goal?: number;
   date_of_birth?: string;
   biological_sex?: 'masculino' | 'feminino' | 'prefiro_nao_informar';
   body_fat_percentage?: number;

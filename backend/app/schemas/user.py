@@ -27,6 +27,7 @@ class UserOut(BaseModel):
     height: float | None = None
     goal: str | None = None
     daily_calorie_goal: float | None = None
+    daily_protein_goal: float | None = None
     date_of_birth: date | None = None
     biological_sex: str | None = None
     body_fat_percentage: float | None = None
@@ -48,6 +49,7 @@ class UserUpdate(BaseModel):
     height: float | None = Field(None, gt=0)
     goal: str | None = None
     daily_calorie_goal: float | None = Field(None, gt=0)
+    daily_protein_goal: float | None = Field(None, gt=0)
     date_of_birth: date | None = None
     biological_sex: BiologicalSex | None = None
     body_fat_percentage: float | None = Field(None, gt=0, lt=100)
