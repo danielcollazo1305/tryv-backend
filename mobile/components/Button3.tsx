@@ -47,6 +47,14 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: radius3.xl,
     paddingVertical: spacing3.md - 2,
+    // Faltava paddingHorizontal -- invisivel em containers com
+    // alignItems:'stretch' (padrao do RN, maioria dos usos), onde o botao
+    // ja estica pra largura cheia do pai independente do padding interno.
+    // Vira um bug real em containers com alignItems:'center' (ex:
+    // AiWorkoutSection.tsx, estado vazio) -- ai o Pressable encolhe pro
+    // tamanho do texto, e sem padding o texto fica colado na borda
+    // arredondada. Button2.tsx tem o mesmo gap, ainda nao corrigido la.
+    paddingHorizontal: spacing3.lg,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
