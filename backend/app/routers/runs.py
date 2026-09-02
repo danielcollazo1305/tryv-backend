@@ -27,6 +27,7 @@ from app.schemas.run import (
 )
 from app.services.activity_insight import generate_activity_insight
 from app.services.personal_records import ActivityRecords, compute_personal_records, detect_new_prs
+from app.services.points import award_points, run_points
 from app.services.run_calculator import (
     calculate_avg_pace_seconds_per_km,
     calculate_calories_burned,
@@ -82,6 +83,10 @@ def create_run(
     db.add(run)
     db.commit()
     db.refresh(run)
+
+    points = run_points(run.calories_burned)
+    if points is not None:
+        award_points(db, current_user.id, points, "run", source_id=run.id)
 
     new_prs = detect_new_prs(run, previous_records) if is_pro else []
     return RunCreateOut(**RunOut.model_validate(run).model_dump(), new_prs=new_prs)

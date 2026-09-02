@@ -19,6 +19,7 @@ class User(Base):
     height = Column(Float, nullable=True)  # cm
     goal = Column(String, nullable=True)  # 'emagrecimento' | 'hipertrofia' | 'resistencia' etc.
     daily_calorie_goal = Column(Float, nullable=True)  # meta de kcal/dia, definida manualmente pelo usuario (ou sugerida no cadastro, ver onboarding expandido)
+    daily_protein_goal = Column(Float, nullable=True)  # meta de proteina/dia (g), mesmo padrao de daily_calorie_goal -- usada pelo gancho de pontos (protein_goal, ver services/points.py)
 
     # Onboarding expandido (colunas novas) -- todas nullable porque
     # usuarios existentes nao tem esse dado retroativamente, e alguns

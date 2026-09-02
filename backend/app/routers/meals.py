@@ -21,6 +21,7 @@ from app.schemas.meal import (
     MealsSummaryPeriod,
 )
 from app.services.meal_analysis import analyze_meal_photo
+from app.services.points import CALORIE_GOAL_XP, PROTEIN_GOAL_XP, award_points
 
 router = APIRouter(prefix="/meals", tags=["meals"])
 logger = logging.getLogger(__name__)
@@ -48,6 +49,32 @@ async def analyze(
         )
 
 
+def _award_daily_goal_points(db: Session, current_user: User, logged_at: datetime) -> None:
+    """
+    Verifica se a meta calorica/de proteina do usuario foi batida no dia de
+    `logged_at` (soma TODAS as refeicoes do dia, incluindo a recem-criada)
+    e registra o PointsEvent correspondente -- mesmo padrao de
+    _day_goal_met em routers/challenges.py (checagem pontual sob demanda,
+    sem job de fim de dia). Pula silenciosamente quando o usuario nao tem a
+    meta definida (a maioria, inicialmente) -- nao e um erro.
+    """
+    day = logged_at.date()
+    start_dt = datetime.combine(day, datetime.min.time())
+    end_dt = datetime.combine(day, datetime.max.time())
+
+    totals = (
+        db.query(func.sum(Meal.calories).label("calories"), func.sum(Meal.protein).label("protein"))
+        .filter(Meal.user_id == current_user.id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
+        .one()
+    )
+
+    if current_user.daily_calorie_goal is not None and (totals.calories or 0) >= current_user.daily_calorie_goal:
+        award_points(db, current_user.id, CALORIE_GOAL_XP, "calorie_goal", source_date=day)
+
+    if current_user.daily_protein_goal is not None and (totals.protein or 0) >= current_user.daily_protein_goal:
+        award_points(db, current_user.id, PROTEIN_GOAL_XP, "protein_goal", source_date=day)
+
+
 @router.post("/", response_model=MealOut, status_code=status.HTTP_201_CREATED)
 def create_meal(
     payload: MealCreate,
@@ -58,6 +85,9 @@ def create_meal(
     db.add(meal)
     db.commit()
     db.refresh(meal)
+
+    _award_daily_goal_points(db, current_user, meal.logged_at)
+
     return meal
 
 

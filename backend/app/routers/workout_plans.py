@@ -18,6 +18,7 @@ from app.schemas.workout import (
     WorkoutSessionCreate,
     WorkoutSessionOut,
 )
+from app.services.points import WORKOUT_SESSION_XP, award_points
 from app.services.workout_generator import generate_workout_plan
 
 router = APIRouter(prefix="/workout-plans", tags=["workout-plans"])
@@ -153,4 +154,7 @@ def log_session(
     db.add(session)
     db.commit()
     db.refresh(session)
+
+    award_points(db, current_user.id, WORKOUT_SESSION_XP, "workout_session", source_id=session.id)
+
     return session
