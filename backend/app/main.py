@@ -14,10 +14,12 @@ from app.routers import (
     live_activities,
     media,
     meals,
+    ranking,
     readiness,
     runs,
     smartwatch,
     social,
+    squads,
     subscriptions,
     trainer_subscriptions,
     trainers,
@@ -59,6 +61,8 @@ app.include_router(readiness.router)
 app.include_router(live_activities.router)
 app.include_router(subscriptions.router)
 app.include_router(diet_plans.router)
+app.include_router(squads.router)
+app.include_router(ranking.router)
 
 
 @app.get("/")
