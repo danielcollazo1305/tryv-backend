@@ -34,6 +34,10 @@ class UserOut(BaseModel):
     available_equipment: str | None = None
     subscription_status: str
     created_at: datetime
+    # Territorio (Ranking/Squad) -- so leitura aqui; ainda nao existe tela
+    # nenhuma (cadastro ou Perfil) que deixe o usuario configurar isso, ver
+    # app/(tabs)/ranking.tsx no mobile.
+    city: str | None = None
 
     class Config:
         from_attributes = True

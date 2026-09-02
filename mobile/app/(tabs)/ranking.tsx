@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,178 +10,30 @@ import { GlassCard } from '@/components/GlassCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
+import { getApiErrorMessage } from '@/services/api';
+import { TrainingStreaks, getTrainingStreaks } from '@/services/dashboard';
+import {
+  IndividualRankingEntry,
+  SquadMe,
+  SquadRankingEntry,
+  TerritoryCity,
+  createSquad,
+  deleteSquad,
+  getIndividualRanking,
+  getMySquad,
+  getSquadRanking,
+  getTerritory,
+  joinSquad,
+  leaveSquad,
+} from '@/services/squads';
 import { getInitials } from '@/utils/text';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
 type RankingViewMode = 'individual' | 'squad';
 
-/** Mudanca de posicao em relacao ao periodo anterior — mock, sem fonte real ainda. */
-interface MockTrend {
-  direction: 'up' | 'down' | 'same';
-  positions: number;
-}
-
-interface MockIndividualRanking {
-  position: number;
-  name: string;
-  squadName: string | null;
-  weeklyXp: number;
-  trend: MockTrend;
-}
-
-interface MockSquadRanking {
-  position: number;
-  name: string;
-  memberCount: number;
-  territoryPercent: number;
-  weeklyXp: number;
-  trend: MockTrend;
-  /** Nomes pra alimentar o avatar stack (item 4) — nao precisa ter memberCount entradas, so o suficiente pra render os 3-4 visiveis (o resto vira "+N" com base em memberCount, nao no tamanho deste array). */
-  memberNames: string[];
-}
-
-/**
- * Tela nova "Ranking" — substitui Desafios na tab bar (Desafios continua
- * existindo como rota, ver (tabs)/_layout.tsx, so nao aparece mais na
- * barra). O backend de squad/pontos/territorio AINDA NAO EXISTE — toda a
- * estrutura visual abaixo (nivel/XP do usuario, stats de squad, listas de
- * ranking) usa dados de exemplo fixos, claramente marcados como MOCK.
- * Quando o backend existir, trocar os mocks por chamadas reais mantendo a
- * mesma estrutura visual.
- *
- * MOCK_HAS_SQUAD fica travado em `false`: nenhum usuario real tem squad
- * hoje (o sistema nao existe), entao a tela sempre abre no estado "Solo"
- * pra quem realmente usa o app. O estado "com squad" abaixo (mockUserSquad/
- * mockUserProgress/mockSquadStats) so serve pra visualizar o layout
- * durante o desenvolvimento — nunca deve vir de dado real ainda.
- */
-const MOCK_HAS_SQUAD = false;
-
-// MOCK — trocar por dado real quando o backend de squad/pontos existir.
-const mockUserProgress = {
-  level: 4,
-  xpCurrent: 320,
-  xpNextLevel: 500,
-};
-
-// MOCK — trocar por dado real quando o backend de squad/pontos existir.
-const mockUserSquad = {
-  name: 'Squad Fênix',
-  memberCount: 6,
-  maxMembers: 9,
-  // MOCK — so pro avatar stack (item 4); nao precisa ter memberCount nomes.
-  memberNames: ['Marina Alves', 'Rafael Nunes', 'Camila Torres', 'Bruno Castro'],
-};
-
-// MOCK — trocar por dado real quando o backend de squad/pontos existir.
-// bestStreakDays: mesmo conceito do campo best_streak_days ja real no
-// endpoint /dashboard/training-streaks (usado no Perfil) — aqui continua
-// mock, ja que o Ranking em si (squad/pontos) nao tem backend ainda.
-const mockSquadStats = {
-  cityPosition: 12,
-  streakDays: 14,
-  bestStreakDays: 20,
-  weeklyXp: 1240,
-  territoryPercent: 8,
-};
-
-// MOCK — trocar por dado real quando o backend de squad/pontos existir.
-const MOCK_INDIVIDUAL_RANKING: MockIndividualRanking[] = [
-  { position: 1, name: 'Marina Alves', squadName: 'Squad Fênix', weeklyXp: 2840, trend: { direction: 'up', positions: 2 } },
-  { position: 2, name: 'Rafael Nunes', squadName: 'Lobos do Ipiranga', weeklyXp: 2715, trend: { direction: 'same', positions: 0 } },
-  { position: 3, name: 'Camila Torres', squadName: 'Trovão Vermelho', weeklyXp: 2603, trend: { direction: 'down', positions: 1 } },
-  { position: 4, name: 'Bruno Castro', squadName: 'Squad Fênix', weeklyXp: 2410, trend: { direction: 'up', positions: 5 } },
-  { position: 5, name: 'Juliana Prado', squadName: null, weeklyXp: 2298, trend: { direction: 'down', positions: 3 } },
-  { position: 6, name: 'Diego Farias', squadName: 'Alcateia Sul', weeklyXp: 2150, trend: { direction: 'up', positions: 1 } },
-  { position: 7, name: 'Larissa Gomes', squadName: 'Lobos do Ipiranga', weeklyXp: 1987, trend: { direction: 'same', positions: 0 } },
-  { position: 8, name: 'Thiago Batista', squadName: null, weeklyXp: 1902, trend: { direction: 'down', positions: 2 } },
-  { position: 9, name: 'Fernanda Melo', squadName: 'Trovão Vermelho', weeklyXp: 1845, trend: { direction: 'up', positions: 4 } },
-  { position: 10, name: 'Pedro Lacerda', squadName: 'Alcateia Sul', weeklyXp: 1790, trend: { direction: 'down', positions: 1 } },
-];
-
-// MOCK — trocar por dado real quando o backend de squad/pontos existir.
-const MOCK_SQUAD_RANKING: MockSquadRanking[] = [
-  {
-    position: 1,
-    name: 'Squad Fênix',
-    memberCount: 9,
-    territoryPercent: 14,
-    weeklyXp: 18420,
-    trend: { direction: 'up', positions: 1 },
-    memberNames: ['Marina Alves', 'Rafael Nunes', 'Camila Torres', 'Bruno Castro'],
-  },
-  {
-    position: 2,
-    name: 'Trovão Vermelho',
-    memberCount: 8,
-    territoryPercent: 11,
-    weeklyXp: 17205,
-    trend: { direction: 'same', positions: 0 },
-    memberNames: ['Fernanda Melo', 'Diego Farias', 'Camila Torres'],
-  },
-  {
-    position: 3,
-    name: 'Lobos do Ipiranga',
-    memberCount: 7,
-    territoryPercent: 9,
-    weeklyXp: 15980,
-    trend: { direction: 'down', positions: 1 },
-    memberNames: ['Larissa Gomes', 'Pedro Lacerda', 'Rafael Nunes'],
-  },
-  {
-    position: 4,
-    name: 'Alcateia Sul',
-    memberCount: 6,
-    territoryPercent: 7,
-    weeklyXp: 13640,
-    trend: { direction: 'up', positions: 2 },
-    memberNames: ['Diego Farias', 'Pedro Lacerda'],
-  },
-  {
-    position: 5,
-    name: 'Guardiões da Zona Leste',
-    memberCount: 5,
-    territoryPercent: 6,
-    weeklyXp: 11290,
-    trend: { direction: 'down', positions: 2 },
-    memberNames: ['Thiago Batista', 'Juliana Prado'],
-  },
-  {
-    position: 6,
-    name: 'Falcões Noturnos',
-    memberCount: 8,
-    territoryPercent: 5,
-    weeklyXp: 10475,
-    trend: { direction: 'same', positions: 0 },
-    memberNames: ['Bruno Castro', 'Fernanda Melo'],
-  },
-  {
-    position: 7,
-    name: 'Correntes de Aço',
-    memberCount: 4,
-    territoryPercent: 3,
-    weeklyXp: 8920,
-    trend: { direction: 'up', positions: 3 },
-    memberNames: ['Marina Alves', 'Larissa Gomes'],
-  },
-  {
-    position: 8,
-    name: 'Vento Norte',
-    memberCount: 6,
-    territoryPercent: 2,
-    weeklyXp: 7615,
-    trend: { direction: 'down', positions: 1 },
-    memberNames: ['Juliana Prado', 'Thiago Batista'],
-  },
-];
-
 function formatXp(value: number): string {
   return value.toLocaleString('pt-BR');
-}
-
-function handleComingSoon() {
-  Alert.alert('Em breve', 'Squads ainda não existem no Tryv — essa funcionalidade está chegando em breve.');
 }
 
 /** "ago" (sem ponto) a partir de um Date — mesma convencao ja usada em outras telas (ex: HomeScreen.todayLabel). */
@@ -189,10 +42,9 @@ function monthAbbrev(date: Date): string {
 }
 
 /**
- * Periodo/reset do ranking (item 3) — calculado de verdade a partir da
- * semana atual (segunda a domingo), sem depender de backend nenhum: o
- * "periodo" e so uma janela de calendario, nao um dado de squad/pontos.
- * Reset = virada de domingo pra segunda, 00h.
+ * Periodo/reset do ranking — calculado de verdade a partir da semana atual
+ * (segunda a domingo), mesmo criterio usado no backend (routers/ranking.py
+ * _week_start) pro corte de XP semanal.
  */
 function getWeekPeriodInfo(): { rangeLabel: string; daysUntilReset: number } {
   const now = new Date();
@@ -215,13 +67,12 @@ function getWeekPeriodInfo(): { rangeLabel: string; daysUntilReset: number } {
 }
 
 /**
- * Avatar stack (item 4) — fileira de avatares sobrepostos representando
- * membros de um squad, mesmo componente Avatar (iniciais + gradiente) ja
- * usado no resto do app, so em tamanho reduzido. Mostra no maximo
- * AVATAR_STACK_MAX_VISIBLE avatares reais + um chip "+N" com o restante,
- * baseado em totalMembers (numero real do squad), nao no tamanho de
- * memberNames (que so precisa ter nomes suficientes pra preencher os
- * visiveis).
+ * Avatar stack — fileira de avatares sobrepostos representando membros de
+ * um squad, mesmo componente Avatar (iniciais + gradiente) ja usado no
+ * resto do app, so em tamanho reduzido. So usado no card do proprio squad
+ * do usuario (GET /squads/me retorna a lista de membros de verdade) — a
+ * lista de ranking de squads (GET /ranking/squads) nao devolve membros
+ * individuais, so member_count, entao nao da pra montar isso la.
  */
 const AVATAR_STACK_MAX_VISIBLE = 4;
 const AVATAR_STACK_SIZE = 22;
@@ -252,41 +103,217 @@ function AvatarStack({ memberNames, totalMembers }: { memberNames: string[]; tot
   );
 }
 
-/**
- * Indicador de mudanca de posicao (item 2) — seta + numero de posicoes,
- * verde subindo / vermelho descendo / "—" cinza sem mudanca. Aplicado nas
- * 2 listas (Individual e Squad).
- */
-function TrendIndicator({ trend }: { trend: MockTrend }) {
-  if (trend.direction === 'same') {
-    return <Text style={styles.trendSame}>—</Text>;
-  }
-  const isUp = trend.direction === 'up';
-  return (
-    <View style={styles.trendRow}>
-      <Ionicons name={isUp ? 'caret-up' : 'caret-down'} size={10} color={isUp ? DELTA_UP_COLOR : DELTA_DOWN_COLOR} />
-      <Text style={[styles.trendText, isUp ? styles.trendTextUp : styles.trendTextDown]}>{trend.positions}</Text>
-    </View>
-  );
-}
-
-// colors3 nao tem tokens semanticos de sucesso/queda (so error) — mesma
-// resolucao caso a caso ja usada em outros lugares do app (ex:
-// DELTA_UP_BG/FG em app/health/[metric].tsx).
-const DELTA_UP_COLOR = '#15803d';
-const DELTA_DOWN_COLOR = colors3.error;
-
 export default function RankingScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<RankingViewMode>('individual');
 
-  const hasSquad = MOCK_HAS_SQUAD;
-  const xpProgress = Math.max(0, Math.min(1, mockUserProgress.xpCurrent / mockUserProgress.xpNextLevel));
-  // Item 3 — periodo/reset: calculado de verdade a partir da data de hoje,
-  // nao depende do mock de squad/pontos (so recalcula 1x por render, sem
-  // precisar de estado/efeito).
+  const [mySquad, setMySquad] = useState<SquadMe | null>(null);
+  const [loadingMySquad, setLoadingMySquad] = useState(true);
+  const [errorMySquad, setErrorMySquad] = useState<string | null>(null);
+
+  const [streaks, setStreaks] = useState<TrainingStreaks | null>(null);
+
+  const [individualRanking, setIndividualRanking] = useState<IndividualRankingEntry[]>([]);
+  const [loadingIndividual, setLoadingIndividual] = useState(true);
+  const [errorIndividual, setErrorIndividual] = useState<string | null>(null);
+
+  const [squadRanking, setSquadRanking] = useState<SquadRankingEntry[]>([]);
+  const [loadingSquadRanking, setLoadingSquadRanking] = useState(true);
+  const [errorSquadRanking, setErrorSquadRanking] = useState<string | null>(null);
+
+  const [territory, setTerritory] = useState<TerritoryCity[]>([]);
+
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
+  const [squadNameInput, setSquadNameInput] = useState('');
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  const [squadActionSubmitting, setSquadActionSubmitting] = useState(false);
+  const [squadActionError, setSquadActionError] = useState<string | null>(null);
+
+  const fetchMySquad = useCallback(async () => {
+    setLoadingMySquad(true);
+    setErrorMySquad(null);
+    try {
+      setMySquad(await getMySquad());
+    } catch (err) {
+      setErrorMySquad(getApiErrorMessage(err, 'Nao foi possivel carregar seu squad.'));
+    } finally {
+      setLoadingMySquad(false);
+    }
+  }, []);
+
+  const fetchIndividualRanking = useCallback(async () => {
+    setLoadingIndividual(true);
+    setErrorIndividual(null);
+    try {
+      setIndividualRanking(await getIndividualRanking(50, 0));
+    } catch (err) {
+      setErrorIndividual(getApiErrorMessage(err, 'Nao foi possivel carregar o ranking.'));
+    } finally {
+      setLoadingIndividual(false);
+    }
+  }, []);
+
+  const fetchSquadRanking = useCallback(async () => {
+    setLoadingSquadRanking(true);
+    setErrorSquadRanking(null);
+    try {
+      // limit alto (nao so os N exibidos na lista) pra tambem conseguir
+      // localizar a posicao do PROPRIO squad do usuario nas stats do topo
+      // (nao existe um endpoint dedicado "meu squad no ranking").
+      setSquadRanking(await getSquadRanking(100, 0));
+    } catch (err) {
+      setErrorSquadRanking(getApiErrorMessage(err, 'Nao foi possivel carregar o ranking de squads.'));
+    } finally {
+      setLoadingSquadRanking(false);
+    }
+  }, []);
+
+  const fetchTerritory = useCallback(async () => {
+    try {
+      setTerritory(await getTerritory());
+    } catch {
+      // Card de territorio so some/vira "--" se falhar -- mesmo padrao do
+      // ReadinessCard/InsightCard (nunca trava a tela por causa disso).
+      setTerritory([]);
+    }
+  }, []);
+
+  const fetchStreaks = useCallback(async () => {
+    try {
+      setStreaks(await getTrainingStreaks());
+    } catch {
+      setStreaks(null);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMySquad();
+      fetchIndividualRanking();
+      fetchSquadRanking();
+      fetchTerritory();
+      fetchStreaks();
+    }, [fetchMySquad, fetchIndividualRanking, fetchSquadRanking, fetchTerritory, fetchStreaks])
+  );
+
+  const squad = mySquad?.squad ?? null;
+  const hasSquad = squad != null;
+  const levelInfo = mySquad?.level_info;
+  const xpProgress =
+    levelInfo && levelInfo.xp_next_level > 0
+      ? Math.max(0, Math.min(1, levelInfo.xp_current / levelInfo.xp_next_level))
+      : 0;
   const weekPeriod = getWeekPeriodInfo();
+
+  // Linha do proprio squad dentro do ranking geral (ver comentario em
+  // fetchSquadRanking) -- pode nao ser encontrada se o squad estiver fora
+  // do limit buscado; nesse caso as stats que dependem disso viram "--".
+  const mySquadRankingRow = hasSquad ? squadRanking.find((row) => row.squad_id === squad!.id) ?? null : null;
+
+  const myCityTerritory = user?.city ? territory.find((t) => t.city === user.city) ?? null : null;
+  const isDominantInCity = !!(hasSquad && myCityTerritory && myCityTerritory.dominant_squad_id === squad!.id);
+  const isSquadOwner = !!(hasSquad && user && squad!.created_by === user.id);
+
+  function openCreateModal() {
+    setModalError(null);
+    setSquadNameInput('');
+    setCreateModalVisible(true);
+  }
+
+  function openJoinModal() {
+    setModalError(null);
+    setInviteCodeInput('');
+    setJoinModalVisible(true);
+  }
+
+  async function handleCreateSquad() {
+    const name = squadNameInput.trim();
+    if (!name) return;
+    setSubmitting(true);
+    setModalError(null);
+    try {
+      await createSquad(name);
+      setCreateModalVisible(false);
+      fetchMySquad();
+      fetchSquadRanking();
+    } catch (err) {
+      setModalError(getApiErrorMessage(err, 'Nao foi possivel criar o squad.'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleJoinSquad() {
+    const code = inviteCodeInput.trim();
+    if (code.length !== 6) return;
+    setSubmitting(true);
+    setModalError(null);
+    try {
+      await joinSquad(code);
+      setJoinModalVisible(false);
+      fetchMySquad();
+      fetchSquadRanking();
+    } catch (err) {
+      setModalError(getApiErrorMessage(err, 'Nao foi possivel entrar no squad.'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function performLeaveSquad() {
+    setSquadActionSubmitting(true);
+    setSquadActionError(null);
+    try {
+      await leaveSquad();
+      await fetchMySquad();
+      fetchSquadRanking();
+    } catch (err) {
+      setSquadActionError(getApiErrorMessage(err, 'Nao foi possivel sair do squad.'));
+    } finally {
+      setSquadActionSubmitting(false);
+    }
+  }
+
+  function confirmLeaveSquad() {
+    if (!squad) return;
+    Alert.alert('Sair do squad', `Tem certeza que quer sair de ${squad.name}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: performLeaveSquad },
+    ]);
+  }
+
+  async function performDeleteSquad() {
+    if (!squad) return;
+    setSquadActionSubmitting(true);
+    setSquadActionError(null);
+    try {
+      await deleteSquad(squad.id);
+      await fetchMySquad();
+      fetchSquadRanking();
+    } catch (err) {
+      setSquadActionError(getApiErrorMessage(err, 'Nao foi possivel deletar o squad.'));
+    } finally {
+      setSquadActionSubmitting(false);
+    }
+  }
+
+  function confirmDeleteSquad() {
+    if (!squad) return;
+    const memberWord = squad.member_count === 1 ? 'membro' : 'membros';
+    Alert.alert(
+      'Deletar squad',
+      `Isso vai remover o squad para todos os ${squad.member_count} ${memberWord}. Tem certeza?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Deletar', style: 'destructive', onPress: performDeleteSquad },
+      ]
+    );
+  }
 
   return (
     <ScreenBackground3 style={styles.flex}>
@@ -305,85 +332,135 @@ export default function RankingScreen() {
         </View>
 
         <GlassCard variant="glass" style={styles.userCard}>
-          <View style={styles.userCardTop}>
-            <Avatar initials={user ? getInitials(user.name) : '?'} size={56} />
-            <View style={styles.userCardInfo}>
-              <Text style={styles.userName}>{user?.name}</Text>
-              <View style={[styles.squadBadge, hasSquad ? styles.squadBadgeActive : styles.squadBadgeSolo]}>
-                <Ionicons
-                  name={hasSquad ? 'shield' : 'person'}
-                  size={12}
-                  color={hasSquad ? colors3.primary : colors3.onSurfaceVariant}
-                />
-                <Text style={[styles.squadBadgeText, hasSquad && styles.squadBadgeTextActive]}>
-                  {hasSquad
-                    ? `${mockUserSquad.name} · ${mockUserSquad.memberCount} de ${mockUserSquad.maxMembers} membros`
-                    : 'Solo · sem squad'}
-                </Text>
+          {loadingMySquad ? (
+            <ActivityIndicator color={colors3.primary} style={styles.loading} />
+          ) : errorMySquad ? (
+            <Text style={styles.error}>{errorMySquad}</Text>
+          ) : (
+            <>
+              <View style={styles.userCardTop}>
+                <Avatar initials={user ? getInitials(user.name) : '?'} size={56} />
+                <View style={styles.userCardInfo}>
+                  <Text style={styles.userName}>{user?.name}</Text>
+                  <View style={[styles.squadBadge, hasSquad ? styles.squadBadgeActive : styles.squadBadgeSolo]}>
+                    <Ionicons
+                      name={hasSquad ? 'shield' : 'person'}
+                      size={12}
+                      color={hasSquad ? colors3.primary : colors3.onSurfaceVariant}
+                    />
+                    <Text style={[styles.squadBadgeText, hasSquad && styles.squadBadgeTextActive]}>
+                      {hasSquad
+                        ? `${squad!.name} · ${squad!.member_count} de ${squad!.max_members} membros`
+                        : 'Solo · sem squad'}
+                    </Text>
+                  </View>
+                  {hasSquad && (
+                    <AvatarStack
+                      memberNames={squad!.members.map((m) => m.name)}
+                      totalMembers={squad!.member_count}
+                    />
+                  )}
+                </View>
               </View>
-              {/* Item 4 — avatar stack dos membros do squad. */}
-              {hasSquad && (
-                <AvatarStack memberNames={mockUserSquad.memberNames} totalMembers={mockUserSquad.memberCount} />
-              )}
-            </View>
-          </View>
 
-          <View style={styles.levelRow}>
-            <Text style={styles.levelLabel}>Nível {mockUserProgress.level}</Text>
-            <Text style={styles.levelXp}>
-              {formatXp(mockUserProgress.xpCurrent)} / {formatXp(mockUserProgress.xpNextLevel)} XP
-            </Text>
-          </View>
-          <View style={styles.levelProgressTrack}>
-            <View style={[styles.levelProgressFill, { width: `${xpProgress * 100}%` }]} />
-          </View>
+              {levelInfo && (
+                <>
+                  <View style={styles.levelRow}>
+                    <Text style={styles.levelLabel}>Nível {levelInfo.level}</Text>
+                    <Text style={styles.levelXp}>
+                      {formatXp(levelInfo.xp_current)} / {formatXp(levelInfo.xp_next_level)} XP
+                    </Text>
+                  </View>
+                  <View style={styles.levelProgressTrack}>
+                    <View style={[styles.levelProgressFill, { width: `${xpProgress * 100}%` }]} />
+                  </View>
+                </>
+              )}
+
+              {hasSquad && (
+                <Pressable
+                  onPress={isSquadOwner ? confirmDeleteSquad : confirmLeaveSquad}
+                  disabled={squadActionSubmitting}
+                  hitSlop={8}
+                  style={styles.squadActionRow}
+                >
+                  <Ionicons name={isSquadOwner ? 'trash-outline' : 'exit-outline'} size={14} color={colors3.error} />
+                  <Text style={styles.squadActionText}>{isSquadOwner ? 'Deletar squad' : 'Sair do squad'}</Text>
+                </Pressable>
+              )}
+              {!!squadActionError && <Text style={styles.error}>{squadActionError}</Text>}
+            </>
+          )}
         </GlassCard>
 
-        {hasSquad ? (
-          <View style={styles.statsGrid}>
-            <GlassCard variant="card" style={styles.statTile}>
-              <Text style={styles.statLabel}>Posição na cidade</Text>
-              <Text style={styles.statValue}>#{mockSquadStats.cityPosition}</Text>
-            </GlassCard>
-            <GlassCard variant="card" style={styles.statTile}>
-              <Text style={styles.statLabel}>Sequência</Text>
-              <Text style={styles.statValue}>
-                {mockSquadStats.streakDays}
-                <Text style={styles.statUnit}> {mockSquadStats.streakDays === 1 ? 'dia' : 'dias'}</Text>
-              </Text>
-              {/* Item 1 — melhor sequencia como sub-dado, sem virar 5o tile. */}
-              <Text style={styles.statRecord}>
-                Recorde: <Text style={styles.statRecordValue}>{mockSquadStats.bestStreakDays} dias</Text>
-              </Text>
-            </GlassCard>
-            <GlassCard variant="card" style={styles.statTile}>
-              <Text style={styles.statLabel}>XP na semana</Text>
-              <Text style={styles.statValue}>{formatXp(mockSquadStats.weeklyXp)}</Text>
-            </GlassCard>
-            <GlassCard variant="card" style={styles.statTile}>
-              <Text style={styles.statLabel}>Território</Text>
-              <Text style={styles.statValue}>
-                {mockSquadStats.territoryPercent}
-                <Text style={styles.statUnit}>%</Text>
-              </Text>
-            </GlassCard>
-          </View>
-        ) : (
-          <GlassCard variant="glass" style={styles.soloCard}>
-            <Text style={styles.soloTitle}>Você ainda joga solo</Text>
-            <Text style={styles.soloText}>
-              Entre num squad pra somar XP com outras pessoas, disputar território na cidade e aparecer no ranking
-              de squads — ou crie o seu e chame quem treina com você.
-            </Text>
-            <View style={styles.soloButtons}>
-              <View style={styles.soloButtonWrap}>
-                <Button3 label="Criar squad" onPress={handleComingSoon} />
-              </View>
-              <View style={styles.soloButtonWrap}>
-                <Button3 label="Entrar em um" variant="secondary" onPress={handleComingSoon} />
-              </View>
-            </View>
-          </GlassCard>
+        {!loadingMySquad && !errorMySquad && (
+          <>
+            {hasSquad ? (
+              <>
+                <View style={styles.statsGrid}>
+                  <GlassCard variant="card" style={styles.statTile}>
+                    <Text style={styles.statLabel}>Posição geral</Text>
+                    <Text style={styles.statValue}>
+                      {mySquadRankingRow ? `#${mySquadRankingRow.position}` : '--'}
+                    </Text>
+                  </GlassCard>
+                  <GlassCard variant="card" style={styles.statTile}>
+                    <Text style={styles.statLabel}>Sequência (você)</Text>
+                    <Text style={styles.statValue}>
+                      {streaks ? streaks.current_streak_days : '--'}
+                      {streaks && (
+                        <Text style={styles.statUnit}> {streaks.current_streak_days === 1 ? 'dia' : 'dias'}</Text>
+                      )}
+                    </Text>
+                    {streaks && (
+                      <Text style={styles.statRecord}>
+                        Recorde: <Text style={styles.statRecordValue}>{streaks.best_streak_days} dias</Text>
+                      </Text>
+                    )}
+                  </GlassCard>
+                  <GlassCard variant="card" style={styles.statTile}>
+                    <Text style={styles.statLabel}>XP na semana</Text>
+                    <Text style={styles.statValue}>
+                      {mySquadRankingRow ? formatXp(mySquadRankingRow.weekly_xp) : '--'}
+                    </Text>
+                  </GlassCard>
+                  <GlassCard variant="card" style={styles.statTile}>
+                    <Text style={styles.statLabel}>Território</Text>
+                    <Text style={styles.statValue}>
+                      {user?.city ? (isDominantInCity ? myCityTerritory!.dominant_squad_percent : 0) : '--'}
+                      {user?.city && <Text style={styles.statUnit}>%</Text>}
+                    </Text>
+                    {user?.city && !isDominantInCity && (
+                      <Text style={styles.statRecord}>Não domina {user.city}</Text>
+                    )}
+                  </GlassCard>
+                </View>
+                {!user?.city && (
+                  <GlassCard variant="glass" style={styles.cityHintCard}>
+                    <Text style={styles.cityHintText}>
+                      Configure sua cidade no perfil pra participar da disputa de território.
+                    </Text>
+                  </GlassCard>
+                )}
+              </>
+            ) : (
+              <GlassCard variant="glass" style={styles.soloCard}>
+                <Text style={styles.soloTitle}>Você ainda joga solo</Text>
+                <Text style={styles.soloText}>
+                  Entre num squad pra somar XP com outras pessoas, disputar território na cidade e aparecer no
+                  ranking de squads — ou crie o seu e chame quem treina com você.
+                </Text>
+                <View style={styles.soloButtons}>
+                  <View style={styles.soloButtonWrap}>
+                    <Button3 label="Criar squad" onPress={openCreateModal} />
+                  </View>
+                  <View style={styles.soloButtonWrap}>
+                    <Button3 label="Entrar em um" variant="secondary" onPress={openJoinModal} />
+                  </View>
+                </View>
+              </GlassCard>
+            )}
+          </>
         )}
 
         <View style={styles.pillsRow}>
@@ -401,7 +478,6 @@ export default function RankingScreen() {
           </Pressable>
         </View>
 
-        {/* Item 3 — periodo/reset do ranking. */}
         <View style={styles.periodLine}>
           <Ionicons name="time-outline" size={13} color={colors3.onSurfaceVariant} />
           <Text style={styles.periodText}>
@@ -412,50 +488,132 @@ export default function RankingScreen() {
           </Text>
         </View>
 
-        <View style={styles.list}>
-          {viewMode === 'individual'
-            ? MOCK_INDIVIDUAL_RANKING.map((person) => (
-                <GlassCard key={person.position} variant="card" style={styles.listRow}>
-                  <View style={styles.listPositionWrap}>
-                    <Text style={styles.listPosition}>{person.position}</Text>
-                    <TrendIndicator trend={person.trend} />
-                  </View>
-                  <Avatar initials={getInitials(person.name)} size={36} />
-                  <View style={styles.listInfo}>
-                    <Text style={styles.listName} numberOfLines={1}>
-                      {person.name}
-                    </Text>
-                    <Text style={styles.listSubInfo} numberOfLines={1}>
-                      {person.squadName ?? 'Solo'}
-                    </Text>
-                  </View>
-                  <Text style={styles.listXp}>{formatXp(person.weeklyXp)} XP</Text>
-                </GlassCard>
-              ))
-            : MOCK_SQUAD_RANKING.map((squad) => (
-                <GlassCard key={squad.position} variant="card" style={[styles.listRow, styles.listRowSquad]}>
-                  <View style={styles.listPositionWrap}>
-                    <Text style={styles.listPosition}>{squad.position}</Text>
-                    <TrendIndicator trend={squad.trend} />
-                  </View>
-                  <View style={styles.squadIconWrap}>
-                    <Ionicons name="shield" size={18} color={colors3.primary} />
-                  </View>
-                  <View style={styles.listInfo}>
-                    <Text style={styles.listName} numberOfLines={1}>
-                      {squad.name}
-                    </Text>
-                    <Text style={styles.listSubInfo} numberOfLines={1}>
-                      {squad.memberCount} membros · {squad.territoryPercent}% território
-                    </Text>
-                    {/* Item 4 — avatar stack tambem na lista de squads. */}
-                    <AvatarStack memberNames={squad.memberNames} totalMembers={squad.memberCount} />
-                  </View>
-                  <Text style={styles.listXp}>{formatXp(squad.weeklyXp)} XP</Text>
-                </GlassCard>
-              ))}
-        </View>
+        {viewMode === 'individual' ? (
+          <>
+            {loadingIndividual && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+            {!!errorIndividual && <Text style={styles.error}>{errorIndividual}</Text>}
+            {!loadingIndividual && !errorIndividual && (
+              <View style={styles.list}>
+                {individualRanking.map((person) => (
+                  <GlassCard key={person.position} variant="card" style={styles.listRow}>
+                    <View style={styles.listPositionWrap}>
+                      <Text style={styles.listPosition}>{person.position}</Text>
+                    </View>
+                    <Avatar initials={getInitials(person.name)} size={36} />
+                    <View style={styles.listInfo}>
+                      <Text style={styles.listName} numberOfLines={1}>
+                        {person.name}
+                      </Text>
+                      <Text style={styles.listSubInfo} numberOfLines={1}>
+                        {person.squad_name ?? 'Solo'}
+                      </Text>
+                    </View>
+                    <Text style={styles.listXp}>{formatXp(person.weekly_xp)} XP</Text>
+                  </GlassCard>
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            {loadingSquadRanking && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+            {!!errorSquadRanking && <Text style={styles.error}>{errorSquadRanking}</Text>}
+            {!loadingSquadRanking && !errorSquadRanking && (
+              <View style={styles.list}>
+                {squadRanking.map((row) => (
+                  <GlassCard key={row.position} variant="card" style={styles.listRow}>
+                    <View style={styles.listPositionWrap}>
+                      <Text style={styles.listPosition}>{row.position}</Text>
+                    </View>
+                    <View style={styles.squadIconWrap}>
+                      <Ionicons name="shield" size={18} color={colors3.primary} />
+                    </View>
+                    <View style={styles.listInfo}>
+                      <Text style={styles.listName} numberOfLines={1}>
+                        {row.name}
+                      </Text>
+                      <Text style={styles.listSubInfo} numberOfLines={1}>
+                        {row.member_count} {row.member_count === 1 ? 'membro' : 'membros'}
+                      </Text>
+                    </View>
+                    <Text style={styles.listXp}>{formatXp(row.weekly_xp)} XP</Text>
+                  </GlassCard>
+                ))}
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
+
+      <Modal
+        visible={createModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Criar squad</Text>
+              <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={12} accessibilityLabel="Fechar">
+                <Ionicons name="close" size={24} color={colors3.onSurface} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Nome do squad"
+              placeholderTextColor={colors3.onSurfaceVariant}
+              value={squadNameInput}
+              onChangeText={setSquadNameInput}
+              maxLength={60}
+              autoFocus
+            />
+            {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
+            <Button3
+              label="Criar"
+              onPress={handleCreateSquad}
+              loading={submitting}
+              disabled={!squadNameInput.trim() || submitting}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={joinModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setJoinModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Entrar em um squad</Text>
+              <Pressable onPress={() => setJoinModalVisible(false)} hitSlop={12} accessibilityLabel="Fechar">
+                <Ionicons name="close" size={24} color={colors3.onSurface} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={[styles.modalInput, styles.modalInviteInput]}
+              placeholder="Código de convite"
+              placeholderTextColor={colors3.onSurfaceVariant}
+              value={inviteCodeInput}
+              onChangeText={(text) => setInviteCodeInput(text.toUpperCase())}
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoFocus
+            />
+            {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
+            <Button3
+              label="Entrar"
+              onPress={handleJoinSquad}
+              loading={submitting}
+              disabled={inviteCodeInput.trim().length !== 6 || submitting}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground3>
   );
 }
@@ -465,9 +623,12 @@ const styles = StyleSheet.create({
   container: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, gap: spacing3.md },
 
   header: { gap: spacing3.md, marginBottom: spacing3.md },
-  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  logo: { ...typography3.displayLg, fontSize: 36, fontFamily: 'Inter_800ExtraBold', color: colors3.primary },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { ...typography3.headlineLgMobile, fontSize: 26 },
+
+  loading: { marginVertical: spacing3.lg },
+  error: { color: colors3.error, textAlign: 'center', marginVertical: spacing3.sm },
 
   userCard: { gap: spacing3.md },
   userCardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
@@ -486,10 +647,10 @@ const styles = StyleSheet.create({
   squadBadgeActive: { backgroundColor: 'rgba(107, 56, 212, 0.1)', borderColor: 'rgba(107, 56, 212, 0.25)' },
   squadBadgeSolo: { backgroundColor: colors3.surfaceContainerHigh, borderColor: colors3.outlineVariant },
   squadBadgeText: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
-  squadBadgeTextActive: { color: colors3.primary, fontWeight: '700' },
+  squadBadgeTextActive: { color: colors3.primary, fontFamily: 'Inter_700Bold' },
 
   levelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  levelLabel: { ...typography3.bodyMd, fontWeight: '700' },
+  levelLabel: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold' },
   levelXp: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
   levelProgressTrack: {
     height: 8,
@@ -499,15 +660,32 @@ const styles = StyleSheet.create({
   },
   levelProgressFill: { height: '100%', borderRadius: radius3.pill, backgroundColor: colors3.primary },
 
+  squadActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 4,
+    marginTop: -spacing3.xs,
+  },
+  squadActionText: { ...typography3.labelSm, textTransform: 'none', color: colors3.error },
+
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   statTile: { flexBasis: '47%', flexGrow: 1, gap: spacing3.xs },
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   statValue: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   statUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
-  statRecord: { ...typography3.labelSm, textTransform: 'none', fontSize: 10.5, color: colors3.onSurfaceVariant, marginTop: -2 },
-  statRecordValue: { fontWeight: '700', color: colors3.onSurface },
+  statRecord: {
+    ...typography3.labelSm,
+    textTransform: 'none',
+    fontSize: 10.5,
+    color: colors3.onSurfaceVariant,
+    marginTop: -2,
+  },
+  statRecordValue: { fontFamily: 'Inter_700Bold', color: colors3.onSurface },
 
-  // Item 4 — avatar stack (usado no card do usuario e na lista de squads).
+  cityHintCard: { paddingVertical: spacing3.sm },
+  cityHintText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
+
   avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   avatarStackItem: { borderWidth: 2, borderColor: colors3.background },
   avatarStackMore: {
@@ -520,7 +698,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarStackMoreText: { fontSize: 8.5, fontWeight: '700', color: colors3.onSurfaceVariant },
+  avatarStackMoreText: { fontSize: 8.5, fontFamily: 'Inter_700Bold', color: colors3.onSurfaceVariant },
 
   soloCard: { gap: spacing3.sm },
   soloTitle: { ...typography3.headlineMd, fontSize: 18 },
@@ -540,32 +718,21 @@ const styles = StyleSheet.create({
   },
   pillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
   pillText: { ...typography3.labelSm, fontSize: 13 },
-  pillTextSelected: { color: colors3.white, fontWeight: '700' },
+  pillTextSelected: { color: colors3.white, fontFamily: 'Inter_700Bold' },
 
-  // Item 3 — periodo/reset do ranking.
   periodLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   periodText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11.5, color: colors3.onSurfaceVariant },
-  periodTextStrong: { fontWeight: '700', color: colors3.onSurface },
+  periodTextStrong: { fontFamily: 'Inter_700Bold', color: colors3.onSurface },
 
   list: { gap: spacing3.sm },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
-  // Linhas de squad ficam mais altas (nome + sub-info + avatar stack) — o
-  // icone/posicao alinham melhor no topo do que centralizados, diferente
-  // das linhas Individual (so 2 linhas de texto, centralizado funciona bem).
-  listRowSquad: { alignItems: 'flex-start' },
   listPositionWrap: { width: 24, alignItems: 'center', gap: 1 },
   listPosition: {
     ...typography3.bodyMd,
-    fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
     color: colors3.onSurfaceVariant,
     textAlign: 'center',
   },
-  // Item 2 — indicacao de mudanca de posicao.
-  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 1 },
-  trendSame: { fontSize: 11, color: colors3.outline },
-  trendText: { fontSize: 10, fontWeight: '700' },
-  trendTextUp: { color: DELTA_UP_COLOR },
-  trendTextDown: { color: DELTA_DOWN_COLOR },
   squadIconWrap: {
     width: 36,
     height: 36,
@@ -575,7 +742,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listInfo: { flex: 1, gap: 2, minWidth: 0 },
-  listName: { ...typography3.bodyMd, fontWeight: '700' },
+  listName: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold' },
   listSubInfo: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   listXp: { ...typography3.headlineMd, fontSize: 13, lineHeight: 16, color: colors3.onSurface },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors3.background,
+    borderTopLeftRadius: radius3.xl,
+    borderTopRightRadius: radius3.xl,
+    padding: spacing3.lg,
+    paddingBottom: spacing3.xl,
+    gap: spacing3.md,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { ...typography3.headlineMd, fontSize: 18 },
+  modalInput: {
+    ...typography3.bodyMd,
+    borderRadius: radius3.md,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
+    backgroundColor: colors3.surfaceVariant,
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm + 2,
+    color: colors3.onSurface,
+  },
+  modalInviteInput: { textTransform: 'uppercase', letterSpacing: 4, textAlign: 'center' },
+  modalError: { color: colors3.error, fontSize: 13 },
 });

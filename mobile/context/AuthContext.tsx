@@ -20,6 +20,7 @@ export interface User {
   available_equipment: string | null;
   subscription_status: string;
   created_at: string;
+  city: string | null;
 }
 
 interface AuthContextValue {
