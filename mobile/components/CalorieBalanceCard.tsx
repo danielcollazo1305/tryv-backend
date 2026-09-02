@@ -80,6 +80,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  balanceText: { ...typography3.bodyMd, fontWeight: '700', flex: 1 },
+  balanceText: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold', flex: 1 },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, flex: 1 },
 });

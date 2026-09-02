@@ -60,6 +60,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: { flex: 1, gap: spacing3.xs },
-  title: { ...typography3.bodyMd, fontWeight: '600' },
+  title: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold' },
   subtitle: { ...typography3.labelSm, textTransform: 'none' },
 });

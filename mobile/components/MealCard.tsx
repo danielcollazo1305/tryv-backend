@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography3.bodyMd,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     flex: 1,
     marginRight: spacing3.sm,
   },

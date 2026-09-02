@@ -101,7 +101,10 @@ const styles = StyleSheet.create({
   label: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   value: { ...typography3.headlineLg, fontSize: 22, lineHeight: 26, color: colors3.onSurface },
   valueGoal: { ...typography3.headlineMd, fontSize: 14, lineHeight: 18, color: colors3.onSurfaceVariant },
-  unit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
+  // Mesmo token de HealthMetricsGrid.tileUnit (typography3.labelSm,
+  // Inter_500Medium) -- era bodyMd (Inter_400Regular), divergente do
+  // padrao de referencia.
+  unit: { ...typography3.labelSm, color: colors3.onSurfaceVariant },
   progressTrack: {
     height: 4,
     borderRadius: radius3.pill,

@@ -238,11 +238,14 @@ const styles = StyleSheet.create({
   },
   periodPillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
   periodPillText: { ...typography3.labelSm, fontSize: 11 },
-  periodPillTextSelected: { color: colors3.white, fontWeight: '700' },
+  periodPillTextSelected: { color: colors3.white, fontFamily: 'Inter_700Bold' },
 
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navArrow: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { ...typography3.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1 },
+  // fontFamily real (Inter_600SemiBold) em vez de fontWeight sobreposto a
+  // bodyMd (Inter_400Regular) -- fontWeight nao tem efeito confiavel
+  // quando fontFamily ja nomeia um arquivo de peso especifico.
+  navLabel: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold', textAlign: 'center', flex: 1 },
 
   loading: { marginVertical: spacing3.lg },
   error: { color: colors3.error, textAlign: 'center' },
@@ -255,8 +258,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors3.outlineVariant,
   },
-  dayLabel: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
-  dayValue: { ...typography3.bodyMd, fontSize: 13, fontWeight: '600' },
+  dayLabel: { ...typography3.labelSm, fontSize: 13, color: colors3.onSurfaceVariant },
+  // fontFamily real (Inter_600SemiBold) em vez de fontWeight sobreposto a
+  // bodyMd -- mesmo motivo do navLabel acima.
+  dayValue: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold', fontSize: 13, color: colors3.onSurface },
 
   chart: { borderRadius: radius3.md, marginLeft: -spacing3.md },
 

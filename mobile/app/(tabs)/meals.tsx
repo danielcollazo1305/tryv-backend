@@ -86,7 +86,7 @@ export default function MealsScreen() {
                 <Text style={styles.title}>Refeições</Text>
                 <Text style={styles.subtitle}>Hoje</Text>
               </View>
-              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton/Avatar sao compartilhados e ja funcionam no claro (mesmo componente ja usado por Home/Feed) — nao precisaram mudar. */}
+              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton e compartilhado com Home/Feed/Ranking/Treino — estava 100% colors2 ate ser migrado numa tarefa separada (achado na investigacao anterior, comentario antigo aqui estava incorreto). */}
               <ProfileAvatarButton size={36} />
             </View>
 
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   listContent: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl * 2 },
   header: { gap: spacing3.md, marginBottom: spacing3.md },
-  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  logo: { ...typography3.displayLg, fontFamily: 'Inter_800ExtraBold', fontSize: 36, color: colors3.primary },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   title: { ...typography3.headlineLgMobile, fontSize: 26 },
   subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: -spacing3.sm },
@@ -177,7 +177,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photosLinkText: { ...typography3.bodyMd, fontWeight: '600', flex: 1 },
+  // fontFamily real (Inter_600SemiBold) em vez de fontWeight sobreposto a
+  // bodyMd (Inter_400Regular) -- fontWeight nao tem efeito confiavel
+  // quando fontFamily ja nomeia um arquivo de peso especifico.
+  photosLinkText: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold', flex: 1 },
 
   addMealCard: { gap: spacing3.md },
   addMealHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
@@ -189,5 +192,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addMealTitle: { ...typography3.bodyMd, fontWeight: '700' },
+  addMealTitle: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold' },
 });
