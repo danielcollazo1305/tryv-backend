@@ -8,7 +8,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { AiWorkoutCard } from '@/components/AiWorkoutCard';
 import { GlassCard } from '@/components/GlassCard';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { DesafiosCarouselSlide } from '@/components/DesafiosCarouselSlide';
 import { ExportPdfCard } from '@/components/ExportPdfCard';
 import { HealthMetricsGrid } from '@/components/HealthMetricsGrid';
@@ -28,7 +27,7 @@ import { getApiErrorMessage } from '@/services/api';
 import { HomeSummary, getHomeSummary } from '@/services/dashboard';
 import { DailyInsight, getDailyInsight } from '@/services/insights';
 import { subscribeToDashboardChanges } from '@/utils/dashboardEvents';
-import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
 type ViewMode = { type: 'rolling' } | { type: 'month'; year: number; month: number };
@@ -338,15 +337,15 @@ export default function HomeScreen() {
             </View>
           </GlassCard>
 
-          <LiquiglassCard style={styles.sectionCard}>
+          <GlassCard style={styles.sectionCard}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>Evolução de peso</Text>
               <Pressable onPress={() => router.push('/weight/new')} hitSlop={8}>
-                <Ionicons name="add-circle-outline" size={22} color={colors2.primary} />
+                <Ionicons name="add-circle-outline" size={22} color={colors3.primary} />
               </Pressable>
             </View>
             <WeightChart data={summary.weight_evolution} />
-          </LiquiglassCard>
+          </GlassCard>
         </>
       )}
     </ScrollView>
@@ -396,20 +395,24 @@ const styles = StyleSheet.create({
   error: { color: colors3.error, textAlign: 'center' },
   loading: { marginTop: spacing3.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
-  // statsCard (navegador de mes + peso/dias treinados/deficit) migrado pro
-  // tema claro nesta tarefa -- cardTitle abaixo continua colors2/typography2
-  // de proposito, ainda usado pelo sectionCard ("Evolucao de peso", fora de
-  // escopo aqui), por isso statsCardTitle tem sua propria tipografia
-  // completa em vez de estender cardTitle.
+  // statsCard (navegador de mes + peso/dias treinados/deficit) migrado
+  // numa tarefa anterior -- statsCardTitle tem tipografia propria (em vez
+  // de estender cardTitle) porque na epoca cardTitle ainda era usado pelo
+  // sectionCard ("Evolucao de peso"), que so foi migrado nesta tarefa.
+  // Agora cardTitle e exclusivo do sectionCard de novo.
   statsCard: { gap: spacing3.md },
   statsCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statsCardTitle: { ...typography3.headlineMd, fontSize: 18, flex: 1, textAlign: 'center' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   stat: { alignItems: 'flex-start', flex: 1 },
-  statNumber: { fontFamily: 'JetBrainsMono_700Bold', fontSize: 22, color: colors3.onSurface },
+  // Mesmo token de HealthMetricsGrid.tileValue (typography3.headlineLg,
+  // Inter_700Bold) -- unificado nesta tarefa, so tamanho/lineHeight
+  // ajustados pro contexto deste tile (era JetBrainsMono_700Bold,
+  // inconsistente com o padrao de referencia do mockup original).
+  statNumber: { ...typography3.headlineLg, fontSize: 22, lineHeight: 26, color: colors3.onSurface },
   statLabel: { ...typography3.labelSm, textTransform: 'none', marginTop: spacing3.xs },
 
-  cardTitle: { ...typography2.headlineMd, fontSize: 18 },
-  sectionCard: { gap: spacing2.md },
+  cardTitle: { ...typography3.headlineMd, fontSize: 18 },
+  sectionCard: { gap: spacing3.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
