@@ -168,6 +168,9 @@ export default function WorkoutScreen() {
           (usuario free, sem Personal Trainer) sem ver-lo nesta aba.
         */}
         <View style={styles.gateHeader}>
+          <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Historico de atividades">
+            <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
+          </Pressable>
           <ProfileAvatarButton isPro={isPro} size={36} />
         </View>
         <WorkoutAccessGate>
@@ -190,8 +193,17 @@ export default function WorkoutScreen() {
           <Text style={styles.logo}>Tryv</Text>
           <View style={styles.header}>
             <Text style={styles.title}>Treino</Text>
-            {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
-            <ProfileAvatarButton isPro={isPro} size={36} />
+            <View style={styles.headerActions}>
+              {/* Unico ponto de entrada dedicado pra lista de atividades
+                  na aba Treino -- antes so era alcancavel via "Veja mais do
+                  seu progresso" (ActivityProgressCard, Home), que continua
+                  existindo tambem (nao concorrente, so mais um caminho). */}
+              <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Historico de atividades">
+                <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
+              </Pressable>
+              {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
+              <ProfileAvatarButton isPro={isPro} size={36} />
+            </View>
           </View>
         </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
@@ -244,7 +256,9 @@ const styles = StyleSheet.create({
   },
   gateHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
+    gap: spacing3.md,
     paddingHorizontal: spacing3.containerMargin,
     paddingTop: spacing3.xl,
   },
@@ -252,6 +266,7 @@ const styles = StyleSheet.create({
   headerWrap: { gap: spacing3.xs },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   title: { ...typography3.headlineLgMobile, fontSize: 26 },
   error: { color: colors3.error, textAlign: 'center' },
 
