@@ -3,7 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
 import { SelectionCard2 } from '@/components/SelectionCard2';
 import { TextField2 } from '@/components/TextField2';
@@ -11,7 +11,7 @@ import { WorkoutPlanView } from '@/components/WorkoutPlanView';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { WorkoutPlanData, generateWorkoutPlan, saveWorkoutPlan } from '@/services/workouts';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 type Stage = 'form' | 'generating' | 'reviewing' | 'saving';
 
@@ -68,6 +68,15 @@ const ONBOARDING_GOAL_MAP: Record<string, string> = {
   condicionamento: 'resistencia',
 };
 
+/**
+ * Migrada pro tema claro "prism-glass" nesta tarefa (colors2 -> colors3,
+ * Button2 -> Button3, SelectionCard2/ProgressSteps2/TextField2/
+ * WorkoutPlanView com variant="light") — tela exclusiva (nenhum outro
+ * consumidor real ainda escuro pra ela mesma, so os componentes
+ * compartilhados abaixo, que ganharam a prop variant em vez de edicao
+ * direta). MuscleDiagram (dentro de WorkoutDayCard/WorkoutPlanView)
+ * continua intocado, decisao ja tomada antes desta tarefa.
+ */
 export default function GenerateWorkoutScreen() {
   const { user } = useAuth();
   const [stage, setStage] = useState<Stage>('form');
@@ -161,7 +170,7 @@ export default function GenerateWorkoutScreen() {
           <Ionicons
             name={stage === 'form' && stepIndex > 0 ? 'arrow-back' : 'close'}
             size={24}
-            color={colors2.onSurfaceVariant}
+            color={colors3.onSurfaceVariant}
           />
         </Pressable>
         <Text style={styles.headerTitle}>
@@ -175,34 +184,40 @@ export default function GenerateWorkoutScreen() {
 
         {stage === 'form' && (
           <>
-            <ProgressSteps2 current={stepIndex + 1} total={FORM_STEPS.length} label={STEP_LABELS[currentStep]} />
+            <ProgressSteps2
+              current={stepIndex + 1}
+              total={FORM_STEPS.length}
+              label={STEP_LABELS[currentStep]}
+              variant="light"
+            />
 
             {currentStep === 'goal' && (
               <>
                 <Text style={styles.fieldLabel}>Qual e o seu objetivo com o treino?</Text>
-                <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} />
+                <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} variant="light" />
               </>
             )}
 
             {currentStep === 'level' && (
               <>
                 <Text style={styles.fieldLabel}>Qual o seu nivel de experiencia?</Text>
-                <SelectionCard2 options={LEVEL_OPTIONS} value={level} onChange={setLevel} />
+                <SelectionCard2 options={LEVEL_OPTIONS} value={level} onChange={setLevel} variant="light" />
               </>
             )}
 
             {currentStep === 'days' && (
               <>
                 <Text style={styles.fieldLabel}>Quantos dias por semana voce pode treinar?</Text>
-                <SelectionCard2 options={DAYS_OPTIONS} value={daysPerWeek} onChange={setDaysPerWeek} />
+                <SelectionCard2 options={DAYS_OPTIONS} value={daysPerWeek} onChange={setDaysPerWeek} variant="light" />
               </>
             )}
 
             {currentStep === 'equipment' && (
               <>
                 <Text style={styles.fieldLabel}>Qual equipamento voce tem disponivel?</Text>
-                <SelectionCard2 options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} />
+                <SelectionCard2 options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} variant="light" />
                 <TextField2
+                  variant="light"
                   label="Observacoes (opcional)"
                   placeholder="Ex: dor no joelho, prefiro treinos curtos..."
                   value={notes}
@@ -214,7 +229,7 @@ export default function GenerateWorkoutScreen() {
               </>
             )}
 
-            <Button2
+            <Button3
               label={isLastStep ? 'Gerar treino' : 'Continuar'}
               onPress={handleContinue}
               disabled={!canProceed}
@@ -224,17 +239,17 @@ export default function GenerateWorkoutScreen() {
 
         {stage === 'generating' && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors2.violet} />
+            <ActivityIndicator size="large" color={colors3.primary} />
             <Text style={styles.generatingText}>Montando seu treino...</Text>
           </View>
         )}
 
         {(stage === 'reviewing' || stage === 'saving') && planData && (
           <View style={styles.reviewContainer}>
-            <WorkoutPlanView planData={planData} showCompleteAction={false} />
+            <WorkoutPlanView planData={planData} showCompleteAction={false} variant="light" />
 
-            <Button2 label="Confirmar e salvar" onPress={handleConfirm} loading={stage === 'saving'} />
-            <Button2
+            <Button3 label="Confirmar e salvar" onPress={handleConfirm} loading={stage === 'saving'} />
+            <Button3
               label="Descartar e gerar outro"
               variant="secondary"
               onPress={handleDiscard}
@@ -248,21 +263,21 @@ export default function GenerateWorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
+  flex: { flex: 1, backgroundColor: colors3.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
-  error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },
-  fieldLabel: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginBottom: -spacing2.xs },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.md },
+  error: { color: colors3.error, textAlign: 'center', marginBottom: spacing3.sm },
+  fieldLabel: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginBottom: -spacing3.xs },
   notesInput: { minHeight: 80, textAlignVertical: 'top' },
-  centered: { alignItems: 'center', marginTop: spacing2.xl },
-  generatingText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginTop: spacing2.md },
-  reviewContainer: { gap: spacing2.md },
+  centered: { alignItems: 'center', marginTop: spacing3.xl },
+  generatingText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.md },
+  reviewContainer: { gap: spacing3.md },
 });
