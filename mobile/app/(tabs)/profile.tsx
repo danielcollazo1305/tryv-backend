@@ -15,6 +15,12 @@ import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { requestHealthPermissions } from '@/services/health';
 import {
+  getGrantedHealthConnectPermissions,
+  initializeHealthConnect,
+  isHealthConnectAvailable,
+  requestHealthConnectPermissions,
+} from '@/services/healthConnect';
+import {
   Challenge,
   buildAutomaticChallengeHeatmapDays,
   buildChallengeHeatmapDays,
@@ -140,6 +146,62 @@ export default function ProfileScreen() {
    *     Alert.alert('Erro ao resetar', 'Veja o console pra detalhes.');
    *   } finally {
    *     setResettingHealthKit(false);
+   *   }
+   * };
+   */
+
+  /*
+   * DEBUG TEMPORARIO — teste isolado do Health Connect (Etapa 2, ver
+   * services/healthConnect.ts). So validava initialize()/requestPermission()/
+   * getGrantedPermissions() de verdade no emulador Android antes de integrar.
+   *
+   * debug do Health Connect, escondido apos validacao da Etapa 2 (validada em
+   * device real, emulador Android) — reativar manualmente durante
+   * desenvolvimento se necessario. Mesmo padrao do debug de HealthKit acima.
+   *
+   * const [testingHealthConnect, setTestingHealthConnect] = useState(false);
+   *
+   * const handleDebugTestHealthConnect = async () => {
+   *   if (Platform.OS !== 'android') {
+   *     Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+   *     return;
+   *   }
+   *   setTestingHealthConnect(true);
+   *   try {
+   *     const available = await isHealthConnectAvailable();
+   *     console.log('[DEBUG healthConnect] isHealthConnectAvailable() ->', available);
+   *     if (!available) {
+   *       Alert.alert(
+   *         'Health Connect indisponivel',
+   *         'getSdkStatus() nao retornou SDK_AVAILABLE -- app Health Connect no emulador nao instalado ou precisa atualizar. Ver console.'
+   *       );
+   *       return;
+   *     }
+   *
+   *     const initialized = await initializeHealthConnect();
+   *     console.log('[DEBUG healthConnect] initializeHealthConnect() ->', initialized);
+   *     if (!initialized) {
+   *       Alert.alert('Falha ao inicializar', 'initializeHealthConnect() retornou false -- ver console.');
+   *       return;
+   *     }
+   *
+   *     const granted = await requestHealthConnectPermissions();
+   *     console.log('[DEBUG healthConnect] requestHealthConnectPermissions() ->', granted);
+   *
+   *     const grantedNow = await getGrantedHealthConnectPermissions();
+   *     console.log('[DEBUG healthConnect] getGrantedHealthConnectPermissions() ->', grantedNow);
+   *
+   *     Alert.alert(
+   *       'Health Connect testado',
+   *       grantedNow.length > 0
+   *         ? `Permissoes concedidas: ${grantedNow.map((p) => p.recordType).join(', ')}`
+   *         : 'Nenhuma permissao concedida (usuario negou, ou dialogo nao apareceu -- ver console).'
+   *     );
+   *   } catch (err) {
+   *     console.error('[DEBUG healthConnect] falhou:', err);
+   *     Alert.alert('Erro no teste', 'Veja o console pra detalhes.');
+   *   } finally {
+   *     setTestingHealthConnect(false);
    *   }
    * };
    */
@@ -571,6 +633,30 @@ export default function ProfileScreen() {
                   <Text style={styles.optionTitle}>[DEBUG] Resetar conexao HealthKit</Text>
                   <Text style={styles.optionSubtitle}>
                     {resettingHealthKit ? 'Resetando...' : 'Limpa a flag local e pede autorizacao de novo'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+              </View>
+            </GlassCard>
+          </Pressable>
+        */}
+
+        {/*
+          debug do Health Connect, escondido apos validacao da Etapa 2
+          (validada em device real, emulador Android) — reativar manualmente
+          durante desenvolvimento se necessario. Ver handleDebugTestHealthConnect
+          comentado acima. Mesmo padrao do debug de HealthKit.
+
+          <Pressable style={styles.optionWrap} onPress={handleDebugTestHealthConnect} disabled={testingHealthConnect}>
+            <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+              <View style={styles.optionRow}>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="bug" size={20} color={colors3.error} />
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={styles.optionTitle}>[DEBUG] Testar Health Connect</Text>
+                  <Text style={styles.optionSubtitle}>
+                    {testingHealthConnect ? 'Testando...' : 'initialize() + requestPermission() (so Android)'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
