@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,8 @@ import { requestHealthPermissions } from '@/services/health';
 import {
   getGrantedHealthConnectPermissions,
   initializeHealthConnect,
+  insertHealthConnectDebugFcSonoTreino,
+  insertHealthConnectDebugTestData,
   isHealthConnectAvailable,
   requestHealthConnectPermissions,
 } from '@/services/healthConnect';
@@ -205,6 +207,80 @@ export default function ProfileScreen() {
    *   }
    * };
    */
+
+  /**
+   * DEBUG TEMPORARIO — insere 1 dia de dado real (Steps + ActiveCaloriesBurned)
+   * no Health Connect do emulador, so pra validar a Etapa 3 (o Health Connect
+   * nao tem tela de "adicionar registro manual" nem jeito de popular via adb —
+   * ver insertHealthConnectDebugTestData em services/healthConnect.ts).
+   * REMOVER esta funcao e o botao que a chama assim que a Etapa 3 estiver
+   * validada — o Tryv nao escreve dado de saude em producao.
+   */
+  const [seedingHealthConnectData, setSeedingHealthConnectData] = useState(false);
+  // Guarda SINCRONA de reentrancia dos 2 botoes de debug de escrita: o
+  // setState de "seeding..." so desabilita o botao no proximo frame, entao
+  // um toque duplo rapido disparava o handler 2x -> registros duplicados no
+  // Health Connect (sem clientRecordId, o HC nao deduplica). Mesmo padrao do
+  // importingRef em app/activity/healthkit.tsx. Um ref so pros 2 botoes
+  // (nao faz sentido rodar os dois ao mesmo tempo).
+  const seedingHealthConnectRef = useRef(false);
+
+  const handleDebugSeedHealthConnectData = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      return;
+    }
+    if (seedingHealthConnectRef.current) return;
+    seedingHealthConnectRef.current = true;
+    setSeedingHealthConnectData(true);
+    try {
+      const { steps, kcal } = await insertHealthConnectDebugTestData();
+      console.log('[DEBUG healthConnect] insertHealthConnectDebugTestData() ->', { steps, kcal });
+      Alert.alert(
+        'Dado de teste inserido',
+        `${steps} passos e ${kcal} kcal ativas cobrindo hoje. Va pra Home ou Atividades pra conferir.`
+      );
+    } catch (err) {
+      console.error('[DEBUG healthConnect] insertHealthConnectDebugTestData() falhou:', err);
+      Alert.alert('Erro ao inserir dado', 'Veja o console pra detalhes.');
+    } finally {
+      seedingHealthConnectRef.current = false;
+      setSeedingHealthConnectData(false);
+    }
+  };
+
+  /**
+   * DEBUG TEMPORARIO — mesma logica do botao acima, agora pra FC (amostras),
+   * Sono (1 sessao com estagios) e 1 treino de corrida com rota GPS, pra
+   * validar as Etapas 4-6 (ver insertHealthConnectDebugFcSonoTreino em
+   * services/healthConnect.ts). REMOVER esta funcao e o botao que a chama
+   * assim que as Etapas 4-6 estiverem validadas.
+   */
+  const [seedingHealthConnectFcSonoTreino, setSeedingHealthConnectFcSonoTreino] = useState(false);
+
+  const handleDebugSeedHealthConnectFcSonoTreino = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      return;
+    }
+    if (seedingHealthConnectRef.current) return;
+    seedingHealthConnectRef.current = true;
+    setSeedingHealthConnectFcSonoTreino(true);
+    try {
+      const result = await insertHealthConnectDebugFcSonoTreino();
+      console.log('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() ->', result);
+      Alert.alert(
+        'Dado de teste inserido',
+        `${result.heartRateSamples} amostras de FC, ~${result.sleepHours.toFixed(1)}h de sono (ultima noite) e 1 corrida de ${result.workoutMinutes}min com rota GPS. Confira FC/Sono na Home e "Importar treinos" em Atividades.`
+      );
+    } catch (err) {
+      console.error('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() falhou:', err);
+      Alert.alert('Erro ao inserir dado', 'Veja o console pra detalhes.');
+    } finally {
+      seedingHealthConnectRef.current = false;
+      setSeedingHealthConnectFcSonoTreino(false);
+    }
+  };
 
   /*
    * Marketplace desativado pre-lancamento — este fetch (isTrainer) so
@@ -664,6 +740,63 @@ export default function ProfileScreen() {
             </GlassCard>
           </Pressable>
         */}
+
+        {/*
+          DEBUG TEMPORARIO -- insere dado de teste (Steps + ActiveCaloriesBurned
+          de hoje) no Health Connect do emulador, pra validar a Etapa 3 com
+          numero real. Visivel de proposito enquanto valida a Etapa 3.
+          REMOVER (funcao + botao) depois que a Etapa 3 for validada -- o Tryv
+          nao escreve dado de saude em producao.
+        */}
+        <Pressable
+          style={styles.optionWrap}
+          onPress={handleDebugSeedHealthConnectData}
+          disabled={seedingHealthConnectData}
+        >
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+            <View style={styles.optionRow}>
+              <View style={styles.optionIconWrap}>
+                <Ionicons name="bug" size={20} color={colors3.error} />
+              </View>
+              <View style={styles.optionInfo}>
+                <Text style={styles.optionTitle}>[DEBUG] Inserir dado de teste (Health Connect)</Text>
+                <Text style={styles.optionSubtitle}>
+                  {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (so Android)'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+            </View>
+          </GlassCard>
+        </Pressable>
+
+        {/*
+          DEBUG TEMPORARIO -- insere FC (amostras), Sono (1 sessao com
+          estagios) e 1 treino de corrida com rota GPS no Health Connect do
+          emulador, pra validar as Etapas 4-6 com numero real. Visivel de
+          proposito enquanto valida. REMOVER (funcao + botao) depois que as
+          Etapas 4-6 forem validadas -- o Tryv nao escreve dado de saude em
+          producao.
+        */}
+        <Pressable
+          style={styles.optionWrap}
+          onPress={handleDebugSeedHealthConnectFcSonoTreino}
+          disabled={seedingHealthConnectFcSonoTreino}
+        >
+          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+            <View style={styles.optionRow}>
+              <View style={styles.optionIconWrap}>
+                <Ionicons name="bug" size={20} color={colors3.error} />
+              </View>
+              <View style={styles.optionInfo}>
+                <Text style={styles.optionTitle}>[DEBUG] Inserir FC/Sono/Treino de teste (Health Connect)</Text>
+                <Text style={styles.optionSubtitle}>
+                  {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (so Android)'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+            </View>
+          </GlassCard>
+        </Pressable>
 
         <View style={styles.postsSection}>
           <Text style={styles.sectionTitle}>Meus posts</Text>

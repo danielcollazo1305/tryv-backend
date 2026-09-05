@@ -13,6 +13,7 @@ import {
   fetchActiveEnergyLast7Days,
   fetchHealthSummary,
   fetchStepsLast7Days,
+  HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
   HealthSummary,
   isHealthAvailable,
@@ -45,10 +46,11 @@ function formatHeartRateDate(iso: string): string {
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'loading' | 'ready' | 'error';
 
 /**
- * Card auto-contido: verifica disponibilidade/conexao com o Apple Health,
+ * Card auto-contido: verifica disponibilidade/conexao com a fonte de saude do
+ * SO (Apple Health no iOS, Health Connect no Android — ver services/health.ts),
  * busca o resumo e se conecta sozinho. Falhas ficam contidas aqui (mesmo
  * padrao do InsightCard da Home) — nunca impedem o resto da tela de
- * Atividades de funcionar.
+ * Atividades de funcionar. No Android so Passos e Calorias ativas aparecem.
  */
 export function HealthSummaryCard() {
   const [status, setStatus] = useState<Status>('checking');
@@ -62,8 +64,9 @@ export function HealthSummaryCard() {
       setStatus('ready');
       // Fire-and-forget: alimenta o Score de Prontidao e o Live Activity com
       // FC real, sem atrasar nem arriscar o card por causa disso (tem seu
-      // proprio throttle interno, ver services/heartRateSync.ts).
-      syncRecentHeartRate().catch(() => {});
+      // proprio throttle interno, ver services/heartRateSync.ts). So iOS — o
+      // Health Connect (Android) ainda nao le FC.
+      if (Platform.OS === 'ios') syncRecentHeartRate().catch(() => {});
     } catch {
       if (!isRetry) {
         // Logo apos autorizar (ou ao reabrir a tela), o HealthKit as vezes
@@ -80,7 +83,9 @@ export function HealthSummaryCard() {
 
   useEffect(() => {
     (async () => {
-      if (Platform.OS !== 'ios') {
+      // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
+      // Web e outros ficam sem card.
+      if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
         setStatus('unavailable');
         return;
       }
@@ -132,9 +137,11 @@ export function HealthSummaryCard() {
             <Ionicons name="heart" size={20} color={colors2.violet} />
           </View>
           <View style={styles.connectInfo}>
-            <Text style={styles.connectTitle}>Conectar Apple Health</Text>
+            <Text style={styles.connectTitle}>Conectar {HEALTH_SOURCE_LABEL}</Text>
             <Text style={styles.connectSubtitle}>
-              Veja passos, distancia, frequencia cardiaca, calorias e sono aqui.
+              {Platform.OS === 'ios'
+                ? 'Veja passos, distancia, frequencia cardiaca, calorias e sono aqui.'
+                : 'Veja seus passos e calorias ativas aqui.'}
             </Text>
           </View>
           {connecting ? (
@@ -163,7 +170,7 @@ export function HealthSummaryCard() {
             <Ionicons name="refresh" size={20} color={colors2.violet} />
           </View>
           <View style={styles.connectInfo}>
-            <Text style={styles.connectTitle}>Nao foi possivel carregar o Apple Health</Text>
+            <Text style={styles.connectTitle}>Nao foi possivel carregar o {HEALTH_SOURCE_LABEL}</Text>
             <Text style={styles.connectSubtitle}>Toque para tentar novamente.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
@@ -174,9 +181,14 @@ export function HealthSummaryCard() {
 
   if (!summary) return null;
 
+  // Distancia, Frequencia cardiaca e Sono so tem fonte no iOS (HealthKit). O
+  // Health Connect (Android) ainda so le Passos e Calorias ativas — em vez de
+  // mostrar 3 linhas presas em "--", escondemos elas no Android.
+  const showIOSOnlyMetrics = Platform.OS === 'ios';
+
   return (
     <LiquiglassCard style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>Apple Health</Text>
+      <Text style={styles.cardTitle}>{HEALTH_SOURCE_LABEL}</Text>
 
       <HealthMetricRow
         icon="footsteps"
@@ -196,35 +208,41 @@ export function HealthSummaryCard() {
         <HealthWeeklyBarChart fetcher={fetchActiveEnergyLast7Days} color={metricColors.energy} unitLabel="kcal" />
       </HealthMetricRow>
 
-      <HealthMetricRow
-        icon="navigate"
-        color={metricColors.distance}
-        label="Distancia"
-        value={summary.distanceTodayMeters != null ? `${formatDistanceKm(summary.distanceTodayMeters)} km` : '--'}
-      />
+      {showIOSOnlyMetrics && (
+        <HealthMetricRow
+          icon="navigate"
+          color={metricColors.distance}
+          label="Distancia"
+          value={summary.distanceTodayMeters != null ? `${formatDistanceKm(summary.distanceTodayMeters)} km` : '--'}
+        />
+      )}
 
-      <HealthMetricRow
-        icon="heart"
-        color={metricColors.heartRate}
-        label="Frequencia cardiaca"
-        subLabel={
-          summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
-        }
-        value={summary.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm} bpm` : '--'}
-      >
-        <Pressable onPress={() => router.push('/heart-rate-report')} style={styles.reportLink} hitSlop={8}>
-          <Text style={styles.reportLinkText}>Ver relatorio completo de FC</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
-        </Pressable>
-      </HealthMetricRow>
+      {showIOSOnlyMetrics && (
+        <HealthMetricRow
+          icon="heart"
+          color={metricColors.heartRate}
+          label="Frequencia cardiaca"
+          subLabel={
+            summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
+          }
+          value={summary.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm} bpm` : '--'}
+        >
+          <Pressable onPress={() => router.push('/heart-rate-report')} style={styles.reportLink} hitSlop={8}>
+            <Text style={styles.reportLinkText}>Ver relatorio completo de FC</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
+          </Pressable>
+        </HealthMetricRow>
+      )}
 
-      <HealthMetricRow
-        icon="moon"
-        color={metricColors.sleep}
-        label="Sono"
-        subLabel="ultima noite"
-        value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
-      />
+      {showIOSOnlyMetrics && (
+        <HealthMetricRow
+          icon="moon"
+          color={metricColors.sleep}
+          label="Sono"
+          subLabel="ultima noite"
+          value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
+        />
+      )}
     </LiquiglassCard>
   );
 }

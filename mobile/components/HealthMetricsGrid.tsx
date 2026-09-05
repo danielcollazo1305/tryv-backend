@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/GlassCard';
 import {
   ensureHealthAuthorized,
   fetchHealthSummary,
+  HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
   HealthMetricKey,
   HealthSummary,
@@ -55,12 +56,12 @@ interface Tile {
  * Faixa compacta de 4 metricas de saude da Home (sem card/titulo por
  * cima) — tema visual novo "prism-glass" (ver colors3 em
  * constants/theme.ts), cada tile e um GlassCard variant="card". Reaproveita
- * o MESMO servico ja usado pelo card de Apple Health da tela de Atividades
- * (services/healthkit.ts, fetchHealthSummary) — leitura nativa do
- * HealthKit, nao as tabelas smartwatch_data/heart_rate_samples do backend
- * (que existem mas nao sao escritas pelo app hoje; ver relatorio de
- * investigacao). So iOS tem HealthKit — Android nunca mostra este bloco,
- * mesmo padrao ja usado por HealthSummaryCard.
+ * o MESMO servico ja usado pelo card de saude da tela de Atividades
+ * (services/health.ts, fetchHealthSummary) — leitura nativa do HealthKit
+ * (iOS) ou do Health Connect (Android), nao as tabelas smartwatch_data/
+ * heart_rate_samples do backend (que existem mas nao sao escritas pelo app
+ * hoje; ver relatorio de investigacao). No Android so Passos e Calorias tem
+ * dado real — Batimentos e Sono ficam em '--' ate a Etapa 4+.
  *
  * Cada tile e tocavel e leva pra app/health/[metric].tsx (historico com
  * periodo 1D/7D/4SEM/1ANO + navegacao "< >", fetchHealthMetricHistory) —
@@ -72,7 +73,8 @@ export function HealthMetricsGrid() {
   const [summary, setSummary] = useState<HealthSummary | null>(null);
 
   const load = useCallback(async () => {
-    if (Platform.OS !== 'ios') {
+    // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       setStatus('unavailable');
       return;
     }
@@ -201,7 +203,7 @@ export function HealthMetricsGrid() {
         <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
           <Text style={styles.connectHintText}>
             {status === 'error' ? 'Nao foi possivel carregar seus dados de saude.' : 'Nenhum dado sincronizado ainda.'}{' '}
-            Conectar Apple Health
+            Conectar {HEALTH_SOURCE_LABEL}
           </Text>
         </Pressable>
       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -19,7 +19,14 @@ import {
   parseUtcDate,
   Run,
 } from '@/services/activities';
-import { fetchRecentWorkouts, HealthKitWorkout, isHealthAvailable, requestHealthPermissions } from '@/services/health';
+import {
+  fetchRecentWorkouts,
+  HEALTH_SOURCE_LABEL,
+  HealthKitWorkout,
+  isHealthAvailable,
+  openHealthSettings,
+  requestHealthPermissions,
+} from '@/services/health';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
 type Stage = 'idle' | 'checking' | 'list';
@@ -46,22 +53,33 @@ export default function HealthKitImportScreen() {
   const [stage, setStage] = useState<Stage>('idle');
   const [workouts, setWorkouts] = useState<HealthKitWorkout[]>([]);
   const [importingId, setImportingId] = useState<string | null>(null);
+  // Guarda SINCRONA de reentrancia: setImportingId (setState) so re-renderiza
+  // o botao como disabled no proximo frame, entao um toque duplo rapido
+  // conseguia disparar handleImport 2x pro mesmo treino -> 2 POST /activities
+  // identicos. Este ref e atualizado na hora, antes de qualquer await.
+  const importingRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Fica true quando algum treino foi importado SEM a rota GPS por falta da
+  // permissao "Rotas de exercicio" do Health Connect (so Android -- ver
+  // routeUnavailable em HealthKitWorkout / extractExerciseRoutePoints). O
+  // aviso persiste mesmo depois do treino sair da lista.
+  const [routeImportSkipped, setRouteImportSkipped] = useState(false);
 
   const handleCheck = async () => {
     setStage('checking');
     setError(null);
     try {
-      if (Platform.OS !== 'ios') {
-        throw new Error('Apple Health so esta disponivel em iPhones.');
+      // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
+      if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+        throw new Error('Importar treinos so esta disponivel em iPhone ou Android.');
       }
       const available = await isHealthAvailable();
       if (!available) {
-        throw new Error('Apple Health nao esta disponivel neste dispositivo.');
+        throw new Error(`${HEALTH_SOURCE_LABEL} nao esta disponivel neste dispositivo.`);
       }
       const granted = await requestHealthPermissions();
       if (!granted) {
-        throw new Error('Permissao do Apple Health negada. Habilite nas configuracoes do celular.');
+        throw new Error(`Permissao do ${HEALTH_SOURCE_LABEL} negada. Habilite nas configuracoes do celular.`);
       }
 
       const since = new Date(Date.now() - DAYS_TO_LOOK_BACK * 24 * 60 * 60 * 1000);
@@ -74,12 +92,16 @@ export default function HealthKitImportScreen() {
       setWorkouts(hkWorkouts.filter((workout) => !isAlreadyImported(workout, runs, manualActivities)));
       setStage('list');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel verificar o Apple Health.');
+      setError(err instanceof Error ? err.message : `Nao foi possivel verificar o ${HEALTH_SOURCE_LABEL}.`);
       setStage('idle');
     }
   };
 
   const handleImport = async (workout: HealthKitWorkout) => {
+    // Ja ha uma importacao em andamento (inclusive um toque duplo neste
+    // mesmo botao) -> ignora.
+    if (importingRef.current) return;
+    importingRef.current = workout.id;
     setImportingId(workout.id);
     setError(null);
     try {
@@ -97,14 +119,20 @@ export default function HealthKitImportScreen() {
           calories_burned: workout.caloriesBurned,
           performed_at: workout.startedAt,
         });
+        // Rota existia no Health Connect mas nao pode ser lida -> importado
+        // como atividade manual (sem mapa/splits). Avisa o usuario.
+        if (workout.routeUnavailable) setRouteImportSkipped(true);
       }
       setWorkouts((prev) => prev.filter((w) => w.id !== workout.id));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel importar este treino.'));
     } finally {
+      importingRef.current = null;
       setImportingId(null);
     }
   };
+
+  const showRouteWarning = routeImportSkipped || workouts.some((w) => w.routeUnavailable);
 
   return (
     <View style={styles.flex}>
@@ -117,18 +145,34 @@ export default function HealthKitImportScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Verifique treinos recentes no Apple Health e importe os que ainda nao estao no Tryv.
+          Verifique treinos recentes no {HEALTH_SOURCE_LABEL} e importe os que ainda nao estao no Tryv.
         </Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        {stage === 'idle' && <Button label="Verificar Apple Health" onPress={handleCheck} />}
+        {stage === 'idle' && <Button label={`Verificar ${HEALTH_SOURCE_LABEL}`} onPress={handleCheck} />}
 
         {stage === 'checking' && (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.checkingText}>Procurando treinos...</Text>
           </View>
+        )}
+
+        {stage === 'list' && showRouteWarning && (
+          <Card style={styles.warningCard}>
+            <View style={styles.warningRow}>
+              <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.warningTitle}>Rota de GPS não importada</Text>
+            </View>
+            <Text style={styles.warningText}>
+              O {HEALTH_SOURCE_LABEL} tem a rota de GPS deste treino, mas o Tryv não conseguiu lê-la —
+              falta a permissão "Rotas de exercício". Sem ela, o treino entra como atividade manual (sem
+              mapa, distância ou splits). Ative "Rotas de exercício" para o Tryv em Ajustes →{' '}
+              {HEALTH_SOURCE_LABEL} → Tryv e importe de novo.
+            </Text>
+            <Button label={`Abrir ${HEALTH_SOURCE_LABEL}`} variant="secondary" onPress={openHealthSettings} />
+          </Card>
         )}
 
         {stage === 'list' && (
@@ -166,7 +210,11 @@ export default function HealthKitImportScreen() {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
-                            {hasRoute ? '  •  com rota de GPS' : ''}
+                            {hasRoute
+                              ? '  •  com rota de GPS'
+                              : workout.routeUnavailable
+                                ? '  •  rota de GPS indisponível (permissão)'
+                                : ''}
                           </Text>
                         </View>
                       </View>
@@ -209,6 +257,11 @@ const styles = StyleSheet.create({
   checkingText: { ...typography.bodySecondary, marginTop: spacing.md },
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
   emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+
+  warningCard: { gap: spacing.sm },
+  warningRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  warningTitle: { ...typography.body, fontWeight: '600' },
+  warningText: { ...typography.bodySecondary },
 
   list: { gap: spacing.sm },
   workoutCard: { gap: spacing.md },

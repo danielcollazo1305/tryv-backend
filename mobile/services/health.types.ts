@@ -18,6 +18,14 @@ export interface HealthKitWorkout {
   caloriesBurned: number | null;
   /** Presente so quando o treino tem uma rota de GPS (HKWorkoutRoute) associada. */
   routePoints: RoutePoint[] | null;
+  /**
+   * So Android/Health Connect: true quando o treino provavelmente TEM rota
+   * GPS mas ela nao pode ser lida (falta a permissao "Rotas de exercicio" /
+   * READ_EXERCISE_ROUTES, que nao da pra pedir via requestPermission nesta
+   * lib). No iOS fica sempre undefined (HKWorkoutRoute nao precisa de
+   * permissao a parte). A tela de importacao usa isto pra avisar o usuario.
+   */
+  routeUnavailable?: boolean;
 }
 
 export interface HealthSummary {

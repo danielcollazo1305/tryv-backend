@@ -10,6 +10,7 @@ import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { SleepDetailView } from '@/components/SleepDetailView';
 import {
   ensureHealthAuthorized,
+  HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
   HealthHistoryGranularity,
   HealthHistoryPeriod,
@@ -177,7 +178,9 @@ export default function HealthMetricDetailScreen() {
     // periodo/historico deste componente, e cuidam da propria checagem de
     // disponibilidade/autorizacao sozinhas.
     if (!metric || metric === 'sleep' || metric === 'heartRate') return;
-    if (Platform.OS !== 'ios') {
+    // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
+    // Passos e Calorias funcionam nas 2; Sono/FC ja retornaram acima.
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       setStatus('unavailable');
       return;
     }
@@ -260,10 +263,14 @@ export default function HealthMetricDetailScreen() {
         ) : metric === 'heartRate' ? (
           <HeartRateDetailView />
         ) : status === 'unavailable' ? (
-          <Text style={styles.emptyText}>Historico de saude disponivel so no iPhone, via Apple Health.</Text>
+          <Text style={styles.emptyText}>
+            {Platform.OS === 'android'
+              ? 'Instale ou atualize o app Health Connect pra ver seu historico de saude aqui.'
+              : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+          </Text>
         ) : status === 'disconnected' ? (
           <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
-            <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar Apple Health</Text>
+            <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar {HEALTH_SOURCE_LABEL}</Text>
             <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
           </Pressable>
         ) : status === 'error' ? (

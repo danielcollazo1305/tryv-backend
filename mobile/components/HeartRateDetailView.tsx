@@ -16,6 +16,7 @@ import {
 } from '@/services/activities';
 import {
   DayHeartRateDetail,
+  HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
   WeekHeartRateDetail,
   ensureHealthAuthorized,
@@ -245,7 +246,8 @@ export function HeartRateDetailView() {
   const [markers, setMarkers] = useState<ActivityMarker[]>([]);
 
   const load = useCallback(async () => {
-    if (Platform.OS !== 'ios') {
+    // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       setStatus('unavailable');
       return;
     }
@@ -298,13 +300,19 @@ export function HeartRateDetailView() {
   }
 
   if (status === 'unavailable') {
-    return <Text style={styles.emptyText}>Historico de saude disponivel so no iPhone, via Apple Health.</Text>;
+    return (
+      <Text style={styles.emptyText}>
+        {Platform.OS === 'android'
+          ? 'Instale ou atualize o app Health Connect pra ver sua frequencia cardiaca aqui.'
+          : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+      </Text>
+    );
   }
 
   if (status === 'disconnected') {
     return (
       <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
-        <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar Apple Health</Text>
+        <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar {HEALTH_SOURCE_LABEL}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
       </Pressable>
     );
