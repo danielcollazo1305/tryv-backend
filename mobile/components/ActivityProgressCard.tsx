@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 
 import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
@@ -24,6 +25,17 @@ const MIN_BAR_SLOT = 34;
 // do mockup, sem descontar nada (o desconto de antes deixava baixo
 // demais).
 const BAR_TRACK_HEIGHT = 160;
+
+// Teto FIXO do eixo Y do grafico de distancia de corrida (nao o de
+// Musculacao, que continua em barra com auto-escala) — corrige o card
+// mostrando uma corrida de 1km como se fosse quase 100% da altura quando e
+// o unico ponto > 0 na janela visivel. Com escala fixa, 1km fica
+// proporcionalmente pequeno e 15km fica grande de verdade, sem depender do
+// maximo daquele dia/semana especifico. Vale pros dois toggles (Semanal e
+// Mensal) — no Mensal os pontos sao soma semanal, entao uma semana muito
+// ativa pode encostar no teto (nao quebra, so nao sobe mais que isso).
+const RUN_CHART_MAX_KM = 12;
+const RUN_CHART_GRID_KM = [5, 10];
 
 const TAB_OPTIONS: { value: Tab; label: string }[] = [
   { value: 'run', label: 'Corrida' },
@@ -163,6 +175,10 @@ export function ActivityProgressCard() {
   // sobra assimetrica de um lado so).
   const needsScroll = chartAreaWidth > 0 && chart.length * MIN_BAR_SLOT > chartAreaWidth;
   const barsWidth = needsScroll ? chart.length * MIN_BAR_SLOT : chartAreaWidth;
+  // So usado pelo grafico de linha/pontos da corrida — largura numerica por
+  // ponto (em vez de flex:1 dos slots de barra), necessaria pra posicionar
+  // cada ponto/rotulo em coordenadas de pixel dentro do <Svg>.
+  const slotWidth = chart.length > 0 ? barsWidth / chart.length : 0;
 
   const heroValue = tab === 'run' ? (runProgress ? formatDistance(runProgress.distance_km) : '--') : workoutProgress ? `${workoutProgress.sessions_count}` : '--';
   const heroUnit = tab === 'run' ? 'km' : workoutProgress?.sessions_count === 1 ? 'sessão' : 'sessões';
@@ -218,33 +234,106 @@ export function ActivityProgressCard() {
         <Text style={styles.emptyText}>Carregando...</Text>
       ) : (
         <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            scrollEnabled={needsScroll}
-            style={styles.chartScroll}
-            onLayout={handleChartAreaLayout}
-          >
-            <View style={[styles.barsRow, { width: barsWidth }, !needsScroll && styles.barsRowFlexible]}>
-              {chart.map((point, index) => {
-                const heightPercent = point.value > 0 ? Math.max(6, Math.round((point.value / maxValue) * 100)) : 3;
-                // Ultima barra (periodo mais recente) em destaque solido —
-                // as demais com valor > 0 ficam num tom mais suave do
-                // mesmo acento.
-                const isMostRecent = index === chart.length - 1;
-                const barColor =
-                  point.value === 0 ? colors3.surfaceVariant : isMostRecent ? tabColor.bg : hexToRgba(tabColor.bg, 0.45);
-                return (
-                  <View key={point.date} style={[styles.barSlot, needsScroll && styles.barSlotFixedWidth]}>
-                    <View style={styles.barTrack}>
-                      <View style={[styles.bar, { height: `${heightPercent}%`, backgroundColor: barColor }]} />
-                    </View>
-                    <Text style={styles.barLabel}>{formatBucketLabel(point.date, progress.granularity)}</Text>
+          {tab === 'run' ? (
+            <View style={styles.runChartWrap}>
+              <View style={styles.runChartAxis}>
+                {RUN_CHART_GRID_KM.map((km) => (
+                  <Text
+                    key={km}
+                    style={[
+                      styles.runAxisLabel,
+                      { top: BAR_TRACK_HEIGHT * (1 - km / RUN_CHART_MAX_KM) - 6 },
+                    ]}
+                  >
+                    {km}km
+                  </Text>
+                ))}
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                scrollEnabled={needsScroll}
+                onLayout={handleChartAreaLayout}
+              >
+                <View>
+                  <Svg width={barsWidth} height={BAR_TRACK_HEIGHT}>
+                    {RUN_CHART_GRID_KM.map((km) => {
+                      const y = BAR_TRACK_HEIGHT * (1 - km / RUN_CHART_MAX_KM);
+                      return (
+                        <Line
+                          key={km}
+                          x1={0}
+                          y1={y}
+                          x2={barsWidth}
+                          y2={y}
+                          stroke={colors3.outlineVariant}
+                          strokeWidth={1}
+                          strokeDasharray="4,4"
+                        />
+                      );
+                    })}
+                    <Polyline
+                      points={chart
+                        .map((point, index) => {
+                          const x = slotWidth * index + slotWidth / 2;
+                          const y = BAR_TRACK_HEIGHT * (1 - Math.min(1, point.value / RUN_CHART_MAX_KM));
+                          return `${x},${y}`;
+                        })
+                        .join(' ')}
+                      fill="none"
+                      stroke={tabColor.bg}
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {chart.map((point, index) => {
+                      const x = slotWidth * index + slotWidth / 2;
+                      const y = BAR_TRACK_HEIGHT * (1 - Math.min(1, point.value / RUN_CHART_MAX_KM));
+                      const isMostRecent = index === chart.length - 1;
+                      const dotColor =
+                        point.value === 0 ? colors3.surfaceVariant : isMostRecent ? tabColor.bg : hexToRgba(tabColor.bg, 0.7);
+                      return <Circle key={point.date} cx={x} cy={y} r={isMostRecent ? 5 : 3.5} fill={dotColor} />;
+                    })}
+                  </Svg>
+                  <View style={[styles.runChartLabelsRow, { width: barsWidth }]}>
+                    {chart.map((point) => (
+                      <Text key={point.date} style={[styles.barLabel, { width: slotWidth, textAlign: 'center' }]}>
+                        {formatBucketLabel(point.date, progress.granularity)}
+                      </Text>
+                    ))}
                   </View>
-                );
-              })}
+                </View>
+              </ScrollView>
             </View>
-          </ScrollView>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              scrollEnabled={needsScroll}
+              style={styles.chartScroll}
+              onLayout={handleChartAreaLayout}
+            >
+              <View style={[styles.barsRow, { width: barsWidth }, !needsScroll && styles.barsRowFlexible]}>
+                {chart.map((point, index) => {
+                  const heightPercent = point.value > 0 ? Math.max(6, Math.round((point.value / maxValue) * 100)) : 3;
+                  // Ultima barra (periodo mais recente) em destaque solido —
+                  // as demais com valor > 0 ficam num tom mais suave do
+                  // mesmo acento.
+                  const isMostRecent = index === chart.length - 1;
+                  const barColor =
+                    point.value === 0 ? colors3.surfaceVariant : isMostRecent ? tabColor.bg : hexToRgba(tabColor.bg, 0.45);
+                  return (
+                    <View key={point.date} style={[styles.barSlot, needsScroll && styles.barSlotFixedWidth]}>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.bar, { height: `${heightPercent}%`, backgroundColor: barColor }]} />
+                      </View>
+                      <Text style={styles.barLabel}>{formatBucketLabel(point.date, progress.granularity)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          )}
 
           {tab === 'run' ? (
             <View style={styles.statsRow}>
@@ -311,6 +400,15 @@ const styles = StyleSheet.create({
   // Semanal/Mensal e o grafico, que estava "colado" antes. Total efetivo
   // ~24px (16 do gap + 8 daqui).
   chartScroll: { marginTop: spacing3.sm },
+
+  // Grafico de linha/pontos da aba Corrida — coluna fixa de rotulos do eixo
+  // Y (5km/10km) a esquerda, fora do ScrollView horizontal (nao rola junto
+  // com o grafico), + area rolavel com o <Svg> a direita.
+  runChartWrap: { flexDirection: 'row', marginTop: spacing3.sm },
+  runChartAxis: { width: 30, height: BAR_TRACK_HEIGHT, marginRight: spacing3.xs },
+  runAxisLabel: { position: 'absolute', right: 0, ...typography3.labelSm, fontSize: 9, color: colors3.outline },
+  runChartLabelsRow: { flexDirection: 'row', marginTop: spacing3.xs },
+
   barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing3.xs, height: BAR_TRACK_HEIGHT + 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.5)', paddingBottom: spacing3.sm },
   // Semanal (7 dias, sempre cabe): barras esticam (flex:1) pra preencher
   // exatamente a largura real medida do container — sem isso, a barra

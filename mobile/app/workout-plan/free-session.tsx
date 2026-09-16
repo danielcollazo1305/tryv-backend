@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { FreeWorkoutLogView } from '@/components/FreeWorkoutLogView';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 /**
  * Tela do registro de treino "livre" (sem plano) — ponto de entrada
@@ -21,10 +22,10 @@ export default function FreeWorkoutSessionScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={24} color={colors2.onSurfaceVariant} />
+          <Ionicons name="close" size={24} color={colors3.onSurfaceVariant} />
         </Pressable>
         <Text style={styles.headerTitle}>Treino livre</Text>
         <View style={{ width: 24 }} />
@@ -33,20 +34,20 @@ export default function FreeWorkoutSessionScreen() {
       <View style={styles.content}>
         <FreeWorkoutLogView onDone={handleDone} />
       </View>
-    </View>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: Platform.OS === 'ios' ? spacing2.xl : spacing2.xl + 12,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: Platform.OS === 'ios' ? spacing3.xl : spacing3.xl + 12,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { flex: 1, paddingHorizontal: spacing2.containerMargin, paddingBottom: spacing2.md },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { flex: 1, paddingHorizontal: spacing3.containerMargin, paddingBottom: spacing3.md },
 });

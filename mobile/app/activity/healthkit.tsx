@@ -3,8 +3,9 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, V
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
+import { Button3 } from '@/components/Button3';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import {
   ACTIVITY_TYPE_ICONS,
@@ -27,7 +28,7 @@ import {
   openHealthSettings,
   requestHealthPermissions,
 } from '@/services/health';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Stage = 'idle' | 'checking' | 'list';
 
@@ -135,51 +136,51 @@ export default function HealthKitImportScreen() {
   const showRouteWarning = routeImportSkipped || workouts.some((w) => w.routeUnavailable);
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Importar treinos</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={26} color={colors.textSecondary} />
+          <Ionicons name="close" size={26} color={colors3.onSurfaceVariant} />
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Verifique treinos recentes no {HEALTH_SOURCE_LABEL} e importe os que ainda nao estao no Tryv.
+          Verifique treinos recentes no {HEALTH_SOURCE_LABEL} e importe os que ainda nao estao no Tryv Fit.
         </Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        {stage === 'idle' && <Button label={`Verificar ${HEALTH_SOURCE_LABEL}`} onPress={handleCheck} />}
+        {stage === 'idle' && <Button3 label={`Verificar ${HEALTH_SOURCE_LABEL}`} onPress={handleCheck} />}
 
         {stage === 'checking' && (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors3.primary} />
             <Text style={styles.checkingText}>Procurando treinos...</Text>
           </View>
         )}
 
         {stage === 'list' && showRouteWarning && (
-          <Card style={styles.warningCard}>
+          <GlassCard variant="glass" style={styles.warningCard}>
             <View style={styles.warningRow}>
-              <Ionicons name="map-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="map-outline" size={20} color={colors3.onSurfaceVariant} />
               <Text style={styles.warningTitle}>Rota de GPS não importada</Text>
             </View>
             <Text style={styles.warningText}>
-              O {HEALTH_SOURCE_LABEL} tem a rota de GPS deste treino, mas o Tryv não conseguiu lê-la —
+              O {HEALTH_SOURCE_LABEL} tem a rota de GPS deste treino, mas o Tryv Fit não conseguiu lê-la —
               falta a permissão "Rotas de exercício". Sem ela, o treino entra como atividade manual (sem
-              mapa, distância ou splits). Ative "Rotas de exercício" para o Tryv em Ajustes →{' '}
-              {HEALTH_SOURCE_LABEL} → Tryv e importe de novo.
+              mapa, distância ou splits). Ative "Rotas de exercício" para o Tryv Fit em Ajustes →{' '}
+              {HEALTH_SOURCE_LABEL} → Tryv Fit e importe de novo.
             </Text>
-            <Button label={`Abrir ${HEALTH_SOURCE_LABEL}`} variant="secondary" onPress={openHealthSettings} />
-          </Card>
+            <Button3 label={`Abrir ${HEALTH_SOURCE_LABEL}`} variant="secondary" onPress={openHealthSettings} />
+          </GlassCard>
         )}
 
         {stage === 'list' && (
           <>
             {workouts.length === 0 ? (
               <View style={styles.empty}>
-                <Ionicons name="checkmark-circle-outline" size={32} color={colors.textMuted} />
+                <Ionicons name="checkmark-circle-outline" size={32} color={colors3.onSurfaceVariant} />
                 <Text style={styles.emptyText}>Nenhum treino novo encontrado.</Text>
               </View>
             ) : (
@@ -191,10 +192,10 @@ export default function HealthKitImportScreen() {
                   const isImporting = importingId === workout.id;
 
                   return (
-                    <Card key={workout.id} style={styles.workoutCard}>
+                    <GlassCard key={workout.id} variant="card" style={styles.workoutCard}>
                       <View style={styles.workoutRow}>
                         <View style={styles.iconWrap}>
-                          <Ionicons name={icon} size={22} color={colors.accent} />
+                          <Ionicons name={icon} size={22} color={colors3.primary} />
                         </View>
                         <View style={styles.workoutInfo}>
                           <Text style={styles.workoutLabel}>{label}</Text>
@@ -218,64 +219,64 @@ export default function HealthKitImportScreen() {
                           </Text>
                         </View>
                       </View>
-                      <Button
+                      <Button3
                         label="Importar"
                         variant="secondary"
                         onPress={() => handleImport(workout)}
                         loading={isImporting}
                         disabled={importingId != null && !isImporting}
                       />
-                    </Card>
+                    </GlassCard>
                   );
                 })}
               </View>
             )}
 
-            <Button label="Verificar novamente" variant="secondary" onPress={handleCheck} />
+            <Button3 label="Verificar novamente" variant="secondary" onPress={handleCheck} />
           </>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing3.lg,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  title: { ...typography.h2 },
-  content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
-  subtitle: { ...typography.bodySecondary },
-  error: { color: colors.danger, textAlign: 'center' },
-  centered: { alignItems: 'center', marginTop: spacing.xl },
-  checkingText: { ...typography.bodySecondary, marginTop: spacing.md },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
-  emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+  title: { ...typography3.headlineMd, fontSize: 18 },
+  content: { padding: spacing3.lg, paddingTop: 0, gap: spacing3.md },
+  subtitle: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
+  error: { color: colors3.error, textAlign: 'center' },
+  centered: { alignItems: 'center', marginTop: spacing3.xl },
+  checkingText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, marginTop: spacing3.md },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  warningCard: { gap: spacing.sm },
-  warningRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  warningTitle: { ...typography.body, fontWeight: '600' },
-  warningText: { ...typography.bodySecondary },
+  warningCard: { gap: spacing3.sm },
+  warningRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  warningTitle: { ...typography3.bodyMd, fontWeight: '600' },
+  warningText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
 
-  list: { gap: spacing.sm },
-  workoutCard: { gap: spacing.md },
-  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  list: { gap: spacing3.sm },
+  workoutCard: { gap: spacing3.md },
+  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  workoutInfo: { flex: 1, gap: spacing.xs },
-  workoutLabel: { ...typography.body, fontWeight: '600' },
-  workoutStats: { ...typography.bodySecondary },
-  workoutDate: { ...typography.caption },
+  workoutInfo: { flex: 1, gap: spacing3.xs },
+  workoutLabel: { ...typography3.bodyMd, fontWeight: '600' },
+  workoutStats: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
+  workoutDate: { ...typography3.labelSm, textTransform: 'none' },
 });

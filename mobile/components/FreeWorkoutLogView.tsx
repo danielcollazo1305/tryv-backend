@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ExercisePickerModal } from '@/components/ExercisePickerModal';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { GlassCard } from '@/components/GlassCard';
 import { SetEntry, SetLogSection } from '@/components/WorkoutDayCard';
 import { FreeSessionExerciseDraft, useWorkoutSessionDraft } from '@/context/WorkoutSessionDraftContext';
 import { ExerciseLibraryEntry } from '@/constants/exerciseLibrary';
 import { logFreeWorkoutSession } from '@/services/workouts';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /** Re-exportado por conveniencia (o formato "de verdade" mora em WorkoutSessionDraftContext.tsx — ver comentario la sobre por que o Context nao importa de um componente de tela). */
 export type FreeSessionExercise = FreeSessionExerciseDraft;
@@ -33,6 +33,14 @@ interface FreeWorkoutLogViewProps {
  * constants/exerciseLibrary.ts) e registra peso/reps livremente,
  * reaproveitando o mesmo SetLogSection ja usado no registro de plano
  * (WorkoutDayCard.tsx) — mesma UI de series, sem duplicar layout.
+ *
+ * Migrado pro tema claro "prism-glass" (colors3/GlassCard/Button3,
+ * SetLogSection variant="light") seguindo o mockup aprovado — essa tela e
+ * deliberadamente mais neutra que o resto do app: o botao tracejado
+ * "Adicionar exercício" fica em tom cinza/neutro (colors3.onSurfaceVariant)
+ * em vez do roxo de destaque, pra nao competir visualmente com o fluxo de
+ * "Gerar treino com IA". ExercisePickerModal ja estava 100% migrado antes
+ * desta tarefa (nao mexido aqui).
  */
 export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
   // Le/escreve pelo WorkoutSessionDraftContext (nao um useState local) —
@@ -109,29 +117,30 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
         </Text>
 
         {exercises.map((exercise) => (
-          <LiquiglassCard key={exercise.name} style={styles.exerciseCard} padding={spacing2.md}>
+          <GlassCard key={exercise.name} variant="card" style={styles.exerciseCard} padding={spacing3.md}>
             <View style={styles.exerciseHeader}>
               <Text style={styles.exerciseName}>{exercise.name}</Text>
               <Pressable hitSlop={8} onPress={() => handleRemoveExercise(exercise.name)}>
-                <Ionicons name="trash-outline" size={18} color={colors2.onSurfaceVariant} />
+                <Ionicons name="trash-outline" size={18} color={colors3.onSurfaceVariant} />
               </Pressable>
             </View>
             <SetLogSection
+              variant="light"
               plannedSets={exercise.sets.length}
               sets={exercise.sets}
               onChange={(sets) => handleSetsChange(exercise.name, sets)}
               exerciseName={exercise.name}
             />
-          </LiquiglassCard>
+          </GlassCard>
         ))}
 
         <Pressable style={styles.addExerciseButton} onPress={() => setPickerOpen(true)}>
-          <Ionicons name="add-circle-outline" size={20} color={colors2.primary} />
+          <Ionicons name="add-circle-outline" size={20} color={colors3.onSurfaceVariant} />
           <Text style={styles.addExerciseText}>Adicionar exercício</Text>
         </Pressable>
       </ScrollView>
 
-      <Button2 label="Concluir treino" onPress={handleComplete} loading={saving} />
+      <Button3 label="Concluir treino" onPress={handleComplete} loading={saving} />
 
       <ExercisePickerModal
         visible={pickerOpen}
@@ -144,22 +153,22 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, gap: spacing2.md },
-  scrollContent: { gap: spacing2.md, paddingBottom: spacing2.md },
-  summary: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-  exerciseCard: { gap: spacing2.sm },
+  container: { flex: 1, gap: spacing3.md },
+  scrollContent: { gap: spacing3.md, paddingBottom: spacing3.md },
+  summary: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  exerciseCard: { gap: spacing3.sm },
   exerciseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  exerciseName: { ...typography2.bodyMd, fontSize: 16, fontWeight: '700' },
+  exerciseName: { ...typography3.bodyMd, fontSize: 16, fontWeight: '700' },
   addExerciseButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing2.xs,
-    paddingVertical: spacing2.md,
-    borderRadius: radius2.md,
+    gap: spacing3.xs,
+    paddingVertical: spacing3.md,
+    borderRadius: radius3.md,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
   },
-  addExerciseText: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '600' },
+  addExerciseText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, fontWeight: '600' },
 });

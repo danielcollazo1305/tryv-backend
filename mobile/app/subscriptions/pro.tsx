@@ -4,12 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Badge } from '@/components/Badge';
-import { Button2 } from '@/components/Button2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { Button3 } from '@/components/Button3';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { UserBadges, getUserBadges } from '@/services/user';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 // Mesmos 7 recursos do mockup assinatura-planos.html — todos com gating real
 // de Pro ja implementado no backend hoje (confirmado direto no codigo via
@@ -71,35 +71,35 @@ export default function TryvProScreen() {
   const isPro = badges?.is_pro ?? false;
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+          <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Tryv</Text>
+        <Text style={styles.headerTitle}>Tryv Fit</Text>
         <View style={{ width: 22 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <View style={styles.heroIconWrap}>
-            <Ionicons name="diamond" size={32} color={colors2.primary} />
+            <Ionicons name="diamond" size={32} color={colors3.primary} />
           </View>
-          <Text style={styles.heroTitle}>Tryv Pro</Text>
+          <Text style={styles.heroTitle}>Tryv Fit Pro</Text>
           <Text style={styles.heroSubtitle}>
             Desbloqueie IA, insights e relatorios avancados para acelerar sua evolucao.
           </Text>
           <Text style={styles.heroNote}>
-            Isso e diferente de contratar um Personal Trainer — o Tryv Pro libera recursos do app, o
+            Isso e diferente de contratar um Personal Trainer — o Tryv Fit Pro libera recursos do app, o
             acompanhamento com um profissional e uma assinatura separada.
           </Text>
         </View>
 
-        <LiquiglassCard style={styles.benefitsCard}>
+        <GlassCard variant="glass" style={styles.benefitsCard}>
           {BENEFITS.map((benefit, index) => (
             <View key={benefit.title} style={[styles.benefitRow, index > 0 && styles.benefitRowDivider]}>
               <View style={styles.benefitIconWrap}>
-                <Ionicons name={benefit.icon} size={20} color={colors2.primary} />
+                <Ionicons name={benefit.icon} size={20} color={colors3.primary} />
               </View>
               <View style={styles.benefitTexts}>
                 <Text style={styles.benefitTitle}>{benefit.title}</Text>
@@ -107,25 +107,25 @@ export default function TryvProScreen() {
               </View>
             </View>
           ))}
-        </LiquiglassCard>
+        </GlassCard>
 
-        <LiquiglassCard style={styles.priceCard}>
+        <GlassCard variant="glass" style={styles.priceCard}>
           <Text style={styles.priceLabel}>Plano mensal</Text>
           <Text style={styles.price}>R$ 39,90</Text>
           <Text style={styles.priceHint}>/mes · cancele quando quiser</Text>
-        </LiquiglassCard>
+        </GlassCard>
 
         {isPro ? (
           <View style={styles.currentPlanRow}>
             <Badge label="Seu plano atual" variant="primary" />
           </View>
         ) : (
-          <Button2 label="Tornar-se Pro" onPress={() => router.push('/subscriptions/checkout')} />
+          <Button3 label="Tornar-se Pro" onPress={() => router.push('/subscriptions/checkout')} />
         )}
 
         <View style={styles.comparisonSection}>
           <Text style={styles.comparisonTitle}>Gratis vs. Pro</Text>
-          <LiquiglassCard style={styles.comparisonCard} padding={0}>
+          <GlassCard variant="glass" style={styles.comparisonCard} padding={0}>
             <View style={[styles.comparisonRow, styles.comparisonHeaderRow]}>
               <Text style={styles.comparisonHeaderLabel}>Recurso</Text>
               <Text style={styles.comparisonHeaderCell}>Gratis</Text>
@@ -141,18 +141,18 @@ export default function TryvProScreen() {
                   <Ionicons
                     name={row.free ? 'checkmark' : 'close'}
                     size={16}
-                    color={row.free ? colors2.onSurfaceVariant : colors2.outlineVariant}
+                    color={row.free ? colors3.onSurfaceVariant : colors3.outlineVariant}
                   />
                 </View>
                 <View style={styles.comparisonCell}>
-                  <Ionicons name="checkmark" size={16} color={colors2.primary} />
+                  <Ionicons name="checkmark" size={16} color={colors3.primary} />
                 </View>
               </View>
             ))}
-          </LiquiglassCard>
+          </GlassCard>
         </View>
       </ScrollView>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -162,71 +162,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg, paddingBottom: spacing2.xl },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.lg, paddingBottom: spacing3.xl },
 
-  hero: { alignItems: 'center', gap: spacing2.xs, marginTop: spacing2.sm },
+  hero: { alignItems: 'center', gap: spacing3.xs, marginTop: spacing3.sm },
   heroIconWrap: {
     width: 64,
     height: 64,
-    borderRadius: radius2.pill,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(208, 188, 255, 0.3)',
+    borderColor: 'rgba(132, 85, 239, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing2.xs,
+    marginBottom: spacing3.xs,
   },
-  heroTitle: { ...typography2.headlineLg, fontSize: 28 },
-  heroSubtitle: { ...typography2.bodyLg, fontSize: 16, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  heroTitle: { ...typography3.headlineLg, fontSize: 28 },
+  heroSubtitle: { ...typography3.bodyLg, fontSize: 16, color: colors3.onSurfaceVariant, textAlign: 'center' },
   heroNote: {
-    ...typography2.labelCaps,
+    ...typography3.labelSm,
     textTransform: 'none',
-    color: colors2.onSurfaceVariant,
+    color: colors3.onSurfaceVariant,
     textAlign: 'center',
-    marginTop: spacing2.xs,
+    marginTop: spacing3.xs,
   },
 
   benefitsCard: { gap: 0 },
-  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md, paddingVertical: spacing2.sm },
-  benefitRowDivider: { borderTopWidth: 1, borderTopColor: 'rgba(53, 53, 52, 0.5)' },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md, paddingVertical: spacing3.sm },
+  benefitRowDivider: { borderTopWidth: 1, borderTopColor: colors3.outlineVariant },
   benefitIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: radius2.pill,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   benefitTexts: { flex: 1, gap: 2 },
-  benefitTitle: { ...typography2.bodyMd, fontWeight: '600' },
-  benefitSubtitle: { ...typography2.labelCaps, textTransform: 'none' },
+  benefitTitle: { ...typography3.bodyMd, fontWeight: '600' },
+  benefitSubtitle: { ...typography3.labelSm, textTransform: 'none' },
 
-  priceCard: { alignItems: 'center', gap: spacing2.xs },
-  priceLabel: { ...typography2.labelCaps },
-  price: { ...typography2.displayHero, fontSize: 40 },
-  priceHint: { ...typography2.labelCaps },
+  priceCard: { alignItems: 'center', gap: spacing3.xs },
+  priceLabel: { ...typography3.labelSm, textTransform: 'uppercase' },
+  price: { ...typography3.displayLg, fontSize: 40 },
+  priceHint: { ...typography3.labelSm, textTransform: 'none' },
 
   currentPlanRow: { alignItems: 'center' },
 
-  comparisonSection: { gap: spacing2.md },
-  comparisonTitle: { ...typography2.headlineMd, fontSize: 18 },
+  comparisonSection: { gap: spacing3.md },
+  comparisonTitle: { ...typography3.headlineMd, fontSize: 18 },
   comparisonCard: { overflow: 'hidden' },
   comparisonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.sm,
-    padding: spacing2.md,
+    gap: spacing3.sm,
+    padding: spacing3.md,
   },
-  comparisonRowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(53, 53, 52, 0.5)' },
-  comparisonHeaderRow: { borderBottomWidth: 1, borderBottomColor: colors2.outlineVariant },
-  comparisonHeaderLabel: { ...typography2.labelCaps, flex: 1 },
-  comparisonHeaderCell: { ...typography2.labelCaps, width: 56, textAlign: 'center' },
-  comparisonHeaderCellPro: { color: colors2.primary },
-  comparisonLabel: { ...typography2.bodyMd, fontSize: 13, flex: 1 },
+  comparisonRowDivider: { borderBottomWidth: 1, borderBottomColor: colors3.outlineVariant },
+  comparisonHeaderRow: { borderBottomWidth: 1, borderBottomColor: colors3.outlineVariant },
+  comparisonHeaderLabel: { ...typography3.labelSm, textTransform: 'uppercase', flex: 1 },
+  comparisonHeaderCell: { ...typography3.labelSm, textTransform: 'uppercase', width: 56, textAlign: 'center' },
+  comparisonHeaderCellPro: { color: colors3.primary },
+  comparisonLabel: { ...typography3.bodyMd, fontSize: 13, flex: 1 },
   comparisonCell: { width: 56, alignItems: 'center' },
 });

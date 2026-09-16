@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 interface BadgeProps {
   label: string;
@@ -14,6 +14,11 @@ interface BadgeProps {
  * Selo pequeno usado no perfil e em cards (ex: "PRO", "TEAM RAFAEL SILVA").
  * Mesmo padrao visual em todas as telas que usam badge (Marketplace, Rede
  * Social, Assinatura, Configuracoes).
+ *
+ * Repintado pro tema claro "prism-glass" (colors3) — unico consumer hoje e
+ * app/subscriptions/pro.tsx, ja migrado; por isso sem variant dark/light
+ * como SelectionCard2/ProgressSteps2/TextField2/ChoiceGroup2 (nao ha
+ * nenhuma tela escura usando este componente pra preservar).
  */
 export function Badge({ label, variant = 'secondary', style }: BadgeProps) {
   const isPrimary = variant === 'primary';
@@ -29,25 +34,26 @@ export function Badge({ label, variant = 'secondary', style }: BadgeProps) {
 
 const styles = StyleSheet.create({
   pill: {
-    borderRadius: radius2.pill,
+    borderRadius: radius3.pill,
     borderWidth: 1,
-    paddingHorizontal: spacing2.md - 4,
+    paddingHorizontal: spacing3.md - 4,
     paddingVertical: 4,
-    backgroundColor: colors2.surfaceContainerHigh,
+    backgroundColor: colors3.surfaceContainerHigh,
   },
   primaryPill: {
-    borderColor: 'rgba(208, 188, 255, 0.2)',
+    borderColor: 'rgba(132, 85, 239, 0.3)',
   },
   secondaryPill: {
-    borderColor: 'rgba(73, 68, 84, 0.3)',
+    borderColor: colors3.outlineVariant,
   },
   label: {
-    ...typography2.labelCaps,
+    ...typography3.labelSm,
+    textTransform: 'uppercase',
   },
   primaryLabel: {
-    color: colors2.primary,
+    color: colors3.primary,
   },
   secondaryLabel: {
-    color: colors2.onSurfaceVariant,
+    color: colors3.onSurfaceVariant,
   },
 });

@@ -4,12 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
-import { Button2 } from '@/components/Button2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { Button3 } from '@/components/Button3';
+import { GlassCard } from '@/components/GlassCard';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { checkoutTryvPro } from '@/services/subscriptions';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 export default function SubscriptionCheckoutScreen() {
   const [subscribing, setSubscribing] = useState(false);
@@ -35,12 +35,12 @@ export default function SubscriptionCheckoutScreen() {
   };
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="close" size={24} color={colors2.onSurfaceVariant} />
+          <Ionicons name="close" size={24} color={colors3.onSurfaceVariant} />
         </Pressable>
-        <Text style={styles.headerTitle}>Tryv</Text>
+        <Text style={styles.headerTitle}>Tryv Fit</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -50,35 +50,42 @@ export default function SubscriptionCheckoutScreen() {
           <Text style={styles.subtitle}>Revise os detalhes antes de continuar para o pagamento.</Text>
         </View>
 
-        <LiquiglassCard style={styles.summaryCard}>
+        <GlassCard variant="glass" style={styles.summaryCard}>
           <View style={styles.summaryLeft}>
             <View style={styles.summaryIconWrap}>
-              <Ionicons name="diamond" size={20} color={colors2.primary} />
+              <Ionicons name="diamond" size={20} color={colors3.primary} />
             </View>
-            <Text style={styles.summaryTitle}>Tryv Pro</Text>
+            <Text style={styles.summaryTitle}>Tryv Fit Pro</Text>
           </View>
           <View style={styles.summaryRight}>
             <Text style={styles.summaryPrice}>R$ 39,90</Text>
             <Text style={styles.summaryPriceUnit}>/mes</Text>
           </View>
-        </LiquiglassCard>
+        </GlassCard>
 
-        <LiquiglassCard style={styles.noticeCard}>
-          <Ionicons name="lock-closed" size={20} color={colors2.primary} />
+        {/*
+          Nao ha SDK de pagamento (Stripe/Apple Pay) embutido nesta tela —
+          o fluxo real abre o checkout hospedado do Stripe num browser
+          EXTERNO (WebBrowser.openBrowserAsync abaixo), fora da arvore RN.
+          Esse card e so o aviso de seguranca, nao uma UI de pagamento —
+          por isso nao ha nada aqui pra "recriar" de um SDK terceiro.
+        */}
+        <GlassCard variant="glass" style={styles.noticeCard}>
+          <Ionicons name="lock-closed" size={20} color={colors3.primary} />
           <View style={styles.noticeTexts}>
             <Text style={styles.noticeTitle}>Pagamento processado com seguranca via Stripe</Text>
             <Text style={styles.noticeSubtitle}>
-              Seus dados de cartao nunca passam pelos servidores do Tryv — voce sera redirecionado para o checkout
+              Seus dados de cartao nunca passam pelos servidores do Tryv Fit — voce sera redirecionado para o checkout
               seguro do Stripe.
             </Text>
           </View>
-        </LiquiglassCard>
+        </GlassCard>
 
         <View style={styles.spacer} />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button2
+        <Button3
           label="Continuar para pagamento"
           onPress={handleContinue}
           loading={subscribing}
@@ -86,17 +93,17 @@ export default function SubscriptionCheckoutScreen() {
         <Text style={styles.cancelHint}>Cancele quando quiser, sem multa.</Text>
 
         {browserOpened && (
-          <LiquiglassCard style={styles.returnCard}>
+          <GlassCard variant="glass" style={styles.returnCard}>
             <Text style={styles.returnText}>Ja concluiu o pagamento no navegador?</Text>
-            <Button2
+            <Button3
               label="Ja paguei — ver confirmacao"
               variant="secondary"
               onPress={() => router.push('/subscriptions/confirmation')}
             />
-          </LiquiglassCard>
+          </GlassCard>
         )}
       </View>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
@@ -106,41 +113,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { flex: 1, padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
+  content: { flex: 1, padding: spacing3.containerMargin, paddingTop: 0, gap: spacing3.lg },
 
-  intro: { gap: spacing2.xs },
-  title: { ...typography2.headlineLgMobile, fontSize: 24 },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
+  intro: { gap: spacing3.xs },
+  title: { ...typography3.headlineLg, fontSize: 24 },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
 
   summaryCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
+  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   summaryIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryTitle: { ...typography2.bodyLg, fontSize: 16, fontWeight: '600' },
+  summaryTitle: { ...typography3.bodyLg, fontSize: 16, fontWeight: '600' },
   summaryRight: { alignItems: 'flex-end' },
-  summaryPrice: { ...typography2.metricMono, fontSize: 18 },
-  summaryPriceUnit: { ...typography2.labelCaps },
+  summaryPrice: { ...typography3.bodyMd, fontSize: 18, fontWeight: '700' },
+  summaryPriceUnit: { ...typography3.labelSm, textTransform: 'uppercase' },
 
-  noticeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing2.sm },
-  noticeTexts: { flex: 1, gap: spacing2.xs },
-  noticeTitle: { ...typography2.bodyMd, fontWeight: '600' },
-  noticeSubtitle: { ...typography2.labelCaps, textTransform: 'none' },
+  noticeCard: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing3.sm },
+  noticeTexts: { flex: 1, gap: spacing3.xs },
+  noticeTitle: { ...typography3.bodyMd, fontWeight: '600' },
+  noticeSubtitle: { ...typography3.labelSm, textTransform: 'none' },
 
-  spacer: { flex: 1, minHeight: spacing2.lg },
-  error: { color: colors2.danger, textAlign: 'center' },
-  cancelHint: { ...typography2.labelCaps, textAlign: 'center' },
+  spacer: { flex: 1, minHeight: spacing3.lg },
+  error: { color: colors3.error, textAlign: 'center' },
+  cancelHint: { ...typography3.labelSm, textTransform: 'none', textAlign: 'center' },
 
-  returnCard: { alignItems: 'center', gap: spacing2.sm, marginTop: spacing2.md },
-  returnText: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  returnCard: { alignItems: 'center', gap: spacing3.sm, marginTop: spacing3.md },
+  returnText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, textAlign: 'center' },
 });
