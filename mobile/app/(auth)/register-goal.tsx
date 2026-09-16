@@ -3,13 +3,14 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { SelectionCard2 } from '@/components/SelectionCard2';
 import { TextField2 } from '@/components/TextField2';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
 import { useRegisterDraft } from '@/context/RegisterDraftContext';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 type Goal = 'emagrecer' | 'massa' | 'manter' | 'condicionamento';
 
@@ -62,20 +63,20 @@ export default function RegisterGoalScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Qual e o seu objetivo?</Text>
           <Text style={styles.subtitle}>Isso define como a IA vai montar seus treinos e planos alimentares</Text>
 
           <View style={styles.progressWrap}>
-            <ProgressSteps2 current={3} total={getOnboardingTotalSteps(draft)} label="Objetivo" />
+            <ProgressSteps2 variant="light" current={3} total={getOnboardingTotalSteps(draft)} label="Objetivo" />
           </View>
         </View>
 
         <Text style={styles.fieldLabel}>Meta principal</Text>
-        <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} />
+        <SelectionCard2 variant="light" options={GOAL_OPTIONS} value={goal} onChange={setGoal} />
 
         {showSpecificTarget && (
           <>
@@ -84,6 +85,7 @@ export default function RegisterGoalScreen() {
             </Text>
             {hasCurrentBodyFat ? (
               <TextField2
+                variant="light"
                 label=""
                 keyboardType="decimal-pad"
                 value={targetBodyFatPercentage}
@@ -92,6 +94,7 @@ export default function RegisterGoalScreen() {
               />
             ) : (
               <TextField2
+                variant="light"
                 label=""
                 keyboardType="decimal-pad"
                 value={targetWeight}
@@ -110,28 +113,28 @@ export default function RegisterGoalScreen() {
 
         <View style={styles.spacer} />
 
-        <Button2 label="Continuar" onPress={handleContinue} />
+        <Button3 label="Continuar" onPress={handleContinue} />
       </ScrollView>
-    </View>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
-  container: { flexGrow: 1, padding: spacing2.containerMargin, paddingTop: spacing2.xl * 1.5, gap: spacing2.md },
-  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
-  logo: { ...typography2.displayHero, fontSize: 36 },
-  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-  progressWrap: { width: '100%', marginTop: spacing2.md },
-  fieldLabel: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginLeft: spacing2.xs },
-  error: { color: colors2.danger, textAlign: 'center' },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, padding: spacing3.containerMargin, paddingTop: spacing3.xl * 1.5, gap: spacing3.md },
+  header: { alignItems: 'center', gap: spacing3.xs, marginBottom: spacing3.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  title: { ...typography3.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing3.sm },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  progressWrap: { width: '100%', marginTop: spacing3.md },
+  fieldLabel: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginLeft: spacing3.xs },
+  error: { color: colors3.error, textAlign: 'center' },
   hint: {
-    ...typography2.bodyMd,
+    ...typography3.bodyMd,
     fontSize: 13,
     fontStyle: 'italic',
-    color: colors2.onSurfaceVariant,
-    marginTop: -spacing2.sm,
+    color: colors3.onSurfaceVariant,
+    marginTop: -spacing3.sm,
   },
-  spacer: { flexGrow: 1, minHeight: spacing2.lg },
+  spacer: { flexGrow: 1, minHeight: spacing3.lg },
 });

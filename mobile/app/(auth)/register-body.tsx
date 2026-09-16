@@ -4,14 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { SelectionCard2 } from '@/components/SelectionCard2';
 import { TextField2 } from '@/components/TextField2';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
 import { BiologicalSex, useRegisterDraft } from '@/context/RegisterDraftContext';
 import { toDateString } from '@/services/weightLogs';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const SEX_OPTIONS: { value: BiologicalSex; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
   { value: 'masculino', label: 'Masculino', icon: 'male' },
@@ -81,99 +82,103 @@ export default function RegisterBodyScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
-          <Text style={styles.title}>Fale sobre o seu corpo</Text>
-          <Text style={styles.subtitle}>Usamos isso para calcular suas necessidades caloricas com precisao</Text>
+    <ScreenBackground3 style={styles.flex}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.logo}>Tryv Fit</Text>
+            <Text style={styles.title}>Fale sobre o seu corpo</Text>
+            <Text style={styles.subtitle}>Usamos isso para calcular suas necessidades caloricas com precisao</Text>
 
-          <View style={styles.progressWrap}>
-            <ProgressSteps2 current={2} total={getOnboardingTotalSteps(draft)} label="Corpo" />
+            <View style={styles.progressWrap}>
+              <ProgressSteps2 variant="light" current={2} total={getOnboardingTotalSteps(draft)} label="Corpo" />
+            </View>
           </View>
-        </View>
 
-        <TextField2
-          label="Altura (cm)"
-          keyboardType="number-pad"
-          value={height}
-          onChangeText={setHeight}
-          placeholder="Ex: 175"
-        />
+          <TextField2
+            variant="light"
+            label="Altura (cm)"
+            keyboardType="number-pad"
+            value={height}
+            onChangeText={setHeight}
+            placeholder="Ex: 175"
+          />
 
-        <View style={styles.dateField}>
-          <Text style={styles.fieldLabel}>Data de nascimento</Text>
-          <Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-            <Ionicons name="calendar-outline" size={18} color={colors2.primary} />
-            <Text style={styles.dateButtonText}>
-              {dateOfBirth ? formatDate(dateOfBirth) : 'Selecionar data'}
-            </Text>
-          </Pressable>
-          {showDatePicker && (
-            <DateTimePicker
-              value={dateOfBirth ?? new Date(2000, 0, 1)}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
-          {Platform.OS === 'ios' && showDatePicker && (
-            <Button2 label="Confirmar data" variant="secondary" onPress={() => setShowDatePicker(false)} />
-          )}
-        </View>
+          <View style={styles.dateField}>
+            <Text style={styles.fieldLabel}>Data de nascimento</Text>
+            <Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={18} color={colors3.primary} />
+              <Text style={styles.dateButtonText}>
+                {dateOfBirth ? formatDate(dateOfBirth) : 'Selecionar data'}
+              </Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={dateOfBirth ?? new Date(2000, 0, 1)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={handleDateChange}
+                maximumDate={new Date()}
+              />
+            )}
+            {Platform.OS === 'ios' && showDatePicker && (
+              <Button3 label="Confirmar data" variant="secondary" onPress={() => setShowDatePicker(false)} />
+            )}
+          </View>
 
-        <Text style={styles.fieldLabel}>Sexo biologico</Text>
-        <SelectionCard2 options={SEX_OPTIONS} value={biologicalSex} onChange={setBiologicalSex} />
+          <Text style={styles.fieldLabel}>Sexo biologico</Text>
+          <SelectionCard2 variant="light" options={SEX_OPTIONS} value={biologicalSex} onChange={setBiologicalSex} />
 
-        <TextField2
-          label="Percentual de gordura corporal (opcional)"
-          keyboardType="decimal-pad"
-          value={bodyFatPercentage}
-          onChangeText={setBodyFatPercentage}
-          placeholder="Ex: 18"
-        />
-        <Text style={styles.hint}>
-          Se voce souber esse numero, ele deixa a meta calorica mais precisa. Pode deixar em branco se nao souber.
-        </Text>
+          <TextField2
+            variant="light"
+            label="Percentual de gordura corporal (opcional)"
+            keyboardType="decimal-pad"
+            value={bodyFatPercentage}
+            onChangeText={setBodyFatPercentage}
+            placeholder="Ex: 18"
+          />
+          <Text style={styles.hint}>
+            Se voce souber esse numero, ele deixa a meta calorica mais precisa. Pode deixar em branco se nao souber.
+          </Text>
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button2 label="Continuar" onPress={handleContinue} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Button3 label="Continuar" onPress={handleContinue} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
-  container: { flexGrow: 1, padding: spacing2.containerMargin, paddingTop: spacing2.xl * 1.5, gap: spacing2.md },
-  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
-  logo: { ...typography2.displayHero, fontSize: 36 },
-  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-  progressWrap: { width: '100%', marginTop: spacing2.md },
-  fieldLabel: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, marginLeft: spacing2.xs },
-  error: { color: colors2.danger, textAlign: 'center' },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, padding: spacing3.containerMargin, paddingTop: spacing3.xl * 1.5, gap: spacing3.md },
+  header: { alignItems: 'center', gap: spacing3.xs, marginBottom: spacing3.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  title: { ...typography3.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing3.sm },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  progressWrap: { width: '100%', marginTop: spacing3.md },
+  fieldLabel: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginLeft: spacing3.xs },
+  error: { color: colors3.error, textAlign: 'center' },
   hint: {
-    ...typography2.bodyMd,
+    ...typography3.bodyMd,
     fontSize: 13,
     fontStyle: 'italic',
-    color: colors2.onSurfaceVariant,
-    marginTop: -spacing2.sm,
+    color: colors3.onSurfaceVariant,
+    marginTop: -spacing3.sm,
   },
 
-  dateField: { gap: spacing2.xs },
+  dateField: { gap: spacing3.xs },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.sm,
-    backgroundColor: colors2.surfaceContainer,
+    gap: spacing3.sm,
+    backgroundColor: colors3.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: 12,
-    paddingHorizontal: spacing2.md,
-    paddingVertical: spacing2.md,
+    borderColor: colors3.outlineVariant,
+    borderRadius: radius3.lg,
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.md,
   },
-  dateButtonText: { ...typography2.bodyMd, color: colors2.onSurface },
+  dateButtonText: { ...typography3.bodyMd, color: colors3.onSurface },
 });

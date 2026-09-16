@@ -2,14 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
 import { useAuth } from '@/context/AuthContext';
 import { useRegisterDraft } from '@/context/RegisterDraftContext';
 import { finishRegistration } from '@/services/onboarding';
 import { getApiErrorMessage } from '@/services/api';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { OnboardingGoal, calculateGoalTimeEstimate, calculateSuggestedCalorieInfo } from '@/utils/healthCalculations';
 
 /**
@@ -78,20 +79,20 @@ export default function RegisterEstimateScreen() {
   };
 
   return (
-    <View style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Estimativa de tempo</Text>
           <Text style={styles.subtitle}>Uma projecao pra sua meta, com base no seu ritmo atual</Text>
 
           <View style={styles.progressWrap}>
-            <ProgressSteps2 current={7} total={getOnboardingTotalSteps(draft)} label="Estimativa" />
+            <ProgressSteps2 variant="light" current={7} total={getOnboardingTotalSteps(draft)} label="Estimativa" />
           </View>
         </View>
 
         <View style={styles.card}>
-          <Ionicons name="hourglass-outline" size={32} color={colors2.primary} />
+          <Ionicons name="hourglass-outline" size={32} color={colors3.primary} />
           {estimate ? (
             <>
               <Text style={styles.resultValue}>~{estimate.weeks} semanas</Text>
@@ -117,40 +118,40 @@ export default function RegisterEstimateScreen() {
 
         <View style={styles.spacer} />
 
-        <Button2 label="Concluir cadastro" onPress={handleFinish} loading={loading} />
+        <Button3 label="Concluir cadastro" onPress={handleFinish} loading={loading} />
       </ScrollView>
-    </View>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
-  container: { flexGrow: 1, padding: spacing2.containerMargin, paddingTop: spacing2.xl * 1.5, gap: spacing2.md },
-  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
-  logo: { ...typography2.displayHero, fontSize: 36 },
-  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-  progressWrap: { width: '100%', marginTop: spacing2.md },
-  error: { color: colors2.danger, textAlign: 'center' },
-  spacer: { flexGrow: 1, minHeight: spacing2.lg },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, padding: spacing3.containerMargin, paddingTop: spacing3.xl * 1.5, gap: spacing3.md },
+  header: { alignItems: 'center', gap: spacing3.xs, marginBottom: spacing3.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  title: { ...typography3.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing3.sm },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  progressWrap: { width: '100%', marginTop: spacing3.md },
+  error: { color: colors3.error, textAlign: 'center' },
+  spacer: { flexGrow: 1, minHeight: spacing3.lg },
   card: {
     alignItems: 'center',
-    gap: spacing2.sm,
-    backgroundColor: colors2.surfaceContainer,
+    gap: spacing3.sm,
+    backgroundColor: colors3.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
-    borderRadius: 20,
-    padding: spacing2.lg,
+    borderColor: colors3.outlineVariant,
+    borderRadius: radius3.xl,
+    padding: spacing3.lg,
   },
-  resultValue: { ...typography2.headlineMd, fontSize: 28, color: colors2.primary, marginTop: spacing2.xs },
-  resultSub: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-  resultDetail: { ...typography2.bodyMd, textAlign: 'center', marginTop: spacing2.xs },
+  resultValue: { ...typography3.headlineMd, fontSize: 28, color: colors3.primary, marginTop: spacing3.xs },
+  resultSub: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  resultDetail: { ...typography3.bodyMd, textAlign: 'center', marginTop: spacing3.xs },
   disclaimer: {
-    ...typography2.bodyMd,
+    ...typography3.bodyMd,
     fontSize: 12,
     fontStyle: 'italic',
-    color: colors2.onSurfaceVariant,
+    color: colors3.onSurfaceVariant,
     textAlign: 'center',
-    marginTop: spacing2.sm,
+    marginTop: spacing3.sm,
   },
 });
