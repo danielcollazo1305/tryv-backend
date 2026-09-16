@@ -1,0 +1,644 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Tryv — landing page (pré-lançamento)
+   Tema "prism-glass" reaproveitado do app (ver mobile/constants/theme.ts,
+   bloco colors3/spacing3/radius3/typography3) — mesmos tokens, agora como
+   CSS custom properties.
+   ───────────────────────────────────────────────────────────────────── */
+
+:root {
+  --color-bg: #fcf9f8;
+  --color-on-surface: #1c1b1b;
+  --color-on-surface-variant: #494454;
+  --color-outline: #7b7486;
+  --color-outline-variant: #cbc3d7;
+  --color-surface-container: #f0edec;
+  --color-surface-container-high: #ebe7e7;
+  --color-surface-lowest: #ffffff;
+  --color-primary: #6b38d4;
+  --color-primary-container: #8455ef;
+  --color-on-primary: #ffffff;
+  --color-error: #ba1a1a;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-glass: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-glass-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
+
+  --container-width: 1120px;
+  --container-padding: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-on-surface);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #5a2eb0;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+/* Fundo decorativo: glow roxo bem sutil atrás do hero, mesma linguagem do
+   RadialGlow usado nos cards do app — nunca deve ficar por cima do texto. */
+.bg-glow {
+  position: fixed;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 900px;
+  max-width: 200vw;
+  background: radial-gradient(circle, rgba(107, 56, 212, 0.14) 0%, rgba(107, 56, 212, 0) 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px var(--container-padding);
+  background: rgba(252, 249, 248, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(28, 27, 27, 0.06);
+}
+
+.wordmark {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: -0.02em;
+}
+
+.header-cta {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ── Sections / rhythm ──────────────────────────────────────────────── */
+
+section {
+  position: relative;
+  z-index: 1;
+  padding: 72px 0;
+}
+
+@media (max-width: 640px) {
+  section {
+    padding: 56px 0;
+  }
+}
+
+.section-head {
+  max-width: 640px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-on-surface);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+h2 {
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+@media (max-width: 640px) {
+  h2 {
+    font-size: 26px;
+  }
+}
+
+.section-sub {
+  margin-top: 12px;
+  color: var(--color-on-surface-variant);
+  font-size: 17px;
+}
+
+/* ── Glass surfaces ─────────────────────────────────────────────────── */
+
+.glass {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-glass);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: var(--radius-xl);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btn-primary:hover {
+  opacity: 0.92;
+  color: var(--color-on-primary);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(107, 56, 212, 0.3);
+  color: var(--color-primary);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--color-primary);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ── Waitlist form ──────────────────────────────────────────────────── */
+
+.waitlist-form {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 460px;
+}
+
+@media (max-width: 480px) {
+  .waitlist-form {
+    flex-direction: column;
+  }
+}
+
+.waitlist-input {
+  flex: 1;
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-outline-variant);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--color-on-surface);
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.waitlist-input::placeholder {
+  color: var(--color-outline);
+}
+
+.waitlist-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(107, 56, 212, 0.15);
+}
+
+.waitlist-input.is-invalid {
+  border-color: var(--color-error);
+}
+
+/* Honeypot -- escondido via CSS pra humano nunca ver nem tabular ate ele,
+   mas continua presente no DOM/markup pra bot de preenchimento automatico
+   encontrar e cair. Nunca usar display:none (alguns bots ignoram campos
+   display:none) -- offscreen + tamanho 0 cobre mais casos. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.waitlist-status {
+  margin-top: 10px;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.waitlist-status.is-success {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.waitlist-status.is-error {
+  color: var(--color-error);
+}
+
+.waitlist-note {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--color-on-surface-variant);
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────── */
+
+.hero {
+  padding-top: 56px;
+  text-align: center;
+}
+
+.hero-wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-size: 48px;
+  line-height: 1.12;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .hero h1 {
+    font-size: 32px;
+  }
+}
+
+.hero-sub {
+  max-width: 620px;
+  margin: 20px auto 32px;
+  font-size: 18px;
+  color: var(--color-on-surface-variant);
+}
+
+@media (max-width: 640px) {
+  .hero-sub {
+    font-size: 16px;
+  }
+}
+
+.hero-form-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Features ───────────────────────────────────────────────────────── */
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.feature-card {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-pill);
+  background: rgba(107, 56, 212, 0.12);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-card h3 {
+  font-size: 18px;
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--color-on-surface-variant);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* ── Pricing ────────────────────────────────────────────────────────── */
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+
+@media (max-width: 780px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pricing-card {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-card.is-featured {
+  border: 1.5px solid rgba(107, 56, 212, 0.35);
+  box-shadow: var(--shadow-glass-lg);
+  position: relative;
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -14px;
+  left: 32px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+}
+
+.pricing-tier {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+.pricing-card.is-featured .pricing-tier {
+  color: var(--color-primary);
+}
+
+.pricing-price {
+  margin-top: 8px;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pricing-price .unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+}
+
+.pricing-list {
+  list-style: none;
+  margin: 28px 0 32px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.pricing-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--color-on-surface);
+}
+
+.pricing-list svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+/* ── CTA final ──────────────────────────────────────────────────────── */
+
+.cta-final {
+  text-align: center;
+}
+
+.cta-final .glass {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cta-final h2 {
+  max-width: 520px;
+}
+
+.cta-final .hero-form-wrap {
+  margin-top: 28px;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+
+.site-footer {
+  position: relative;
+  z-index: 1;
+  padding: 40px var(--container-padding) 56px;
+  border-top: 1px solid rgba(28, 27, 27, 0.08);
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.footer-copy {
+  font-size: 13px;
+  color: var(--color-outline);
+}
+
+/* ── Legal doc pages (privacy.html / terms.html) ───────────────────── */
+
+.doc-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px var(--container-padding) 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.doc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.doc-updated {
+  color: var(--color-on-surface-variant);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.doc-warning {
+  margin: 24px 0;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  background: rgba(186, 26, 26, 0.06);
+  border: 1px solid rgba(186, 26, 26, 0.2);
+  color: #7a1616;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.doc-body {
+  margin-top: 32px;
+}
+
+.doc-body h2 {
+  font-size: 20px;
+  margin-top: 40px;
+  margin-bottom: 12px;
+}
+
+.doc-body h3 {
+  font-size: 16px;
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+.doc-body p,
+.doc-body li {
+  font-size: 15px;
+  color: var(--color-on-surface-variant);
+  line-height: 1.7;
+}
+
+.doc-body strong {
+  color: var(--color-on-surface);
+}
+
+.doc-body ul {
+  padding-left: 20px;
+}
+
+.doc-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.doc-body th,
+.doc-body td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-outline-variant);
+}
+
+.doc-body th {
+  color: var(--color-on-surface);
+}
+
+.doc-hr {
+  border: none;
+  border-top: 1px solid var(--color-outline-variant);
+  margin: 32px 0;
+}
+
+.doc-footnote {
+  margin-top: 40px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-outline);
+}

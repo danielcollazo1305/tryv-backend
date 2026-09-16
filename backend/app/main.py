@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401 — garante que Base.metadata conheça todas as tabelas
 from app.core.config import settings
@@ -24,6 +25,7 @@ from app.routers import (
     trainer_subscriptions,
     trainers,
     users,
+    waitlist,
     webhooks,
     weight_logs,
     workout_plans,
@@ -38,6 +40,22 @@ from app.routers import (
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.app_name)
+
+# CORS -- so existe pra viabilizar a landing page (site estatico separado,
+# outro dominio) chamando o endpoint publico /waitlist do navegador. O app
+# mobile nao passa por CORS (nao e um browser), entao isso nao afeta ele.
+# Restrito a localhost (dev da landing) e *.vercel.app (preview/deploy da
+# landing) por enquanto -- trocar pelo dominio definitivo assim que a
+# landing tiver dominio proprio comprado. Nunca usar "*": a API tem
+# endpoints autenticados, e allow_origin_regex aberto liberaria qualquer
+# site pra tentar chamar eles a partir do browser de um usuario logado.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^(http://localhost(:\d+)?|https://.*\.vercel\.app)$",
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    allow_credentials=False,
+)
 
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -63,6 +81,7 @@ app.include_router(subscriptions.router)
 app.include_router(diet_plans.router)
 app.include_router(squads.router)
 app.include_router(ranking.router)
+app.include_router(waitlist.router)
 
 
 @app.get("/")

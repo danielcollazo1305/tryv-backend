@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Privacidade — Tryv Fit</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a href="index.html" class="wordmark">Tryv Fit</a>
+  </header>
+
+  <main class="doc-page">
+    <a href="index.html" class="doc-back">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      Voltar
+    </a>
+
+    <h1>Política de Privacidade — Tryv Fit</h1>
+    <p class="doc-updated"><strong>Última atualização:</strong> [DATA A DEFINIR]</p>
+
+    <div class="doc-warning">
+      ⚠️ <strong>AVISO IMPORTANTE:</strong> Este documento é um rascunho inicial, criado como ponto de partida. Não
+      constitui aconselhamento jurídico. Antes de publicar este documento ou submeter o app à App Store,
+      recomenda-se revisão por um advogado especializado em proteção de dados (LGPD) e, idealmente, com
+      conhecimento das exigências da Apple para apps que utilizam HealthKit.
+    </div>
+
+    <div class="doc-body">
+      <h2>1. Introdução</h2>
+      <p>Esta Política de Privacidade descreve como o <strong>Tryv Fit</strong> ("nós", "nosso" ou "aplicativo") coleta, usa, armazena e protege as informações dos usuários ("você") ao utilizar nosso aplicativo de fitness multiplataforma.</p>
+      <p>Ao criar uma conta ou usar o Tryv Fit, você concorda com as práticas descritas nesta política.</p>
+      <p><strong>Responsável pelo tratamento de dados (Controlador):</strong><br>
+      [NOME COMPLETO OU RAZÃO SOCIAL A DEFINIR]<br>
+      [CPF/CNPJ A DEFINIR]<br>
+      [E-MAIL DE CONTATO A DEFINIR]</p>
+
+      <hr class="doc-hr">
+
+      <h2>2. Quais Dados Coletamos</h2>
+
+      <h3>2.1 Dados de Cadastro e Perfil</h3>
+      <ul>
+        <li>Nome</li>
+        <li>E-mail</li>
+        <li>Senha (armazenada de forma criptografada via bcrypt, nunca em texto plano)</li>
+        <li>Peso (opcional, fornecido no cadastro ou posteriormente)</li>
+        <li>Altura, objetivo (ex: emagrecimento, hipertrofia, resistência) e meta calórica diária (opcionais, fornecidos no perfil)</li>
+        <li>Foto de perfil (opcional)</li>
+      </ul>
+
+      <h3>2.2 Dados de Saúde e Atividade Física</h3>
+      <ul>
+        <li><strong>Refeições:</strong> fotos de alimentos (quando você opta pelo registro por foto) e/ou dados nutricionais inseridos manualmente (calorias, proteínas, carboidratos, gorduras)</li>
+        <li><strong>Treinos:</strong> treinos gerados por IA e o histórico de treinos realizados</li>
+        <li><strong>Atividades físicas:</strong> dados de GPS durante corridas e pedaladas (localização, rota, distância, velocidade, tempo), além de atividades registradas manualmente (natação, lutas, outras modalidades)</li>
+        <li><strong>Peso corporal:</strong> registros de peso ao longo do tempo, quando fornecidos por você</li>
+        <li><strong>Dados do Apple Health (HealthKit):</strong> mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.</li>
+        <li><strong>Frequência cardíaca:</strong> quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e, durante uma atividade com GPS em andamento, para exibição a um professor autorizado (ver seção 4.1). Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.</li>
+      </ul>
+
+      <h3>2.3 Dados de Pagamento</h3>
+      <p>Processamos pagamentos de assinaturas através do <strong>Stripe</strong>, um processador de pagamentos terceirizado. O Tryv Fit <strong>não armazena</strong> números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.</p>
+
+      <h3>2.4 Dados de Professores (Marketplace)</h3>
+      <p>Para usuários que se cadastram como professores de educação física, coletamos adicionalmente:</p>
+      <ul>
+        <li>Número de registro profissional (CREF) para fins de verificação</li>
+        <li>Dados de conta bancária/Stripe Connect para processamento de repasses</li>
+        <li>Informações de perfil profissional exibidas publicamente no marketplace</li>
+      </ul>
+
+      <h3>2.5 Dados de Uso da Rede Social</h3>
+      <ul>
+        <li>Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo</li>
+        <li>Fotos e mídias enviadas para publicações</li>
+      </ul>
+
+      <hr class="doc-hr">
+
+      <h2>3. Como Usamos Seus Dados</h2>
+      <p>Utilizamos os dados coletados para:</p>
+      <ul>
+        <li>Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social, marketplace)</li>
+        <li>Gerar análises nutricionais automatizadas a partir de fotos de refeições, utilizando serviços de inteligência artificial (ver seção 5)</li>
+        <li>Gerar treinos personalizados através de inteligência artificial</li>
+        <li>Calcular métricas de saúde e desempenho, como o Dashboard de Evolução, Score de Prontidão para Treino e Insights personalizados</li>
+        <li>Processar pagamentos de assinaturas e repasses a professores</li>
+        <li>Permitir que professores autorizados (mediante assinatura ativa) vejam quando um aluno está treinando no momento e acompanhem, em tempo real, a localização e as métricas (distância, ritmo, tempo e frequência cardíaca quando disponível) de uma atividade com GPS enquanto ela estiver em andamento</li>
+        <li>Viabilizar a rede social do aplicativo (feed, seguir, curtir, comentar)</li>
+        <li>Melhorar e manter a segurança do aplicativo</li>
+      </ul>
+      <p><strong>Não vendemos seus dados pessoais a terceiros.</strong></p>
+
+      <hr class="doc-hr">
+
+      <h2>4. Compartilhamento de Dados</h2>
+
+      <h3>4.1 Com Professores</h3>
+      <p>Se você contratar um professor através do marketplace do Tryv Fit, dois tipos de informação passam a ficar visíveis para esse professor, exclusivamente enquanto sua assinatura estiver ativa:</p>
+      <ul>
+        <li>Se você está com uma atividade (corrida ou pedalada com GPS) em andamento neste exato momento;</li>
+        <li>Enquanto essa atividade estiver em andamento, sua localização, distância percorrida, ritmo, tempo decorrido e frequência cardíaca (quando disponível).</li>
+      </ul>
+      <p>Essa visibilidade é limitada à atividade acontecendo ao vivo. O professor <strong>não</strong> tem acesso ao seu histórico de treinos, refeições, peso ou outros dados além do que está descrito acima.</p>
+
+      <h3>4.2 Com Prestadores de Serviço (Subprocessadores)</h3>
+      <p>Utilizamos os seguintes serviços de terceiros para operar o Tryv Fit:</p>
+      <table>
+        <thead>
+          <tr><th>Serviço</th><th>Finalidade</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Anthropic (Claude API)</strong></td><td>Análise de fotos de refeições, geração de treinos personalizados, geração de insights</td></tr>
+          <tr><td><strong>Amazon Web Services (S3)</strong></td><td>Armazenamento de mídias (fotos de refeições, posts, perfis)</td></tr>
+          <tr><td><strong>Stripe / Stripe Connect</strong></td><td>Processamento de pagamentos e repasses a professores</td></tr>
+          <tr><td><strong>Apple (HealthKit)</strong></td><td>Leitura de dados de saúde, mediante sua autorização</td></tr>
+        </tbody>
+      </table>
+      <p>Esses serviços processam dados em nosso nome, sob suas próprias políticas de privacidade e segurança.</p>
+
+      <h3>4.3 Por Obrigação Legal</h3>
+      <p>Poderemos divulgar dados se exigido por lei, ordem judicial ou para proteger direitos, segurança ou propriedade do Tryv Fit ou de terceiros.</p>
+
+      <hr class="doc-hr">
+
+      <h2>5. Uso de Inteligência Artificial</h2>
+      <p>O Tryv Fit utiliza a API da Anthropic (Claude) para:</p>
+      <ul>
+        <li>Analisar fotos de refeições e estimar valores nutricionais</li>
+        <li>Gerar treinos personalizados</li>
+        <li>Gerar insights motivacionais/informativos com base no seu histórico de atividade</li>
+      </ul>
+      <p>Os dados enviados para esse processamento incluem as imagens de refeições (quando aplicável) e um resumo do seu histórico recente de atividades, treinos e alimentação. Consulte a Política de Privacidade da Anthropic para mais informações sobre como esses dados são tratados por esse fornecedor.</p>
+
+      <hr class="doc-hr">
+
+      <h2>6. Dados de Saúde (HealthKit) — Seção Específica</h2>
+      <p>Em conformidade com as diretrizes da Apple para uso do HealthKit:</p>
+      <ul>
+        <li>Solicitamos sua autorização explícita antes de ler qualquer dado no Apple Health</li>
+        <li>Você pode revogar essa autorização a qualquer momento em <strong>Ajustes do iPhone → Privacidade e Segurança → Saúde → Tryv Fit</strong></li>
+        <li><strong>Nunca utilizamos dados de saúde para fins de publicidade</strong></li>
+        <li>Dados de saúde não são compartilhados com terceiros para fins de marketing ou venda de dados</li>
+        <li>Você pode solicitar a exclusão dos dados de saúde sincronizados com o Tryv Fit a qualquer momento, entrando em contato conforme a seção 8 — essa exclusão é processada manualmente mediante solicitação, e não há hoje uma ferramenta de autoatendimento no aplicativo para isso</li>
+      </ul>
+
+      <hr class="doc-hr">
+
+      <h2>7. Retenção de Dados</h2>
+      <p>Mantemos seus dados pessoais enquanto sua conta estiver ativa. Após a exclusão da conta, seus dados serão removidos ou anonimizados dentro de [PRAZO A DEFINIR — recomenda-se consultar um advogado sobre prazos legais aplicáveis, especialmente para dados fiscais/financeiros que podem exigir retenção mínima por lei].</p>
+      <p>O aplicativo não possui hoje uma função de autoexclusão de conta; a exclusão de conta e de dados é feita mediante solicitação por e-mail (ver seção 8) e processada manualmente.</p>
+
+      <hr class="doc-hr">
+
+      <h2>8. Seus Direitos (LGPD)</h2>
+      <p>Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), você tem direito a:</p>
+      <ul>
+        <li>Confirmar a existência de tratamento de seus dados</li>
+        <li>Acessar seus dados</li>
+        <li>Corrigir dados incompletos, inexatos ou desatualizados</li>
+        <li>Solicitar a anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade com a lei</li>
+        <li>Solicitar a portabilidade de dados a outro fornecedor</li>
+        <li>Eliminar dados pessoais tratados com base no seu consentimento</li>
+        <li>Revogar o consentimento a qualquer momento</li>
+        <li>Obter informações sobre entidades com as quais compartilhamos seus dados</li>
+      </ul>
+      <p>Para exercer esses direitos, entre em contato através de: [E-MAIL DE CONTATO A DEFINIR]. Essas solicitações são atendidas manualmente pela nossa equipe.</p>
+
+      <hr class="doc-hr">
+
+      <h2>9. Segurança dos Dados</h2>
+      <p>Adotamos medidas técnicas e organizacionais para proteger seus dados, incluindo:</p>
+      <ul>
+        <li>Criptografia de senhas (bcrypt)</li>
+        <li>Comunicação segura via HTTPS</li>
+        <li>Autenticação via tokens de acesso (JWT)</li>
+        <li>Controle de acesso a dados sensíveis</li>
+        <li>Armazenamento de mídias em infraestrutura segura (AWS S3)</li>
+      </ul>
+      <p>Apesar dos esforços, nenhum sistema é 100% seguro, e não podemos garantir segurança absoluta contra acessos não autorizados.</p>
+
+      <hr class="doc-hr">
+
+      <h2>10. Privacidade de Menores</h2>
+      <p>O Tryv Fit não é destinado a menores de 16 anos. Não coletamos intencionalmente dados de menores sem o consentimento apropriado dos responsáveis legais.</p>
+      <p>O cadastro no aplicativo não coleta data de nascimento nem realiza verificação de idade — a definição de uma idade mínima nesta política deve vir acompanhada, se exigido pela orientação jurídica, de um mecanismo de verificação correspondente no cadastro.</p>
+
+      <hr class="doc-hr">
+
+      <h2>11. Alterações a Esta Política</h2>
+      <p>Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos sobre alterações significativas através do aplicativo ou por e-mail. A data da última atualização estará sempre indicada no topo deste documento.</p>
+
+      <hr class="doc-hr">
+
+      <h2>12. Contato</h2>
+      <p>Para dúvidas sobre esta Política de Privacidade ou sobre o tratamento de seus dados pessoais, entre em contato:</p>
+      <p><strong>E-mail:</strong> [A DEFINIR]<br>
+      <strong>Endereço:</strong> [A DEFINIR, SE APLICÁVEL]</p>
+
+      <hr class="doc-hr">
+
+      <p class="doc-footnote">Este documento foi elaborado como rascunho inicial e deve ser revisado por um profissional jurídico antes de sua publicação oficial, especialmente quanto a: prazos de retenção de dados, idade mínima de usuários, cláusulas específicas de LGPD, e conformidade com as exigências da Apple App Store para apps que utilizam HealthKit e processam dados de saúde.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p class="footer-copy">© 2026 Tryv Fit</p>
+  </footer>
+</body>
+</html>

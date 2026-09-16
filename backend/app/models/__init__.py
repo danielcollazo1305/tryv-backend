@@ -20,5 +20,6 @@ from app.models.squad import Squad, SquadMembership  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401
 from app.models.trainer import Trainer  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.models.waitlist_email import WaitlistEmail  # noqa: F401
 from app.models.weight_log import WeightLog  # noqa: F401
 from app.models.workout import WorkoutPlan, WorkoutSession  # noqa: F401
