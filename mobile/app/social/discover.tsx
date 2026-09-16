@@ -250,9 +250,9 @@ export default function DiscoverScreen() {
             <View style={styles.explainIconWrap}>
               <Ionicons name="people" size={24} color={colors3.primary} />
             </View>
-            <Text style={styles.explainTitle}>Encontre amigos que ja usam o Tryv</Text>
+            <Text style={styles.explainTitle}>Encontre amigos que ja usam o Tryv Fit</Text>
             <Text style={styles.explainText}>
-              O Tryv acessa sua agenda so pra comparar numeros de telefone com quem ja tem conta -- nenhum outro
+              O Tryv Fit acessa sua agenda so pra comparar numeros de telefone com quem ja tem conta -- nenhum outro
               dado do seu contato (nome, foto, e-mail) e enviado.
             </Text>
             <Button3 label="Permitir acesso aos contatos" onPress={handleRequestPermission} />
@@ -285,9 +285,9 @@ export default function DiscoverScreen() {
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => {
-              if (item.type === 'matched-header') return <Text style={styles.sectionTitle}>Amigos no Tryv</Text>;
+              if (item.type === 'matched-header') return <Text style={styles.sectionTitle}>Amigos no Tryv Fit</Text>;
               if (item.type === 'unmatched-header')
-                return <Text style={styles.sectionTitle}>Convide para o Tryv</Text>;
+                return <Text style={styles.sectionTitle}>Convide para o Tryv Fit</Text>;
               if (item.type === 'matched') {
                 const contact = item.contact;
                 return (

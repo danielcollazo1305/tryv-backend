@@ -136,7 +136,7 @@ export default function FeedScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.logo}>Tryv</Text>
+            <Text style={styles.logo}>Tryv Fit</Text>
             <View style={styles.headerTop}>
               <Text style={styles.title}>Feed</Text>
               <View style={styles.headerActions}>

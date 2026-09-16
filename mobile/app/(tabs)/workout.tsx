@@ -190,7 +190,7 @@ export default function WorkoutScreen() {
     <ScreenBackground3>
       <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         <View style={styles.headerWrap}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <View style={styles.header}>
             <Text style={styles.title}>Treino</Text>
             <View style={styles.headerActions}>
@@ -235,7 +235,7 @@ export default function WorkoutScreen() {
               </GlassCard>
             </ObscuredCard>
             <Button3
-              label="Assinar Tryv Pro para desbloquear"
+              label="Assinar Tryv Fit Pro para desbloquear"
               variant="secondary"
               onPress={() => router.push('/subscriptions/pro')}
             />

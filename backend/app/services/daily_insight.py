@@ -28,7 +28,7 @@ _INSIGHT_SCHEMA = {
 }
 
 _SYSTEM_PROMPT = (
-    "Voce e o assistente de fitness do app Tryv. Com base num resumo dos "
+    "Voce e o assistente de fitness do app Tryv Fit. Com base num resumo dos "
     "ultimos 7 dias de atividade do usuario (refeicoes/calorias, treinos e "
     "atividades fisicas, frequencia cardiaca quando disponivel), gere UM "
     "insight curto e acionavel, em portugues, com tom motivacional mas "

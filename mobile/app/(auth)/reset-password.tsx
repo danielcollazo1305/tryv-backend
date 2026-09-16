@@ -70,7 +70,7 @@ export default function ResetPasswordScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>Tryv</Text>
+            <Text style={styles.logo}>Tryv Fit</Text>
             <Text style={styles.title}>Redefinir senha</Text>
             <Text style={styles.subtitle}>
               {email

@@ -209,8 +209,8 @@ function buildReportHtml(params: {
       </head>
       <body>
         <div class="header">
-          <div class="brand">Tryv</div>
-          <h1>Relatorio Tryv &mdash; ${rangeLabel}</h1>
+          <div class="brand">Tryv Fit</div>
+          <h1>Relatorio Tryv Fit &mdash; ${rangeLabel}</h1>
           <p>${params.userName}</p>
           <p class="generated">Gerado em ${generatedAt}</p>
         </div>

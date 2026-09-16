@@ -20,7 +20,7 @@ export function ProfileBadges({ badges }: { badges: UserBadges | null }) {
       {badges.is_pro && (
         <View style={[styles.pill, styles.proPill]}>
           <Ionicons name="star" size={12} color={colors.white} />
-          <Text style={styles.proText}>Tryv Pro</Text>
+          <Text style={styles.proText}>Tryv Fit Pro</Text>
         </View>
       )}
       {badges.teams.map((team) => (

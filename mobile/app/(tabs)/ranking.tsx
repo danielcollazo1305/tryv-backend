@@ -324,7 +324,7 @@ export default function RankingScreen() {
         ]}
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <View style={styles.headerTop}>
             <Text style={styles.title}>Ranking</Text>
             <ProfileAvatarButton size={36} />

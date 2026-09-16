@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # verificado no Resend — so entrega pro proprio e-mail da conta Resend
     # ate la (ver docstring de services/email.py).
     resend_api_key: str = ""
-    resend_from_email: str = "Tryv <onboarding@resend.dev>"
+    resend_from_email: str = "Tryv Fit <onboarding@resend.dev>"
 
     class Config:
         env_file = ".env"

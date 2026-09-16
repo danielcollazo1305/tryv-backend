@@ -80,7 +80,7 @@ export default function MealsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.logo}>Tryv</Text>
+            <Text style={styles.logo}>Tryv Fit</Text>
             <View style={styles.headerTop}>
               <View>
                 <Text style={styles.title}>Refeições</Text>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tryv",
+    "name": "Tryv Fit",
     "slug": "tryv-mobile",
     "scheme": "tryv",
     "version": "1.0.0",
@@ -53,14 +53,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O Tryv precisa acessar suas fotos para voce anexar uma foto da refeicao.",
-          "cameraPermission": "O Tryv precisa acessar a camera para voce fotografar sua refeicao."
+          "photosPermission": "O Tryv Fit precisa acessar suas fotos para voce anexar uma foto da refeicao.",
+          "cameraPermission": "O Tryv Fit precisa acessar a camera para voce fotografar sua refeicao."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Tryv precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada.",
+          "locationWhenInUsePermission": "O Tryv Fit precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada.",
           "locationAlwaysAndWhenInUsePermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
@@ -69,7 +69,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "O Tryv acessa seus dados do Apple Health (treinos, passos, distancia, frequencia cardiaca, calorias ativas e sono) para mostrar seu resumo de atividade e importar treinos automaticamente.",
+          "NSHealthShareUsageDescription": "O Tryv Fit acessa seus dados do Apple Health (treinos, passos, distancia, frequencia cardiaca, calorias ativas e sono) para mostrar seu resumo de atividade e importar treinos automaticamente.",
           "background": false
         }
       ],
@@ -78,7 +78,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "O Tryv acessa seus contatos para encontrar amigos que ja usam o app. So os numeros de telefone sao usados, nunca enviados ou salvos alem da checagem de correspondencia."
+          "contactsPermission": "O Tryv Fit acessa seus contatos para encontrar amigos que ja usam o app. So os numeros de telefone sao usados, nunca enviados ou salvos alem da checagem de correspondencia."
         }
       ],
       "expo-video",

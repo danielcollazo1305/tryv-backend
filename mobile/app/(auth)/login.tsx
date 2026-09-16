@@ -36,7 +36,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>Tryv</Text>
+            <Text style={styles.logo}>Tryv Fit</Text>
             <Text style={styles.subtitle}>Entre para continuar seu progresso</Text>
           </View>
 

@@ -205,7 +205,7 @@ export default function FollowsScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Tryv</Text>
+        <Text style={styles.headerTitle}>Tryv Fit</Text>
         <View style={{ width: 22 }} />
       </View>
 

@@ -29,7 +29,7 @@ export default function SubscriptionConfirmationScreen() {
     <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
         <View style={{ width: 24 }} />
-        <Text style={styles.headerTitle}>Tryv</Text>
+        <Text style={styles.headerTitle}>Tryv Fit</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -39,7 +39,7 @@ export default function SubscriptionConfirmationScreen() {
         </View>
 
         <View style={styles.texts}>
-          <Text style={styles.title}>Parabens! Voce agora e Tryv Pro</Text>
+          <Text style={styles.title}>Parabens! Voce agora e Tryv Fit Pro</Text>
           <Text style={styles.subtitle}>Todos os recursos avancados ja estao liberados na sua conta.</Text>
         </View>
 

@@ -187,7 +187,7 @@ export default function HomeScreen() {
       */}
       <View style={styles.headerBlock}>
         <View style={styles.brandRow}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <View style={styles.headerActions}>
             <ProfileAvatarButton size={32} />
             <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>

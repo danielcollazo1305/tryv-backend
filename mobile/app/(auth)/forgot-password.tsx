@@ -35,7 +35,7 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Esqueci minha senha</Text>
           <Text style={styles.subtitle}>
             Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um codigo de verificacao.

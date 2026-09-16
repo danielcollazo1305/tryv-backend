@@ -73,6 +73,6 @@ def require_pro_subscription(
     if not has_active_pro_subscription(db, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Esta funcionalidade requer uma assinatura Tryv Pro ativa",
+            detail="Esta funcionalidade requer uma assinatura Tryv Fit Pro ativa",
         )
     return current_user

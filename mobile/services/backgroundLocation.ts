@@ -91,7 +91,7 @@ export async function startBackgroundTracking(): Promise<void> {
     distanceInterval: 10,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
-      notificationTitle: 'Tryv',
+      notificationTitle: 'Tryv Fit',
       notificationBody: 'Gravando sua atividade em segundo plano...',
     },
   });

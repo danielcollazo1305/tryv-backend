@@ -67,8 +67,8 @@ export function WorkoutShareCard({ userName, day }: WorkoutShareCardProps) {
         </View>
 
         <View style={styles.brandRow}>
-          <Text style={styles.brandName}>Tryv</Text>
-          <Text style={styles.brandTag}>treinei com o Tryv</Text>
+          <Text style={styles.brandName}>Tryv Fit</Text>
+          <Text style={styles.brandTag}>treinei com o Tryv Fit</Text>
         </View>
       </View>
     </View>

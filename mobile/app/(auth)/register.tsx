@@ -59,7 +59,7 @@ export default function RegisterScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.logo}>Tryv</Text>
+          <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Criar sua conta</Text>
           <Text style={styles.subtitle}>Vamos comecar sua jornada</Text>
 

@@ -54,13 +54,13 @@ def checkout_pro(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Voce ja tem uma assinatura Tryv Pro ativa",
+            detail="Voce ja tem uma assinatura Tryv Fit Pro ativa",
         )
 
     if not settings.stripe_pro_price_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Assinatura Tryv Pro ainda nao configurada",
+            detail="Assinatura Tryv Fit Pro ainda nao configurada",
         )
 
     client = get_client()
@@ -95,7 +95,7 @@ def checkout_pro(
 
 @router.get("/pro/success", response_model=StatusMessageOut)
 def checkout_pro_success():
-    return {"status": "success", "message": "Assinatura Tryv Pro confirmada! Voce ja pode fechar esta janela."}
+    return {"status": "success", "message": "Assinatura Tryv Fit Pro confirmada! Voce ja pode fechar esta janela."}
 
 
 @router.get("/pro/cancel", response_model=StatusMessageOut)

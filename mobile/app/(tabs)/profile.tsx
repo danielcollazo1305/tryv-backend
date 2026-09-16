@@ -448,7 +448,7 @@ export default function ProfileScreen() {
   return (
     <ScreenBackground3>
       <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-        <Text style={styles.logo}>Tryv</Text>
+        <Text style={styles.logo}>Tryv Fit</Text>
 
         <Avatar initials={user ? getInitials(user.name) : '?'} size={88} style={styles.avatar} />
         <Text style={styles.name}>{user?.name}</Text>
@@ -588,7 +588,7 @@ export default function ProfileScreen() {
                     <GridIcon name="star" tone="pro" />
                     <Ionicons name="chevron-forward" size={16} color={colors3.outline} />
                   </View>
-                  <Text style={styles.tileLabel}>Tryv Pro</Text>
+                  <Text style={styles.tileLabel}>Tryv Fit Pro</Text>
                   <Text style={[styles.tileValue, badges?.is_pro && styles.tileValuePro]}>
                     {badges?.is_pro ? 'PRO' : 'Assinar'}
                   </Text>

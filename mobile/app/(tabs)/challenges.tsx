@@ -180,7 +180,7 @@ function AppTab() {
           </View>
           <View style={styles.categoryInfo}>
             <Text style={styles.categoryTitle}>Musculação/Corrida</Text>
-            <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv de treino e corrida</Text>
+            <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv Fit de treino e corrida</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
         </GlassCard>
@@ -195,7 +195,7 @@ function AppTab() {
           </View>
           <View style={styles.categoryInfo}>
             <Text style={styles.categoryTitle}>Alimentação</Text>
-            <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv de alimentação</Text>
+            <Text style={styles.categorySubtitle}>Desafios mensais oficiais do Tryv Fit de alimentação</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
         </GlassCard>

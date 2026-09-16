@@ -276,7 +276,7 @@ export default function ChallengeDetailScreen() {
               {challenge.is_official ? (
                 <View style={styles.tag}>
                   <Ionicons name="shield-checkmark" size={13} color={colors3.primary} />
-                  <Text style={styles.tagText}>Desafio oficial Tryv</Text>
+                  <Text style={styles.tagText}>Desafio oficial Tryv Fit</Text>
                 </View>
               ) : (
                 creatorTrainer && (

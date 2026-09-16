@@ -93,10 +93,10 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 
             sent = send_email(
                 to=user.email,
-                subject="Codigo de recuperacao de senha - Tryv",
+                subject="Codigo de recuperacao de senha - Tryv Fit",
                 html=(
                     f"<p>Ola, {user.name}!</p>"
-                    f"<p>Use o codigo abaixo para redefinir sua senha no Tryv. "
+                    f"<p>Use o codigo abaixo para redefinir sua senha no Tryv Fit. "
                     f"Ele e valido por {_RESET_CODE_EXPIRE_MINUTES} minutos.</p>"
                     f"<p style=\"font-size: 28px; font-weight: bold; letter-spacing: 4px;\">{code}</p>"
                     f"<p>Se voce nao pediu essa recuperacao, pode ignorar este e-mail.</p>"

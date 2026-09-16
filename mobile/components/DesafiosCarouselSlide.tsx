@@ -79,7 +79,7 @@ export function DesafiosCarouselSlide() {
         icon="trophy"
         categoryLabel="Comunidade"
         title="Desafios"
-        subtitle="Acompanhe desafios dos seus profissionais e da comunidade Tryv."
+        subtitle="Acompanhe desafios dos seus profissionais e da comunidade Tryv Fit."
         accessibilityLabel="Grupo de pessoas correndo ao entardecer"
         onPress={() => router.push('/challenges')}
         ctaLabel="Ver desafios"

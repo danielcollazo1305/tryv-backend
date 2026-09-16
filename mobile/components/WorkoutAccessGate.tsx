@@ -36,12 +36,12 @@ export function WorkoutAccessGate({ children }: { children: React.ReactNode }) {
         </View>
         <Text style={styles.title}>Acesso a treinos</Text>
         <Text style={styles.subtitle}>
-          Assine o Tryv Pro para treinos gerados por IA, personalizados pro seu objetivo, nivel e equipamento
+          Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nivel e equipamento
           disponivel.
         </Text>
 
         <View style={styles.actions}>
-          <Button3 label="Assinar Tryv Pro" onPress={() => router.push('/subscriptions/pro')} />
+          <Button3 label="Assinar Tryv Fit Pro" onPress={() => router.push('/subscriptions/pro')} />
           {/*
             <Button3
               label="Procurar um profissional"

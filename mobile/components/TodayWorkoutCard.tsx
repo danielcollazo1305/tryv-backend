@@ -77,7 +77,7 @@ export function TodayWorkoutCard() {
           </View>
           <Text style={styles.title}>Começar treino</Text>
           <Text style={styles.subtitle}>
-            Registre um treino livre — escolha os exercícios e acompanhe peso, reps e séries, sem depender de um
+            Registre um treino livre: escolha os exercícios e acompanhe peso, reps e séries, sem depender de um
             plano.
           </Text>
           <Button3 label="Começar treino" onPress={() => router.push('/workout-plan/free-session')} />

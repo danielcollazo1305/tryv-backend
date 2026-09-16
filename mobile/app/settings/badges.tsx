@@ -63,7 +63,7 @@ export default function BadgesScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Tryv</Text>
+        <Text style={styles.headerTitle}>Tryv Fit</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -126,7 +126,7 @@ export default function BadgesScreen() {
                   <Text style={styles.ctaTitle}>Desbloqueie seu Potencial</Text>
                 </View>
                 <Text style={styles.ctaSubtitle}>
-                  Eleve seus resultados com o Tryv Pro. Analise detalhada, IA personalizada e muito mais.
+                  Eleve seus resultados com o Tryv Fit Pro. Analise detalhada, IA personalizada e muito mais.
                 </Text>
                 <Button2 label="Assinar agora" onPress={() => router.push('/subscriptions/pro')} />
               </LiquiglassCard>
