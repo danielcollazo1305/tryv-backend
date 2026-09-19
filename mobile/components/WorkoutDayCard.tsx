@@ -151,14 +151,18 @@ export function SetLogSection({
         </View>
       )}
       <View style={s.logHeaderRow}>
-        <Text style={[s.logHeaderCell, s.logSerieCell]}>Serie</Text>
+        <Text style={[s.logHeaderCell, s.logHeaderSerieCell]}>Série</Text>
         <Text style={[s.logHeaderCell, s.logInputCell]}>Peso (kg)</Text>
         <Text style={[s.logHeaderCell, s.logInputCell]}>Reps</Text>
         <View style={s.logCheckCell} />
       </View>
       {rows.map((row, index) => (
-        <View key={index} style={s.logRow}>
-          <Text style={[s.logSerieText, s.logSerieCell]}>{index + 1}</Text>
+        <View key={index} style={[s.logRow, row.completed && s.logRowDone]}>
+          <View style={s.logSerieCell}>
+            <View style={[s.serieChip, row.completed && s.serieChipDone]}>
+              <Text style={[s.serieChipText, row.completed && s.serieChipTextDone]}>{index + 1}</Text>
+            </View>
+          </View>
           <TextInput
             style={[s.logInput, s.logInputCell]}
             keyboardType="decimal-pad"
@@ -177,18 +181,18 @@ export function SetLogSection({
           />
           <Pressable
             style={s.logCheckCell}
-            hitSlop={8}
+            hitSlop={10}
             onPress={() => updateRow(index, { completed: !row.completed })}
           >
             <View style={[s.checkCircle, row.completed && s.checkCircleDone]}>
-              {row.completed && <Ionicons name="checkmark" size={14} color={isLight ? colors3.white : colors2.white} />}
+              {row.completed && <Ionicons name="checkmark" size={16} color={isLight ? colors3.white : colors2.white} />}
             </View>
           </Pressable>
         </View>
       ))}
       <Pressable style={s.addSetButton} onPress={addSet} hitSlop={8}>
         <Ionicons name="add-circle-outline" size={16} color={isLight ? colors3.primary : colors2.primary} />
-        <Text style={s.addSetText}>Adicionar serie</Text>
+        <Text style={s.addSetText}>Adicionar série</Text>
       </Pressable>
     </View>
   );
@@ -348,38 +352,75 @@ const styles = StyleSheet.create({
   },
   noteText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant, flex: 1 },
 
+  // Sem backgroundColor de proposito -- antes era colors2.surfaceContainerHigh
+  // (caixa solida opaca), uma segunda camada destoando do resto do app, que
+  // usa vidro translucido (GlassCard/LiquiglassCard) sem caixa aninhada por
+  // cima. A tabela agora se apoia direto na superficie do card pai.
   logSection: {
     gap: spacing2.xs,
-    backgroundColor: colors2.surfaceContainerHigh,
     borderRadius: radius2.sm,
     padding: spacing2.sm,
   },
   lastPerformanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   lastPerformanceText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
-  logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
+  logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
   logHeaderCell: { ...typography2.labelCaps, textTransform: 'none', fontSize: 11, color: colors2.onSurfaceVariant },
-  logRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.xs },
-  logSerieCell: { width: 28 },
-  logSerieText: { ...typography2.bodyMd, fontSize: 13, color: colors2.onSurfaceVariant },
-  logInputCell: { flex: 1 },
+  // Largura do cabeçalho ("Série") separada da largura da célula de dado
+  // (chip numerado) -- antes as duas reusavam logSerieCell (width: 28),
+  // estreito demais pro texto do cabeçalho, que quebrava em "Seri"/"e".
+  logHeaderSerieCell: { width: 44 },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing2.sm,
+    paddingVertical: spacing2.sm,
+    paddingHorizontal: spacing2.xs,
+    borderRadius: radius2.sm,
+  },
+  // Leve realce de fundo na linha inteira quando a serie ja foi marcada
+  // como concluida -- mais facil de distinguir de relance numa lista de
+  // varias series do que so o preenchimento do circulo.
+  logRowDone: { backgroundColor: 'rgba(139, 92, 246, 0.08)' },
+  logSerieCell: { width: 44, alignItems: 'center' },
+  serieChip: {
+    width: 28,
+    height: 28,
+    borderRadius: radius2.pill,
+    borderWidth: 1,
+    borderColor: colors2.outlineVariant,
+    backgroundColor: colors2.surfaceContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serieChipDone: { backgroundColor: colors2.violet, borderColor: colors2.violet },
+  serieChipText: { ...typography2.labelCaps, textTransform: 'none', fontSize: 12, fontWeight: '700', color: colors2.onSurfaceVariant },
+  serieChipTextDone: { color: colors2.white },
+  logInputCell: { flex: 1, minWidth: 0 },
+  // Inputs maiores e com mais peso visual -- peso/reps sao o elemento mais
+  // usado da tela, mereciam mais destaque que o resto da linha.
   logInput: {
     backgroundColor: colors2.surfaceContainer,
-    borderRadius: radius2.sm,
+    borderRadius: radius2.md,
     borderWidth: 1,
     borderColor: colors2.outlineVariant,
     paddingHorizontal: spacing2.sm,
-    paddingVertical: spacing2.xs + 2,
+    paddingVertical: spacing2.sm,
     color: colors2.onSurface,
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '700',
     textAlign: 'center',
   },
-  logCheckCell: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  // Alvo de toque maior pro check (era 22x22, visualmente pequeno e sem
+  // alinhamento claro com a linha) -- largura da celula acompanha o novo
+  // circulo + respiro, hitSlop cobre o resto.
+  logCheckCell: { width: 40, alignItems: 'center', justifyContent: 'center' },
   checkCircle: {
-    width: 22,
-    height: 22,
+    width: 32,
+    height: 32,
     borderRadius: radius2.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(149, 142, 160, 0.4)',
+    backgroundColor: colors2.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -461,38 +502,73 @@ const stylesLight = StyleSheet.create({
   },
   noteText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant, flex: 1 },
 
+  // Sem backgroundColor de proposito -- ver comentario equivalente em
+  // `styles.logSection` (dark) acima sobre por que a caixa solida saiu.
   logSection: {
     gap: spacing3.xs,
-    backgroundColor: colors3.surfaceContainerHigh,
     borderRadius: radius3.sm,
     padding: spacing3.sm,
   },
   lastPerformanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
   lastPerformanceText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11, color: colors3.onSurfaceVariant },
-  logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
+  logHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   logHeaderCell: { ...typography3.labelSm, textTransform: 'none', fontSize: 11, color: colors3.onSurfaceVariant },
-  logRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
-  logSerieCell: { width: 28 },
-  logSerieText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
-  logInputCell: { flex: 1 },
-  logInput: {
-    backgroundColor: colors3.surfaceContainer,
+  // Largura do cabeçalho ("Série") separada da largura da célula de dado
+  // (chip numerado) -- antes as duas reusavam logSerieCell (width: 28),
+  // estreito demais pro texto do cabeçalho, que quebrava em "Seri"/"e".
+  logHeaderSerieCell: { width: 44 },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing3.sm,
+    paddingVertical: spacing3.sm,
+    paddingHorizontal: spacing3.xs,
     borderRadius: radius3.sm,
-    borderWidth: 1,
-    borderColor: colors3.outlineVariant,
-    paddingHorizontal: spacing3.sm,
-    paddingVertical: spacing3.xs + 2,
-    color: colors3.onSurface,
-    fontSize: 14,
-    textAlign: 'center',
   },
-  logCheckCell: { width: 28, alignItems: 'center', justifyContent: 'center' },
-  checkCircle: {
-    width: 22,
-    height: 22,
+  // Leve realce de fundo na linha inteira quando a serie ja foi marcada
+  // como concluida -- mais facil de distinguir de relance numa lista de
+  // varias series do que so o preenchimento do circulo.
+  logRowDone: { backgroundColor: 'rgba(107, 56, 212, 0.08)' },
+  logSerieCell: { width: 44, alignItems: 'center' },
+  serieChip: {
+    width: 28,
+    height: 28,
     borderRadius: radius3.pill,
     borderWidth: 1,
     borderColor: colors3.outlineVariant,
+    backgroundColor: colors3.surfaceContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serieChipDone: { backgroundColor: colors3.primary, borderColor: colors3.primary },
+  serieChipText: { ...typography3.labelSm, textTransform: 'none', fontSize: 12, fontWeight: '700', color: colors3.onSurfaceVariant },
+  serieChipTextDone: { color: colors3.white },
+  logInputCell: { flex: 1, minWidth: 0 },
+  // Inputs maiores e com mais peso visual -- peso/reps sao o elemento mais
+  // usado da tela, mereciam mais destaque que o resto da linha.
+  logInput: {
+    backgroundColor: colors3.surfaceContainer,
+    borderRadius: radius3.md,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: spacing3.sm,
+    color: colors3.onSurface,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  // Alvo de toque maior pro check (era 22x22, visualmente pequeno e sem
+  // alinhamento claro com a linha) -- largura da celula acompanha o novo
+  // circulo + respiro, hitSlop cobre o resto.
+  logCheckCell: { width: 40, alignItems: 'center', justifyContent: 'center' },
+  checkCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: radius3.pill,
+    borderWidth: 1.5,
+    borderColor: colors3.outlineVariant,
+    backgroundColor: colors3.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
   },
