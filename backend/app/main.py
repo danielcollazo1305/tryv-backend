@@ -44,14 +44,14 @@ app = FastAPI(title=settings.app_name)
 # CORS -- so existe pra viabilizar a landing page (site estatico separado,
 # outro dominio) chamando o endpoint publico /waitlist do navegador. O app
 # mobile nao passa por CORS (nao e um browser), entao isso nao afeta ele.
-# Restrito a localhost (dev da landing) e *.vercel.app (preview/deploy da
-# landing) por enquanto -- trocar pelo dominio definitivo assim que a
-# landing tiver dominio proprio comprado. Nunca usar "*": a API tem
-# endpoints autenticados, e allow_origin_regex aberto liberaria qualquer
-# site pra tentar chamar eles a partir do browser de um usuario logado.
+# Restrito a localhost (dev da landing), tryvfit.app (dominio de producao da
+# landing) e *.vercel.app (preview/deploy da landing no Vercel). Nunca usar
+# "*": a API tem endpoints autenticados, e allow_origin_regex aberto
+# liberaria qualquer site pra tentar chamar eles a partir do browser de um
+# usuario logado.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^(http://localhost(:\d+)?|https://.*\.vercel\.app)$",
+    allow_origin_regex=r"^(http://localhost(:\d+)?|https://(www\.)?tryvfit\.app|https://.*\.vercel\.app)$",
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     allow_credentials=False,
