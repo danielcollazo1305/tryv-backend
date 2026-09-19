@@ -39,7 +39,7 @@ export function TrainerWorkoutSection({ trainerName, plan }: { trainerName: stri
             <Ionicons name="clipboard-outline" size={24} color={colors3.primary} />
           </View>
           <Text style={styles.emptyText}>
-            Seu Personal Trainer ainda nao montou um plano de treino para voce.
+            Seu Personal Trainer ainda não montou um plano de treino para você.
           </Text>
         </GlassCard>
       )}

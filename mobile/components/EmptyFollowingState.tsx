@@ -43,8 +43,8 @@ export function EmptyFollowingState({ variant = 'dark' }: EmptyFollowingStatePro
         <View style={stylesLight.iconWrap}>
           <Ionicons name="people-outline" size={28} color={colors3.primary} />
         </View>
-        <Text style={stylesLight.title}>Voce nao esta seguindo ninguem</Text>
-        <Text style={stylesLight.subtitle}>Revise as sugestoes de seus amigos para comecar.</Text>
+        <Text style={stylesLight.title}>Você não está seguindo ninguém</Text>
+        <Text style={stylesLight.subtitle}>Revise as sugestões de seus amigos para começar.</Text>
         {/*
           Button3 nao aceita `style` (Omit<PressableProps, 'style'>, de
           proposito — ver componente) e estica pra preencher toda a
@@ -56,7 +56,7 @@ export function EmptyFollowingState({ variant = 'dark' }: EmptyFollowingStatePro
           pra Button3 ter um teto de largura menor que a largura do card.
         */}
         <View style={stylesLight.buttonWrap}>
-          <Button3 label="Revisar sugestoes" onPress={handlePress} />
+          <Button3 label="Revisar sugestões" onPress={handlePress} />
         </View>
       </GlassCard>
     );
@@ -67,9 +67,9 @@ export function EmptyFollowingState({ variant = 'dark' }: EmptyFollowingStatePro
       <View style={stylesDark.iconWrap}>
         <Ionicons name="people-outline" size={28} color={colors2.onSurfaceVariant} />
       </View>
-      <Text style={stylesDark.title}>Voce nao esta seguindo ninguem</Text>
-      <Text style={stylesDark.subtitle}>Revise as sugestoes de seus amigos para comecar.</Text>
-      <Button2 label="Revisar sugestoes" onPress={handlePress} />
+      <Text style={stylesDark.title}>Você não está seguindo ninguém</Text>
+      <Text style={stylesDark.subtitle}>Revise as sugestões de seus amigos para começar.</Text>
+      <Button2 label="Revisar sugestões" onPress={handlePress} />
     </View>
   );
 }

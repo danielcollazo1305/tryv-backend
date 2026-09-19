@@ -81,7 +81,7 @@ export default function HomeScreen() {
       const isProRequired = axios.isAxiosError(err) && err.response?.status === 402;
       setSummary(null);
       if (!isProRequired) {
-        setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu resumo.'));
+        setError(getApiErrorMessage(err, 'Não foi possível carregar seu resumo.'));
       }
     } finally {
       setLoading(false);

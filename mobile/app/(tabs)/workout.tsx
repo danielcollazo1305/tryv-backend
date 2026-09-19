@@ -121,7 +121,7 @@ export default function WorkoutScreen() {
       setPlans(plansData);
       setBadges(badgesData);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar seu treino.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar seu treino.'));
       // Falha ao checar badges/assinatura = trata como sem acesso (mais
       // restritivo por padrao) em vez de liberar a tela por engano.
       setBadges(null);
@@ -168,7 +168,7 @@ export default function WorkoutScreen() {
           (usuario free, sem Personal Trainer) sem ver-lo nesta aba.
         */}
         <View style={styles.gateHeader}>
-          <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Historico de atividades">
+          <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Histórico de atividades">
             <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
           </Pressable>
           <ProfileAvatarButton isPro={isPro} size={36} />
@@ -198,7 +198,7 @@ export default function WorkoutScreen() {
                   na aba Treino -- antes so era alcancavel via "Veja mais do
                   seu progresso" (ActivityProgressCard, Home), que continua
                   existindo tambem (nao concorrente, so mais um caminho). */}
-              <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Historico de atividades">
+              <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Histórico de atividades">
                 <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
               </Pressable>
               {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}

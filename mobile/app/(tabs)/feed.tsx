@@ -61,7 +61,7 @@ export default function FeedScreen() {
       setFollowingCount(myFollowing.length);
       fetchBadgesFor(data);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar o feed.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar o feed.'));
     }
   }, [fetchBadgesFor, user]);
 

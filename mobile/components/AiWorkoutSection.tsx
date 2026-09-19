@@ -44,7 +44,7 @@ export function AiWorkoutSection({ plan }: { plan: WorkoutPlan | null }) {
             <Text style={styles.expiredBadge}>Plano expirado</Text>
           </View>
           <Text style={styles.expiredText}>
-            Esse plano passou da validade de 8 semanas. Voce ainda pode ver o que treinava, mas pra continuar
+            Esse plano passou da validade de 8 semanas. Você ainda pode ver o que treinava, mas pra continuar
             evoluindo, gere um plano novo.
           </Text>
           <Button3 label="Gerar novo treino" onPress={() => router.push('/workout-plan/generate')} />
@@ -74,7 +74,7 @@ export function AiWorkoutSection({ plan }: { plan: WorkoutPlan | null }) {
           </View>
           <Text style={styles.emptyTitle}>Nenhum plano de treino ainda</Text>
           <Text style={styles.emptyText}>
-            Gere um plano semanal personalizado com IA, de acordo com seu objetivo, nivel e equipamento disponivel.
+            Gere um plano semanal personalizado com IA, de acordo com seu objetivo, nível e equipamento disponível.
           </Text>
           <Button3 label="Gerar treino com IA" onPress={() => router.push('/workout-plan/generate')} />
         </GlassCard>

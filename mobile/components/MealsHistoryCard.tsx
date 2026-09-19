@@ -98,7 +98,7 @@ export function MealsHistoryCard() {
     try {
       setSummary(await getMealsSummary(period, offset));
     } catch {
-      setError('Nao foi possivel carregar o historico.');
+      setError('Não foi possível carregar o histórico.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,7 @@ export function MealsHistoryCard() {
 
   return (
     <GlassCard variant="glass" style={styles.card}>
-      <Text style={styles.title}>Historico</Text>
+      <Text style={styles.title}>Histórico</Text>
 
       <View style={styles.periodRow}>
         {PERIOD_OPTIONS.map((option) => {
@@ -168,7 +168,7 @@ export function MealsHistoryCard() {
             <StackedBarChart
               data={{
                 labels: daily.map((d) => formatBucketLabel(d.date, summary.granularity)),
-                legend: ['Proteina', 'Gordura', 'Carboidrato'],
+                legend: ['Proteína', 'Gordura', 'Carboidrato'],
                 data: daily.map(macroSegments),
                 barColors: [MACRO_COLORS.protein, MACRO_COLORS.fat, MACRO_COLORS.carbs],
               }}
@@ -190,7 +190,7 @@ export function MealsHistoryCard() {
           <View style={styles.legend}>
             {(
               [
-                ['Proteina', MACRO_COLORS.protein],
+                ['Proteína', MACRO_COLORS.protein],
                 ['Gordura', MACRO_COLORS.fat],
                 ['Carboidrato', MACRO_COLORS.carbs],
               ] as const
@@ -204,15 +204,15 @@ export function MealsHistoryCard() {
 
           <View style={styles.averagesRow}>
             <View style={styles.averageStat}>
-              <Text style={styles.averageLabel}>Proteina media</Text>
+              <Text style={styles.averageLabel}>Proteína média</Text>
               <Text style={styles.averageValue}>{formatGrams(summary.avg_protein)}</Text>
             </View>
             <View style={styles.averageStat}>
-              <Text style={styles.averageLabel}>Carboidrato medio</Text>
+              <Text style={styles.averageLabel}>Carboidrato médio</Text>
               <Text style={styles.averageValue}>{formatGrams(summary.avg_carbs)}</Text>
             </View>
             <View style={styles.averageStat}>
-              <Text style={styles.averageLabel}>Gordura media</Text>
+              <Text style={styles.averageLabel}>Gordura média</Text>
               <Text style={styles.averageValue}>{formatGrams(summary.avg_fat)}</Text>
             </View>
           </View>

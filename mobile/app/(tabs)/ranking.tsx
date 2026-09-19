@@ -140,7 +140,7 @@ export default function RankingScreen() {
     try {
       setMySquad(await getMySquad());
     } catch (err) {
-      setErrorMySquad(getApiErrorMessage(err, 'Nao foi possivel carregar seu squad.'));
+      setErrorMySquad(getApiErrorMessage(err, 'Não foi possível carregar seu squad.'));
     } finally {
       setLoadingMySquad(false);
     }
@@ -152,7 +152,7 @@ export default function RankingScreen() {
     try {
       setIndividualRanking(await getIndividualRanking(50, 0));
     } catch (err) {
-      setErrorIndividual(getApiErrorMessage(err, 'Nao foi possivel carregar o ranking.'));
+      setErrorIndividual(getApiErrorMessage(err, 'Não foi possível carregar o ranking.'));
     } finally {
       setLoadingIndividual(false);
     }
@@ -167,7 +167,7 @@ export default function RankingScreen() {
       // (nao existe um endpoint dedicado "meu squad no ranking").
       setSquadRanking(await getSquadRanking(100, 0));
     } catch (err) {
-      setErrorSquadRanking(getApiErrorMessage(err, 'Nao foi possivel carregar o ranking de squads.'));
+      setErrorSquadRanking(getApiErrorMessage(err, 'Não foi possível carregar o ranking de squads.'));
     } finally {
       setLoadingSquadRanking(false);
     }
@@ -242,7 +242,7 @@ export default function RankingScreen() {
       fetchMySquad();
       fetchSquadRanking();
     } catch (err) {
-      setModalError(getApiErrorMessage(err, 'Nao foi possivel criar o squad.'));
+      setModalError(getApiErrorMessage(err, 'Não foi possível criar o squad.'));
     } finally {
       setSubmitting(false);
     }
@@ -259,7 +259,7 @@ export default function RankingScreen() {
       fetchMySquad();
       fetchSquadRanking();
     } catch (err) {
-      setModalError(getApiErrorMessage(err, 'Nao foi possivel entrar no squad.'));
+      setModalError(getApiErrorMessage(err, 'Não foi possível entrar no squad.'));
     } finally {
       setSubmitting(false);
     }
@@ -273,7 +273,7 @@ export default function RankingScreen() {
       await fetchMySquad();
       fetchSquadRanking();
     } catch (err) {
-      setSquadActionError(getApiErrorMessage(err, 'Nao foi possivel sair do squad.'));
+      setSquadActionError(getApiErrorMessage(err, 'Não foi possível sair do squad.'));
     } finally {
       setSquadActionSubmitting(false);
     }
@@ -296,7 +296,7 @@ export default function RankingScreen() {
       await fetchMySquad();
       fetchSquadRanking();
     } catch (err) {
-      setSquadActionError(getApiErrorMessage(err, 'Nao foi possivel deletar o squad.'));
+      setSquadActionError(getApiErrorMessage(err, 'Não foi possível deletar o squad.'));
     } finally {
       setSquadActionSubmitting(false);
     }

@@ -38,7 +38,7 @@ export function CalorieBalanceCard({ caloriesToday, calorieGoal }: CalorieBalanc
       <Pressable onPress={() => router.push('/settings/calorie-goal')}>
         <GlassCard variant="glass" style={styles.card}>
           <Ionicons name="flag-outline" size={20} color={colors3.onSurfaceVariant} />
-          <Text style={styles.emptyText}>Configure sua meta calorica para ver aqui</Text>
+          <Text style={styles.emptyText}>Configure sua meta calórica para ver aqui</Text>
         </GlassCard>
       </Pressable>
     );
@@ -50,8 +50,8 @@ export function CalorieBalanceCard({ caloriesToday, calorieGoal }: CalorieBalanc
   const color = isDeficit ? DEFICIT_COLOR : surplusRatio > 0.2 ? colors3.error : colors3.primary;
   const icon = isDeficit ? 'trending-down' : 'trending-up';
   const label = isDeficit
-    ? `Deficit de ${Math.round(Math.abs(balance)).toLocaleString('pt-BR')} kcal hoje`
-    : `Superavit de ${Math.round(Math.abs(balance)).toLocaleString('pt-BR')} kcal hoje`;
+    ? `Déficit de ${Math.round(Math.abs(balance)).toLocaleString('pt-BR')} kcal hoje`
+    : `Superávit de ${Math.round(Math.abs(balance)).toLocaleString('pt-BR')} kcal hoje`;
 
   return (
     <GlassCard variant="glass" style={styles.card}>

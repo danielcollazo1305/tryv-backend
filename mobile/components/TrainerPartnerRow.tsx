@@ -42,7 +42,7 @@ export function TrainerPartnerRow() {
     <Pressable onPress={() => router.push(isTrainer ? '/trainers/me' : '/trainers/register')}>
       <GlassCard style={styles.card} padding={spacing3.md}>
         <Text style={styles.text}>
-          {isTrainer ? 'Voce e nosso parceiro — ver meu painel' : 'E personal trainer ou nutricionista? Seja nosso parceiro'}
+          {isTrainer ? 'Você é nosso parceiro — ver meu painel' : 'É personal trainer ou nutricionista? Seja nosso parceiro'}
         </Text>
         <Ionicons name="chevron-forward" size={20} color={colors3.outline} />
       </GlassCard>

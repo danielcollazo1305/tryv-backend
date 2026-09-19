@@ -58,7 +58,7 @@ export function MacrosGrid({ calories, protein, carbs, fat, calorieGoal }: Macro
         </View>
 
         <View style={styles.tile}>
-          <Text style={styles.label}>Proteina</Text>
+          <Text style={styles.label}>Proteína</Text>
           <Text style={styles.value}>
             {Math.round(protein)}
             <Text style={styles.unit}> g</Text>

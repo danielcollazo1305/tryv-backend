@@ -41,7 +41,7 @@ export function DietPlanBanner() {
         </View>
         <View style={styles.info}>
           <Text style={styles.title}>Seu plano alimentar</Text>
-          <Text style={styles.subtitle}>Veja as refeicoes sugeridas pelo seu nutricionista</Text>
+          <Text style={styles.subtitle}>Veja as refeições sugeridas pelo seu nutricionista</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
       </GlassCard>

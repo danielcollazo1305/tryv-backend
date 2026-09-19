@@ -34,8 +34,8 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
       <View style={styles.empty}>
         <Text style={styles.emptyText}>
           {data.length === 0
-            ? 'Registre seu peso para comecar a ver a evolucao aqui.'
-            : 'Registre mais um peso para ver o grafico de evolucao.'}
+            ? 'Registre seu peso para começar a ver a evolução aqui.'
+            : 'Registre mais um peso para ver o gráfico de evolução.'}
         </Text>
       </View>
     );

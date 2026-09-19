@@ -36,8 +36,8 @@ export function WorkoutAccessGate({ children }: { children: React.ReactNode }) {
         </View>
         <Text style={styles.title}>Acesso a treinos</Text>
         <Text style={styles.subtitle}>
-          Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nivel e equipamento
-          disponivel.
+          Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nível e equipamento
+          disponível.
         </Text>
 
         <View style={styles.actions}>

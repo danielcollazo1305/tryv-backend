@@ -31,7 +31,7 @@ export default function MealsScreen() {
       const data = await listMeals();
       setMeals(data);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar suas refeicoes.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar suas refeições.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -109,7 +109,7 @@ export default function MealsScreen() {
                 <View style={styles.photosLinkIconWrap}>
                   <Ionicons name="images" size={18} color={colors3.primary} />
                 </View>
-                <Text style={styles.photosLinkText}>Historico de fotos</Text>
+                <Text style={styles.photosLinkText}>Histórico de fotos</Text>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
               </GlassCard>
             </Pressable>
@@ -145,7 +145,7 @@ export default function MealsScreen() {
           !loading ? (
             <View style={styles.empty}>
               <Ionicons name="restaurant-outline" size={32} color={colors3.onSurfaceVariant} />
-              <Text style={styles.emptyText}>Nenhuma refeicao registrada hoje ainda.</Text>
+              <Text style={styles.emptyText}>Nenhuma refeição registrada hoje ainda.</Text>
             </View>
           ) : null
         }
