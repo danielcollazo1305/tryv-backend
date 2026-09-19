@@ -96,7 +96,7 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
   if (error) {
     content = (
       <Text style={styles.emptyText}>
-        {userId ? 'Nao foi possivel carregar a frequencia de treino.' : 'Nao foi possivel carregar sua frequencia de treino.'}
+        {userId ? 'Não foi possível carregar a frequência de treino.' : 'Não foi possível carregar sua frequência de treino.'}
       </Text>
     );
   } else if (!days) {

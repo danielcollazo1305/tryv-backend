@@ -202,7 +202,7 @@ export function HealthMetricsGrid() {
       {showConnectHint && (
         <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
           <Text style={styles.connectHintText}>
-            {status === 'error' ? 'Nao foi possivel carregar seus dados de saude.' : 'Nenhum dado sincronizado ainda.'}{' '}
+            {status === 'error' ? 'Não foi possível carregar seus dados de saúde.' : 'Nenhum dado sincronizado ainda.'}{' '}
             Conectar {HEALTH_SOURCE_LABEL}
           </Text>
         </Pressable>

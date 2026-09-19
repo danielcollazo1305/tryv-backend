@@ -39,7 +39,7 @@ function ActivityTypeBlock({ activityType, records }: { activityType: string; re
 
       {records.longest_distance && (
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Maior distancia</Text>
+          <Text style={styles.rowLabel}>Maior distância</Text>
           <Text style={styles.rowValue}>{formatDistanceKm(records.longest_distance.distance_meters)} km</Text>
         </View>
       )}
