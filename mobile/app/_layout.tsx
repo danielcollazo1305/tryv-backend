@@ -55,6 +55,7 @@ function RootNavigator() {
         <Stack.Screen name="meal/photos" options={{ presentation: 'modal' }} />
         <Stack.Screen name="workout-plan/generate" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/index" />
+        <Stack.Screen name="activity/progress" />
         <Stack.Screen name="activity/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
@@ -76,6 +77,7 @@ function RootNavigator() {
         <Stack.Screen name="challenges/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/category/[category]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="weight/index" />
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="export-pdf" options={{ presentation: 'modal' }} />
       </Stack.Protected>

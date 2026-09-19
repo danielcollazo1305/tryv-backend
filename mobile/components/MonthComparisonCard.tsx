@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
 import { MetricComparison, MonthComparison, getMonthComparison } from '@/services/dashboard';
@@ -21,13 +21,49 @@ interface MetricRowConfig {
   key: keyof Omit<MonthComparison, 'current_month' | 'previous_month'>;
   label: string;
   formatValue: (value: number) => string;
+  /**
+   * Pra onde o tile leva ao tocar — cada metrica tem uma fonte real
+   * diferente no backend (ver dashboard.py), entao nao da pra usar um
+   * destino generico:
+   * - distance_km/workouts_count vem de Run + ManualActivity ->
+   *   /activity/progress (pagina cheia com grafico + lista filtrada por
+   *   periodo — troca feita nesta tarefa; antes ia pra /activity, a lista
+   *   crua sem grafico nenhum, avaliada como "muito superficial". /activity
+   *   continua existindo, so esses 2 tiles pararam de apontar pra la).
+   * - avg_daily_calories vem de Meal.calories (refeicoes registradas) ->
+   *   /meals. NAO e a mesma coisa que /health/calories (calorias
+   *   ativas/queimadas do HealthKit/Health Connect) — cuidado pra nao
+   *   confundir as duas.
+   * - weight_change_kg vem de WeightLog -> /weight (tela nova).
+   */
+  route: Href;
 }
 
 const METRICS: MetricRowConfig[] = [
-  { key: 'distance_km', label: 'Km percorridos', formatValue: (v) => `${v.toFixed(1)} km` },
-  { key: 'workouts_count', label: 'Treinos concluidos', formatValue: (v) => `${Math.round(v)}` },
-  { key: 'avg_daily_calories', label: 'Kcal/dia (media)', formatValue: (v) => `${Math.round(v)}` },
-  { key: 'weight_change_kg', label: 'Variacao de peso', formatValue: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} kg` },
+  {
+    key: 'distance_km',
+    label: 'Km percorridos',
+    formatValue: (v) => `${v.toFixed(1)} km`,
+    route: '/activity/progress',
+  },
+  {
+    key: 'workouts_count',
+    label: 'Treinos concluídos',
+    formatValue: (v) => `${Math.round(v)}`,
+    route: '/activity/progress',
+  },
+  {
+    key: 'avg_daily_calories',
+    label: 'Kcal/dia (média)',
+    formatValue: (v) => `${Math.round(v)}`,
+    route: '/meals',
+  },
+  {
+    key: 'weight_change_kg',
+    label: 'Variação de peso',
+    formatValue: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)} kg`,
+    route: '/weight',
+  },
 ];
 
 function MetricTile({ config, comparison }: { config: MetricRowConfig; comparison: MetricComparison }) {
@@ -38,7 +74,10 @@ function MetricTile({ config, comparison }: { config: MetricRowConfig; compariso
   const deltaColor = isUp ? SUCCESS_COLOR : isDown ? colors3.error : colors3.onSurfaceVariant;
 
   return (
-    <View style={styles.tileWrap}>
+    <Pressable
+      style={({ pressed }) => [styles.tileWrap, pressed && styles.tileWrapPressed]}
+      onPress={() => router.push(config.route)}
+    >
       <GlassCard variant="card" style={styles.tile} padding={spacing3.md}>
         <Text style={styles.tileLabel}>{config.label}</Text>
         <Text style={styles.tileValue}>{hasCurrent ? config.formatValue(comparison.current as number) : '--'}</Text>
@@ -55,7 +94,7 @@ function MetricTile({ config, comparison }: { config: MetricRowConfig; compariso
           <Text style={styles.deltaTextMuted}>sem comparação</Text>
         )}
       </GlassCard>
-    </View>
+    </Pressable>
   );
 }
 
@@ -134,6 +173,8 @@ const styles = StyleSheet.create({
   // ambiguidade de largura ja corrigida la — por isso o wrapper aqui.
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   tileWrap: { flexBasis: '47%', flexGrow: 1 },
+  // Mesmo valor de opacidade de feedback ao toque ja usado em Button3.tsx.
+  tileWrapPressed: { opacity: 0.85 },
   tile: { gap: 4 },
   tileLabel: { ...typography3.labelSm, textTransform: 'none' },
   // Mesmo token de HealthMetricsGrid.tileValue (typography3.headlineLg,
