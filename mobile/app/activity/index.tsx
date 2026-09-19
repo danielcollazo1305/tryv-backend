@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { HealthSummaryCard } from '@/components/HealthSummaryCard';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import {
   ACTIVITY_TYPE_ICONS,
@@ -21,7 +21,7 @@ import {
   listRuns,
   parseUtcDate,
 } from '@/services/activities';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type FeedEntry = { kind: 'run'; data: Run } | { kind: 'manual'; data: ManualActivity };
 
@@ -49,26 +49,49 @@ function ActivityRow({ entry, isPersonalRecord }: { entry: FeedEntry; isPersonal
 
   return (
     <Pressable
+      style={styles.rowWrapper}
       onPress={() => router.push({ pathname: '/activity/[id]', params: { id: entry.data.id, kind: entry.kind } })}
     >
-      <LiquiglassCard style={styles.row}>
-        {isPersonalRecord && (
-          <View style={styles.prBadge}>
-            <Ionicons name="trophy" size={12} color={colors2.white} />
-            <Text style={styles.prBadgeText}>Recorde</Text>
-          </View>
-        )}
-        <View style={styles.iconWrap}>
-          <Ionicons name={icon} size={22} color={colors2.primary} />
+      {/*
+        Badge fora do LiquiglassCard de proposito (nao dentro dele como
+        antes) -- o `wrapper` interno do LiquiglassCard tem overflow:'hidden'
+        (necessario pra recortar o blur/gradiente nos cantos arredondados),
+        que cortava esse badge sempre que ele tentava "escapar" da borda do
+        card (top:-8/right:-8). Como irmao do card, dentro deste
+        Pressable com position:'relative', o badge sobrepoe o canto sem ser
+        recortado. Bug pre-existente, nao introduzido por esta migracao —
+        mesma limitacao vale pros outros consumidores de LiquiglassCard que
+        colocam algo posicionado fora dos limites do card.
+      */}
+      {isPersonalRecord && (
+        <View style={styles.prBadge}>
+          <Ionicons name="trophy" size={12} color={colors3.white} />
+          <Text style={styles.prBadgeText}>Recorde</Text>
         </View>
-        <View style={styles.rowInfo}>
-          <View style={styles.rowHeader}>
-            <Text style={styles.rowLabel}>{label}</Text>
-            <Text style={styles.rowDate}>{formatActivityDate(entryDate(entry).toISOString())}</Text>
+      )}
+      <LiquiglassCard variant="light">
+        {/*
+          rowContent embrulha os filhos reais num unico View com seu proprio
+          flexDirection:'row' -- o `style` passado direto pro LiquiglassCard
+          so alcanca o shadowWrapper mais externo (que tem 1 filho so, entao
+          flexDirection ali nao tem efeito nenhum sobre os netos), nunca o
+          `content` interno onde os filhos de fato moram. Mesmo bug
+          pre-existente do badge acima; workaround local, sem mexer no
+          componente compartilhado (usado por ~39 arquivos).
+        */}
+        <View style={styles.rowContent}>
+          <View style={styles.iconWrap}>
+            <Ionicons name={icon} size={22} color={colors3.primary} />
           </View>
-          <Text style={styles.rowStats}>{statsLine}</Text>
+          <View style={styles.rowInfo}>
+            <View style={styles.rowHeader}>
+              <Text style={styles.rowLabel}>{label}</Text>
+              <Text style={styles.rowDate}>{formatActivityDate(entryDate(entry).toISOString())}</Text>
+            </View>
+            <Text style={styles.rowStats}>{statsLine}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
       </LiquiglassCard>
     </Pressable>
   );
@@ -136,7 +159,7 @@ export default function ActivitiesScreen() {
   }, [runs, manualActivities]);
 
   return (
-    <ScreenBackground2 style={styles.flex}>
+    <ScreenBackground3 style={styles.flex}>
       <FlatList
         data={feed}
         keyExtractor={(item) => `${item.kind}-${item.data.id}`}
@@ -146,23 +169,23 @@ export default function ActivitiesScreen() {
             <View style={styles.headerRow}>
               <Text style={styles.title}>Minhas atividades</Text>
               <Pressable style={styles.healthButton} onPress={() => router.push('/activity/healthkit')} hitSlop={8}>
-                <Ionicons name="download-outline" size={16} color={colors2.primary} />
+                <Ionicons name="download-outline" size={16} color={colors3.primary} />
                 <Text style={styles.healthButtonText}>Importar treinos</Text>
               </Pressable>
             </View>
-            <HealthSummaryCard />
+            <HealthSummaryCard variant="light" />
             {!!error && <Text style={styles.error}>{error}</Text>}
-            {loading && <ActivityIndicator color={colors2.violet} style={styles.loading} />}
+            {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
           </View>
         }
         renderItem={({ item }) => (
           <ActivityRow entry={item} isPersonalRecord={item.kind === 'run' && personalRecordRunIds.has(item.data.id)} />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing2.sm }} />}
+        ItemSeparatorComponent={() => <View style={{ height: spacing3.sm }} />}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="footsteps-outline" size={32} color={colors2.onSurfaceVariant} />
+              <Ionicons name="footsteps-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>Nenhuma atividade registrada ainda.</Text>
             </View>
           ) : null
@@ -170,75 +193,76 @@ export default function ActivitiesScreen() {
       />
 
       <Pressable style={styles.fab} onPress={() => router.push('/activity/new')}>
-        <Ionicons name="add" size={28} color={colors2.white} />
+        <Ionicons name="add" size={28} color={colors3.white} />
       </Pressable>
-    </ScreenBackground2>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { padding: spacing2.containerMargin, paddingTop: spacing2.xl, paddingBottom: spacing2.xl * 2 },
-  header: { gap: spacing2.sm, marginBottom: spacing2.md },
+  listContent: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl * 2 },
+  header: { gap: spacing3.sm, marginBottom: spacing3.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { ...typography2.headlineLgMobile, fontSize: 26 },
+  title: { ...typography3.headlineLgMobile, fontSize: 26 },
   healthButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing2.xs,
-    paddingHorizontal: spacing2.md,
-    paddingVertical: spacing2.sm,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.surfaceContainer,
+    gap: spacing3.xs,
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors2.outlineVariant,
+    borderColor: colors3.outlineVariant,
   },
-  healthButtonText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, fontWeight: '700' },
-  error: { color: colors2.danger, textAlign: 'center' },
-  loading: { marginTop: spacing2.sm },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
+  healthButtonText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, fontWeight: '700' },
+  error: { color: colors3.error, textAlign: 'center' },
+  loading: { marginTop: spacing3.sm },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing2.md, position: 'relative', overflow: 'visible' },
+  rowWrapper: { position: 'relative' },
+  rowContent: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   prBadge: {
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: colors2.violet,
-    borderRadius: radius2.pill,
-    paddingHorizontal: spacing2.sm,
+    backgroundColor: colors3.primary,
+    borderRadius: radius3.pill,
+    paddingHorizontal: spacing3.sm,
     paddingVertical: 3,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     zIndex: 1,
   },
-  prBadgeText: { ...typography2.labelCaps, textTransform: 'uppercase', color: colors2.white, fontSize: 10 },
+  prBadgeText: { ...typography3.labelSm, textTransform: 'uppercase', color: colors3.white, fontSize: 10 },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: radius2.md,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderRadius: radius3.md,
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowInfo: { flex: 1, gap: spacing2.xs },
+  rowInfo: { flex: 1, gap: spacing3.xs },
   rowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { ...typography2.bodyMd, fontWeight: '600' },
-  rowDate: { ...typography2.labelCaps, textTransform: 'none' },
-  rowStats: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
+  rowLabel: { ...typography3.bodyMd, fontWeight: '600' },
+  rowDate: { ...typography3.labelSm, textTransform: 'none' },
+  rowStats: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
 
   fab: {
     position: 'absolute',
-    right: spacing2.lg,
-    bottom: spacing2.lg,
+    right: spacing3.lg,
+    bottom: spacing3.lg,
     width: 56,
     height: 56,
-    borderRadius: radius2.pill,
-    backgroundColor: colors2.violet,
+    borderRadius: radius3.pill,
+    backgroundColor: colors3.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors2.violet,
+    shadowColor: colors3.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 10,

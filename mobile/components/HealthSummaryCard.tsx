@@ -20,7 +20,7 @@ import {
   requestHealthPermissions,
 } from '@/services/health';
 import { syncRecentHeartRate } from '@/services/heartRateSync';
-import { colors2, metricColors, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, metricColors, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
 // Definicao real agora em services/health.ts (um service nao devia
 // importar de um componente, e ensureHealthAuthorized la precisa dessa
@@ -51,8 +51,20 @@ type Status = 'checking' | 'unavailable' | 'disconnected' | 'loading' | 'ready' 
  * busca o resumo e se conecta sozinho. Falhas ficam contidas aqui (mesmo
  * padrao do InsightCard da Home) — nunca impedem o resto da tela de
  * Atividades de funcionar. No Android so Passos e Calorias ativas aparecem.
+ *
+ * 'dark' (padrao) = colors2/LiquiglassCard, usado hoje pelo unico
+ * consumidor real do componente (app/activity/index.tsx renderiza
+ * `<HealthSummaryCard />` sem variant — meal/add.tsx, profile.tsx e
+ * ReadinessCard.tsx so importam a constante HEALTHKIT_CONNECTED_KEY
+ * reexportada aqui, nenhum deles renderiza o card). 'light' = colors3,
+ * propagado pro LiquiglassCard/HealthMetricRow/HealthWeeklyBarChart
+ * internos — usado quando activity/index.tsx migrar pro tema claro.
  */
-export function HealthSummaryCard() {
+export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'light' }) {
+  const isLight = variant === 'light';
+  const s = isLight ? stylesLight : styles;
+  const mutedColor = isLight ? colors3.onSurfaceVariant : colors2.onSurfaceVariant;
+  const accentColor = isLight ? colors3.primary : colors2.violet;
   const [status, setStatus] = useState<Status>('checking');
   const [summary, setSummary] = useState<HealthSummary | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -132,22 +144,22 @@ export function HealthSummaryCard() {
   if (status === 'disconnected') {
     return (
       <Pressable onPress={handleConnect} disabled={connecting}>
-        <LiquiglassCard style={styles.connectCard}>
-          <View style={styles.connectIconWrap}>
-            <Ionicons name="heart" size={20} color={colors2.violet} />
+        <LiquiglassCard variant={variant} style={s.connectCard}>
+          <View style={s.connectIconWrap}>
+            <Ionicons name="heart" size={20} color={accentColor} />
           </View>
-          <View style={styles.connectInfo}>
-            <Text style={styles.connectTitle}>Conectar {HEALTH_SOURCE_LABEL}</Text>
-            <Text style={styles.connectSubtitle}>
+          <View style={s.connectInfo}>
+            <Text style={s.connectTitle}>Conectar {HEALTH_SOURCE_LABEL}</Text>
+            <Text style={s.connectSubtitle}>
               {Platform.OS === 'ios'
                 ? 'Veja passos, distancia, frequencia cardiaca, calorias e sono aqui.'
                 : 'Veja seus passos e calorias ativas aqui.'}
             </Text>
           </View>
           {connecting ? (
-            <ActivityIndicator color={colors2.violet} />
+            <ActivityIndicator color={accentColor} />
           ) : (
-            <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+            <Ionicons name="chevron-forward" size={18} color={mutedColor} />
           )}
         </LiquiglassCard>
       </Pressable>
@@ -156,8 +168,8 @@ export function HealthSummaryCard() {
 
   if (status === 'loading') {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="small" color={colors2.violet} />
+      <View style={s.loadingWrap}>
+        <ActivityIndicator size="small" color={accentColor} />
       </View>
     );
   }
@@ -165,15 +177,15 @@ export function HealthSummaryCard() {
   if (status === 'error') {
     return (
       <Pressable onPress={() => loadSummary()}>
-        <LiquiglassCard style={styles.connectCard}>
-          <View style={styles.connectIconWrap}>
-            <Ionicons name="refresh" size={20} color={colors2.violet} />
+        <LiquiglassCard variant={variant} style={s.connectCard}>
+          <View style={s.connectIconWrap}>
+            <Ionicons name="refresh" size={20} color={accentColor} />
           </View>
-          <View style={styles.connectInfo}>
-            <Text style={styles.connectTitle}>Nao foi possivel carregar o {HEALTH_SOURCE_LABEL}</Text>
-            <Text style={styles.connectSubtitle}>Toque para tentar novamente.</Text>
+          <View style={s.connectInfo}>
+            <Text style={s.connectTitle}>Nao foi possivel carregar o {HEALTH_SOURCE_LABEL}</Text>
+            <Text style={s.connectSubtitle}>Toque para tentar novamente.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
+          <Ionicons name="chevron-forward" size={18} color={mutedColor} />
         </LiquiglassCard>
       </Pressable>
     );
@@ -187,16 +199,17 @@ export function HealthSummaryCard() {
   const showIOSOnlyMetrics = Platform.OS === 'ios';
 
   return (
-    <LiquiglassCard style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>{HEALTH_SOURCE_LABEL}</Text>
+    <LiquiglassCard variant={variant} style={s.summaryCard}>
+      <Text style={s.cardTitle}>{HEALTH_SOURCE_LABEL}</Text>
 
       <HealthMetricRow
         icon="footsteps"
         color={metricColors.steps}
         label="Passos"
         value={summary.stepsToday != null ? summary.stepsToday.toLocaleString('pt-BR') : '--'}
+        variant={variant}
       >
-        <HealthWeeklyBarChart fetcher={fetchStepsLast7Days} color={metricColors.steps} unitLabel="passos" />
+        <HealthWeeklyBarChart fetcher={fetchStepsLast7Days} color={metricColors.steps} unitLabel="passos" variant={variant} />
       </HealthMetricRow>
 
       <HealthMetricRow
@@ -204,8 +217,9 @@ export function HealthSummaryCard() {
         color={metricColors.energy}
         label="Calorias ativas"
         value={summary.activeEnergyTodayKcal != null ? `${Math.round(summary.activeEnergyTodayKcal)} kcal` : '--'}
+        variant={variant}
       >
-        <HealthWeeklyBarChart fetcher={fetchActiveEnergyLast7Days} color={metricColors.energy} unitLabel="kcal" />
+        <HealthWeeklyBarChart fetcher={fetchActiveEnergyLast7Days} color={metricColors.energy} unitLabel="kcal" variant={variant} />
       </HealthMetricRow>
 
       {showIOSOnlyMetrics && (
@@ -214,6 +228,7 @@ export function HealthSummaryCard() {
           color={metricColors.distance}
           label="Distancia"
           value={summary.distanceTodayMeters != null ? `${formatDistanceKm(summary.distanceTodayMeters)} km` : '--'}
+          variant={variant}
         />
       )}
 
@@ -226,10 +241,11 @@ export function HealthSummaryCard() {
             summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
           }
           value={summary.heartRate.mostRecentBpm != null ? `${summary.heartRate.mostRecentBpm} bpm` : '--'}
+          variant={variant}
         >
-          <Pressable onPress={() => router.push('/heart-rate-report')} style={styles.reportLink} hitSlop={8}>
-            <Text style={styles.reportLinkText}>Ver relatorio completo de FC</Text>
-            <Ionicons name="chevron-forward" size={14} color={colors2.primary} />
+          <Pressable onPress={() => router.push('/heart-rate-report')} style={s.reportLink} hitSlop={8}>
+            <Text style={s.reportLinkText}>Ver relatorio completo de FC</Text>
+            <Ionicons name="chevron-forward" size={14} color={accentColor} />
           </Pressable>
         </HealthMetricRow>
       )}
@@ -241,6 +257,7 @@ export function HealthSummaryCard() {
           label="Sono"
           subLabel="ultima noite"
           value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
+          variant={variant}
         />
       )}
     </LiquiglassCard>
@@ -268,4 +285,30 @@ const styles = StyleSheet.create({
 
   reportLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing2.xs },
   reportLinkText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, fontWeight: '700' },
+});
+
+const stylesLight = StyleSheet.create({
+  connectCard: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
+  connectIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius3.md,
+    // Mesmo tom de tinta usada em outros icon wraps ja migrados pro claro
+    // (ActivityProgressCard/DietPlanBanner/MonthComparisonCard) -- rgba do
+    // colors3.primary (#6b38d4) a 12%, em vez do violeta do tema escuro.
+    backgroundColor: 'rgba(107, 56, 212, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectInfo: { flex: 1, gap: spacing3.xs },
+  connectTitle: { ...typography3.bodyMd, fontWeight: '600' },
+  connectSubtitle: { ...typography3.labelSm, textTransform: 'none' },
+
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
+
+  summaryCard: { gap: spacing3.xs },
+  cardTitle: { ...typography3.headlineMd, fontSize: 18, marginBottom: spacing3.xs },
+
+  reportLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing3.xs },
+  reportLinkText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, fontWeight: '700' },
 });

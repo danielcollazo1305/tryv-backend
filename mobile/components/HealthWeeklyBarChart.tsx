@@ -3,10 +3,10 @@ import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-nat
 import { BarChart } from 'react-native-chart-kit';
 
 import { DailyQuantityPoint } from '@/services/health';
-import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-// Mesma conta do WeightChart: largura da tela menos o padding do container da tela e o padding interno do LiquiglassCard (spacing2.lg dos dois lados, duas vezes).
+// Mesma conta do WeightChart: largura da tela menos o padding do container da tela e o padding interno do LiquiglassCard/GlassCard (spacing2.lg ou spacing3.lg dos dois lados, duas vezes -- os dois valem 24, entao a conta e igual nos dois variants).
 const CHART_WIDTH = SCREEN_WIDTH - spacing2.lg * 4;
 
 const WEEKDAY_LABELS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -21,6 +21,8 @@ interface HealthWeeklyBarChartProps {
   fetcher: () => Promise<DailyQuantityPoint[]>;
   color: string;
   unitLabel: string;
+  /** 'dark' (padrao) = colors2, unico consumidor hoje (HealthSummaryCard.tsx). 'light' = colors3, propagado quando HealthSummaryCard recebe variant="light". */
+  variant?: 'dark' | 'light';
 }
 
 /**
@@ -30,7 +32,9 @@ interface HealthWeeklyBarChartProps {
  * e falha de forma contida — se a busca der erro, mostra um aviso curto em
  * vez de quebrar o card inteiro.
  */
-export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeeklyBarChartProps) {
+export function HealthWeeklyBarChart({ fetcher, color, unitLabel, variant = 'dark' }: HealthWeeklyBarChartProps) {
+  const isLight = variant === 'light';
+  const s = isLight ? stylesLight : styles;
   const [data, setData] = useState<DailyQuantityPoint[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -49,12 +53,12 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeekly
   }, [fetcher]);
 
   if (error) {
-    return <Text style={styles.emptyText}>Nao foi possivel carregar o historico da semana.</Text>;
+    return <Text style={s.emptyText}>Nao foi possivel carregar o historico da semana.</Text>;
   }
 
   if (!data) {
     return (
-      <View style={styles.loadingWrap}>
+      <View style={s.loadingWrap}>
         <ActivityIndicator size="small" color={color} />
       </View>
     );
@@ -62,15 +66,17 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeekly
 
   const daysWithData = data.filter((point) => point.value != null);
   if (daysWithData.length === 0) {
-    return <Text style={styles.emptyText}>Sem dados suficientes nos ultimos 7 dias.</Text>;
+    return <Text style={s.emptyText}>Sem dados suficientes nos ultimos 7 dias.</Text>;
   }
 
   const today = data[data.length - 1];
   const average = daysWithData.reduce((sum, point) => sum + (point.value ?? 0), 0) / daysWithData.length;
+  const backgroundColor = isLight ? colors3.surfaceContainer : colors2.surfaceContainer;
+  const labelColor = isLight ? colors3.onSurfaceVariant : colors2.onSurfaceVariant;
 
   return (
     <View>
-      <Text style={styles.comparison}>
+      <Text style={s.comparison}>
         {today.value != null ? Math.round(today.value).toLocaleString('pt-BR') : '--'} hoje  •  media{' '}
         {Math.round(average).toLocaleString('pt-BR')} {unitLabel}
       </Text>
@@ -87,20 +93,20 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel }: HealthWeekly
         yAxisLabel=""
         yAxisSuffix=""
         chartConfig={{
-          backgroundGradientFrom: colors2.surfaceContainer,
-          backgroundGradientTo: colors2.surfaceContainer,
+          backgroundGradientFrom: backgroundColor,
+          backgroundGradientTo: backgroundColor,
           decimalPlaces: 0,
           color: (opacity = 1) => hexToRgba(color, opacity),
-          labelColor: () => colors2.onSurfaceVariant,
+          labelColor: () => labelColor,
           barPercentage: 0.6,
-          propsForBackgroundLines: { stroke: colors2.outlineVariant },
+          propsForBackgroundLines: { stroke: isLight ? colors3.outlineVariant : colors2.outlineVariant },
           // fontFamily adicionado -- sem isso, chart-kit desenha o rotulo
           // na fonte padrao do SO (SVG Text sem fontFamily explicito) em
-          // vez de Inter. Ainda colors2 (tela nao migrada), mas Inter_400Regular
-          // e a mesma string em fonts2.interRegular e fonts3.interRegular.
+          // vez de Inter. Inter_400Regular e a mesma string em
+          // fonts2.interRegular e fonts3.interRegular, entao vale pros 2 variants.
           propsForLabels: { fontSize: 11, fontFamily: 'Inter_400Regular' },
         }}
-        style={styles.chart}
+        style={s.chart}
       />
     </View>
   );
@@ -119,4 +125,11 @@ const styles = StyleSheet.create({
   emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, paddingVertical: spacing2.sm },
   comparison: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant, marginBottom: spacing2.sm },
   chart: { borderRadius: radius2.md, marginLeft: -spacing2.md },
+});
+
+const stylesLight = StyleSheet.create({
+  loadingWrap: { alignItems: 'flex-start', paddingVertical: spacing3.md },
+  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, paddingVertical: spacing3.sm },
+  comparison: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, marginBottom: spacing3.sm },
+  chart: { borderRadius: radius3.md, marginLeft: -spacing3.md },
 });
