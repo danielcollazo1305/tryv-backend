@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StackedBarChart } from 'react-native-chart-kit';
+import Svg, { ClipPath, Defs, G, Line, Path, Rect } from 'react-native-svg';
 
 import { GlassCard } from '@/components/GlassCard';
 import { MealDailySummary, MealsSummary, MealsSummaryPeriod, getMealsSummary } from '@/services/meals';
@@ -10,6 +10,35 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CHART_WIDTH = SCREEN_WIDTH - spacing3.lg * 4;
 const MIN_BAR_SLOT = 34;
+
+/** Altura da area do grafico (px) -- mesma ordem de grandeza do grafico de progresso (ActivityProgressChart), sem precisar ser identica (componentes diferentes, sem prop compartilhada). */
+const CHART_HEIGHT = 160;
+/** Espaco entre barras -- ligado a spacing3 em vez de um valor solto da lib antiga. */
+const BAR_GAP = spacing3.xs;
+/** Raio dos cantos de cada barra -- ligado a radius3 em vez do "4" fixo que a lib usava por padrao. */
+const BAR_RADIUS = radius3.sm;
+/** Altura minima (px) da barra "fantasma" de um dia sem registro (has_data=false ou 0 kcal) -- so pra marcar a posicao no eixo sem o dia sumir do grafico quando a maioria dos dias esta vazia (ex: 1 de 7 preenchido). */
+const EMPTY_BAR_HEIGHT = 4;
+
+/** Retangulo com cantos arredondados so no topo (base reta, sentada no eixo) -- usado como clipPath de cada barra empilhada, pra so a silhueta externa ficar arredondada (os segmentos de cor por dentro continuam retos, sem "denteados" entre proteina/gordura/carboidrato). */
+function roundedTopRectPath(x: number, y: number, width: number, height: number, radius: number): string {
+  const r = Math.max(0, Math.min(radius, width / 2, height));
+  if (r === 0) return `M ${x} ${y} H ${x + width} V ${y + height} H ${x} Z`;
+  return (
+    `M ${x} ${y + height} ` +
+    `L ${x} ${y + r} ` +
+    `Q ${x} ${y} ${x + r} ${y} ` +
+    `L ${x + width - r} ${y} ` +
+    `Q ${x + width} ${y} ${x + width} ${y + r} ` +
+    `L ${x + width} ${y + height} Z`
+  );
+}
+
+/** Soma dos 3 segmentos (kcal) -- usado pra escala do eixo Y e pra decidir se o dia tem barra "de verdade" ou "fantasma". */
+function totalSegmentKcal(day: MealDailySummary): number {
+  const [protein, fat, carbs] = macroSegments(day);
+  return protein + fat + carbs;
+}
 
 const PERIOD_OPTIONS: { value: MealsSummaryPeriod; label: string }[] = [
   { value: '1d', label: '1D' },
@@ -115,6 +144,9 @@ export function MealsHistoryCard() {
 
   const daily = summary?.daily ?? [];
   const chartWidth = Math.max(CHART_WIDTH, daily.length * MIN_BAR_SLOT);
+  const slotWidth = daily.length > 0 ? chartWidth / daily.length : 0;
+  const barWidth = Math.max(4, slotWidth - BAR_GAP);
+  const maxTotalKcal = Math.max(...daily.map(totalSegmentKcal), 1);
 
   return (
     <GlassCard variant="glass" style={styles.card}>
@@ -165,26 +197,81 @@ export function MealsHistoryCard() {
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <StackedBarChart
-              data={{
-                labels: daily.map((d) => formatBucketLabel(d.date, summary.granularity)),
-                legend: ['Proteína', 'Gordura', 'Carboidrato'],
-                data: daily.map(macroSegments),
-                barColors: [MACRO_COLORS.protein, MACRO_COLORS.fat, MACRO_COLORS.carbs],
-              }}
-              width={chartWidth}
-              height={200}
-              hideLegend
-              withHorizontalLabels={false}
-              chartConfig={{
-                backgroundGradientFrom: colors3.surfaceContainer,
-                backgroundGradientTo: colors3.surfaceContainer,
-                color: () => colors3.onSurfaceVariant,
-                labelColor: () => colors3.onSurfaceVariant,
-                propsForLabels: { fontSize: 10 },
-              }}
-              style={styles.chart}
-            />
+            <View>
+              <Svg width={chartWidth} height={CHART_HEIGHT}>
+                {/* Clip de cada barra -- silhueta com cantos so no topo, os <Rect> dos segmentos por dentro ficam retos e saem cortados nessa forma. */}
+                <Defs>
+                  {daily.map((day, index) => {
+                    const total = totalSegmentKcal(day);
+                    if (total <= 0) return null;
+                    const barHeight = Math.max(8, (total / maxTotalKcal) * CHART_HEIGHT);
+                    const x = index * slotWidth + (slotWidth - barWidth) / 2;
+                    const y = CHART_HEIGHT - barHeight;
+                    return (
+                      <ClipPath key={day.date} id={`meal-bar-clip-${index}`}>
+                        <Path d={roundedTopRectPath(x, y, barWidth, barHeight, BAR_RADIUS)} />
+                      </ClipPath>
+                    );
+                  })}
+                </Defs>
+
+                {/* Linha de base discreta -- unica linha de grade mantida (o valor exato de cada dia ja aparece na lista de texto acima, entao o grafico nao precisa de mais linhas tracejadas pra ser legivel). */}
+                <Line x1={0} y1={CHART_HEIGHT} x2={chartWidth} y2={CHART_HEIGHT} stroke={colors3.outlineVariant} strokeWidth={1} opacity={0.5} />
+
+                {daily.map((day, index) => {
+                  const x = index * slotWidth + (slotWidth - barWidth) / 2;
+                  const total = totalSegmentKcal(day);
+
+                  if (total <= 0) {
+                    // Dia sem registro -- barra "fantasma" baixa e neutra, so pra marcar a posicao no eixo (some do grafico seria pior quando a maioria dos dias esta vazia, ex: 1 de 7 preenchido).
+                    return (
+                      <Path
+                        key={day.date}
+                        d={roundedTopRectPath(x, CHART_HEIGHT - EMPTY_BAR_HEIGHT, barWidth, EMPTY_BAR_HEIGHT, BAR_RADIUS)}
+                        fill={colors3.surfaceVariant}
+                      />
+                    );
+                  }
+
+                  const barHeight = Math.max(8, (total / maxTotalKcal) * CHART_HEIGHT);
+                  const [proteinKcal, fatKcal, carbsKcal] = macroSegments(day);
+                  // Mesma ordem visual (base->topo) da versao antiga: proteina, gordura, carboidrato.
+                  const segments = [
+                    { kcal: proteinKcal, color: MACRO_COLORS.protein },
+                    { kcal: fatKcal, color: MACRO_COLORS.fat },
+                    { kcal: carbsKcal, color: MACRO_COLORS.carbs },
+                  ];
+                  let cumHeight = 0;
+                  return (
+                    <G key={day.date} clipPath={`url(#meal-bar-clip-${index})`}>
+                      {segments.map((segment, segmentIndex) => {
+                        const segmentHeight = (segment.kcal / total) * barHeight;
+                        const segmentY = CHART_HEIGHT - cumHeight - segmentHeight;
+                        cumHeight += segmentHeight;
+                        return (
+                          <Rect
+                            key={segmentIndex}
+                            x={x}
+                            y={segmentY}
+                            width={barWidth}
+                            height={segmentHeight}
+                            fill={segment.color}
+                          />
+                        );
+                      })}
+                    </G>
+                  );
+                })}
+              </Svg>
+
+              <View style={[styles.chartLabelsRow, { width: chartWidth }]}>
+                {daily.map((day, index) => (
+                  <Text key={day.date} style={[styles.chartBarLabel, { width: slotWidth }]}>
+                    {formatBucketLabel(day.date, summary.granularity)}
+                  </Text>
+                ))}
+              </View>
+            </View>
           </ScrollView>
 
           <View style={styles.legend}>
@@ -263,7 +350,8 @@ const styles = StyleSheet.create({
   // bodyMd -- mesmo motivo do navLabel acima.
   dayValue: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold', fontSize: 13, color: colors3.onSurface },
 
-  chart: { borderRadius: radius3.md, marginLeft: -spacing3.md },
+  chartLabelsRow: { flexDirection: 'row', marginTop: spacing3.xs },
+  chartBarLabel: { ...typography3.labelSm, fontSize: 10, color: colors3.outline, textAlign: 'center' },
 
   legend: { flexDirection: 'row', gap: spacing3.md, justifyContent: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

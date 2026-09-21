@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { ActivityProgressTab } from '@/components/useActivityProgress';
 import { ProgressChartPoint, ProgressGranularity, RunProgress, WorkoutProgress } from '@/services/dashboard';
@@ -43,6 +43,59 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+interface ChartPathPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Interpolacao cubica MONOTONA (Hermite/Fritsch-Carlson, mesma familia da
+ * curveMonotoneX do d3) entre os pontos do grafico de corrida — curva suave
+ * em vez do <Polyline> reto de antes, mas sem o overshoot que uma spline
+ * Catmull-Rom "pura" pode produzir com poucos pontos preenchidos (ex: so 1
+ * de 7 dias com corrida — um pico isolado cercado de zeros faria uma
+ * Catmull-Rom comum "mergulhar" abaixo da linha de base ou passar por cima
+ * do pico entre os pontos, ficando visualmente errado). Monotona garante
+ * que a curva entre dois pontos nunca ultrapassa o valor de nenhum dos
+ * dois — seguro por construcao pra esse cenario de dado esparso, que e
+ * justamente o pedido explicito de teste desta tarefa.
+ */
+function monotoneCubicPath(points: ChartPathPoint[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  const n = points.length;
+  const dx: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(points[i + 1].x - points[i].x);
+    slope.push(dx[i] === 0 ? 0 : (points[i + 1].y - points[i].y) / dx[i]);
+  }
+
+  const tangent: number[] = new Array(n).fill(0);
+  tangent[0] = slope[0];
+  tangent[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (slope[i - 1] === 0 || slope[i] === 0 || slope[i - 1] * slope[i] < 0) {
+      tangent[i] = 0;
+    } else {
+      tangent[i] = (slope[i - 1] + slope[i]) / 2;
+    }
+  }
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const cp1x = p0.x + dx[i] / 3;
+    const cp1y = p0.y + (tangent[i] * dx[i]) / 3;
+    const cp2x = p1.x - dx[i] / 3;
+    const cp2y = p1.y - (tangent[i + 1] * dx[i]) / 3;
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+  }
+  return d;
+}
+
 interface ActivityProgressChartProps {
   tab: ActivityProgressTab;
   progress: RunProgress | WorkoutProgress | null;
@@ -70,6 +123,11 @@ export function ActivityProgressChart({ tab, progress, tabColor, barTrackHeight 
   const handleChartAreaLayout = (event: LayoutChangeEvent) => {
     setChartAreaWidth(event.nativeEvent.layout.width);
   };
+  // Id estavel por instancia do componente -- evita colisao de id de
+  // <LinearGradient> se por algum motivo mais de um ActivityProgressChart
+  // acabar montado na tela ao mesmo tempo (nenhum caso hoje usa 2 juntos,
+  // mas um id fixo tipo "runFill" seria uma pegadinha esperando acontecer).
+  const gradientId = useId();
 
   const chart = progress?.chart ?? [];
   const maxValue = Math.max(...chart.map((point: ProgressChartPoint) => point.value), 1);
@@ -83,6 +141,22 @@ export function ActivityProgressChart({ tab, progress, tabColor, barTrackHeight 
   // ponto (em vez de flex:1 dos slots de barra), necessaria pra posicionar
   // cada ponto/rotulo em coordenadas de pixel dentro do <Svg>.
   const slotWidth = chart.length > 0 ? barsWidth / chart.length : 0;
+
+  // So usado pela aba Corrida, mas calculado aqui em cima (fora do JSX) por
+  // legibilidade -- barato o suficiente pra nao precisar de useMemo, e o
+  // componente ja recalcula tudo isso a cada render de qualquer forma.
+  const runPoints: ChartPathPoint[] = chart.map((point, index) => ({
+    x: slotWidth * index + slotWidth / 2,
+    y: barTrackHeight * (1 - Math.min(1, point.value / RUN_CHART_MAX_KM)),
+  }));
+  const runLinePath = monotoneCubicPath(runPoints);
+  // Fecha a curva ate a linha de base (0km) e volta pro inicio -- mesmo
+  // path da linha, so com 2 segmentos retos extras pra fechar a area
+  // preenchida (a curva em si nao muda).
+  const runAreaPath =
+    runPoints.length > 0
+      ? `${runLinePath} L ${runPoints[runPoints.length - 1].x} ${barTrackHeight} L ${runPoints[0].x} ${barTrackHeight} Z`
+      : '';
 
   if (!progress) return null;
 
@@ -107,6 +181,14 @@ export function ActivityProgressChart({ tab, progress, tabColor, barTrackHeight 
         >
           <View>
             <Svg width={barsWidth} height={barTrackHeight}>
+              <Defs>
+                <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={tabColor.bg} stopOpacity={0.32} />
+                  <Stop offset="1" stopColor={tabColor.bg} stopOpacity={0} />
+                </LinearGradient>
+              </Defs>
+
+              {/* Linhas de referencia (5km/10km) discretas -- opacidade baixa de proposito, pra nao competir com a curva de dados. */}
               {RUN_CHART_GRID_KM.map((km) => {
                 const y = barTrackHeight * (1 - km / RUN_CHART_MAX_KM);
                 return (
@@ -119,30 +201,27 @@ export function ActivityProgressChart({ tab, progress, tabColor, barTrackHeight 
                     stroke={colors3.outlineVariant}
                     strokeWidth={1}
                     strokeDasharray="4,4"
+                    opacity={0.5}
                   />
                 );
               })}
-              <Polyline
-                points={chart
-                  .map((point, index) => {
-                    const x = slotWidth * index + slotWidth / 2;
-                    const y = barTrackHeight * (1 - Math.min(1, point.value / RUN_CHART_MAX_KM));
-                    return `${x},${y}`;
-                  })
-                  .join(' ')}
-                fill="none"
-                stroke={tabColor.bg}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {chart.map((point, index) => {
-                const x = slotWidth * index + slotWidth / 2;
-                const y = barTrackHeight * (1 - Math.min(1, point.value / RUN_CHART_MAX_KM));
+
+              {!!runAreaPath && <Path d={runAreaPath} fill={`url(#${gradientId})`} />}
+              {!!runLinePath && (
+                <Path d={runLinePath} fill="none" stroke={tabColor.bg} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              )}
+
+              {runPoints.map((point, index) => {
                 const isMostRecent = index === chart.length - 1;
-                const dotColor =
-                  point.value === 0 ? colors3.surfaceVariant : isMostRecent ? tabColor.bg : hexToRgba(tabColor.bg, 0.7);
-                return <Circle key={point.date} cx={x} cy={y} r={isMostRecent ? 5 : 3.5} fill={dotColor} />;
+                if (!isMostRecent) return null;
+                // Halo sutil atras do ponto mais recente -- circulo maior e translucido, so pra chamar atencao sem virar um circulo solido gigante.
+                return <Circle key={`halo-${chart[index].date}`} cx={point.x} cy={point.y} r={11} fill={hexToRgba(tabColor.bg, 0.18)} />;
+              })}
+              {runPoints.map((point, index) => {
+                const value = chart[index].value;
+                const isMostRecent = index === chart.length - 1;
+                const dotColor = value === 0 ? colors3.surfaceVariant : isMostRecent ? tabColor.bg : hexToRgba(tabColor.bg, 0.7);
+                return <Circle key={chart[index].date} cx={point.x} cy={point.y} r={isMostRecent ? 5 : 3.5} fill={dotColor} />;
               })}
             </Svg>
             <View style={[styles.runChartLabelsRow, { width: barsWidth }]}>
@@ -268,7 +347,11 @@ const styles = StyleSheet.create({
   // entao nao e regressao desta extracao, so nunca tinha sido visto).
   barSlotFixedWidth: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: MIN_BAR_SLOT - spacing3.xs },
   barTrack: { width: '100%', justifyContent: 'flex-end' },
-  bar: { width: '100%', borderRadius: 4 },
+  // So os cantos do topo arredondados (radius3.sm, mesmo token do grafico
+  // de refeicoes) -- a barra fica sentada na linha de base de baixo
+  // (barsRow tem borderBottomWidth), entao arredondar tambem os cantos de
+  // baixo deixava uma friestinha da linha de base espiando por tras deles.
+  bar: { width: '100%', borderTopLeftRadius: radius3.sm, borderTopRightRadius: radius3.sm },
   barLabel: { ...typography3.labelSm, fontSize: 10, color: colors3.outline },
 
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
