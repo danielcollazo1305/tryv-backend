@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SetEntry } from '@/components/WorkoutDayCard';
@@ -33,7 +33,7 @@ export interface FreeSessionExerciseDraft {
  */
 export type WorkoutSessionDraft =
   | { mode: 'plan'; planId: string; dayIndex: number; logByDay: Record<number, Record<number, SetEntry[]>> }
-  | { mode: 'free'; exercises: FreeSessionExerciseDraft[] };
+  | { mode: 'free'; exercises: FreeSessionExerciseDraft[]; startedAt: number };
 
 interface WorkoutSessionDraftContextValue {
   draft: WorkoutSessionDraft | null;
@@ -83,7 +83,15 @@ export function WorkoutSessionDraftProvider({ children }: { children: React.Reac
       .then((raw) => {
         if (!active || !raw) return;
         const parsed = JSON.parse(raw) as WorkoutSessionDraft;
-        if (parsed?.mode === 'free') setDraft(parsed);
+        if (parsed?.mode === 'free') {
+          // Rascunho salvo por uma versao anterior do app (antes do
+          // cronometro existir) nao tem startedAt -- sem isso o campo
+          // viria undefined em runtime (o "as WorkoutSessionDraft" acima
+          // nao valida nada de verdade). Cai pra "agora" em vez de quebrar
+          // o calculo do tempo decorrido pra quem ja tinha um treino livre
+          // em andamento antes desta atualizacao.
+          setDraft({ ...parsed, startedAt: parsed.startedAt ?? Date.now() });
+        }
       })
       .catch(() => {
         // Rascunho corrompido/ilegivel -- ignora e comeca vazio, igual a
@@ -123,4 +131,41 @@ export function useWorkoutSessionDraft(): WorkoutSessionDraftContextValue {
   const ctx = useContext(WorkoutSessionDraftContext);
   if (!ctx) throw new Error('useWorkoutSessionDraft precisa estar dentro de WorkoutSessionDraftProvider');
   return ctx;
+}
+
+/**
+ * "mm:ss" enquanto durar menos de 1h, "h:mm:ss" depois disso -- calculado
+ * ao vivo a partir de `startedAt` (nao ha um contador persistido em si),
+ * por isso sobrevive o app fechando/reabrindo sem nenhum mecanismo novo de
+ * persistencia: startedAt e so mais um campo do draft ja salvo em disco.
+ */
+export function formatElapsedTime(startedAt: number): string {
+  const totalSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+}
+
+/**
+ * Rotulo de tempo decorrido ("mm:ss") que se atualiza sozinho a cada
+ * segundo enquanto o componente estiver montado -- usado tanto por
+ * FreeWorkoutLogView.tsx (cronometro na tela) quanto por
+ * ActiveWorkoutBanner.tsx (tempo ao lado da contagem de exercicios), pra
+ * nao duplicar o setInterval/cleanup nos 2 lugares (unico ponto onde um
+ * timer fantasma poderia vazar, se o cleanup fosse esquecido em algum
+ * consumidor). `startedAt` null/undefined (draft nao e 'free' ainda, ou
+ * ja foi concluido) desliga o timer e devolve "00:00".
+ */
+export function useElapsedLabel(startedAt: number | null | undefined): string {
+  const [, forceTick] = useReducer((count: number) => count + 1, 0);
+
+  useEffect(() => {
+    if (startedAt == null) return;
+    const intervalId = setInterval(forceTick, 1000);
+    return () => clearInterval(intervalId);
+  }, [startedAt]);
+
+  return startedAt == null ? '00:00' : formatElapsedTime(startedAt);
 }

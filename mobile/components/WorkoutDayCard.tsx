@@ -68,7 +68,7 @@ function ExerciseVideoPlayer({ videoUrl }: { videoUrl: string }) {
  * de plano de trainer normalmente nao bate por nome com a biblioteca, mas
  * o video real e especifico do profissional teria precedencia mesmo assim).
  */
-function ExerciseVideoBlock({ videoUrl, isLight }: { videoUrl?: string | null; isLight: boolean }) {
+export function ExerciseVideoBlock({ videoUrl, isLight }: { videoUrl?: string | null; isLight: boolean }) {
   if (videoUrl) {
     return <ExerciseVideoPlayer videoUrl={videoUrl} />;
   }

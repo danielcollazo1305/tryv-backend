@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { WorkoutSessionDraftProvider } from '@/context/WorkoutSessionDraftContext';
+import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
@@ -31,6 +32,12 @@ export default function RootLayout() {
       <WorkoutSessionDraftProvider>
         <StatusBar style="light" />
         <RootNavigator />
+        {/* Irmao do <Stack>, nao dentro de (tabs)/_layout.tsx -- precisa
+            aparecer tanto nas telas de aba quanto nas empilhadas fora
+            delas (ex: activity/[id], weight/index). Renderizado DEPOIS de
+            RootNavigator de proposito, pra ficar por cima na ordem natural
+            de empilhamento do RN (sem precisar de Portal). */}
+        <ActiveWorkoutBanner />
       </WorkoutSessionDraftProvider>
     </AuthProvider>
   );
