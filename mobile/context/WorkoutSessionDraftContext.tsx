@@ -2,6 +2,12 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SetEntry } from '@/components/WorkoutDayCard';
+import {
+  LiveActivityContentState,
+  endFreeWorkoutLiveActivity,
+  startFreeWorkoutLiveActivity,
+  updateFreeWorkoutLiveActivity,
+} from '@/services/liveActivity';
 
 /**
  * So o rascunho de sessao LIVRE e persistido em disco (ver "MIGRACAO
@@ -41,6 +47,40 @@ interface WorkoutSessionDraftContextValue {
 }
 
 const WorkoutSessionDraftContext = createContext<WorkoutSessionDraftContextValue | undefined>(undefined);
+
+/**
+ * "Exercicio/serie atual" pra Live Activity = a primeira serie NAO
+ * concluida, varrendo os exercicios na ordem em que foram adicionados --
+ * decisao deliberada de nao usar o `currentIndex` do carrossel
+ * (FreeWorkoutLogView.tsx, estado local de UI, nao vive neste Context):
+ * "o que falta fazer" e mais util pra um relance rapido na tela de
+ * bloqueio do que "o que a pessoa esta olhando agora no app" (que pode
+ * nem estar aberto). Quando todas as series de todos os exercicios estao
+ * concluidas, cai no fallback do ULTIMO exercicio/serie, so pra ter algo
+ * coerente pra mostrar.
+ */
+function computeLiveActivityContentState(exercises: FreeSessionExerciseDraft[]): LiveActivityContentState {
+  for (const exercise of exercises) {
+    const setIndex = exercise.sets.findIndex((set) => !set.completed);
+    if (setIndex !== -1) {
+      return {
+        exerciseCount: exercises.length,
+        currentExerciseName: exercise.name,
+        currentSetIndex: setIndex,
+        currentExerciseTotalSets: exercise.sets.length,
+        allSetsCompleted: false,
+      };
+    }
+  }
+  const last = exercises[exercises.length - 1];
+  return {
+    exerciseCount: exercises.length,
+    currentExerciseName: last?.name ?? '',
+    currentSetIndex: last ? last.sets.length - 1 : 0,
+    currentExerciseTotalSets: last?.sets.length ?? 0,
+    allSetsCompleted: true,
+  };
+}
 
 /**
  * Guarda o registro de treino em andamento (series/peso/reps ainda nao
@@ -122,6 +162,53 @@ export function WorkoutSessionDraftProvider({ children }: { children: React.Reac
       if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current);
     };
   }, [draft, hydrated]);
+
+  // Live Activity (iOS, Dynamic Island/tela de bloqueio) -- so ~/servicos
+  // liveActivity.ts fazem o try/catch de verdade em cima do modulo nativo
+  // (no-op em Android/Simulator sem Live Activities). Rastreia o
+  // ContentState (serializado) do ultimo draft 'free' visto pra so chamar
+  // start/update/end nas transicoes certas: null->free = start (cobre
+  // tanto "primeiro exercicio adicionado" quanto "app reaberto com
+  // rascunho livre restaurado do disco" -- Module.swift ja encerra
+  // qualquer Live Activity orfa antes de pedir uma nova, entao tratar os
+  // 2 casos igual e seguro), free->free com ContentState diferente =
+  // update (comparar o objeto inteiro, nao so exerciseCount, pra marcar
+  // uma serie como concluida -- sem mudar quantos exercicios existem --
+  // tambem disparar a atualizacao), free->null (ou desmontagem) = end.
+  const prevContentStateRef = useRef<string | null>(null);
+  // Encadeia as chamadas nativas nesta fila em vez de disparar cada uma
+  // solta -- bug real encontrado em dispositivo: o efeito pode re-rodar
+  // mais rapido do que uma chamada anterior (agora assincrona, ver
+  // liveActivity.ts/Module.swift) termina (ex: marcar 2 series em
+  // sequencia rapida), e sem serializar aqui, um updateActivity() podia
+  // comecar antes do startActivity() anterior ter de fato terminado do
+  // lado nativo -- daí a Live Activity ficando presa com o startedAtMs
+  // errado. `queueRef.current = queueRef.current.then(...)` garante que
+  // cada chamada so comeca depois que a anterior (com seus awaits
+  // internos no ActivityKit) completou de verdade, na mesma ordem em que
+  // os efeitos dispararam.
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    queueRef.current = queueRef.current.then(async () => {
+      if (draft?.mode !== 'free') {
+        if (prevContentStateRef.current !== null) {
+          await endFreeWorkoutLiveActivity();
+          prevContentStateRef.current = null;
+        }
+        return;
+      }
+
+      const contentState = computeLiveActivityContentState(draft.exercises);
+      const serialized = JSON.stringify(contentState);
+      if (prevContentStateRef.current === null) {
+        await startFreeWorkoutLiveActivity(draft.startedAt, contentState);
+      } else if (prevContentStateRef.current !== serialized) {
+        await updateFreeWorkoutLiveActivity(contentState);
+      }
+      prevContentStateRef.current = serialized;
+    });
+  }, [draft]);
 
   const value = useMemo(() => ({ draft, setDraft }), [draft]);
   return <WorkoutSessionDraftContext.Provider value={value}>{children}</WorkoutSessionDraftContext.Provider>;

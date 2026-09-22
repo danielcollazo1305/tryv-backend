@@ -92,6 +92,13 @@
             "targetSdkVersion": 36
           }
         }
+      ],
+      [
+        "react-native-widget-extension",
+        {
+          "widgetsFolder": "TryvFitWidgets",
+          "frequentUpdates": false
+        }
       ]
     ],
     "experiments": {
