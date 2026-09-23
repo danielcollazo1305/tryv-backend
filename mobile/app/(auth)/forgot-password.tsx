@@ -2,12 +2,20 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TextField2 } from '@/components/TextField2';
 import { forgotPassword } from '@/services/auth';
 import { getApiErrorMessage } from '@/services/api';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
+/**
+ * Migrada pro tema claro "prism-glass" nesta tarefa (colors2 -> colors3,
+ * Button2 -> Button3, TextField2 variant="light", ScreenBackground3 no
+ * lugar do backgroundColor manual) -- mesmo padrao ja usado em
+ * reset-password.tsx (proxima tela do mesmo fluxo, ja migrada antes).
+ * Nenhuma logica de validacao/envio de codigo/navegacao foi alterada.
+ */
 export default function ForgotPasswordScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(params.email ?? '');
@@ -32,50 +40,53 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>Tryv Fit</Text>
-          <Text style={styles.title}>Esqueci minha senha</Text>
-          <Text style={styles.subtitle}>
-            Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um codigo de verificacao.
-          </Text>
-        </View>
+    <ScreenBackground3 style={styles.flex}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.logo}>Tryv Fit</Text>
+            <Text style={styles.title}>Esqueci minha senha</Text>
+            <Text style={styles.subtitle}>
+              Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um codigo de verificacao.
+            </Text>
+          </View>
 
-        <TextField2
-          label="E-mail"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="voce@email.com"
-        />
+          <TextField2
+            variant="light"
+            label="E-mail"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="voce@email.com"
+          />
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button2 label="Enviar codigo" onPress={handleSubmit} loading={loading} />
+          <Button3 label="Enviar codigo" onPress={handleSubmit} loading={loading} />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Lembrou a senha? </Text>
-          <Text style={styles.link} onPress={() => router.back()}>
-            Voltar para o login
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Lembrou a senha? </Text>
+            <Text style={styles.link} onPress={() => router.back()}>
+              Voltar para o login
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
-  container: { flexGrow: 1, justifyContent: 'center', padding: spacing2.containerMargin, gap: spacing2.md },
-  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
-  logo: { ...typography2.displayHero, fontSize: 36 },
-  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-  error: { color: colors2.danger, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing2.md },
-  footerText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-  link: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing3.containerMargin, gap: spacing3.md },
+  header: { alignItems: 'center', gap: spacing3.xs, marginBottom: spacing3.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  title: { ...typography3.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing3.sm },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  error: { color: colors3.error, textAlign: 'center' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing3.md },
+  footerText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  link: { ...typography3.bodyMd, color: colors3.primary, fontWeight: '700' },
 });

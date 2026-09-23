@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing2.sm + 4,
     color: colors2.onSurface,
     fontSize: 16,
+    fontFamily: typography2.bodyMd.fontFamily,
   },
   inputFocused: {
     borderColor: colors2.violet,
@@ -111,6 +112,7 @@ const stylesLight = StyleSheet.create({
     paddingVertical: spacing3.sm + 4,
     color: colors3.onSurface,
     fontSize: 16,
+    fontFamily: typography3.bodyMd.fontFamily,
   },
   inputFocused: {
     borderColor: colors3.primary,
