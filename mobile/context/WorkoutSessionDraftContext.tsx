@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SetEntry } from '@/components/WorkoutDayCard';
 import {
   LiveActivityContentState,
+  LiveActivityExerciseSummary,
   endFreeWorkoutLiveActivity,
+  readPendingSetUpdates,
   startFreeWorkoutLiveActivity,
   updateFreeWorkoutLiveActivity,
 } from '@/services/liveActivity';
@@ -49,37 +52,37 @@ interface WorkoutSessionDraftContextValue {
 const WorkoutSessionDraftContext = createContext<WorkoutSessionDraftContextValue | undefined>(undefined);
 
 /**
- * "Exercicio/serie atual" pra Live Activity = a primeira serie NAO
- * concluida, varrendo os exercicios na ordem em que foram adicionados --
- * decisao deliberada de nao usar o `currentIndex` do carrossel
- * (FreeWorkoutLogView.tsx, estado local de UI, nao vive neste Context):
- * "o que falta fazer" e mais util pra um relance rapido na tela de
- * bloqueio do que "o que a pessoa esta olhando agora no app" (que pode
- * nem estar aberto). Quando todas as series de todos os exercicios estao
- * concluidas, cai no fallback do ULTIMO exercicio/serie, so pra ter algo
- * coerente pra mostrar.
+ * Traduz o draft 'free' inteiro pro formato que a Live Activity precisa --
+ * um resumo por exercicio (nome, total de series, indice da primeira
+ * serie NAO concluida DESSE exercicio -- ou -1 se ja esta todo feito) e
+ * qual exercicio e o "automatico": o primeiro com serie pendente,
+ * varrendo na ordem em que foram adicionados. "Automatico" (nao
+ * `currentIndex` do carrossel em FreeWorkoutLogView.tsx, estado local de
+ * UI que nao vive neste Context) porque "o que falta fazer" e mais util
+ * pra um relance rapido na tela de bloqueio do que "o que a pessoa esta
+ * olhando agora no app" (que pode nem estar aberto).
+ *
+ * A lista INTEIRA de exercicios (nao so o automatico) vai pra Live
+ * Activity de proposito -- e o que permite navegar entre eles direto por
+ * la (botoes de anterior/proximo, ver Attributes.swift) sem precisar
+ * abrir o app. Todo start/updateActivity "reseta" a navegacao manual de
+ * volta pro automatico (ver Module.swift) -- daqui so sai o indice
+ * automatico, a extensao decide o resto.
  */
 function computeLiveActivityContentState(exercises: FreeSessionExerciseDraft[]): LiveActivityContentState {
-  for (const exercise of exercises) {
-    const setIndex = exercise.sets.findIndex((set) => !set.completed);
-    if (setIndex !== -1) {
-      return {
-        exerciseCount: exercises.length,
-        currentExerciseName: exercise.name,
-        currentSetIndex: setIndex,
-        currentExerciseTotalSets: exercise.sets.length,
-        allSetsCompleted: false,
-      };
-    }
-  }
-  const last = exercises[exercises.length - 1];
-  return {
-    exerciseCount: exercises.length,
-    currentExerciseName: last?.name ?? '',
-    currentSetIndex: last ? last.sets.length - 1 : 0,
-    currentExerciseTotalSets: last?.sets.length ?? 0,
-    allSetsCompleted: true,
-  };
+  const summaries: LiveActivityExerciseSummary[] = exercises.map((exercise) => ({
+    name: exercise.name,
+    totalSets: exercise.sets.length,
+    firstIncompleteSetIndex: exercise.sets.findIndex((set) => !set.completed),
+  }));
+
+  const firstPendingIndex = summaries.findIndex((summary) => summary.firstIncompleteSetIndex !== -1);
+  // Sem nenhuma serie pendente em lugar nenhum -- cai no fallback do
+  // ULTIMO exercicio, so pra ter algo coerente selecionado (mesmo
+  // fallback de antes desta tarefa).
+  const autoExerciseIndex = firstPendingIndex !== -1 ? firstPendingIndex : Math.max(0, summaries.length - 1);
+
+  return { exercises: summaries, autoExerciseIndex };
 }
 
 /**
@@ -163,6 +166,67 @@ export function WorkoutSessionDraftProvider({ children }: { children: React.Reac
     };
   }, [draft, hydrated]);
 
+  // ETAPA C da Live Activity interativa: reconciliacao dos toques no
+  // botao "marcar serie" (MarkCurrentSetDoneIntent, Attributes.swift).
+  // Esse Intent roda FORA do processo RN (mesmo com o app fechado) e so
+  // consegue empilhar a serie marcada num UserDefaults compartilhado (App
+  // Group) -- nao existe canal direto pra mexer neste Context dali. Aqui
+  // e onde o app LE essa fila e aplica no draft, sempre que volta ao
+  // primeiro plano.
+  //
+  // Roda 2 gatilhos: (1) uma vez apos a hidratacao (o app nasce 'active',
+  // sem disparar o listener de mudanca do AppState -- sem isso, toques
+  // dados com o app TOTALMENTE fechado so seriam aplicados na proxima vez
+  // que ele for pra background e volte, nao ja na abertura), e (2) toda
+  // transicao de AppState pra 'active' depois disso (app minimizado e
+  // reaberto). Sempre LE E LIMPA a fila (mesmo se o draft atual nao for
+  // 'free' no momento) -- toques que sobraram de uma sessao ja encerrada
+  // nao devem vazar pra uma sessao livre futura.
+  //
+  // Usa setDraft com updater function (nao fecha sobre `draft` direto) pra
+  // sempre aplicar em cima do estado mais recente, nao de uma copia presa
+  // no closure deste efeito. Isso so MUDA o draft (setDraft) -- nao chama
+  // liveActivity.ts diretamente disso; o efeito de sincronizacao logo
+  // abaixo, que ja escuta `draft`, cuida de refletir o resultado de volta
+  // na Live Activity (inclusive corrigindo a aproximacao otimista que o
+  // Intent fez localmente, ja que so o app sabe se havia um PROXIMO
+  // exercicio). Nao ha risco de loop: aplicar um toque pendente nunca cria
+  // outro toque pendente (so o botao da Live Activity faz isso).
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const reconcile = async () => {
+      const pending = await readPendingSetUpdates();
+      if (pending.length === 0) return;
+      setDraft((prev) => {
+        if (prev?.mode !== 'free') return prev;
+        let exercises = prev.exercises;
+        for (const update of pending) {
+          // So a PRIMEIRA ocorrencia do nome -- mesma convencao de
+          // computeLiveActivityContentState (que tambem so enxerga um
+          // nome, nao um indice, no ContentState), pra nao marcar 2
+          // exercicios de uma vez no caso raro de nomes repetidos na
+          // mesma sessao.
+          const matchIndex = exercises.findIndex((exercise) => exercise.name === update.exerciseName);
+          if (matchIndex === -1) continue;
+          const exercise = exercises[matchIndex];
+          if (update.setIndex < 0 || update.setIndex >= exercise.sets.length) continue;
+          const sets = exercise.sets.map((set, index) =>
+            index === update.setIndex ? { ...set, completed: true } : set
+          );
+          exercises = exercises.map((ex, i) => (i === matchIndex ? { ...exercise, sets } : ex));
+        }
+        return { ...prev, exercises };
+      });
+    };
+
+    reconcile();
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') reconcile();
+    });
+    return () => subscription.remove();
+  }, [hydrated]);
+
   // Live Activity (iOS, Dynamic Island/tela de bloqueio) -- so ~/servicos
   // liveActivity.ts fazem o try/catch de verdade em cima do modulo nativo
   // (no-op em Android/Simulator sem Live Activities). Rastreia o
@@ -172,9 +236,10 @@ export function WorkoutSessionDraftProvider({ children }: { children: React.Reac
   // rascunho livre restaurado do disco" -- Module.swift ja encerra
   // qualquer Live Activity orfa antes de pedir uma nova, entao tratar os
   // 2 casos igual e seguro), free->free com ContentState diferente =
-  // update (comparar o objeto inteiro, nao so exerciseCount, pra marcar
-  // uma serie como concluida -- sem mudar quantos exercicios existem --
-  // tambem disparar a atualizacao), free->null (ou desmontagem) = end.
+  // update (comparar o objeto inteiro, nao so o numero de exercicios, pra
+  // marcar uma serie como concluida -- sem mudar quantos exercicios
+  // existem -- tambem disparar a atualizacao), free->null (ou
+  // desmontagem) = end.
   const prevContentStateRef = useRef<string | null>(null);
   // Encadeia as chamadas nativas nesta fila em vez de disparar cada uma
   // solta -- bug real encontrado em dispositivo: o efeito pode re-rodar

@@ -12,6 +12,9 @@
       "bundleIdentifier": "com.danielcollazo.tryvmobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.danielcollazo.tryvmobile"]
       }
     },
     "android": {
@@ -98,7 +101,8 @@
         "react-native-widget-extension",
         {
           "widgetsFolder": "TryvFitWidgets",
-          "frequentUpdates": false
+          "frequentUpdates": false,
+          "groupIdentifier": "group.com.danielcollazo.tryvmobile"
         }
       ]
     ],

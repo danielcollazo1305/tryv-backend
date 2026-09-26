@@ -1,6 +1,27 @@
 import ExpoModulesCore
 import ActivityKit
 
+/// [{"name": String, "totalSets": Int, "firstIncompleteSetIndex": Int}, ...]
+/// vindo do JS (LiveActivityContentState.exercises, services/liveActivity.ts)
+/// -> [FreeWorkoutActivityAttributes.ExerciseSummary]. Entradas que nao
+/// batem o formato esperado sao ignoradas (compactMap) -- nao deveria
+/// acontecer de verdade (o lado JS sempre manda os 3 campos), mas e mais
+/// seguro que forcar um crash em runtime por um dado malformado.
+private func parseExerciseSummaries(_ raw: [[String: Any]]) -> [FreeWorkoutActivityAttributes.ExerciseSummary] {
+    raw.compactMap { dict in
+        guard
+            let name = dict["name"] as? String,
+            let totalSets = dict["totalSets"] as? Int,
+            let firstIncompleteSetIndex = dict["firstIncompleteSetIndex"] as? Int
+        else { return nil }
+        return FreeWorkoutActivityAttributes.ExerciseSummary(
+            name: name,
+            totalSets: totalSets,
+            firstIncompleteSetIndex: firstIncompleteSetIndex
+        )
+    }
+}
+
 /// Ponte JS <-> Swift pra Live Activity do treino livre.
 ///
 /// Nome da CLASSE tem que ser exatamente "ReactNativeWidgetExtensionModule"
@@ -40,7 +61,7 @@ public class ReactNativeWidgetExtensionModule: Module {
             }
         }
 
-        AsyncFunction("startActivity") { (startedAtMs: Double, exerciseCount: Int, currentExerciseName: String, currentSetIndex: Int, currentExerciseTotalSets: Int, allSetsCompleted: Bool) async throws in
+        AsyncFunction("startActivity") { (startedAtMs: Double, exercises: [[String: Any]], autoExerciseIndex: Int) async throws in
             guard #available(iOS 16.2, *) else { return }
 
             // Encerra qualquer Live Activity de treino livre que ja
@@ -56,25 +77,31 @@ public class ReactNativeWidgetExtensionModule: Module {
 
             let attributes = FreeWorkoutActivityAttributes(startedAtMs: startedAtMs)
             let contentState = FreeWorkoutActivityAttributes.ContentState(
-                exerciseCount: exerciseCount,
-                currentExerciseName: currentExerciseName,
-                currentSetIndex: currentSetIndex,
-                currentExerciseTotalSets: currentExerciseTotalSets,
-                allSetsCompleted: allSetsCompleted
+                exercises: parseExerciseSummaries(exercises),
+                autoExerciseIndex: autoExerciseIndex,
+                // Comeca igual ao automatico -- so navegacao manual
+                // (NextExerciseIntent/PreviousExerciseIntent) muda isso
+                // depois, localmente na extensao.
+                viewedExerciseIndex: autoExerciseIndex
             )
             let content = ActivityContent(state: contentState, staleDate: nil)
             _ = try Activity.request(attributes: attributes, content: content)
         }
 
-        AsyncFunction("updateActivity") { (exerciseCount: Int, currentExerciseName: String, currentSetIndex: Int, currentExerciseTotalSets: Int, allSetsCompleted: Bool) async in
+        AsyncFunction("updateActivity") { (exercises: [[String: Any]], autoExerciseIndex: Int) async in
             guard #available(iOS 16.2, *) else { return }
 
             let contentState = FreeWorkoutActivityAttributes.ContentState(
-                exerciseCount: exerciseCount,
-                currentExerciseName: currentExerciseName,
-                currentSetIndex: currentSetIndex,
-                currentExerciseTotalSets: currentExerciseTotalSets,
-                allSetsCompleted: allSetsCompleted
+                exercises: parseExerciseSummaries(exercises),
+                autoExerciseIndex: autoExerciseIndex,
+                // Todo update de verdade do app "reseta" uma navegacao
+                // manual antiga de volta pro automatico -- de proposito
+                // (ver comentario em ContentState.viewedExerciseIndex,
+                // Attributes.swift): um dado real do treino mudou, entao
+                // a Live Activity deve voltar a mostrar o exercicio
+                // certo, nao ficar presa em algum outro que a pessoa
+                // tinha navegado manualmente antes dessa mudanca.
+                viewedExerciseIndex: autoExerciseIndex
             )
             let content = ActivityContent(state: contentState, staleDate: nil)
             for activity in Activity<FreeWorkoutActivityAttributes>.activities {
@@ -88,6 +115,23 @@ public class ReactNativeWidgetExtensionModule: Module {
             for activity in Activity<FreeWorkoutActivityAttributes>.activities {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
+        }
+
+        // ETAPA C -- le os toques pendentes que MarkCurrentSetDoneIntent
+        // (Attributes.swift) empilhou em UserDefaults compartilhado
+        // (App Group) enquanto o botao da Live Activity foi tocado com o
+        // app fechado/minimizado, e LIMPA a lista em seguida -- lida uma
+        // vez so por chamada, pra nao reaplicar o mesmo toque 2x se o JS
+        // chamar de novo por qualquer motivo (ver
+        // WorkoutSessionDraftContext.tsx, so chama isso ao voltar pro
+        // primeiro plano). Retorna array de dicts (exerciseName/setIndex)
+        // -- Expo Modules Core serializa isso pro JS sem precisar de
+        // nenhum tipo Codable/Record customizado.
+        AsyncFunction("readPendingSetUpdates") { () async -> [[String: Any]] in
+            guard let sharedDefaults = UserDefaults(suiteName: sharedDefaultsSuiteName) else { return [] }
+            let pending = sharedDefaults.array(forKey: "pendingSetUpdates") as? [[String: Any]] ?? []
+            sharedDefaults.removeObject(forKey: "pendingSetUpdates")
+            return pending
         }
     }
 }
