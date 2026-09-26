@@ -1,5 +1,8 @@
 import type { Slug } from 'react-native-body-highlighter';
 
+import { REPDB_EXERCISES } from './exerciseLibraryRepDB.generated';
+import translationOverrides from './exerciseTranslationOverrides.json';
+
 /**
  * Lookup exercicio -> grupos musculares (+ video de execucao, item 2).
  *
@@ -70,6 +73,19 @@ export const EXERCISE_LIBRARY: ExerciseLibraryEntry[] = [
   { name: 'Elevação de Pernas', keywords: ['elevação de pernas', 'infra'], muscles: ['abs'] },
   { name: 'Voador (Peck Deck)', keywords: ['voador'], muscles: ['chest'] },
   { name: 'Pullover', keywords: ['pullover'], muscles: ['chest', 'upper-back'] },
+  // A partir daqui: base expandida do RepDB (571 exercicios, ver
+  // exerciseLibraryRepDB.generated.ts) -- nomes traduzidos do ingles,
+  // sem ilustracao/video (cai no placeholder normal). Overrides de
+  // traducao pontuais entram por cima via exerciseTranslationOverrides.json
+  // (chave = id do RepDB), sem precisar editar nenhum .ts pra corrigir
+  // um nome especifico depois.
+  ...REPDB_EXERCISES.map(
+    (entry): ExerciseLibraryEntry => ({
+      name: (translationOverrides as Record<string, string>)[entry.id] ?? entry.name,
+      keywords: [entry.name],
+      muscles: entry.muscles,
+    })
+  ),
 ];
 
 /** Remove acentos e caixa alta pra comparar por palavra-chave de forma tolerante. */
