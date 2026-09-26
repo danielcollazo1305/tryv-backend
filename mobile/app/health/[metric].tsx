@@ -232,6 +232,14 @@ export default function HealthMetricDetailScreen() {
 
   const daily = history?.points ?? [];
   const maxValue = Math.max(1, ...daily.map((p) => p.value ?? 0));
+  // `daily` vem de buildBucketKeys (services/healthkit.ts) em ordem
+  // cronologica ASCENDENTE (mais antigo -> mais recente) -- correta pro
+  // grafico de barras acima (leitura esquerda->direita, convencao padrao
+  // de grafico de serie temporal, mantida como esta). A lista de
+  // registros abaixo do grafico, porem, e uma lista de HISTORICO — o mais
+  // natural ali (Apple Saude, Google Fit) e o mais recente primeiro, por
+  // isso so essa lista usa a ordem invertida.
+  const dailyMostRecentFirst = [...daily].reverse();
 
   // Variacao percentual real: media do periodo atual vs. media do MESMO
   // periodo, 1 janela atras (offset+1) — nao um numero ilustrativo (ver
@@ -394,10 +402,10 @@ export default function HealthMetricDetailScreen() {
                 </View>
 
                 <View style={styles.dayList}>
-                  {daily.map((point, index) => (
+                  {dailyMostRecentFirst.map((point, index) => (
                     <View
                       key={point.date}
-                      style={[styles.dayRow, index === daily.length - 1 && styles.dayRowLast]}
+                      style={[styles.dayRow, index === dailyMostRecentFirst.length - 1 && styles.dayRowLast]}
                     >
                       <Text style={styles.dayNumber}>{formatBucketLabel(point.date, history.granularity)}</Text>
                       {history.granularity === 'day' && (
