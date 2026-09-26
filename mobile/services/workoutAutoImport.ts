@@ -12,7 +12,12 @@ import {
   Run,
 } from '@/services/activities';
 import { ensureAuthToken } from '@/services/api';
-import { fetchWorkoutsSinceAnchor, HealthKitWorkout, isHealthAuthorizedWithoutPrompting } from '@/services/health';
+import {
+  fetchWorkoutsSinceAnchor,
+  HealthKitWorkout,
+  isHealthAuthorizedWithoutPrompting,
+  setupBackgroundWorkoutDelivery,
+} from '@/services/health';
 
 /**
  * Importacao de treinos do hub de saude do celular (Apple Health / Health
@@ -201,6 +206,39 @@ export async function runAutoImport(trigger: AutoImportTrigger): Promise<AutoImp
     // acontecer (erro sempre silencioso pro usuario, so logado).
     console.error(`[autoImport] ${trigger}: erro inesperado`, error);
     return { ...EMPTY_RESULT, error: error instanceof Error ? error.message : 'erro desconhecido' };
+  }
+}
+
+/**
+ * Fase C (so iOS) -- registra o gatilho de segundo plano do HealthKit pra
+ * treinos (ver services/health.ts:setupBackgroundWorkoutDelivery pro
+ * mecanismo nativo completo) e liga o callback dele a runAutoImport('background').
+ * Reaproveita 100% da logica de habilitado/autorizado/anchor/lock que ja
+ * existe em runAutoImport/runAutoImportUnsafe -- este gatilho so a chama,
+ * nao duplica nada dela.
+ *
+ * So registra se ja estiver habilitado e autorizado sem prompt (mesmas 2
+ * checagens que runAutoImportUnsafe ja faz sozinha) -- sem isso nao ha o que
+ * configurar, e chamar a API nativa sem autorizacao so geraria log de erro a
+ * toa. Chamar de novo depois (ex: reabrir o app apos autorizar pela primeira
+ * vez) cobre esse caso, ja que quem chama isto (app/_layout.tsx) roda isto
+ * todo boot/retomada, igual ao gatilho de primeiro plano.
+ *
+ * Devolve uma funcao de limpeza (remove a assinatura nativa) -- quem chama
+ * deve rodar isso no cleanup do efeito que registrou o gatilho.
+ */
+export async function startBackgroundImportTrigger(): Promise<() => void> {
+  if (Platform.OS !== 'ios') return () => {};
+  if (!(await isAutoImportEnabled())) return () => {};
+  if (!(await isHealthAuthorizedWithoutPrompting())) return () => {};
+
+  try {
+    return await setupBackgroundWorkoutDelivery(() => {
+      void runAutoImport('background');
+    });
+  } catch (error) {
+    console.error('[autoImport] background: falha ao configurar entrega em segundo plano', error);
+    return () => {};
   }
 }
 

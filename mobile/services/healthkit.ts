@@ -1,6 +1,7 @@
 import {
   AuthorizationRequestStatus,
   CategoryValueSleepAnalysis,
+  configureBackgroundTypes,
   getMostRecentQuantitySample,
   getRequestStatusForAuthorization,
   isHealthDataAvailable,
@@ -9,7 +10,9 @@ import {
   queryStatisticsCollectionForQuantity,
   queryStatisticsForQuantity,
   queryWorkoutSamples,
+  queryWorkoutSamplesWithAnchor,
   requestAuthorization,
+  subscribeToChanges,
   WorkoutActivityType,
 } from '@kingstinct/react-native-healthkit';
 import type { Quantity, QuantityTypeIdentifier, UnitForIdentifier, WorkoutProxyTyped } from '@kingstinct/react-native-healthkit';
@@ -164,6 +167,25 @@ async function extractRoutePoints(workout: WorkoutProxyTyped): Promise<RoutePoin
   }
 }
 
+/**
+ * HKWorkout -> HealthKitWorkout. Le a rota GPS (chamada cara: abre uma query
+ * separada por treino), entao so deve ser chamado pra treinos que o chamador
+ * realmente vai usar — ver fetchWorkoutsSinceAnchor.
+ */
+async function toHealthKitWorkout(workout: WorkoutProxyTyped): Promise<HealthKitWorkout> {
+  return {
+    id: workout.uuid,
+    activityType: mapActivityType(workout.workoutActivityType),
+    startedAt: workout.startDate.toISOString(),
+    finishedAt: workout.endDate.toISOString(),
+    durationSeconds: Math.round(quantityToSeconds(workout.duration)),
+    distanceMeters: workout.totalDistance ? quantityToMeters(workout.totalDistance) : null,
+    caloriesBurned: workout.totalEnergyBurned ? workout.totalEnergyBurned.quantity : null,
+    routePoints: await extractRoutePoints(workout),
+    sourceId: workout.sourceRevision?.source?.bundleIdentifier,
+  };
+}
+
 /** Busca treinos do HealthKit desde a data informada, mais recentes primeiro. */
 export async function fetchRecentWorkouts(sinceDate: Date): Promise<HealthKitWorkout[]> {
   const workouts = await queryWorkoutSamples({
@@ -174,18 +196,76 @@ export async function fetchRecentWorkouts(sinceDate: Date): Promise<HealthKitWor
 
   const results: HealthKitWorkout[] = [];
   for (const workout of workouts) {
-    results.push({
-      id: workout.uuid,
-      activityType: mapActivityType(workout.workoutActivityType),
-      startedAt: workout.startDate.toISOString(),
-      finishedAt: workout.endDate.toISOString(),
-      durationSeconds: Math.round(quantityToSeconds(workout.duration)),
-      distanceMeters: workout.totalDistance ? quantityToMeters(workout.totalDistance) : null,
-      caloriesBurned: workout.totalEnergyBurned ? workout.totalEnergyBurned.quantity : null,
-      routePoints: await extractRoutePoints(workout),
-    });
+    results.push(await toHealthKitWorkout(workout));
   }
   return results;
+}
+
+/**
+ * Leitura INCREMENTAL pra importacao automatica: devolve so o que mudou desde
+ * o `anchor` da ultima execucao, mais o anchor novo pro proximo disparo.
+ *
+ * Existe separado de fetchRecentWorkouts porque aquela varre uma janela fixa
+ * (30 dias na tela manual) e le a rota GPS de TODO treino da janela — caro
+ * demais pro gatilho automatico, que no iOS roda com poucos segundos de
+ * execucao quando o sistema acorda o app. Aqui, como a consulta ancorada ja
+ * devolve so o que e novo, a leitura de rota acontece apenas nesses.
+ *
+ * Sem anchor salvo (primeira execucao), limita a janela a `fallbackSince` em
+ * vez de trazer o historico inteiro do aparelho — o historico antigo continua
+ * disponivel pela tela de importacao manual.
+ *
+ * `deletedSamples` e ignorado de proposito: apagar um treino do Apple Health
+ * nao deveria apagar a atividade ja salva no Tryv (o usuario pode ter
+ * editado/comentado ela aqui). Sincronizar exclusao seria outra decisao de
+ * produto, nao um detalhe desta importacao.
+ */
+export async function fetchWorkoutsSinceAnchor(
+  anchor: string | null,
+  fallbackSince: Date
+): Promise<{ workouts: HealthKitWorkout[]; newAnchor: string | null }> {
+  const response = await queryWorkoutSamplesWithAnchor({
+    // Sem anchor a consulta traria tudo que existe no aparelho; com anchor o
+    // filtro de data nao atrapalha (o anchor ja limita ao que e novo), mas
+    // manter a janela evita um lote gigante se o anchor for invalidado.
+    filter: { date: { startDate: fallbackSince } },
+    limit: 0,
+    ...(anchor ? { anchor } : {}),
+  });
+
+  const workouts: HealthKitWorkout[] = [];
+  for (const workout of response.workouts) {
+    workouts.push(await toHealthKitWorkout(workout));
+  }
+  return { workouts, newAnchor: response.newAnchor ?? null };
+}
+
+/**
+ * Fase C da importacao automatica: entrega em segundo plano do HealthKit pra
+ * treinos, sem precisar abrir o app. configureBackgroundTypes registra (e
+ * persiste em UserDefaults, pro proximo cold launch) um HKObserverQuery via
+ * BackgroundDeliveryManager nativa; subscribeToChanges, quando chamado
+ * DEPOIS de um tipo ja estar configurado assim, e roteado por essa mesma
+ * BackgroundDeliveryManager em vez de abrir um HKObserverQuery independente
+ * -- inclusive drenando eventos que chegaram antes do JS subir (app
+ * relancado em segundo plano pelo iOS). Ver
+ * node_modules/@kingstinct/react-native-healthkit/ios/CoreModule.swift
+ * (subscribeToObserverQuery) e BackgroundDeliveryManager.swift.
+ *
+ * So funciona de fato apos o encerramento do app com o plugin local
+ * plugins/withHealthKitBackgroundDelivery.js registrado (ver comentario la)
+ * -- o app.plugin.js publicado desta lib nao injeta a chamada nativa
+ * necessaria no AppDelegate. Exige build novo no EAS (entitlement +
+ * AppDelegate nao aparecem num binario ja instalado.)
+ *
+ * updateFrequency=1 == HKUpdateFrequency.immediate. O enum UpdateFrequency
+ * do pacote nao e reexportado no entry point publico desta versao (14.1.0)
+ * -- usar o numero direto em vez de um import que nao resolveria.
+ */
+export async function setupBackgroundWorkoutDelivery(onUpdate: () => void): Promise<() => void> {
+  await configureBackgroundTypes(['HKWorkoutTypeIdentifier'], 1);
+  const subscription = subscribeToChanges('HKWorkoutTypeIdentifier', () => onUpdate());
+  return () => subscription.remove();
 }
 
 function startOfToday(): Date {

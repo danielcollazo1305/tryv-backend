@@ -56,6 +56,22 @@ export function ensureHealthAuthorized(): Promise<boolean> {
   return isIOS ? healthkit.ensureHealthKitAuthorized() : healthConnect.ensureHealthConnectAuthorized();
 }
 
+/**
+ * Como ensureHealthAuthorized, mas com a garantia de NUNCA abrir o dialogo de
+ * permissao do sistema. E o que a importacao automatica usa: ela roda sozinha,
+ * sem o usuario ter pedido nada naquele instante — fazer um dialogo de
+ * permissao aparecer do nada seria hostil, e em segundo plano nem apareceria,
+ * so falharia.
+ *
+ * iOS: ensureHealthKitAuthorized pode RE-PEDIR autorizacao (quando a flag
+ * local diz que ja conectou antes), por isso aqui usamos a checagem crua.
+ * Android: ensureHealthConnectAuthorized ja e so leitura de estado, nao pede
+ * nada — da pra reaproveitar direto.
+ */
+export function isHealthAuthorizedWithoutPrompting(): Promise<boolean> {
+  return isIOS ? healthkit.isHealthKitReallyAuthorized() : healthConnect.ensureHealthConnectAuthorized();
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Passos e Calorias ativas
 
@@ -120,6 +136,37 @@ export function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
 
 export function fetchRecentWorkouts(sinceDate: Date): Promise<HealthKitWorkout[]> {
   return isIOS ? healthkit.fetchRecentWorkouts(sinceDate) : healthConnect.fetchRecentWorkouts(sinceDate);
+}
+
+/**
+ * Leitura incremental pra importacao automatica (services/workoutAutoImport.ts).
+ * No iOS usa a consulta ancorada do HealthKit (so o que mudou desde a ultima
+ * execucao); no Android ainda cai na janela de `fallbackSince` e devolve
+ * newAnchor null — ver o comentario na implementacao de healthConnect.ts.
+ */
+export function fetchWorkoutsSinceAnchor(
+  anchor: string | null,
+  fallbackSince: Date
+): Promise<{ workouts: HealthKitWorkout[]; newAnchor: string | null }> {
+  return isIOS
+    ? healthkit.fetchWorkoutsSinceAnchor(anchor, fallbackSince)
+    : healthConnect.fetchWorkoutsSinceAnchor(anchor, fallbackSince);
+}
+
+/**
+ * Fase C (so iOS): registra a entrega em segundo plano do HealthKit pra
+ * treinos e assina o callback que dispara quando o sistema entrega uma
+ * atualizacao -- com o app aberto ou relancado em segundo plano pelo iOS
+ * (ver comentario em healthkit.ts:setupBackgroundWorkoutDelivery pro
+ * mecanismo completo). Android [Health Connect] nao tem gatilho de segundo
+ * plano nesta fase (Fase D, bloqueada, fora de escopo) -- no-op que devolve
+ * um unsubscribe vazio.
+ *
+ * Devolve uma funcao de limpeza; quem chama deve guarda-la e chamar no
+ * cleanup do efeito que registrou isso.
+ */
+export function setupBackgroundWorkoutDelivery(onUpdate: () => void): Promise<() => void> {
+  return isIOS ? healthkit.setupBackgroundWorkoutDelivery(onUpdate) : Promise.resolve(() => {});
 }
 
 /**

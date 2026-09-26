@@ -10,7 +10,7 @@ import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
-import { runAutoImport } from '@/services/workoutAutoImport';
+import { runAutoImport, startBackgroundImportTrigger } from '@/services/workoutAutoImport';
 import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -47,26 +47,29 @@ export default function RootLayout() {
 function RootNavigator() {
   const { token, isLoading } = useAuth();
 
-  // Fase B da sincronizacao automatica de treinos (Apple Health/Health
-  // Connect, ver services/workoutAutoImport.ts) -- dispara ao abrir o app
-  // e toda vez que ele volta pro primeiro plano, sem nenhum toque do
-  // usuario. So AppState aqui: sem HKObserverQuery/background delivery
-  // (iOS) nem leitura em segundo plano do Health Connect (Android) --
-  // isso fica pra uma fase futura, que depende de aprovacao externa
-  // (Google) e/ou build novo com entitlement novo. runAutoImport() cobre
-  // os 2 SOs sozinho (decide HealthKit vs Health Connect via
-  // services/health.ts) e nunca rejeita (loga e devolve um resultado
-  // vazio em qualquer erro) -- seguro chamar "fire-and-forget", sem
-  // travar a UI esperando resposta.
+  // Fases B+C da sincronizacao automatica de treinos (Apple Health/Health
+  // Connect, ver services/workoutAutoImport.ts). runAutoImport() cobre os 2
+  // SOs sozinho (decide HealthKit vs Health Connect via services/health.ts)
+  // e nunca rejeita (loga e devolve um resultado vazio em qualquer erro) --
+  // seguro chamar "fire-and-forget", sem travar a UI esperando resposta.
   //
-  // 2 gatilhos: (1) uma vez no mount, cobrindo abertura fria do app (ele
-  // ja nasce 'active', sem disparar nenhum evento de MUDANCA do
-  // AppState -- so escutar 'change' perderia esse caso); (2) toda
-  // transicao de AppState pra 'active' depois disso (app minimizado e
-  // reaberto). So roda com sessao ativa (token) -- sem login nao ha pra
-  // onde importar (runAutoImport ja sairia em silencio sozinho por causa
-  // disso, ver ensureAuthToken la dentro, mas checar aqui evita a
-  // chamada a toa).
+  // Fase B -- AppState, primeiro plano: (1) uma vez no mount, cobrindo
+  // abertura fria do app (ele ja nasce 'active', sem disparar nenhum evento
+  // de MUDANCA do AppState -- so escutar 'change' perderia esse caso); (2)
+  // toda transicao de AppState pra 'active' depois disso (app minimizado e
+  // reaberto).
+  //
+  // Fase C -- HKObserverQuery + background delivery, so iOS: registra (via
+  // startBackgroundImportTrigger, ver comentario la) o gatilho nativo que
+  // dispara runAutoImport('background') quando o sistema entrega uma
+  // atualizacao de treino, com o app aberto OU relancado em segundo plano
+  // pelo iOS -- sem nenhum toque do usuario. Health Connect (Android) nao
+  // tem gatilho de segundo plano nesta fase (Fase D, bloqueada, fora de
+  // escopo) -- startBackgroundImportTrigger ja e no-op la.
+  //
+  // Ambas so rodam com sessao ativa (token) -- sem login nao ha pra onde
+  // importar (runAutoImport ja sairia em silencio sozinho por causa disso,
+  // ver ensureAuthToken la dentro, mas checar aqui evita a chamada a toa).
   useEffect(() => {
     if (!token) return;
 
@@ -74,7 +77,22 @@ function RootNavigator() {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') runAutoImport('foreground');
     });
-    return () => subscription.remove();
+
+    let cancelled = false;
+    let removeBackgroundTrigger: (() => void) | undefined;
+    startBackgroundImportTrigger().then((remove) => {
+      if (cancelled) {
+        remove();
+        return;
+      }
+      removeBackgroundTrigger = remove;
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.remove();
+      removeBackgroundTrigger?.();
+    };
   }, [token]);
 
   if (isLoading) {

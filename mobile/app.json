@@ -70,9 +70,10 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "O Tryv Fit acessa seus dados do Apple Health (treinos, passos, distancia, frequencia cardiaca, calorias ativas e sono) para mostrar seu resumo de atividade e importar treinos automaticamente.",
-          "background": false
+          "background": true
         }
       ],
+      "./plugins/withHealthKitBackgroundDelivery",
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       [
