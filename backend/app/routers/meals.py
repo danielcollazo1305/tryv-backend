@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 import anthropic
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
@@ -19,8 +19,9 @@ from app.schemas.meal import (
     MealOut,
     MealsSummaryOut,
     MealsSummaryPeriod,
+    MealTextAnalysisRequest,
 )
-from app.services.meal_analysis import analyze_meal_photo
+from app.services.meal_analysis import analyze_meal_photo, analyze_meal_text
 from app.services.points import CALORIE_GOAL_XP, PROTEIN_GOAL_XP, award_points
 
 router = APIRouter(prefix="/meals", tags=["meals"])
@@ -30,22 +31,51 @@ logger = logging.getLogger(__name__)
 @router.post("/analyze", response_model=MealAnalysisOut)
 async def analyze(
     file: UploadFile = File(...),
+    user_hint: str | None = Form(None),
     current_user: User = Depends(require_pro_subscription),
 ):
     """
     Analisa uma foto de refeicao e retorna calorias/macros estimados.
     Nao grava nada no banco — o cliente confirma os valores e chama
     POST /meals para registrar de verdade.
+
+    `user_hint` (campo de form opcional, junto da foto no mesmo multipart):
+    descricao textual do que esta na foto, pra reduzir erro de
+    identificacao visual (ex: prato de cuscuz com ovo identificado como
+    farinha) -- usado tanto como dica previa quanto como correcao
+    pos-analise (cliente reenvia a MESMA foto com um hint dizendo o que
+    saiu errado, ver analyze_meal_photo).
     """
     image_bytes = await file.read()
     media_type = file.content_type or "image/jpeg"
     try:
-        return analyze_meal_photo(image_bytes, media_type=media_type)
+        return analyze_meal_photo(image_bytes, media_type=media_type, user_hint=user_hint)
     except (anthropic.APIError, ValueError) as e:
         logger.error("Falha ao analisar foto de refeicao (user_id=%s): %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Nao foi possivel analisar a foto, tente novamente com uma imagem mais nitida",
+        )
+
+
+@router.post("/analyze-text", response_model=MealAnalysisOut)
+def analyze_text(
+    payload: MealTextAnalysisRequest,
+    current_user: User = Depends(require_pro_subscription),
+):
+    """
+    Analisa uma descricao textual de alimento (modo manual, sem foto) e
+    retorna calorias/macros estimados — mesmo formato de resposta de
+    POST /meals/analyze (foto), pro cliente reaproveitar o mesmo tipo
+    MealAnalysis. Tambem nao grava nada no banco.
+    """
+    try:
+        return analyze_meal_text(payload.description, quantity=payload.quantity)
+    except (anthropic.APIError, ValueError) as e:
+        logger.error("Falha ao analisar descricao de refeicao (user_id=%s): %s", current_user.id, e)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Nao foi possivel estimar essa refeicao, tente descrever de outro jeito",
         )
 
 

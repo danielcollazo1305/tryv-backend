@@ -30,8 +30,17 @@ export interface MealCreatePayload {
   fat?: number | null;
 }
 
-/** Envia a foto (local URI do device) para analise por IA — nao salva nada. */
-export async function analyzeMealPhoto(imageUri: string): Promise<MealAnalysis> {
+/**
+ * Envia a foto (local URI do device) para analise por IA — nao salva nada.
+ *
+ * `userHint`: descricao textual opcional do que esta na foto (ex: "cuscuz
+ * com ovo") -- reduz erro de identificacao visual (o backend usa isso pra
+ * dar mais contexto ao Claude, ver analyze_meal_photo). Reaproveitado
+ * tanto pra dica previa (antes da 1a analise) quanto pra correcao
+ * pos-analise (mesma imageUri, novo hint dizendo o que saiu errado) — o
+ * chamador so passa um texto diferente, a funcao e a mesma nos 2 casos.
+ */
+export async function analyzeMealPhoto(imageUri: string, userHint?: string): Promise<MealAnalysis> {
   const filename = imageUri.split('/').pop() ?? 'meal.jpg';
   const extensionMatch = /\.(\w+)$/.exec(filename);
   const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'jpg';
@@ -44,10 +53,21 @@ export async function analyzeMealPhoto(imageUri: string): Promise<MealAnalysis> 
     name: filename,
     type: mimeType,
   } as unknown as Blob);
+  if (userHint && userHint.trim()) formData.append('user_hint', userHint.trim());
 
   // A analise usa "thinking" no backend e pode demorar mais que o timeout
   // padrao do cliente — da mais folga so para essa chamada.
   const response = await api.post<MealAnalysis>('/meals/analyze', formData, { timeout: 45000 });
+  return response.data;
+}
+
+/** Estima calorias/macros a partir da descricao do modo manual (sem foto) — mesmo formato de retorno de analyzeMealPhoto. `quantity` vazio/omitido faz o backend assumir uma porcao tipica. */
+export async function analyzeMealText(description: string, quantity?: string): Promise<MealAnalysis> {
+  const response = await api.post<MealAnalysis>(
+    '/meals/analyze-text',
+    { description, quantity: quantity || null },
+    { timeout: 45000 }
+  );
   return response.data;
 }
 

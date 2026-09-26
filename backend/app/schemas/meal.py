@@ -16,6 +16,13 @@ class MealAnalysisOut(BaseModel):
     confidence: str
 
 
+class MealTextAnalysisRequest(BaseModel):
+    """Payload de POST /meals/analyze-text — modo manual sem foto, ver
+    analyze_meal_text em app/services/meal_analysis.py."""
+    description: str = Field(..., min_length=1)
+    quantity: str | None = None
+
+
 class MealCreate(BaseModel):
     photo_url: str | None = None
     description: str | None = None

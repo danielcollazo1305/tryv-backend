@@ -18,7 +18,7 @@ import { Button3 } from '@/components/Button3';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
-import { MealAnalysis, analyzeMealPhoto, createMeal } from '@/services/meals';
+import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
 import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -60,6 +60,18 @@ export default function AddMealScreen() {
   const [analysis, setAnalysis] = useState<MealAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Dica de texto opcional pra ajudar a IA a identificar o alimento
+  // certo quando a aparencia visual e ambigua (ex: prato de cuscuz com
+  // ovo identificado como farinha) -- preenchida ANTES de tirar/escolher
+  // a foto, some da UI apos a 1a analise (o hint so faz sentido na hora
+  // da chamada, nao e um campo persistente).
+  const [photoHint, setPhotoHint] = useState('');
+  // Correcao POS-analise: reanalisa a MESMA foto com um texto novo
+  // dizendo o que saiu errado, sem precisar tirar foto de novo.
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [correctionText, setCorrectionText] = useState('');
+  const [reanalyzing, setReanalyzing] = useState(false);
+
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
@@ -72,6 +84,7 @@ export default function AddMealScreen() {
   const [manualCarbs, setManualCarbs] = useState('');
   const [manualFat, setManualFat] = useState('');
   const [manualSaving, setManualSaving] = useState(false);
+  const [manualAnalyzing, setManualAnalyzing] = useState(false);
 
   // 'none' por padrao — registro de refeicao nao gera post nenhum (so
   // contagem de nutrientes) a menos que o usuario opte explicitamente por
@@ -92,12 +105,12 @@ export default function AddMealScreen() {
     }).catch(() => {});
   };
 
-  const runAnalysis = async (uri: string) => {
+  const runAnalysis = async (uri: string, hint?: string) => {
     setImageUri(uri);
     setStage('analyzing');
     setError(null);
     try {
-      const result = await analyzeMealPhoto(uri);
+      const result = await analyzeMealPhoto(uri, hint);
       setAnalysis(result);
       setCalories(String(Math.round(result.calories)));
       setProtein(String(Math.round(result.protein)));
@@ -121,7 +134,7 @@ export default function AddMealScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
     if (!result.canceled && result.assets[0]) {
-      runAnalysis(result.assets[0].uri);
+      runAnalysis(result.assets[0].uri, photoHint);
     }
   };
 
@@ -139,7 +152,35 @@ export default function AddMealScreen() {
       aspect: [4, 3],
     });
     if (!result.canceled && result.assets[0]) {
-      runAnalysis(result.assets[0].uri);
+      runAnalysis(result.assets[0].uri, photoHint);
+    }
+  };
+
+  // Correcao pos-analise: reanalisa a MESMA foto (imageUri ja capturada)
+  // com o texto de correcao no lugar do hint original -- nao um novo
+  // "runAnalysis" completo (que reseta pra stage 'analyzing' em tela
+  // cheia, escondendo os campos ja preenchidos); aqui so troca os 4
+  // campos de macro quando a resposta nova chega, mantendo a tela de
+  // revisao visivel o tempo todo com um indicador de carregamento local.
+  const handleReanalyze = async () => {
+    if (!imageUri || !correctionText.trim()) return;
+    setError(null);
+    setReanalyzing(true);
+    try {
+      const result = await analyzeMealPhoto(imageUri, correctionText.trim());
+      setAnalysis(result);
+      setCalories(String(Math.round(result.calories)));
+      setProtein(String(Math.round(result.protein)));
+      setCarbs(String(Math.round(result.carbs)));
+      setFat(String(Math.round(result.fat)));
+      setShowCorrection(false);
+      setCorrectionText('');
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, 'Nao foi possivel reanalisar a foto, tente novamente com uma imagem mais nitida.')
+      );
+    } finally {
+      setReanalyzing(false);
     }
   };
 
@@ -180,6 +221,29 @@ export default function AddMealScreen() {
     setImageUri(null);
     setAnalysis(null);
     setError(null);
+    setShowCorrection(false);
+    setCorrectionText('');
+  };
+
+  const handleEstimateManual = async () => {
+    const trimmedDescription = manualDescription.trim();
+    if (!trimmedDescription) return;
+
+    setError(null);
+    setManualAnalyzing(true);
+    try {
+      const result = await analyzeMealText(trimmedDescription, manualWeight.trim() || undefined);
+      // Mesma filosofia do modo foto: a IA preenche, o usuario ainda pode
+      // corrigir os 4 campos antes de salvar — nao trava nada.
+      setManualCalories(String(Math.round(result.calories)));
+      setManualProtein(String(Math.round(result.protein)));
+      setManualCarbs(String(Math.round(result.carbs)));
+      setManualFat(String(Math.round(result.fat)));
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Nao foi possivel estimar essa refeicao, tente descrever de outro jeito.'));
+    } finally {
+      setManualAnalyzing(false);
+    }
   };
 
   const handleSaveManual = async () => {
@@ -254,6 +318,12 @@ export default function AddMealScreen() {
                 <Text style={styles.iaBadgeText}>IA</Text>
               </View>
             </View>
+            <TextField2
+              label="O que é isso? (opcional, ajuda a IA acertar)"
+              placeholder="Ex: Cuscuz com ovo"
+              value={photoHint}
+              onChangeText={setPhotoHint}
+            />
             <View style={styles.pickButtons}>
               <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
                 <Ionicons name="camera" size={28} color={colors3.primary} />
@@ -288,6 +358,41 @@ export default function AddMealScreen() {
             <Text style={styles.confidence}>
               {CONFIDENCE_LABEL[analysis.confidence] ?? `Confianca: ${analysis.confidence}`}
             </Text>
+
+            {stage === 'reviewing' && !showCorrection && (
+              <Pressable onPress={() => setShowCorrection(true)} hitSlop={8}>
+                <Text style={styles.correctionLink}>Não ficou certo? Corrigir e reanalisar</Text>
+              </Pressable>
+            )}
+            {stage === 'reviewing' && showCorrection && (
+              <View style={styles.correctionBox}>
+                <TextField2
+                  label="O que é, de verdade?"
+                  placeholder="Ex: Isso é cuscuz, não farinha"
+                  value={correctionText}
+                  onChangeText={setCorrectionText}
+                />
+                <View style={styles.correctionButtons}>
+                  <Button3
+                    label={reanalyzing ? 'Reanalisando...' : 'Reanalisar'}
+                    variant="secondary"
+                    onPress={handleReanalyze}
+                    loading={reanalyzing}
+                    disabled={!correctionText.trim() || reanalyzing}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      setShowCorrection(false);
+                      setCorrectionText('');
+                    }}
+                    disabled={reanalyzing}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.correctionCancel}>Cancelar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             <TextField2 label="Calorias (kcal)" keyboardType="decimal-pad" value={calories} onChangeText={setCalories} />
             <TextField2 label="Proteina (g)" keyboardType="decimal-pad" value={protein} onChangeText={setProtein} />
@@ -329,6 +434,21 @@ export default function AddMealScreen() {
               value={manualWeight}
               onChangeText={setManualWeight}
             />
+
+            <View style={styles.estimateHeader}>
+              <Text style={styles.estimateLabel}>Não sabe os valores? Deixe a IA estimar</Text>
+              <View style={styles.iaBadge}>
+                <Text style={styles.iaBadgeText}>IA</Text>
+              </View>
+            </View>
+            <Button3
+              label={manualAnalyzing ? 'Estimando...' : 'Estimar com IA'}
+              variant="secondary"
+              onPress={handleEstimateManual}
+              loading={manualAnalyzing}
+              disabled={!manualDescription.trim() || manualAnalyzing}
+            />
+
             <TextField2
               label="Calorias (kcal)"
               placeholder="Ex: 250"
@@ -397,6 +517,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   iaBadgeText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, fontWeight: '700' },
+  estimateHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, marginTop: spacing3.xs },
+  estimateLabel: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant, flex: 1 },
 
   pickButtons: { gap: spacing3.md },
   pickButton: {
@@ -423,4 +545,8 @@ const styles = StyleSheet.create({
   descriptionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, marginTop: spacing3.md },
   description: { ...typography3.headlineMd, fontSize: 18, flex: 1 },
   confidence: { ...typography3.labelSm, textTransform: 'none', marginBottom: spacing3.sm },
+  correctionLink: { ...typography3.bodyMd, fontSize: 13, color: colors3.primary, fontWeight: '700', marginBottom: spacing3.sm },
+  correctionBox: { gap: spacing3.xs, marginBottom: spacing3.sm },
+  correctionButtons: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
+  correctionCancel: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 });
