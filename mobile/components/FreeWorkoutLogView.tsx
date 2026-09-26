@@ -16,7 +16,17 @@ export type FreeSessionExercise = FreeSessionExerciseDraft;
 
 const DEFAULT_SET_COUNT = 3;
 /** Distancia minima de arraste (px) pra contar como swipe de navegacao, em vez de um toque acidental/scroll vertical dentro da SetLogSection. */
-const SWIPE_THRESHOLD = 48;
+const SWIPE_THRESHOLD = 100;
+/**
+ * Velocidade minima (px/ms, gesture.vx) pra um arraste CURTO ainda contar
+ * como swipe intencional -- cobre o flick rapido e decidido que nao teve
+ * tempo de percorrer SWIPE_THRESHOLD inteiro. Sem isso, so a distancia
+ * faria a troca de exercicio parecer "pesada" pra quem arrasta rapido de
+ * proposito.
+ */
+const SWIPE_VELOCITY_THRESHOLD = 0.5;
+/** Distancia minima (px) mesmo com velocidade alta -- um pico de vx por ruido do toque, quase sem deslocar o dedo, nao deveria contar. */
+const MIN_FLICK_DISTANCE = 30;
 
 function buildDefaultSets(): SetEntry[] {
   return Array.from({ length: DEFAULT_SET_COUNT }, () => ({ weightKg: '', reps: '', completed: false }));
@@ -101,11 +111,26 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
   const panResponder = useMemo(
     () =>
       PanResponder.create({
+        // Limiar de reivindicacao do gesto subido de 20 pra 45px (e a
+        // proporcao horizontal/vertical de 1.5 pra 2.2) -- 20px reivindicava
+        // o gesto com pouquissimo movimento, o suficiente pra disparar sem
+        // querer so tocando num input de peso/reps ou comecando a rolar a
+        // tela. So assume "isto e um swipe" quando o arraste ja e claramente
+        // horizontal e deliberado.
         onMoveShouldSetPanResponder: (_evt, gesture) =>
-          Math.abs(gesture.dx) > 20 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+          Math.abs(gesture.dx) > 45 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 2.2,
         onPanResponderRelease: (_evt, gesture) => {
-          if (gesture.dx <= -SWIPE_THRESHOLD) goNext();
-          else if (gesture.dx >= SWIPE_THRESHOLD) goPrev();
+          const distance = Math.abs(gesture.dx);
+          // Troca de exercicio com um arraste longo o suficiente (SWIPE_THRESHOLD)
+          // OU um flick curto mas rapido e decidido (velocidade alta) --
+          // um deslize lento e curto (dedo escorregando sem querer) nao
+          // bate nenhum dos dois e e ignorado.
+          const isIntentional =
+            distance >= SWIPE_THRESHOLD ||
+            (distance >= MIN_FLICK_DISTANCE && Math.abs(gesture.vx) >= SWIPE_VELOCITY_THRESHOLD);
+          if (!isIntentional) return;
+          if (gesture.dx < 0) goNext();
+          else goPrev();
         },
       }),
     [currentIndex, exercises.length]
