@@ -1,5 +1,5 @@
-import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -10,6 +10,7 @@ import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // Efeito colateral: registra a location task de segundo plano (TaskManager.defineTask)
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
+import { runAutoImport } from '@/services/workoutAutoImport';
 import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -45,6 +46,36 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { token, isLoading } = useAuth();
+
+  // Fase B da sincronizacao automatica de treinos (Apple Health/Health
+  // Connect, ver services/workoutAutoImport.ts) -- dispara ao abrir o app
+  // e toda vez que ele volta pro primeiro plano, sem nenhum toque do
+  // usuario. So AppState aqui: sem HKObserverQuery/background delivery
+  // (iOS) nem leitura em segundo plano do Health Connect (Android) --
+  // isso fica pra uma fase futura, que depende de aprovacao externa
+  // (Google) e/ou build novo com entitlement novo. runAutoImport() cobre
+  // os 2 SOs sozinho (decide HealthKit vs Health Connect via
+  // services/health.ts) e nunca rejeita (loga e devolve um resultado
+  // vazio em qualquer erro) -- seguro chamar "fire-and-forget", sem
+  // travar a UI esperando resposta.
+  //
+  // 2 gatilhos: (1) uma vez no mount, cobrindo abertura fria do app (ele
+  // ja nasce 'active', sem disparar nenhum evento de MUDANCA do
+  // AppState -- so escutar 'change' perderia esse caso); (2) toda
+  // transicao de AppState pra 'active' depois disso (app minimizado e
+  // reaberto). So roda com sessao ativa (token) -- sem login nao ha pra
+  // onde importar (runAutoImport ja sairia em silencio sozinho por causa
+  // disso, ver ensureAuthToken la dentro, mas checar aqui evita a
+  // chamada a toa).
+  useEffect(() => {
+    if (!token) return;
+
+    runAutoImport('foreground');
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') runAutoImport('foreground');
+    });
+    return () => subscription.remove();
+  }, [token]);
 
   if (isLoading) {
     return (
