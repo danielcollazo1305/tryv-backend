@@ -25,6 +25,12 @@ class RunCreate(BaseModel):
     # cai para o peso salvo no perfil do usuario (pode ficar None em ambos
     # os casos, e nesse caso calories_burned sai None).
     user_weight_kg: float | None = None
+    # Identidade do treino na fonte externa (Apple Health / Health Connect),
+    # quando veio de importacao — ver app/models/run.py. Enviar os dois faz o
+    # POST virar idempotente: repetir a mesma importacao devolve o registro ja
+    # existente em vez de criar outro.
+    external_source: str | None = None
+    external_id: str | None = None
 
     @field_validator("activity_type")
     @classmethod
@@ -49,6 +55,8 @@ class RunOut(BaseModel):
     calories_burned: float | None = None
     started_at: datetime
     finished_at: datetime
+    external_source: str | None = None
+    external_id: str | None = None
 
     class Config:
         from_attributes = True

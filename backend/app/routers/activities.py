@@ -3,7 +3,8 @@ import uuid
 
 import anthropic
 import openai
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -18,15 +19,58 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 logger = logging.getLogger(__name__)
 
 
+def _find_by_external_id(
+    db: Session, current_user: User, payload: ManualActivityCreate
+) -> ManualActivity | None:
+    """
+    Atividade ja importada desta mesma origem externa, se houver. Ver o
+    equivalente em routers/runs.py e o comentario em models/run.py.
+    """
+    if not payload.external_id:
+        return None
+    return (
+        db.query(ManualActivity)
+        .filter(
+            ManualActivity.user_id == current_user.id,
+            ManualActivity.external_source == payload.external_source,
+            ManualActivity.external_id == payload.external_id,
+        )
+        .first()
+    )
+
+
 @router.post("/manual", response_model=ManualActivityOut, status_code=status.HTTP_201_CREATED)
 def create_manual_activity(
     payload: ManualActivityCreate,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    IDEMPOTENTE quando o payload traz external_source/external_id (importacao
+    do Apple Health / Health Connect): repetir a mesma importacao devolve a
+    atividade ja existente em vez de criar outra, com 200 em vez de 201 — e
+    assim que o cliente sabe que nada foi criado agora. Ver app/models/run.py
+    e createManualActivityFromImport em mobile/services/activities.ts.
+    """
+    existing = _find_by_external_id(db, current_user, payload)
+    if existing:
+        response.status_code = status.HTTP_200_OK
+        return existing
+
     activity = ManualActivity(user_id=current_user.id, **payload.model_dump())
     db.add(activity)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Duas importacoes simultaneas do mesmo treino — ver comentario
+        # equivalente em routers/runs.py.
+        db.rollback()
+        existing = _find_by_external_id(db, current_user, payload)
+        if existing:
+            response.status_code = status.HTTP_200_OK
+            return existing
+        raise
     db.refresh(activity)
     return activity
 

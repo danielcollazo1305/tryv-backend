@@ -23,3 +23,10 @@ class ManualActivity(Base):
     notes = Column(Text, nullable=True)
 
     performed_at = Column(DateTime, nullable=False)
+
+    # Mesma semantica de Run.external_source/external_id — ver o comentario
+    # completo em app/models/run.py. Um treino importado do Health entra aqui
+    # (atividade manual) quando nao tem rota de GPS, e em `runs` quando tem;
+    # por isso as duas tabelas precisam da mesma protecao contra duplicata.
+    external_source = Column(String, nullable=True)
+    external_id = Column(String, nullable=True)

@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 
 import anthropic
 import openai
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -41,9 +42,29 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 logger = logging.getLogger(__name__)
 
 
+def _find_by_external_id(db: Session, current_user: User, payload: RunCreate) -> Run | None:
+    """
+    Corrida ja importada desta mesma origem externa, se houver. Sem
+    external_id no payload (gravacao normal dentro do app) nunca casa com
+    nada — as linhas antigas/manuais tem external_id NULL.
+    """
+    if not payload.external_id:
+        return None
+    return (
+        db.query(Run)
+        .filter(
+            Run.user_id == current_user.id,
+            Run.external_source == payload.external_source,
+            Run.external_id == payload.external_id,
+        )
+        .first()
+    )
+
+
 @router.post("/", response_model=RunCreateOut, status_code=status.HTTP_201_CREATED)
 def create_run(
     payload: RunCreate,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -55,7 +76,24 @@ def create_run(
     Salvar uma corrida continua livre pra qualquer usuario (esse endpoint
     nunca foi gated) — so o campo new_prs (recordes pessoais) e um atrativo
     Pro, entao fica vazio pra quem nao e Pro em vez de bloquear o save.
+
+    IDEMPOTENTE quando o payload traz external_source/external_id (importacao
+    do Apple Health / Health Connect): repetir a mesma importacao devolve a
+    corrida ja existente, sem criar outra linha e sem pontuar de novo. Ver
+    app/models/run.py pro porque (dois gatilhos de importacao concorrentes).
+
+    Nesse caso a resposta sai com 200 em vez de 201 — e assim que o cliente
+    distingue "criei agora" de "ja existia" (o corpo e uma corrida valida nos
+    dois casos). Ver createRunFromImport em mobile/services/activities.ts.
     """
+    existing = _find_by_external_id(db, current_user, payload)
+    if existing:
+        response.status_code = status.HTTP_200_OK
+        # new_prs vazio de proposito: os recordes ja foram avaliados na
+        # primeira vez que esta corrida entrou — reavaliar aqui geraria um
+        # "novo recorde!" falso na segunda chamada.
+        return RunCreateOut(**RunOut.model_validate(existing).model_dump(), new_prs=[])
+
     distance_meters = calculate_distance_meters(payload.route_points)
     duration_seconds = calculate_duration_seconds(payload.started_at, payload.finished_at)
     avg_pace = calculate_avg_pace_seconds_per_km(distance_meters, duration_seconds)
@@ -79,9 +117,23 @@ def create_run(
         calories_burned=calories,
         started_at=payload.started_at,
         finished_at=payload.finished_at,
+        external_source=payload.external_source,
+        external_id=payload.external_id,
     )
     db.add(run)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Duas importacoes do MESMO treino em paralelo: as duas passaram pelo
+        # _find_by_external_id acima antes de qualquer commit, e o indice unico
+        # parcial barrou a segunda. Nao e erro pro cliente — a corrida existe,
+        # so foi criada pela outra requisicao.
+        db.rollback()
+        existing = _find_by_external_id(db, current_user, payload)
+        if existing:
+            response.status_code = status.HTTP_200_OK
+            return RunCreateOut(**RunOut.model_validate(existing).model_dump(), new_prs=[])
+        raise
     db.refresh(run)
 
     points = run_points(run.calories_burned)

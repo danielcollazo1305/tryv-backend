@@ -12,6 +12,10 @@ class ManualActivityCreate(BaseModel):
     calories_burned: float | None = None
     notes: str | None = None
     performed_at: datetime
+    # Ver o mesmo par em app/schemas/run.py — identidade do treino na fonte
+    # externa, torna o POST idempotente quando preenchida.
+    external_source: str | None = None
+    external_id: str | None = None
 
     @field_validator("activity_type")
     @classmethod
@@ -27,6 +31,8 @@ class ManualActivityOut(BaseModel):
     calories_burned: float | None = None
     notes: str | None = None
     performed_at: datetime
+    external_source: str | None = None
+    external_id: str | None = None
 
     class Config:
         from_attributes = True

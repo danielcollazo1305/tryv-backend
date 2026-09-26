@@ -24,3 +24,20 @@ class Run(Base):
 
     started_at = Column(DateTime, nullable=False)
     finished_at = Column(DateTime, nullable=False)
+
+    # Origem externa, quando a atividade veio de uma importacao do hub de saude
+    # do celular: external_source = 'apple_health' | 'health_connect',
+    # external_id = uuid do HKWorkout (iOS) / metadata.id do ExerciseSession
+    # (Android). Ficam NULL em tudo que foi gravado dentro do proprio app e em
+    # tudo que ja existia antes destas colunas.
+    #
+    # Existem pra dar IDEMPOTENCIA de verdade na importacao: a deteccao de
+    # duplicata por horario (+-5min, no cliente) nao protege contra dois
+    # gatilhos concorrentes (importacao automatica + botao manual, ou dois
+    # disparos automaticos seguidos) — os dois leem a lista, nenhum ve o treino
+    # ainda, os dois criam. O indice unico PARCIAL criado na migration
+    # (user_id, external_source, external_id) WHERE external_id IS NOT NULL
+    # fecha essa janela no banco; o parcial e o que mantem os registros
+    # antigos/manuais (com NULL) fora da restricao.
+    external_source = Column(String, nullable=True)
+    external_id = Column(String, nullable=True)
