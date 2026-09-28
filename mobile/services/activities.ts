@@ -26,6 +26,9 @@ export interface Run {
   calories_burned: number | null;
   started_at: string;
   finished_at: string;
+  /** Preenchidos so quando a corrida veio de importacao do hub de saude — null em tudo gravado dentro do app. */
+  external_source: string | null;
+  external_id: string | null;
 }
 
 export interface RunSplit {
@@ -60,7 +63,19 @@ export interface RunCreatePayload {
   route_points: RoutePoint[];
   started_at: string;
   finished_at: string;
+  /**
+   * Identidade do treino na fonte externa quando veio de importacao do hub de
+   * saude (ver services/workoutAutoImport.ts). Preenchidos, o POST vira
+   * idempotente no backend: reimportar o mesmo treino devolve o registro ja
+   * existente em vez de criar outro. Ausentes numa corrida rastreada pelo
+   * proprio app.
+   */
+  external_source?: ExternalActivitySource;
+  external_id?: string;
 }
+
+/** Hub de saude de onde um treino foi importado — bate com o valor gravado em runs.external_source/manual_activities.external_source no backend. */
+export type ExternalActivitySource = 'apple_health' | 'health_connect';
 
 export interface ManualActivity {
   id: string;
@@ -70,6 +85,9 @@ export interface ManualActivity {
   calories_burned: number | null;
   notes: string | null;
   performed_at: string;
+  /** Ver o mesmo par em Run. */
+  external_source: string | null;
+  external_id: string | null;
 }
 
 export interface ManualActivityCreatePayload {
@@ -80,6 +98,9 @@ export interface ManualActivityCreatePayload {
   calories_burned?: number | null;
   notes?: string | null;
   performed_at: string;
+  /** Ver o mesmo par em RunCreatePayload. */
+  external_source?: ExternalActivitySource;
+  external_id?: string;
 }
 
 export interface ActivityInsight {
@@ -91,6 +112,21 @@ export interface ActivityInsight {
 export async function createRun(payload: RunCreatePayload): Promise<RunCreateResult> {
   const response = await api.post<RunCreateResult>('/runs/', payload);
   return response.data;
+}
+
+/**
+ * Igual a createRun, mas informando se a corrida foi mesmo CRIADA agora. O
+ * backend responde 201 quando criou e 200 quando reconheceu o external_id como
+ * ja importado e devolveu o registro existente — e a unica forma do chamador
+ * saber a diferenca, ja que nos dois casos vem uma corrida valida no corpo.
+ * Usado pela importacao de treinos (services/workoutAutoImport.ts) pra contar
+ * certo quantos treinos entraram de verdade.
+ */
+export async function createRunFromImport(
+  payload: RunCreatePayload
+): Promise<{ run: RunCreateResult; created: boolean }> {
+  const response = await api.post<RunCreateResult>('/runs/', payload);
+  return { run: response.data, created: response.status === 201 };
 }
 
 export async function listRuns(): Promise<Run[]> {
@@ -112,6 +148,14 @@ export async function getRunInsight(id: string): Promise<ActivityInsight> {
 export async function createManualActivity(payload: ManualActivityCreatePayload): Promise<ManualActivity> {
   const response = await api.post<ManualActivity>('/activities/manual', payload);
   return response.data;
+}
+
+/** Ver createRunFromImport — mesma distincao 201 (criou) / 200 (ja existia). */
+export async function createManualActivityFromImport(
+  payload: ManualActivityCreatePayload
+): Promise<{ activity: ManualActivity; created: boolean }> {
+  const response = await api.post<ManualActivity>('/activities/manual', payload);
+  return { activity: response.data, created: response.status === 201 };
 }
 
 export async function listManualActivities(): Promise<ManualActivity[]> {

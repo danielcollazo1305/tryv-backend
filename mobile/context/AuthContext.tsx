@@ -1,9 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
-import { api, getApiErrorMessage, setAuthToken } from '@/services/api';
+import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
 
-const TOKEN_KEY = 'tryv_auth_token';
+// Reexportado de services/api.ts — a chave mora la porque a importacao
+// automatica de treinos tambem precisa ler o token fora do React (ver
+// ensureAuthToken).
+const TOKEN_KEY = AUTH_TOKEN_STORAGE_KEY;
 
 export interface User {
   id: string;

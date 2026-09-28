@@ -1137,9 +1137,31 @@ export async function fetchRecentWorkouts(sinceDate: Date): Promise<HealthKitWor
       caloriesBurned,
       routePoints: routePoints ?? null,
       routeUnavailable: isExerciseRouteBlocked(record.exerciseRoute, routePoints ?? null),
+      sourceId: record.metadata?.dataOrigin,
     });
   }
   return results;
+}
+
+/**
+ * Equivalente Android de fetchWorkoutsSinceAnchor (healthkit.ts), por
+ * enquanto SEM leitura incremental de verdade: o Health Connect tem uma
+ * Changes API com token de mudanca, mas usa-la em segundo plano exige a
+ * permissao READ_HEALTH_DATA_IN_BACKGROUND, que depende de aprovacao do
+ * Google — isso e a Fase D desta tarefa. Ate la, a importacao automatica no
+ * Android le a janela de `fallbackSince` (poucos dias) e conta com a
+ * idempotencia do backend (external_source/external_id) pra nao duplicar o
+ * que ja entrou.
+ *
+ * Devolve newAnchor null de proposito: sem token de mudanca pra guardar, o
+ * chamador nao deve persistir anchor nenhum no Android.
+ */
+export async function fetchWorkoutsSinceAnchor(
+  _anchor: string | null,
+  fallbackSince: Date
+): Promise<{ workouts: HealthKitWorkout[]; newAnchor: string | null }> {
+  const workouts = await fetchRecentWorkouts(fallbackSince);
+  return { workouts, newAnchor: null };
 }
 
 // ─────────────────────────────────────────────────────────────────────────

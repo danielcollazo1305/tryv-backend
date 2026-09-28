@@ -10,8 +10,6 @@ import { getApiErrorMessage } from '@/services/api';
 import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_TYPE_LABELS,
-  createManualActivity,
-  createRun,
   formatDistanceKm,
   formatDuration,
   listManualActivities,
@@ -20,6 +18,7 @@ import {
   parseUtcDate,
   Run,
 } from '@/services/activities';
+import { importWorkout } from '@/services/workoutAutoImport';
 import {
   fetchRecentWorkouts,
   HEALTH_SOURCE_LABEL,
@@ -106,24 +105,13 @@ export default function HealthKitImportScreen() {
     setImportingId(workout.id);
     setError(null);
     try {
-      if (workout.routePoints && workout.routePoints.length > 0) {
-        await createRun({
-          activity_type: workout.activityType,
-          route_points: workout.routePoints,
-          started_at: workout.startedAt,
-          finished_at: workout.finishedAt,
-        });
-      } else {
-        await createManualActivity({
-          activity_type: workout.activityType,
-          duration_minutes: Math.max(1, Math.round(workout.durationSeconds / 60)),
-          calories_burned: workout.caloriesBurned,
-          performed_at: workout.startedAt,
-        });
-        // Rota existia no Health Connect mas nao pode ser lida -> importado
-        // como atividade manual (sem mapa/splits). Avisa o usuario.
-        if (workout.routeUnavailable) setRouteImportSkipped(true);
-      }
+      // A decisao corrida-com-rota vs atividade-manual (e o POST) vive em
+      // services/workoutAutoImport.ts — mesma funcao usada pela importacao
+      // automatica, pra nao existirem duas regras de importacao diferentes.
+      await importWorkout(workout);
+      // Rota existia no Health Connect mas nao pode ser lida -> importado
+      // como atividade manual (sem mapa/splits). Avisa o usuario.
+      if (!workout.routePoints?.length && workout.routeUnavailable) setRouteImportSkipped(true);
       setWorkouts((prev) => prev.filter((w) => w.id !== workout.id));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel importar este treino.'));

@@ -26,6 +26,15 @@ export interface HealthKitWorkout {
    * permissao a parte). A tela de importacao usa isto pra avisar o usuario.
    */
   routeUnavailable?: boolean;
+  /**
+   * Quem gravou este treino no hub de saude: bundle id no iOS
+   * (sourceRevision.source.bundleIdentifier) / package name no Android
+   * (metadata.dataOrigin). Serve pra ignorar treinos gravados pelo PROPRIO
+   * Tryv Fit — o app ja escreve ExerciseSession no Health Connect, e sem esse
+   * filtro a importacao automatica leria de volta o que ele mesmo escreveu,
+   * num ciclo. undefined quando a fonte nao informou.
+   */
+  sourceId?: string;
 }
 
 export interface HealthSummary {
