@@ -8,6 +8,15 @@ import { radius3, shadows3, spacing2, spacing3 } from '@/constants/theme';
 interface LiquiglassCardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Aplicado direto na View `content` (onde os filhos realmente renderizam),
+   * ao contrario de `style` (que so alcanca o shadowWrapper mais externo —
+   * ver comentario grande da funcao). Usar quando o layout dos filhos
+   * precisa de flexDirection/alignItems/justifyContent/gap custom — `style`
+   * continua existindo do jeito que esta, sem mudar nenhum consumidor atual
+   * que ja depende dele pra afetar a camada externa (margem, largura, position).
+   */
+  contentStyle?: StyleProp<ViewStyle>;
   /** Padding interno — spacing2.lg (dark) ou spacing3.lg (light) por padrao, como a maioria dos cards nos designs. */
   padding?: number;
   /**
@@ -64,7 +73,7 @@ const darkShadow: ViewStyle = Platform.select({
  *   visualmente parecido, sem como validar sem rodar no device (mesma
  *   limitacao ja documentada no Button2 pro glow roxo).
  */
-export function LiquiglassCard({ children, style, padding, variant = 'dark' }: LiquiglassCardProps) {
+export function LiquiglassCard({ children, style, contentStyle, padding, variant = 'dark' }: LiquiglassCardProps) {
   const isLight = variant === 'light';
   const resolvedPadding = padding ?? (isLight ? spacing3.lg : spacing2.lg);
 
@@ -84,7 +93,7 @@ export function LiquiglassCard({ children, style, padding, variant = 'dark' }: L
             style={StyleSheet.absoluteFillObject}
           />
         )}
-        <View style={[styles.content, { padding: resolvedPadding }]}>{children}</View>
+        <View style={[styles.content, { padding: resolvedPadding }, contentStyle]}>{children}</View>
       </View>
     </View>
   );

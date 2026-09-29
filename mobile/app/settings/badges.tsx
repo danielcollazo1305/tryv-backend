@@ -82,7 +82,7 @@ export default function BadgesScreen() {
         {!loading && (
           <>
             {isPro && (
-              <LiquiglassCard style={styles.badgeCard}>
+              <LiquiglassCard contentStyle={styles.badgeCard}>
                 <View style={styles.badgeIconWrap}>
                   <Ionicons name="diamond" size={28} color={colors2.primary} />
                 </View>
@@ -101,7 +101,7 @@ export default function BadgesScreen() {
             )}
 
             {teams.map((team) => (
-              <LiquiglassCard key={`${team.trainer_name}-${team.professional_type}`} style={styles.badgeCard}>
+              <LiquiglassCard key={`${team.trainer_name}-${team.professional_type}`} contentStyle={styles.badgeCard}>
                 <View style={[styles.badgeIconWrap, styles.badgeIconWrapSecondary]}>
                   <Ionicons name="people" size={28} color={colors2.secondary} />
                 </View>

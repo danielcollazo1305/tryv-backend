@@ -166,7 +166,7 @@ export default function TrainerProfileScreen() {
             )}
 
             {trainer.professional_type === 'personal_trainer' && (
-              <LiquiglassCard style={styles.differentialSection}>
+              <LiquiglassCard contentStyle={styles.differentialSection}>
                 <View style={styles.differentialIcon}>
                   <Ionicons name="videocam" size={20} color={colors2.onPrimaryContainer} />
                 </View>
@@ -193,7 +193,7 @@ export default function TrainerProfileScreen() {
             {!!subscribeError && <Text style={styles.error}>{subscribeError}</Text>}
 
             {!!info && (
-              <LiquiglassCard style={styles.infoCard}>
+              <LiquiglassCard contentStyle={styles.infoCard}>
                 <Ionicons name="checkmark-circle" size={18} color={colors2.success} />
                 <Text style={styles.infoText}>{info}</Text>
               </LiquiglassCard>

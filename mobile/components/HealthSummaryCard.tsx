@@ -144,7 +144,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
   if (status === 'disconnected') {
     return (
       <Pressable onPress={handleConnect} disabled={connecting}>
-        <LiquiglassCard variant={variant} style={s.connectCard}>
+        <LiquiglassCard variant={variant} contentStyle={s.connectCard}>
           <View style={s.connectIconWrap}>
             <Ionicons name="heart" size={20} color={accentColor} />
           </View>
@@ -177,7 +177,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
   if (status === 'error') {
     return (
       <Pressable onPress={() => loadSummary()}>
-        <LiquiglassCard variant={variant} style={s.connectCard}>
+        <LiquiglassCard variant={variant} contentStyle={s.connectCard}>
           <View style={s.connectIconWrap}>
             <Ionicons name="refresh" size={20} color={accentColor} />
           </View>

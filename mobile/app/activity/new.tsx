@@ -491,7 +491,7 @@ export default function NewActivityScreen() {
           bloqueia o rastreamento em primeiro plano que ja esta rolando.
         */}
         {showBackgroundUpsell && (
-          <LiquiglassCard style={styles.backgroundUpsellCard}>
+          <LiquiglassCard style={styles.backgroundUpsellCard} contentStyle={styles.backgroundUpsellCardContent}>
             <View style={styles.backgroundUpsellTextWrap}>
               <Ionicons name="moon" size={16} color={colors2.primary} />
               <Text style={styles.backgroundUpsellText}>Continuar gravando com a tela apagada?</Text>
@@ -729,6 +729,8 @@ const styles = StyleSheet.create({
     bottom: 148,
     left: spacing2.lg,
     right: spacing2.lg,
+  },
+  backgroundUpsellCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
