@@ -67,4 +67,11 @@ class User(Base):
     city = Column(String, nullable=True)
     city_ibge_code = Column(Integer, nullable=True, index=True)
 
+    # Avatar estilizado gerado por IA (POST /users/me/avatar, ver
+    # services/avatar_generation.py) -- URL publica no S3 (pasta
+    # 'profiles'). So gravado por aquele endpoint dedicado, nunca pelo
+    # PATCH /users/me generico (ver UserUpdate em schemas/user.py, que nao
+    # tem esse campo de proposito).
+    avatar_url = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)

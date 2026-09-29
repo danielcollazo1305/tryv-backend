@@ -40,9 +40,17 @@ class UserOut(BaseModel):
     # GET /territory. Ambos graváveis via UserUpdate agora (ver abaixo).
     city: str | None = None
     city_ibge_code: int | None = None
+    # Avatar gerado por IA -- so leitura aqui, nunca em UserUpdate (o valor
+    # so e gravado pelo endpoint dedicado POST /users/me/avatar, nunca por
+    # PATCH generico).
+    avatar_url: str | None = None
 
     class Config:
         from_attributes = True
+
+
+class AvatarOut(BaseModel):
+    avatar_url: str
 
 
 class UserUpdate(BaseModel):

@@ -1,6 +1,7 @@
+import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -9,10 +10,14 @@ from app.models.social import Follow
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
+from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.schemas.subscription import TeamBadge, UserBadgesOut
-from app.schemas.user import ContactsMatchRequest, MatchedContact, UserOut, UserSearchResult, UserUpdate
+from app.schemas.user import AvatarOut, ContactsMatchRequest, MatchedContact, UserOut, UserSearchResult, UserUpdate
+from app.services.avatar_generation import AvatarGenerationError, generate_ps1_avatar
+from app.services.storage import StorageError, upload_image
 
 router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 def _parse_user_id(user_id: str, db: Session) -> uuid.UUID:
@@ -43,6 +48,57 @@ def update_current_user(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/me/avatar", response_model=AvatarOut, status_code=status.HTTP_201_CREATED)
+async def generate_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Gera um avatar estilizado (estetica PS1, ver services/avatar_generation.py)
+    a partir de uma selfie enviada pelo usuario. A foto original NUNCA e
+    persistida (nem disco, nem S3, nem banco) -- os bytes ficam so em
+    memoria entre a leitura do upload e a chamada a IA, descartados junto
+    com o fim desta funcao. So o resultado estilizado (retorno da propria
+    IA) e salvo, via upload_image() ja existente (pasta 'profiles', mesmo
+    bucket S3 de fotos de refeicao/feed).
+
+    Endpoint dedicado, nao reaproveita POST /media/upload generico -- esse
+    fluxo tem logica propria (chama IA, descarta o original, so entao sobe
+    o resultado), diferente do upload direto que esse outro endpoint faz.
+    """
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O arquivo enviado precisa ser uma imagem",
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_IMAGE_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Arquivo excede o tamanho maximo permitido ({MAX_IMAGE_FILE_SIZE_BYTES // (1024 * 1024)}MB)",
+        )
+
+    try:
+        result_bytes = generate_ps1_avatar(file_bytes, content_type)
+    except AvatarGenerationError as e:
+        logger.error("Falha ao gerar avatar (user_id=%s): %s", current_user.id, e)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+
+    try:
+        url = upload_image(result_bytes, "image/png", "profiles")
+    except StorageError as e:
+        logger.error("Falha no upload do avatar gerado (user_id=%s): %s", current_user.id, e)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+
+    current_user.avatar_url = url
+    db.commit()
+    db.refresh(current_user)
+    return AvatarOut(avatar_url=url)
 
 
 @router.get("/search", response_model=list[UserSearchResult])
