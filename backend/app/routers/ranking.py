@@ -1,4 +1,7 @@
+import json
+import logging
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
@@ -12,6 +15,15 @@ from app.models.user import User
 from app.schemas.squad import IndividualRankingEntryOut, SquadRankingEntryOut, TerritoryCityOut
 
 router = APIRouter(tags=["ranking"])
+logger = logging.getLogger(__name__)
+
+# Codigo IBGE do municipio (string, mesmo formato das chaves do JSON) ->
+# [latitude, longitude]. Carregado UMA VEZ no import deste modulo (nao a
+# cada request) -- dataset MIT (kelvins/Municipios-Brasileiros, ver
+# app/data/MUNICIPIOS_BRASILEIROS_LICENSE.md), ~5570 municipios, ~165KB.
+_CITY_COORDINATES_PATH = Path(__file__).resolve().parent.parent / "data" / "city_coordinates.json"
+with open(_CITY_COORDINATES_PATH, encoding="utf-8") as _f:
+    _CITY_COORDINATES: dict[str, list[float]] = json.load(_f)
 
 
 def _week_start() -> datetime:
@@ -187,9 +199,16 @@ def territory(
     results = []
     for city_ibge_code, total_points in city_totals.items():
         city_label = city_labels[city_ibge_code]
+        coords = _CITY_COORDINATES.get(str(city_ibge_code))
+        if coords is None:
+            logger.warning("city_ibge_code=%s sem match em city_coordinates.json", city_ibge_code)
+        latitude, longitude = coords if coords else (None, None)
+
         best = best_by_city.get(city_ibge_code)
         if best is None or total_points <= 0:
-            results.append(TerritoryCityOut(city=city_label, total_points=total_points))
+            results.append(
+                TerritoryCityOut(city=city_label, total_points=total_points, latitude=latitude, longitude=longitude)
+            )
             continue
 
         squad_id, squad_name, squad_points = best
@@ -201,6 +220,8 @@ def territory(
                 dominant_squad_id=squad_id,
                 dominant_squad_name=squad_name,
                 dominant_squad_percent=percent,
+                latitude=latitude,
+                longitude=longitude,
             )
         )
 

@@ -71,3 +71,8 @@ class TerritoryCityOut(BaseModel):
     dominant_squad_id: uuid.UUID | None = None
     dominant_squad_name: str | None = None
     dominant_squad_percent: float | None = None
+    # Lookup em app/data/city_coordinates.json (codigo IBGE -> lat/lng, ver
+    # routers/ranking.py) -- None se o codigo_ibge do grupo nao tiver match
+    # no dataset (deveria ser raro, nunca quebra a resposta).
+    latitude: float | None = None
+    longitude: float | None = None
