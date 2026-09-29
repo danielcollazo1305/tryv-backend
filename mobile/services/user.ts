@@ -12,6 +12,8 @@ export interface UserUpdatePayload {
   body_fat_percentage?: number;
   training_level?: string;
   available_equipment?: string;
+  city?: string;
+  city_ibge_code?: number;
 }
 
 export interface TeamBadge {

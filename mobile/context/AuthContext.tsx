@@ -25,6 +25,7 @@ export interface User {
   subscription_status: string;
   created_at: string;
   city: string | null;
+  city_ibge_code: number | null;
 }
 
 interface AuthContextValue {

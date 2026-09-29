@@ -43,6 +43,12 @@ export async function finishRegistration({ register, draft }: FinishRegistration
   if (draft.equipment) profilePatch.available_equipment = draft.equipment;
   const calorieGoalValue = Number(draft.dailyCalorieGoal);
   if (calorieGoalValue > 0) profilePatch.daily_calorie_goal = calorieGoalValue;
+  // Cidade e opcional (ver register-body.tsx) -- so entra no payload se o
+  // usuario de fato escolheu uma no CityPickerModal (cityIbgeCode != null).
+  if (draft.cityIbgeCode != null) {
+    profilePatch.city = draft.city;
+    profilePatch.city_ibge_code = draft.cityIbgeCode;
+  }
 
   if (Object.keys(profilePatch).length > 0) {
     try {

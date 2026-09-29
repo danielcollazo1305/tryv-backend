@@ -5,6 +5,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
+import { CityPickerModal } from '@/components/CityPickerModal';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { SelectionCard2 } from '@/components/SelectionCard2';
@@ -49,6 +50,9 @@ export default function RegisterBodyScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [biologicalSex, setBiologicalSex] = useState<BiologicalSex | null>(draft.biologicalSex);
   const [bodyFatPercentage, setBodyFatPercentage] = useState(draft.bodyFatPercentage);
+  const [city, setCity] = useState(draft.city);
+  const [cityIbgeCode, setCityIbgeCode] = useState<number | null>(draft.cityIbgeCode);
+  const [showCityPicker, setShowCityPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -77,6 +81,8 @@ export default function RegisterBodyScreen() {
       dateOfBirth: toDateString(dateOfBirth),
       biologicalSex,
       bodyFatPercentage,
+      city,
+      cityIbgeCode,
     });
     router.push('/(auth)/register-goal');
   };
@@ -141,11 +147,32 @@ export default function RegisterBodyScreen() {
             Se voce souber esse numero, ele deixa a meta calorica mais precisa. Pode deixar em branco se nao souber.
           </Text>
 
+          <View style={styles.dateField}>
+            <Text style={styles.fieldLabel}>Cidade (opcional)</Text>
+            <Pressable style={styles.dateButton} onPress={() => setShowCityPicker(true)}>
+              <Ionicons name="location-outline" size={18} color={colors3.primary} />
+              <Text style={styles.dateButtonText}>{city || 'Selecionar cidade'}</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.hint}>
+            Usada pra disputa de território por cidade entre squads no Ranking. Pode pular e configurar depois.
+          </Text>
+
           {!!error && <Text style={styles.error}>{error}</Text>}
 
           <Button3 label="Continuar" onPress={handleContinue} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CityPickerModal
+        visible={showCityPicker}
+        onClose={() => setShowCityPicker(false)}
+        onSelect={({ ibgeCode, label }) => {
+          setCityIbgeCode(ibgeCode);
+          setCity(label);
+          setShowCityPicker(false);
+        }}
+      />
     </ScreenBackground3>
   );
 }

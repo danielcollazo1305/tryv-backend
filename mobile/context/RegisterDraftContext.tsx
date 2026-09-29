@@ -36,6 +36,13 @@ export interface RegisterDraft {
   trainingLevel: string | null; // mesmos valores de workout-plan/generate.tsx
   equipment: string | null; // idem
   dailyCalorieGoal: string; // sugestao calculada, editavel pelo usuario antes de confirmar
+  // Territorio (Ranking/Squad) -- OPCIONAL (mesmo padrao de bodyFatPercentage
+  // neste passo), preenchido via CityPickerModal (Estado -> Municipio, API
+  // do IBGE) em register-body.tsx. city ja vem pronto como rotulo de
+  // exibicao ("Guarujá - SP"); cityIbgeCode e a chave estavel que o
+  // backend usa pra agrupar GET /territory.
+  city: string;
+  cityIbgeCode: number | null;
 }
 
 const EMPTY_DRAFT: RegisterDraft = {
@@ -55,6 +62,8 @@ const EMPTY_DRAFT: RegisterDraft = {
   trainingLevel: null,
   equipment: null,
   dailyCalorieGoal: '',
+  city: '',
+  cityIbgeCode: null,
 };
 
 interface RegisterDraftContextValue {
