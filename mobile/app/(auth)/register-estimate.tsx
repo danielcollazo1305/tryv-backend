@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
@@ -28,7 +29,7 @@ import { OnboardingGoal, calculateGoalTimeEstimate, calculateSuggestedCalorieInf
  */
 export default function RegisterEstimateScreen() {
   const { draft } = useRegisterDraft();
-  const { register } = useAuth();
+  const { register, setOnboardingInProgress } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,11 +69,17 @@ export default function RegisterEstimateScreen() {
   const handleFinish = async () => {
     setError(null);
     setLoading(true);
+    setOnboardingInProgress(true);
     try {
       await finishRegistration({ register, draft });
-      // Sem navegacao explicita: assim que o token e setado, o guard em
-      // app/_layout.tsx troca (auth) por (tabs) automaticamente.
+      // onboardingInProgress ainda true aqui de proposito -- segura o
+      // guard de app/_layout.tsx em (auth) (mesmo com token ja setado
+      // dentro de finishRegistration) ate o passo de avatar terminar ou
+      // ser pulado, que so ai desliga a flag. Sem isso, o guard reativo
+      // trocaria pra (tabs) sozinho antes deste push acontecer.
+      router.replace('/(auth)/register-avatar');
     } catch (err) {
+      setOnboardingInProgress(false);
       setError(getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
       setLoading(false);
     }

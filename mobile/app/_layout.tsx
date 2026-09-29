@@ -45,7 +45,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { token, isLoading } = useAuth();
+  const { token, isLoading, onboardingInProgress } = useAuth();
 
   // Fases B+C da sincronizacao automatica de treinos (Apple Health/Health
   // Connect, ver services/workoutAutoImport.ts). runAutoImport() cobre os 2
@@ -105,7 +105,13 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-      <Stack.Protected guard={!!token}>
+      {/*
+        onboardingInProgress adia a troca automatica (auth) -> (tabs) --
+        sem isso, um passo extra do wizard depois de finishRegistration()
+        (token ja setado ali dentro) perderia a corrida com este guard
+        reativo e seria descartado antes de aparecer. Ver AuthContext.tsx.
+      */}
+      <Stack.Protected guard={!!token && !onboardingInProgress}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="meal/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="meal/photos" options={{ presentation: 'modal' }} />
@@ -137,7 +143,7 @@ function RootNavigator() {
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="export-pdf" options={{ presentation: 'modal' }} />
       </Stack.Protected>
-      <Stack.Protected guard={!token}>
+      <Stack.Protected guard={!token || onboardingInProgress}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
     </Stack>

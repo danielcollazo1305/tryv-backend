@@ -34,7 +34,7 @@ import { OnboardingGoal, calculateSuggestedCalorieInfo } from '@/utils/healthCal
  */
 export default function RegisterCaloriesScreen() {
   const { draft, updateDraft } = useRegisterDraft();
-  const { register } = useAuth();
+  const { register, setOnboardingInProgress } = useAuth();
 
   const suggestion = useMemo(
     () =>
@@ -75,11 +75,17 @@ export default function RegisterCaloriesScreen() {
     }
 
     setLoading(true);
+    setOnboardingInProgress(true);
     try {
       await finishRegistration({ register, draft: updatedDraft });
-      // Sem navegacao explicita: assim que o token e setado, o guard em
-      // app/_layout.tsx troca (auth) por (tabs) automaticamente.
+      // onboardingInProgress ainda true aqui de proposito -- segura o
+      // guard de app/_layout.tsx em (auth) (mesmo com token ja setado
+      // dentro de finishRegistration) ate o passo de avatar terminar ou
+      // ser pulado, que so ai desliga a flag. Sem isso, o guard reativo
+      // trocaria pra (tabs) sozinho antes deste push acontecer.
+      router.replace('/(auth)/register-avatar');
     } catch (err) {
+      setOnboardingInProgress(false);
       setError(getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
       setLoading(false);
     }

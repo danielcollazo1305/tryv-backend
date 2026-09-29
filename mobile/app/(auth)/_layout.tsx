@@ -19,6 +19,7 @@ export default function AuthLayout() {
         <Stack.Screen name="register-training" />
         <Stack.Screen name="register-calories" />
         <Stack.Screen name="register-estimate" />
+        <Stack.Screen name="register-avatar" />
       </Stack>
     </RegisterDraftProvider>
   );

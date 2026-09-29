@@ -26,6 +26,7 @@ export interface User {
   created_at: string;
   city: string | null;
   city_ibge_code: number | null;
+  avatar_url: string | null;
 }
 
 interface AuthContextValue {
@@ -36,6 +37,17 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /**
+   * Flag de transicao pro wizard de cadastro: entre o passo que cria a
+   * conta (token ja setado, ver register()) e um passo extra opcional
+   * depois dele (ex: register-avatar.tsx), o guard de app/_layout.tsx
+   * trocaria (auth) por (tabs) automaticamente assim que o token aparece
+   * -- essa flag adia essa troca enquanto true. So estado em memoria desta
+   * sessao do app (nunca persistida em SecureStore/AsyncStorage), reseta
+   * pra false sozinha se o app for reaberto do zero.
+   */
+  onboardingInProgress: boolean;
+  setOnboardingInProgress: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -44,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [onboardingInProgress, setOnboardingInProgress] = useState(false);
 
   const loadUser = useCallback(async () => {
     const response = await api.get<User>('/users/me');
@@ -105,7 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser: loadUser }}>
+    <AuthContext.Provider
+      value={{ user, token, isLoading, login, register, logout, refreshUser: loadUser, onboardingInProgress, setOnboardingInProgress }}
+    >
       {children}
     </AuthContext.Provider>
   );

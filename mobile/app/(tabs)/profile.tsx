@@ -1,8 +1,9 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +14,7 @@ import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { getApiErrorMessage } from '@/services/api';
 import { requestHealthPermissions } from '@/services/health';
 import {
   getGrantedHealthConnectPermissions,
@@ -33,7 +35,7 @@ import {
 import { getTrainingFrequency, getTrainingStreaks, getWorkoutProgress } from '@/services/dashboard';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
-import { UserBadges, getUserBadges } from '@/services/user';
+import { UserBadges, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { getInitials } from '@/utils/text';
 import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
@@ -88,11 +90,19 @@ interface PersonalChallengeProgress {
  * 800, cor primary).
  */
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [badges, setBadges] = useState<UserBadges | null>(null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+
+  // Avatar por IA (POST /users/me/avatar) -- mesmo padrao de escolha
+  // camera/galeria de app/meal/add.tsx (2 botoes, nao Alert.alert), so que
+  // dentro de um modal em vez de embutido na tela (aqui o gatilho e tocar
+  // no Avatar do topo, nao um estagio de tela inteira como no wizard).
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   // Grid de consistencia (6 cards) — dados reais:
   // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
@@ -224,6 +234,57 @@ export default function ProfileScreen() {
   // importingRef em app/activity/healthkit.tsx. Um ref so pros 2 botoes
   // (nao faz sentido rodar os dois ao mesmo tempo).
   const seedingHealthConnectRef = useRef(false);
+
+  const generateAvatar = async (uri: string) => {
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      await uploadAvatarSelfie(uri);
+      await refreshUser();
+      setAvatarPickerVisible(false);
+    } catch (err) {
+      setAvatarError(getApiErrorMessage(err, 'Nao foi possivel gerar seu avatar, tente novamente.'));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleTakeAvatarPhoto = async () => {
+    setAvatarError(null);
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setAvatarError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
+    if (!result.canceled && result.assets[0]) {
+      generateAvatar(result.assets[0].uri);
+    }
+  };
+
+  const handlePickAvatarFromLibrary = async () => {
+    setAvatarError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setAvatarError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets[0]) {
+      generateAvatar(result.assets[0].uri);
+    }
+  };
+
+  const handleCloseAvatarPicker = () => {
+    if (avatarUploading) return;
+    setAvatarPickerVisible(false);
+    setAvatarError(null);
+  };
 
   const handleDebugSeedHealthConnectData = async () => {
     if (Platform.OS !== 'android') {
@@ -450,7 +511,17 @@ export default function ProfileScreen() {
       <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
         <Text style={styles.logo}>Tryv Fit</Text>
 
-        <Avatar initials={user ? getInitials(user.name) : '?'} size={88} style={styles.avatar} />
+        <Pressable onPress={() => setAvatarPickerVisible(true)} hitSlop={8}>
+          <Avatar
+            initials={user ? getInitials(user.name) : '?'}
+            imageUrl={user?.avatar_url}
+            size={88}
+            style={styles.avatar}
+          />
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="camera" size={14} color={colors3.onPrimary} />
+          </View>
+        </Pressable>
         <Text style={styles.name}>{user?.name}</Text>
         <Text style={styles.email}>{user?.email}</Text>
 
@@ -807,6 +878,39 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal visible={avatarPickerVisible} animationType="slide" transparent onRequestClose={handleCloseAvatarPicker}>
+        <View style={styles.avatarModalBackdrop}>
+          <View style={styles.avatarModalSheet}>
+            <View style={styles.avatarModalHeader}>
+              <Text style={styles.avatarModalTitle}>Avatar por IA</Text>
+              <Pressable onPress={handleCloseAvatarPicker} hitSlop={12} disabled={avatarUploading}>
+                <Ionicons name="close" size={24} color={colors3.onSurface} />
+              </Pressable>
+            </View>
+
+            {!!avatarError && <Text style={styles.avatarModalError}>{avatarError}</Text>}
+
+            {avatarUploading ? (
+              <View style={styles.avatarModalLoading}>
+                <ActivityIndicator size="large" color={colors3.primary} />
+                <Text style={styles.avatarModalLoadingText}>Gerando seu avatar...</Text>
+              </View>
+            ) : (
+              <View style={styles.avatarPickButtons}>
+                <Pressable style={styles.avatarPickButton} onPress={handleTakeAvatarPhoto}>
+                  <Ionicons name="camera" size={28} color={colors3.primary} />
+                  <Text style={styles.avatarPickButtonText}>Tirar foto</Text>
+                </Pressable>
+                <Pressable style={styles.avatarPickButton} onPress={handlePickAvatarFromLibrary}>
+                  <Ionicons name="images" size={28} color={colors3.primary} />
+                  <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground3>
   );
 }
@@ -821,8 +925,52 @@ const styles = StyleSheet.create({
   },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
   avatar: { marginBottom: spacing3.md },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: spacing3.md + 2,
+    right: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors3.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors3.background,
+  },
   name: { ...typography3.headlineMd, fontSize: 22 },
   email: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.xs, marginBottom: spacing3.sm },
+
+  avatarModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  avatarModalSheet: {
+    backgroundColor: colors3.background,
+    borderTopLeftRadius: radius3.xl,
+    borderTopRightRadius: radius3.xl,
+    padding: spacing3.lg,
+    paddingBottom: spacing3.xl,
+    gap: spacing3.md,
+  },
+  avatarModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  avatarModalTitle: { ...typography3.headlineMd, fontSize: 18 },
+  avatarModalError: { color: colors3.error, textAlign: 'center' },
+  avatarModalLoading: { alignItems: 'center', paddingVertical: spacing3.xl },
+  avatarModalLoadingText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.md },
+  avatarPickButtons: { gap: spacing3.md },
+  avatarPickButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing3.md,
+    backgroundColor: colors3.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
+    borderRadius: radius3.lg,
+    padding: spacing3.lg,
+  },
+  avatarPickButtonText: { ...typography3.headlineMd, fontSize: 16 },
 
   followStatsRow: {
     flexDirection: 'row',

@@ -339,7 +339,7 @@ export default function RankingScreen() {
           ) : (
             <>
               <View style={styles.userCardTop}>
-                <Avatar initials={user ? getInitials(user.name) : '?'} size={56} />
+                <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} size={56} />
                 <View style={styles.userCardInfo}>
                   <Text style={styles.userName}>{user?.name}</Text>
                   <View style={[styles.squadBadge, hasSquad ? styles.squadBadgeActive : styles.squadBadgeSolo]}>

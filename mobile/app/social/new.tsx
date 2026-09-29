@@ -150,7 +150,7 @@ export default function NewPostScreen() {
         {(stage === 'compose' || stage === 'uploading' || stage === 'saving') && (
           <View style={styles.composeContainer}>
             <View style={styles.authorRow}>
-              <Avatar initials={user ? getInitials(user.name) : '?'} size={40} />
+              <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} size={40} />
               <View>
                 <Text style={styles.authorName}>{user?.name ?? 'Voce'}</Text>
                 <Text style={styles.visibilityHint}>
