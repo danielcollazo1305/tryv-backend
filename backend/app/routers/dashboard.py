@@ -15,7 +15,7 @@ from app.models.meal import Meal
 from app.models.run import Run
 from app.models.user import User
 from app.models.weight_log import WeightLog
-from app.models.workout import WorkoutPlan, WorkoutSession
+from app.models.workout import WorkoutSession
 from app.services.run_calculator import elevation_gain_meters
 from app.schemas.dashboard import (
     CalorieSummary,
@@ -92,10 +92,10 @@ def _compute_training_frequency(
     db: Session, user_id, start_date: date, end_date: date, days_total: int
 ) -> tuple[list[TrainingDay], int]:
     """
-    Intensidade = quantidade de Run + ManualActivity no dia (0-3, "3" =
-    "3 ou mais"). Extraida de get_home_summary pra ser reaproveitada por
-    /dashboard/training-frequency (versao livre, sem Pro-gate) sem duplicar
-    a query.
+    Intensidade = quantidade de Run + ManualActivity + WorkoutSession no dia
+    (0-3, "3" = "3 ou mais"). Extraida de get_home_summary pra ser
+    reaproveitada por /dashboard/training-frequency (versao livre, sem
+    Pro-gate) sem duplicar a query.
     """
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.max.time())
@@ -120,10 +120,20 @@ def _compute_training_frequency(
         .group_by(func.date(ManualActivity.performed_at))
         .all()
     )
-    trained_dates = set(run_counts) | set(manual_counts)
+    workout_counts = dict(
+        db.query(func.date(WorkoutSession.completed_at), func.count(WorkoutSession.id))
+        .filter(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.completed_at >= start_datetime,
+            WorkoutSession.completed_at <= end_datetime,
+        )
+        .group_by(func.date(WorkoutSession.completed_at))
+        .all()
+    )
+    trained_dates = set(run_counts) | set(manual_counts) | set(workout_counts)
 
     def _intensity(day: date) -> int:
-        return min(run_counts.get(day, 0) + manual_counts.get(day, 0), 3)
+        return min(run_counts.get(day, 0) + manual_counts.get(day, 0) + workout_counts.get(day, 0), 3)
 
     training_frequency = [
         TrainingDay(date=start_date + timedelta(days=offset), intensity=_intensity(start_date + timedelta(days=offset)))
@@ -144,8 +154,9 @@ def get_training_frequency(
     """
     Mesmo dado de training_frequency que ja existia dentro de
     /dashboard/home-summary, exposto sozinho e livre (sem Pro-gate) — a
-    frequencia de treino (Run + ManualActivity) e conteudo gratuito; so o
-    resto do resumo (evolucao de peso, deficit calorico) continua Pro.
+    frequencia de treino (Run + ManualActivity + WorkoutSession) e conteudo
+    gratuito; so o resto do resumo (evolucao de peso, deficit calorico)
+    continua Pro.
     """
     start_date, end_date, days_total, period_label = _resolve_window(period, month)
     training_frequency, days_trained = _compute_training_frequency(
@@ -184,10 +195,10 @@ def get_user_training_frequency(
 def _compute_training_streaks(db: Session, user_id) -> tuple[int, int]:
     """
     Sequencia atual e melhor sequencia historica de dias treinados (mesmo
-    criterio de "dia treinado" que _compute_training_frequency: Run OU
-    ManualActivity naquele dia) — SEM filtro de periodo, sobre todo o
-    historico do usuario. Diferente de _compute_training_frequency, que so
-    olha pra uma janela: aqui a query busca so as datas distintas (nao 1
+    criterio de "dia treinado" que _compute_training_frequency: Run,
+    ManualActivity ou WorkoutSession naquele dia) — SEM filtro de periodo,
+    sobre todo o historico do usuario. Diferente de _compute_training_frequency,
+    que so olha pra uma janela: aqui a query busca so as datas distintas (nao 1
     linha por dia do periodo), entao o volume retornado do banco e
     proporcional aos dias em que a pessoa de fato treinou, nao ao tamanho
     da janela.
@@ -203,7 +214,14 @@ def _compute_training_streaks(db: Session, user_id) -> tuple[int, int]:
         .distinct()
         .all()
     }
-    trained_dates = sorted(run_dates | manual_dates)
+    workout_dates = {
+        row[0]
+        for row in db.query(func.date(WorkoutSession.completed_at))
+        .filter(WorkoutSession.user_id == user_id)
+        .distinct()
+        .all()
+    }
+    trained_dates = sorted(run_dates | manual_dates | workout_dates)
     if not trained_dates:
         return 0, 0
 
@@ -403,12 +421,14 @@ def _session_stats(session: WorkoutSession) -> tuple[int, float]:
 
 
 def _query_workout_sessions(db: Session, user_id, start_datetime: datetime, end_datetime: datetime) -> list[WorkoutSession]:
-    """WorkoutSession nao tem user_id proprio — precisa passar por WorkoutPlan (mesmo join usado em qualquer outra query de sessao por usuario)."""
+    """Filtra direto em WorkoutSession.user_id (coluna propria, preenchida tanto
+    por sessao de plano quanto por sessao livre -- ver models/workout.py) em vez
+    de fazer JOIN com WorkoutPlan, que excluia sessoes livres (plan_id NULL) da
+    agregacao inteira."""
     return (
         db.query(WorkoutSession)
-        .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
         .filter(
-            WorkoutPlan.user_id == user_id,
+            WorkoutSession.user_id == user_id,
             WorkoutSession.completed_at >= start_datetime,
             WorkoutSession.completed_at <= end_datetime,
         )
