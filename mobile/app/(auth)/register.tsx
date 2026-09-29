@@ -2,18 +2,27 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 
-import { Button2 } from '@/components/Button2';
+import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TextField2 } from '@/components/TextField2';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
 import { useRegisterDraft } from '@/context/RegisterDraftContext';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 /**
  * Passo 1 do cadastro (Conta) — onboarding expandido, agora 6 ou 7 passos
  * no total (ver getOnboardingTotalSteps). O layout liquiglass (logo,
  * progress bar, campos) segue o mesmo padrao dos outros passos, aplicado
  * aos campos que ja existiam aqui (nome/email/senha/peso).
+ *
+ * Migrada pro tema claro "prism-glass" nesta tarefa (colors2 -> colors3,
+ * Button2 -> Button3, TextField2 variant="light", ProgressSteps2
+ * variant="light", ScreenBackground3 no lugar do backgroundColor manual) --
+ * era a unica tela do fluxo (auth) que tinha ficado pra tras, inclusive
+ * dos outros 6 passos do mesmo wizard (register-body.tsx em diante), ja
+ * migrados. Mesmo padrao ja usado em forgot-password.tsx. Nenhuma logica
+ * de validacao/navegacao foi alterada.
  *
  * Nao chama register() ainda — so valida e guarda no RegisterDraftContext.
  * A chamada real de cadastro (register + updateProfile + createWeightLog)
@@ -56,75 +65,81 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.logo}>Tryv Fit</Text>
-          <Text style={styles.title}>Criar sua conta</Text>
-          <Text style={styles.subtitle}>Vamos comecar sua jornada</Text>
+    <ScreenBackground3 style={styles.flex}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.logo}>Tryv Fit</Text>
+            <Text style={styles.title}>Criar sua conta</Text>
+            <Text style={styles.subtitle}>Vamos comecar sua jornada</Text>
 
-          <View style={styles.progressWrap}>
-            <ProgressSteps2 current={1} total={getOnboardingTotalSteps(draft)} label="Conta" />
+            <View style={styles.progressWrap}>
+              <ProgressSteps2 variant="light" current={1} total={getOnboardingTotalSteps(draft)} label="Conta" />
+            </View>
           </View>
-        </View>
 
-        <TextField2 label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
-        <TextField2
-          label="E-mail"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="voce@email.com"
-        />
-        <TextField2
-          label="Senha"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="********"
-        />
-        <TextField2
-          label="Confirmar senha"
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="********"
-        />
-        <TextField2
-          label="Peso atual em kg"
-          keyboardType="decimal-pad"
-          value={weight}
-          onChangeText={setWeight}
-          placeholder="Ex: 78.5"
-        />
+          <TextField2 variant="light" label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
+          <TextField2
+            variant="light"
+            label="E-mail"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="voce@email.com"
+          />
+          <TextField2
+            variant="light"
+            label="Senha"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            placeholder="********"
+          />
+          <TextField2
+            variant="light"
+            label="Confirmar senha"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="********"
+          />
+          <TextField2
+            variant="light"
+            label="Peso atual em kg"
+            keyboardType="decimal-pad"
+            value={weight}
+            onChangeText={setWeight}
+            placeholder="Ex: 78.5"
+          />
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Button2 label="Continuar" onPress={handleContinue} />
+          <Button3 label="Continuar" onPress={handleContinue} />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Ja tem conta? </Text>
-          <Link href="/(auth)/login" style={styles.link}>
-            Entrar
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Ja tem conta? </Text>
+            <Link href="/(auth)/login" style={styles.link}>
+              Entrar
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors2.background },
-  container: { flexGrow: 1, justifyContent: 'center', padding: spacing2.containerMargin, gap: spacing2.md },
-  header: { alignItems: 'center', gap: spacing2.xs, marginBottom: spacing2.sm },
-  logo: { ...typography2.displayHero, fontSize: 36 },
-  title: { ...typography2.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing2.sm },
-  subtitle: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-  progressWrap: { width: '100%', marginTop: spacing2.md },
-  error: { color: colors2.danger, textAlign: 'center' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing2.md },
-  footerText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant },
-  link: { ...typography2.bodyMd, color: colors2.primary, fontWeight: '700' },
+  flex: { flex: 1 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: spacing3.containerMargin, gap: spacing3.md },
+  header: { alignItems: 'center', gap: spacing3.xs, marginBottom: spacing3.sm },
+  logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
+  title: { ...typography3.headlineMd, fontSize: 20, textAlign: 'center', marginTop: spacing3.sm },
+  subtitle: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  progressWrap: { width: '100%', marginTop: spacing3.md },
+  error: { color: colors3.error, textAlign: 'center' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing3.md },
+  footerText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
+  link: { ...typography3.bodyMd, color: colors3.primary, fontWeight: '700' },
 });
