@@ -137,24 +137,35 @@ def territory(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Por cidade (users.city, texto livre -- ver risco de fragmentacao ja
-    documentado na Fase 1), qual squad tem a maior % do total de pontos
-    gerado por TODOS os usuarios daquela cidade (squad ou Solo -- Solo
-    conta pro denominador mas nunca pro numerador de squad nenhum, mesma
-    definicao aprovada na Fase 1). Cidade sem nenhum membro de squad
-    retorna dominant_squad=None (so usuarios Solo la).
+    Por cidade (users.city_ibge_code, codigo IBGE do municipio -- chave
+    estavel, substitui o agrupamento por users.city em texto livre da Fase
+    1, que fragmentava por variacao de grafia/maiusculas), qual squad tem a
+    maior % do total de pontos gerado por TODOS os usuarios daquela cidade
+    (squad ou Solo -- Solo conta pro denominador mas nunca pro numerador de
+    squad nenhum, mesma definicao aprovada na Fase 1). Cidade sem nenhum
+    membro de squad retorna dominant_squad=None (so usuarios Solo la).
+    users.city vira so o rotulo de exibicao (ex: "Guarujá - SP"), pego de
+    qualquer linha nao-nula do grupo via func.max -- todo usuario com o
+    mesmo city_ibge_code deveria ter o mesmo rotulo, func.max e so uma
+    escolha deterministica caso divirja por algum motivo.
     """
-    city_totals = dict(
-        db.query(User.city, func.sum(PointsEvent.amount).label("total_points"))
+    city_rows = (
+        db.query(
+            User.city_ibge_code,
+            func.max(User.city).label("city_label"),
+            func.sum(PointsEvent.amount).label("total_points"),
+        )
         .join(PointsEvent, PointsEvent.user_id == User.id)
-        .filter(User.city.isnot(None))
-        .group_by(User.city)
+        .filter(User.city_ibge_code.isnot(None))
+        .group_by(User.city_ibge_code)
         .all()
     )
+    city_totals = {row.city_ibge_code: int(row.total_points or 0) for row in city_rows}
+    city_labels = {row.city_ibge_code: row.city_label for row in city_rows}
 
     squad_points_by_city = (
         db.query(
-            User.city,
+            User.city_ibge_code,
             Squad.id.label("squad_id"),
             Squad.name.label("squad_name"),
             func.sum(PointsEvent.amount).label("squad_points"),
@@ -162,30 +173,30 @@ def territory(
         .join(PointsEvent, PointsEvent.user_id == User.id)
         .join(SquadMembership, SquadMembership.user_id == User.id)
         .join(Squad, Squad.id == SquadMembership.squad_id)
-        .filter(User.city.isnot(None))
-        .group_by(User.city, Squad.id, Squad.name)
+        .filter(User.city_ibge_code.isnot(None))
+        .group_by(User.city_ibge_code, Squad.id, Squad.name)
         .all()
     )
 
-    best_by_city: dict[str, tuple] = {}
+    best_by_city: dict[int, tuple] = {}
     for row in squad_points_by_city:
-        current_best = best_by_city.get(row.city)
+        current_best = best_by_city.get(row.city_ibge_code)
         if current_best is None or row.squad_points > current_best[2]:
-            best_by_city[row.city] = (row.squad_id, row.squad_name, row.squad_points)
+            best_by_city[row.city_ibge_code] = (row.squad_id, row.squad_name, row.squad_points)
 
     results = []
-    for city, total_points in city_totals.items():
-        total_points = int(total_points or 0)
-        best = best_by_city.get(city)
+    for city_ibge_code, total_points in city_totals.items():
+        city_label = city_labels[city_ibge_code]
+        best = best_by_city.get(city_ibge_code)
         if best is None or total_points <= 0:
-            results.append(TerritoryCityOut(city=city, total_points=total_points))
+            results.append(TerritoryCityOut(city=city_label, total_points=total_points))
             continue
 
         squad_id, squad_name, squad_points = best
         percent = round((squad_points / total_points) * 100, 1)
         results.append(
             TerritoryCityOut(
-                city=city,
+                city=city_label,
                 total_points=total_points,
                 dominant_squad_id=squad_id,
                 dominant_squad_name=squad_name,

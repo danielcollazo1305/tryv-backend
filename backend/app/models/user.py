@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Float, Date, DateTime, Boolean
+from sqlalchemy import Column, String, Float, Date, DateTime, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -57,10 +57,14 @@ class User(Base):
     # deste trabalho.
     phone_number = Column(String, nullable=True, index=True)
 
-    # Territorio (Ranking/Squad) -- texto livre preenchido manualmente uma
-    # vez no perfil/cadastro, nao capturado via GPS/geocoding (decisao de
-    # custo). Risco aceito: "Sao Paulo" vs "sao paulo" vs "SP" fragmentam o
-    # calculo de squad dono da cidade -- normalizacao fica pra fase futura.
+    # Territorio (Ranking/Squad) -- city_ibge_code e a chave estavel usada
+    # pra agrupar GET /territory (codigo do municipio na API publica do
+    # IBGE, sem ambiguidade de grafia/maiusculas). city vira so o rotulo de
+    # exibicao (ex: "Guarujá - SP"), preenchido junto com city_ibge_code
+    # pelo seletor de cidade (Estado -> Municipio) no cadastro. Antes desta
+    # coluna existir, city era o unico campo e o agrupamento era por texto
+    # livre -- risco de fragmentacao ja documentado, resolvido agora.
     city = Column(String, nullable=True)
+    city_ibge_code = Column(Integer, nullable=True, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-MAX_SQUAD_MEMBERS = 9
+MAX_SQUAD_MEMBERS = 50
 
 
 class SquadCreate(BaseModel):

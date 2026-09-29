@@ -35,10 +35,11 @@ class UserOut(BaseModel):
     available_equipment: str | None = None
     subscription_status: str
     created_at: datetime
-    # Territorio (Ranking/Squad) -- so leitura aqui; ainda nao existe tela
-    # nenhuma (cadastro ou Perfil) que deixe o usuario configurar isso, ver
-    # app/(tabs)/ranking.tsx no mobile.
+    # Territorio (Ranking/Squad) -- city e o rotulo de exibicao (ex:
+    # "Guarujá - SP"), city_ibge_code e a chave estavel usada pra agrupar
+    # GET /territory. Ambos graváveis via UserUpdate agora (ver abaixo).
     city: str | None = None
+    city_ibge_code: int | None = None
 
     class Config:
         from_attributes = True
@@ -55,6 +56,8 @@ class UserUpdate(BaseModel):
     body_fat_percentage: float | None = Field(None, gt=0, lt=100)
     training_level: TrainingLevel | None = None
     available_equipment: str | None = None
+    city: str | None = None
+    city_ibge_code: int | None = None
 
 
 class UserSearchResult(BaseModel):
