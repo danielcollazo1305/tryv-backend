@@ -9,7 +9,7 @@ interface MacrosGridProps {
   protein: number;
   carbs: number;
   fat: number;
-  /** daily_calorie_goal do usuario — so a meta de kcal existe hoje (User nao tem meta individual de macro), ver decisao documentada no componente. */
+  /** daily_calorie_goal do usuario — unica meta com barra de progresso neste grid. Meta de proteina (daily_protein_goal) tem sua propria barra em GoalProgressBar.tsx, renderizada a parte na tela de Refeicoes; carboidrato/gordura continuam sem meta individual. */
   calorieGoal: number | null;
 }
 
@@ -24,10 +24,11 @@ function clamp01(value: number): number {
  * "hero"), Carboidrato | Gordura embaixo — documentado aqui por nao ter
  * sido especificado.
  *
- * Só o tile de Calorias tem barra de progresso: é a única meta individual
- * que existe de verdade (User.daily_calorie_goal — não há meta de grama
- * por macro em lugar nenhum do backend). Os outros 3 tiles mostram só o
- * valor absoluto, sem barra.
+ * Só o tile de Calorias tem barra de progresso aqui dentro do grid — a
+ * meta de proteína (User.daily_protein_goal, também existe no backend)
+ * ganhou sua própria barra em GoalProgressBar.tsx (tela de Refeições),
+ * fora deste componente. Carboidrato/gordura continuam sem meta
+ * individual, mostrando só o valor absoluto.
  *
  * Migrado pro tema claro "prism-glass" (GlassCard/colors3) seguindo o
  * mockup aprovado da tela de Refeicoes.

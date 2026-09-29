@@ -7,6 +7,7 @@ import { Button3 } from '@/components/Button3';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
 import { GlassCard } from '@/components/GlassCard';
 import { DietPlanBanner } from '@/components/DietPlanBanner';
+import { GoalProgressBar } from '@/components/GoalProgressBar';
 import { MacrosGrid } from '@/components/MacrosGrid';
 import { MealCard } from '@/components/MealCard';
 import { MealsHistoryCard } from '@/components/MealsHistoryCard';
@@ -101,6 +102,8 @@ export default function MealsScreen() {
             />
 
             <CalorieBalanceCard caloriesToday={totals.calories} calorieGoal={user?.daily_calorie_goal ?? null} />
+
+            <GoalProgressBar label="Proteína" current={totals.protein} goal={user?.daily_protein_goal ?? null} />
 
             <MealsHistoryCard />
 
