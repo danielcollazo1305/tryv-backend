@@ -54,6 +54,8 @@ export interface TerritoryCity {
   dominant_squad_id: string | null;
   dominant_squad_name: string | null;
   dominant_squad_percent: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export async function createSquad(name: string): Promise<Squad> {

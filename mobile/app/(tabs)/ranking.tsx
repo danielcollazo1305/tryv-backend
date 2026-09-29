@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -424,16 +424,21 @@ export default function RankingScreen() {
                       {mySquadRankingRow ? formatXp(mySquadRankingRow.weekly_xp) : '--'}
                     </Text>
                   </GlassCard>
-                  <GlassCard variant="card" style={styles.statTile}>
-                    <Text style={styles.statLabel}>Território</Text>
-                    <Text style={styles.statValue}>
-                      {user?.city ? (isDominantInCity ? myCityTerritory!.dominant_squad_percent : 0) : '--'}
-                      {user?.city && <Text style={styles.statUnit}>%</Text>}
-                    </Text>
-                    {user?.city && !isDominantInCity && (
-                      <Text style={styles.statRecord}>Não domina {user.city}</Text>
-                    )}
-                  </GlassCard>
+                  <Pressable style={styles.statTile} onPress={() => router.push('/territory-map')}>
+                    <GlassCard variant="card" style={styles.statTileCard}>
+                      <View style={styles.statLabelRow}>
+                        <Text style={styles.statLabel}>Território</Text>
+                        <Ionicons name="map-outline" size={14} color={colors3.onSurfaceVariant} />
+                      </View>
+                      <Text style={styles.statValue}>
+                        {user?.city ? (isDominantInCity ? myCityTerritory!.dominant_squad_percent : 0) : '--'}
+                        {user?.city && <Text style={styles.statUnit}>%</Text>}
+                      </Text>
+                      {user?.city && !isDominantInCity && (
+                        <Text style={styles.statRecord}>Não domina {user.city}</Text>
+                      )}
+                    </GlassCard>
+                  </Pressable>
                 </View>
                 {!user?.city && (
                   <GlassCard variant="glass" style={styles.cityHintCard}>
@@ -670,7 +675,9 @@ const styles = StyleSheet.create({
   squadActionText: { ...typography3.labelSm, textTransform: 'none', color: colors3.error },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
-  statTile: { flexBasis: '47%', flexGrow: 1, gap: spacing3.xs },
+  statTile: { flexBasis: '47%', flexGrow: 1 },
+  statTileCard: { gap: spacing3.xs },
+  statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   statValue: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   statUnit: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
