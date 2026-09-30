@@ -142,6 +142,7 @@ function RootNavigator() {
         <Stack.Screen name="weight/index" />
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="territory-map" />
+        <Stack.Screen name="inventory" />
         <Stack.Screen name="export-pdf" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token || onboardingInProgress}>

@@ -680,6 +680,19 @@ export default function ProfileScreen() {
               </GlassCard>
             </Pressable>
           </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => router.push('/inventory')}>
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="bicycle" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Meu equipamento</Text>
+                  <Text style={styles.tileFullSubtitle}>Tênis, bike e outros itens usados nas suas atividades</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
         </View>
 
         {/*

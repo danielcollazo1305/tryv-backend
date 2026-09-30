@@ -18,6 +18,7 @@ import MapView, { Polyline } from 'react-native-maps';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
+import { EquipmentPicker } from '@/components/EquipmentPicker';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
@@ -135,6 +136,11 @@ export default function NewActivityScreen() {
   const [durationMinutes, setDurationMinutes] = useState('');
   const [caloriesManual, setCaloriesManual] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Equipamento (inventario) -- opcional, oferecido no encerramento de uma
+  // corrida/bike/caminhada com GPS e no registro manual de Luta (unico tipo
+  // manual com categoria de equipamento hoje, ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL).
+  const [equipmentId, setEquipmentId] = useState<string | null>(null);
 
   // Resultado
   const [savedRun, setSavedRun] = useState<Run | null>(null);
@@ -360,6 +366,7 @@ export default function NewActivityScreen() {
     setElapsedSeconds(0);
     setError(null);
     setShowBackgroundUpsell(false);
+    setEquipmentId(null);
   };
 
   const handleSaveRun = async () => {
@@ -373,6 +380,7 @@ export default function NewActivityScreen() {
         route_points: routePoints,
         started_at: startedAt.toISOString(),
         finished_at: finish.toISOString(),
+        equipment_id: equipmentId,
       });
       setSavedRun(run);
       setStage('result');
@@ -398,6 +406,7 @@ export default function NewActivityScreen() {
         calories_burned: caloriesManual.trim() ? Number(caloriesManual) : undefined,
         notes: notes.trim() || undefined,
         performed_at: new Date().toISOString(),
+        equipment_id: selectedType === 'fight' ? equipmentId : undefined,
       });
       setSavedManual(activity);
       setStage('result');
@@ -516,6 +525,13 @@ export default function NewActivityScreen() {
             </Pressable>
           ) : (
             <View style={styles.trackingResultButtons}>
+              <LiquiglassCard style={styles.equipmentPickerCard}>
+                <EquipmentPicker
+                  allowedCategories={['tenis', 'bike', 'faixa_cardiaca']}
+                  value={equipmentId}
+                  onChange={setEquipmentId}
+                />
+              </LiquiglassCard>
               <Button2 label="Salvar atividade" onPress={handleSaveRun} />
               <Button2 label="Descartar atividade" variant="secondary" onPress={handleDiscardTracking} />
             </View>
@@ -580,6 +596,13 @@ export default function NewActivityScreen() {
               numberOfLines={3}
               style={styles.notesInput}
             />
+            {selectedType === 'fight' && (
+              <EquipmentPicker
+                allowedCategories={['luva_faixa', 'faixa_cardiaca']}
+                value={equipmentId}
+                onChange={setEquipmentId}
+              />
+            )}
             <Button2 label="Salvar atividade" onPress={handleSaveManual} disabled={!canSubmitManual} />
           </>
         )}
@@ -775,4 +798,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   trackingResultButtons: { width: '100%', gap: spacing2.sm },
+  // EquipmentPicker e estilizado com colors3 (tema claro) -- envolvido num
+  // LiquiglassCard aqui so pra garantir contraste de leitura sobre o mapa/
+  // fundo escuro desta tela, que ainda nao migrou pro tema novo (colors2).
+  equipmentPickerCard: { width: '100%' },
 });

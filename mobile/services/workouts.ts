@@ -144,6 +144,8 @@ export interface WorkoutSessionCreate {
   exercises: WorkoutExerciseLog[];
   duration_minutes?: number | null;
   calories_burned?: number | null;
+  /** id de um Equipment do inventario do usuario (services/equipment.ts) -- opcional. */
+  equipment_id?: string | null;
 }
 
 export interface WorkoutSession {

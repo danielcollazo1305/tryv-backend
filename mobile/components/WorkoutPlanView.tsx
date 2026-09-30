@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
 import { Button3 } from '@/components/Button3';
+import { EquipmentPicker } from '@/components/EquipmentPicker';
 import { SetEntry, WorkoutDayCard } from '@/components/WorkoutDayCard';
 import { WorkoutPlanData, logWorkoutSession } from '@/services/workouts';
 import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
@@ -63,6 +64,7 @@ export function WorkoutPlanView({
   // abas de dia (ex: conferir o treino de amanha no meio do de hoje).
   const [logByDay, setLogByDay] = useState<Record<number, Record<number, SetEntry[]>>>({});
   const [saving, setSaving] = useState(false);
+  const [equipmentId, setEquipmentId] = useState<string | null>(null);
 
   const days = planData.days;
   const selectedDay = days[selectedDayIndex] ?? days[0];
@@ -99,6 +101,7 @@ export function WorkoutPlanView({
                 completed: set.completed,
               })),
           })),
+          equipment_id: equipmentId,
         });
       } catch {
         Alert.alert(
@@ -141,6 +144,14 @@ export function WorkoutPlanView({
           log={planId ? logByDay[selectedDayIndex] : undefined}
           onSetsChange={planId ? handleSetsChange : undefined}
           variant={variant}
+        />
+      )}
+
+      {selectedDay && showCompleteAction && !!planId && (
+        <EquipmentPicker
+          allowedCategories={['suplemento', 'faixa_cardiaca']}
+          value={equipmentId}
+          onChange={setEquipmentId}
         />
       )}
 

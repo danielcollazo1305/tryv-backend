@@ -72,6 +72,8 @@ export interface RunCreatePayload {
    */
   external_source?: ExternalActivitySource;
   external_id?: string;
+  /** id de um Equipment do inventario do usuario (services/equipment.ts) -- opcional, null/ausente = nao informado. */
+  equipment_id?: string | null;
 }
 
 /** Hub de saude de onde um treino foi importado — bate com o valor gravado em runs.external_source/manual_activities.external_source no backend. */
@@ -101,6 +103,8 @@ export interface ManualActivityCreatePayload {
   /** Ver o mesmo par em RunCreatePayload. */
   external_source?: ExternalActivitySource;
   external_id?: string;
+  /** Ver o mesmo campo em RunCreatePayload. */
+  equipment_id?: string | null;
 }
 
 export interface ActivityInsight {
