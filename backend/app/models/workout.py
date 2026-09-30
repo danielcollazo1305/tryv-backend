@@ -53,4 +53,10 @@ class WorkoutSession(Base):
     calories_burned = Column(Float, nullable=True)
     duration_minutes = Column(Integer, nullable=True)
 
+    # Item de equipamento marcado nesta sessao (suplemento/faixa cardiaca --
+    # ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL em app/core/equipment_categories.py),
+    # opcional. Gera um PointsEvent bonus separado quando preenchido, ver
+    # routers/workout_sessions.py e routers/workout_plans.py.
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)
+
     completed_at = Column(DateTime, default=datetime.utcnow)

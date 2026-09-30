@@ -71,3 +71,27 @@ def run_points(calories_burned: float | None) -> int | None:
     if calories_burned is None:
         return None
     return max(RUN_XP_MIN, round(calories_burned / RUN_XP_CALORIES_DIVISOR))
+
+
+def manual_activity_points(calories_burned: float | None) -> int:
+    """
+    Mesma formula de run_points(), so que sem o caso None de calories_burned
+    ser opcional pra atividade manual (ManualActivity sempre gera XP, ao
+    contrario de Run, que pula o evento se calorias nao puderem ser
+    calculadas) -- sem calorias, cai no piso fixo RUN_XP_MIN.
+    """
+    if calories_burned is None:
+        return RUN_XP_MIN
+    return run_points(calories_burned)  # nunca None aqui, calories_burned != None
+
+
+# Bonus de equipamento (Fase inventario) -- 10% do XP base da atividade,
+# arredondado, com piso de 1 (nunca zero, mesmo pra XP base baixo). So
+# concedido quando a atividade tem equipment_id preenchido, ver
+# services/equipment.py e os 4 endpoints de criacao (runs.py, activities.py,
+# workout_sessions.py, workout_plans.py).
+EQUIPMENT_BONUS_RATE = 0.10
+
+
+def equipment_bonus_points(xp_base: int) -> int:
+    return max(1, round(xp_base * EQUIPMENT_BONUS_RATE))

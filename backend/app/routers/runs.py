@@ -27,8 +27,9 @@ from app.schemas.run import (
     RunSummaryOut,
 )
 from app.services.activity_insight import generate_activity_insight
+from app.services.equipment import validate_equipment_for_activity
 from app.services.personal_records import ActivityRecords, compute_personal_records, detect_new_prs
-from app.services.points import award_points, run_points
+from app.services.points import award_points, equipment_bonus_points, run_points
 from app.services.run_calculator import (
     calculate_avg_pace_seconds_per_km,
     calculate_calories_burned,
@@ -100,6 +101,9 @@ def create_run(
     weight_kg = payload.user_weight_kg or current_user.weight
     calories = calculate_calories_burned(payload.activity_type, distance_meters, duration_seconds, weight_kg)
 
+    if payload.equipment_id is not None:
+        validate_equipment_for_activity(db, current_user, payload.equipment_id, "run")
+
     # Calculado ANTES do commit da corrida nova — assim a query de "recorde
     # anterior" nunca ve a propria linha que esta sendo comparada.
     is_pro = has_active_pro_subscription(db, current_user.id)
@@ -119,6 +123,7 @@ def create_run(
         finished_at=payload.finished_at,
         external_source=payload.external_source,
         external_id=payload.external_id,
+        equipment_id=payload.equipment_id,
     )
     db.add(run)
     try:
@@ -139,6 +144,8 @@ def create_run(
     points = run_points(run.calories_burned)
     if points is not None:
         award_points(db, current_user.id, points, "run", source_id=run.id)
+        if run.equipment_id:
+            award_points(db, current_user.id, equipment_bonus_points(points), "equipment_bonus", source_id=run.id)
 
     new_prs = detect_new_prs(run, previous_records) if is_pro else []
     return RunCreateOut(**RunOut.model_validate(run).model_dump(), new_prs=new_prs)

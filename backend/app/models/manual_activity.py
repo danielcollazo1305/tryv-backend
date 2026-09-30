@@ -30,3 +30,9 @@ class ManualActivity(Base):
     # por isso as duas tabelas precisam da mesma protecao contra duplicata.
     external_source = Column(String, nullable=True)
     external_id = Column(String, nullable=True)
+
+    # Item de equipamento marcado nesta atividade (luva_faixa/faixa cardiaca --
+    # ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL em app/core/equipment_categories.py),
+    # opcional. Gera um PointsEvent bonus separado quando preenchido, ver
+    # routers/activities.py.
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)

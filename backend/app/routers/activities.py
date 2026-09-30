@@ -14,6 +14,8 @@ from app.models.user import User
 from app.schemas.activity_insight import ActivityInsightOut
 from app.schemas.manual_activity import ManualActivityCreate, ManualActivityOut
 from app.services.activity_insight import generate_activity_insight
+from app.services.equipment import validate_equipment_for_activity
+from app.services.points import award_points, equipment_bonus_points, manual_activity_points
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 logger = logging.getLogger(__name__)
@@ -58,6 +60,9 @@ def create_manual_activity(
         response.status_code = status.HTTP_200_OK
         return existing
 
+    if payload.equipment_id is not None:
+        validate_equipment_for_activity(db, current_user, payload.equipment_id, "manual_activity")
+
     activity = ManualActivity(user_id=current_user.id, **payload.model_dump())
     db.add(activity)
     try:
@@ -72,6 +77,12 @@ def create_manual_activity(
             return existing
         raise
     db.refresh(activity)
+
+    points = manual_activity_points(activity.calories_burned)
+    award_points(db, current_user.id, points, "manual_activity", source_id=activity.id)
+    if activity.equipment_id:
+        award_points(db, current_user.id, equipment_bonus_points(points), "equipment_bonus", source_id=activity.id)
+
     return activity
 
 

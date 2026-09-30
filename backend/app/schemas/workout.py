@@ -104,6 +104,10 @@ class WorkoutSessionCreate(BaseModel):
     exercises: list[WorkoutExerciseLog]
     duration_minutes: int | None = None
     calories_burned: float | None = None
+    # Equipamento marcado nesta sessao (opcional) -- validado no router
+    # contra ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL["workout_session"] e posse
+    # do usuario, nao aqui (precisa de acesso ao banco).
+    equipment_id: uuid.UUID | None = None
 
 
 class WorkoutLastExerciseOut(BaseModel):

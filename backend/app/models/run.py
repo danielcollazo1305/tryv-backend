@@ -41,3 +41,9 @@ class Run(Base):
     # antigos/manuais (com NULL) fora da restricao.
     external_source = Column(String, nullable=True)
     external_id = Column(String, nullable=True)
+
+    # Item de equipamento marcado nesta corrida (tenis/bike/faixa cardiaca --
+    # ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL em app/core/equipment_categories.py),
+    # opcional. Gera um PointsEvent bonus separado quando preenchido, ver
+    # routers/runs.py.
+    equipment_id = Column(UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)

@@ -6,6 +6,7 @@ servicos estejam sendo carregados no momento.
 from app.models.challenge import Challenge, ChallengeCheckin  # noqa: F401
 from app.models.daily_insight import DailyInsight  # noqa: F401
 from app.models.diet_plan import DietPlan  # noqa: F401
+from app.models.equipment import Equipment  # noqa: F401
 from app.models.heart_rate import HeartRateSample  # noqa: F401
 from app.models.live_activity import LiveActivity  # noqa: F401
 from app.models.manual_activity import ManualActivity  # noqa: F401

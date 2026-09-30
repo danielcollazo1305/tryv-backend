@@ -18,7 +18,8 @@ from app.schemas.workout import (
     WorkoutSessionCreate,
     WorkoutSessionOut,
 )
-from app.services.points import WORKOUT_SESSION_XP, award_points
+from app.services.equipment import validate_equipment_for_activity
+from app.services.points import WORKOUT_SESSION_XP, award_points, equipment_bonus_points
 from app.services.workout_generator import generate_workout_plan
 
 router = APIRouter(prefix="/workout-plans", tags=["workout-plans"])
@@ -140,6 +141,9 @@ def log_session(
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano nao encontrado")
 
+    if payload.equipment_id is not None:
+        validate_equipment_for_activity(db, current_user, payload.equipment_id, "workout_session")
+
     session = WorkoutSession(
         plan_id=plan.id,
         user_id=current_user.id,
@@ -150,11 +154,16 @@ def log_session(
         },
         duration_minutes=payload.duration_minutes,
         calories_burned=payload.calories_burned,
+        equipment_id=payload.equipment_id,
     )
     db.add(session)
     db.commit()
     db.refresh(session)
 
     award_points(db, current_user.id, WORKOUT_SESSION_XP, "workout_session", source_id=session.id)
+    if session.equipment_id:
+        award_points(
+            db, current_user.id, equipment_bonus_points(WORKOUT_SESSION_XP), "equipment_bonus", source_id=session.id
+        )
 
     return session
