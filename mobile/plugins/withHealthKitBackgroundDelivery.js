@@ -29,6 +29,20 @@ const withHealthKitBackgroundDelivery = (config) => {
       );
     }
 
+    // BackgroundDeliveryManager vive no modulo Swift da propria pod
+    // (ReactNativeHealthkit.podspec, s.name = "ReactNativeHealthkit", sem
+    // module_name customizado) -- target diferente do AppDelegate, exige
+    // import explicito mesmo a classe sendo @objc public (isso so da
+    // visibilidade pro runtime Objective-C/bridging, nao dispensa o import
+    // de modulo quando o acesso e direto em Swift). Causa confirmada do
+    // erro de build "cannot find 'BackgroundDeliveryManager' in scope".
+    if (!configDelegate.modResults.contents.includes('import ReactNativeHealthkit')) {
+      configDelegate.modResults.contents = configDelegate.modResults.contents.replace(
+        /^(import .+\n)/m,
+        '$1import ReactNativeHealthkit\n'
+      );
+    }
+
     const setupCall = '    BackgroundDeliveryManager.shared.setupBackgroundObservers()\n';
 
     if (!configDelegate.modResults.contents.includes('BackgroundDeliveryManager')) {
