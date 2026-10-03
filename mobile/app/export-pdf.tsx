@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
+import { ProGate } from '@/components/ProGate';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
@@ -29,6 +30,20 @@ function daysBetween(a: Date, b: Date): number {
   return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
 }
 
+/** Sem Pro (locked), cobre o formulario real (borrado, sem toque) com o aviso em tela cheia. */
+function MaybeProGate({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>;
+  return (
+    <ProGate
+      variant="fullscreen"
+      title="Exportação de relatórios em PDF"
+      subtitle="Assine o Tryv Fit Pro para compartilhar seu progresso em PDF com quem quiser."
+    >
+      {children}
+    </ProGate>
+  );
+}
+
 /**
  * Modal de exportacao de relatorio em PDF com intervalo livre — antes vivia
  * como card fixo sempre visivel na Home, movido pra ca (aberto pelo slide
@@ -41,7 +56,7 @@ function daysBetween(a: Date, b: Date): number {
  * explicita do usuario, via botao de fechar.
  */
 export default function ExportPdfScreen() {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
 
   const [exportStartDate, setExportStartDate] = useState(() => {
     const date = new Date();
@@ -68,7 +83,9 @@ export default function ExportPdfScreen() {
   };
 
   const handleExportPdf = async () => {
-    if (!exportRangeValid) return;
+    // isPro === true so: com null (carregando/falhou) o botao fica desabilitado
+    // e com false o ProGate cobre a tela -- nunca gasta uma chamada que daria 402.
+    if (!exportRangeValid || isPro !== true) return;
     setExporting(true);
     setExportError(null);
     try {
@@ -89,6 +106,7 @@ export default function ExportPdfScreen() {
         </Pressable>
       </View>
 
+      <MaybeProGate locked={isPro === false}>
       <ScrollView contentContainerStyle={styles.content}>
         <GlassCard style={styles.exportCard} padding={24}>
           <View>
@@ -148,9 +166,10 @@ export default function ExportPdfScreen() {
           )}
           {!!exportError && <Text style={styles.error}>{exportError}</Text>}
 
-          <Button3 label="Gerar PDF" onPress={handleExportPdf} loading={exporting} disabled={!exportRangeValid} />
+          <Button3 label="Gerar PDF" onPress={handleExportPdf} loading={exporting} disabled={!exportRangeValid || isPro === null} />
         </GlassCard>
       </ScrollView>
+      </MaybeProGate>
     </ScreenBackground3>
   );
 }

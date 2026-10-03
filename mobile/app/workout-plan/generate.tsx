@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { ProgressSteps2 } from '@/components/ProgressSteps2';
+import { ProGate } from '@/components/ProGate';
 import { SelectionCard2 } from '@/components/SelectionCard2';
 import { TextField2 } from '@/components/TextField2';
 import { WorkoutPlanView } from '@/components/WorkoutPlanView';
@@ -78,7 +79,7 @@ const ONBOARDING_GOAL_MAP: Record<string, string> = {
  * continua intocado, decisao ja tomada antes desta tarefa.
  */
 export default function GenerateWorkoutScreen() {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
   const [stage, setStage] = useState<Stage>('form');
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -163,6 +164,33 @@ export default function GenerateWorkoutScreen() {
     setError(null);
   };
 
+  // Sem Pro (isPro === false): aviso em tela cheia antes de qualquer chamada
+  // (a geracao devolveria 402). null = ainda carregando/falhou -> formulario
+  // normal, so com o botao de gerar desabilitado (ver abaixo).
+  if (isPro === false) {
+    return (
+      <View style={styles.flex}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Ionicons name="close" size={24} color={colors3.onSurfaceVariant} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Gerar treino</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <ProGate
+          variant="fullscreen"
+          title="Treino gerado por IA"
+          subtitle="Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nível e equipamento disponível."
+        >
+          <View style={styles.content}>
+            <Text style={styles.fieldLabel}>Qual e o seu objetivo com o treino?</Text>
+            <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} variant="light" />
+          </View>
+        </ProGate>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
@@ -232,7 +260,7 @@ export default function GenerateWorkoutScreen() {
             <Button3
               label={isLastStep ? 'Gerar treino' : 'Continuar'}
               onPress={handleContinue}
-              disabled={!canProceed}
+              disabled={!canProceed || (isLastStep && isPro === null)}
             />
           </>
         )}

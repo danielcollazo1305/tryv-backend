@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
+import { ProGate } from '@/components/ProGate';
+import { useAuth } from '@/context/AuthContext';
 import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_TYPE_LABELS,
@@ -15,9 +17,13 @@ import {
   formatPace,
   getPersonalRecords,
 } from '@/services/activities';
-import { colors3, spacing3, typography3 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const PACE_REFERENCE_ORDER = ['1km', '5km', '10km'];
+
+// Esqueleto mostrado borrado atras do ProGate pra quem nao e Pro: so os rotulos
+// das linhas reais, com "--" no lugar do valor (nunca numero inventado).
+const LOCKED_PREVIEW_ROWS = ['Maior distância', 'Mais longa', 'Melhor pace (5km)'];
 
 function activityLabel(activityType: string): string {
   return ACTIVITY_TYPE_LABELS[activityType as ActivityType] ?? activityType;
@@ -75,10 +81,14 @@ function ActivityTypeBlock({ activityType, records }: { activityType: string; re
  * recoloracao, nenhuma logica de recordes pessoais alterada.
  */
 export function PersonalRecordsCard() {
+  const { isPro } = useAuth();
   const [records, setRecords] = useState<PersonalRecords | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchRecords = useCallback(async () => {
+    // isPro === false: o endpoint devolveria 402 -- nem chama, o ProGate abaixo
+    // cobre. null (ainda carregando/falhou) segue o fluxo de sempre.
+    if (isPro === false) return;
     setLoading(true);
     try {
       setRecords(await getPersonalRecords());
@@ -87,13 +97,29 @@ export function PersonalRecordsCard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPro]);
 
   useFocusEffect(
     useCallback(() => {
       fetchRecords();
     }, [fetchRecords])
   );
+
+  if (isPro === false) {
+    return (
+      <ProGate variant="card" borderRadius={radius3.xl}>
+        <GlassCard style={styles.card}>
+          <Text style={styles.title}>Recordes pessoais</Text>
+          {LOCKED_PREVIEW_ROWS.map((label) => (
+            <View key={label} style={styles.row}>
+              <Text style={styles.rowLabel}>{label}</Text>
+              <Text style={styles.rowValue}>--</Text>
+            </View>
+          ))}
+        </GlassCard>
+      </ProGate>
+    );
+  }
 
   if (loading) {
     return (

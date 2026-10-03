@@ -4,13 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { AiWorkoutSection } from '@/components/AiWorkoutSection';
-import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
-import { ObscuredCard } from '@/components/ObscuredCard';
+import { ProGate } from '@/components/ProGate';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
-import { WorkoutAccessGate } from '@/components/WorkoutAccessGate';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { ACTIVITY_TYPE_LABELS, GpsActivityType } from '@/services/activities';
@@ -97,7 +95,7 @@ function StartActivityFab() {
  *   GET /users/{id}/badges.teams (mesmo endpoint usado em Perfil/Feed pro
  *   selo "Team [Nome]"), sem precisar de endpoint novo.
  *
- * 4 casos (A/B/C/D) — ver WorkoutAccessGate, TrainerWorkoutSection,
+ * 4 casos (A/B/C/D) — ver ProGate, TrainerWorkoutSection,
  * AiWorkoutSection.
  *
  * Migrado pro tema claro "prism-glass" — so troca de tokens/componentes
@@ -106,7 +104,7 @@ function StartActivityFab() {
  * navegacao foi alterada.
  */
 export default function WorkoutScreen() {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [badges, setBadges] = useState<UserBadges | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,8 +120,9 @@ export default function WorkoutScreen() {
       setBadges(badgesData);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Não foi possível carregar seu treino.'));
-      // Falha ao checar badges/assinatura = trata como sem acesso (mais
-      // restritivo por padrao) em vez de liberar a tela por engano.
+      // badges aqui so alimenta `teams` (Personal Trainer); o Pro vem do
+      // AuthContext. Falha = sem dado de Personal Trainer (badges null), nunca
+      // "nao e Pro" -- isPro nao depende desta busca.
       setBadges(null);
     } finally {
       setLoading(false);
@@ -145,7 +144,6 @@ export default function WorkoutScreen() {
     );
   }
 
-  const isPro = badges?.is_pro ?? false;
   const personalTrainerTeam = badges?.teams.find((team) => team.professional_type === 'personal_trainer') ?? null;
   const hasPersonalTrainer = !!personalTrainerTeam;
 
@@ -155,10 +153,13 @@ export default function WorkoutScreen() {
   const trainerPlan = plans.find((plan) => !!plan.trainer_id) ?? null;
 
   // Caso A — sem Pro e sem Personal Trainer: gate cobrindo a tela inteira.
+  // So bloqueia com isPro === false (null = ainda carregando/falhou, nao e
+  // "sem Pro") e com `badges` carregado (sem ele nao sabemos se ha Personal
+  // Trainer; nesse caso cai na tela normal, que ja mostra o erro de carga).
   // O FAB de iniciar atividade continua disponivel mesmo aqui — rastrear uma
   // corrida/pedalada/caminhada com GPS nao depende de Pro nem de Personal
   // Trainer, e um recurso gratuito independente do plano estruturado.
-  if (!isPro && !hasPersonalTrainer) {
+  if (isPro === false && badges !== null && !hasPersonalTrainer) {
     return (
       <ScreenBackground3>
         {/*
@@ -171,16 +172,20 @@ export default function WorkoutScreen() {
           <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Histórico de atividades">
             <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
           </Pressable>
-          <ProfileAvatarButton isPro={isPro} size={36} />
+          <ProfileAvatarButton isPro={isPro ?? undefined} size={36} />
         </View>
-        <WorkoutAccessGate>
+        <ProGate
+          variant="fullscreen"
+          title="Acesso a treinos"
+          subtitle="Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nível e equipamento disponível."
+        >
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconWrap}>
               <Ionicons name="barbell" size={32} color={colors3.primary} />
             </View>
             <Text style={styles.emptyTitle}>Nenhum plano de treino ainda</Text>
           </View>
-        </WorkoutAccessGate>
+        </ProGate>
         <StartActivityFab />
       </ScreenBackground3>
     );
@@ -202,7 +207,7 @@ export default function WorkoutScreen() {
                 <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
               </Pressable>
               {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). */}
-              <ProfileAvatarButton isPro={isPro} size={36} />
+              <ProfileAvatarButton isPro={isPro ?? undefined} size={36} />
             </View>
           </View>
         </View>
@@ -214,7 +219,7 @@ export default function WorkoutScreen() {
         )}
 
         {/* Caso C/D — Pro de verdade: secao de IA completa. */}
-        {isPro && <AiWorkoutSection plan={aiPlan} />}
+        {isPro === true && <AiWorkoutSection plan={aiPlan} />}
 
         {/*
           Caso B — tem Personal Trainer mas nao e Pro: a secao de IA nao
@@ -223,22 +228,17 @@ export default function WorkoutScreen() {
           funcionalidade bloqueada (nao algo quebrado/faltando), conforme
           pedido explicitamente pra nao deixar essa ambiguidade.
         */}
-        {!isPro && hasPersonalTrainer && (
+        {isPro === false && hasPersonalTrainer && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Treino gerado por IA</Text>
-            <ObscuredCard tint="light">
+            <ProGate variant="card" borderRadius={radius3.xl}>
               <GlassCard variant="glass" style={styles.lockedPreview}>
                 <View style={styles.emptyIconWrap}>
                   <Ionicons name="barbell" size={24} color={colors3.primary} />
                 </View>
                 <Text style={styles.lockedPreviewText}>Gere um plano semanal personalizado com IA</Text>
               </GlassCard>
-            </ObscuredCard>
-            <Button3
-              label="Assinar Tryv Fit Pro para desbloquear"
-              variant="secondary"
-              onPress={() => router.push('/subscriptions/pro')}
-            />
+            </ProGate>
           </View>
         )}
       </ScrollView>

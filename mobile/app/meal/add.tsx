@@ -6,9 +6,11 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,7 +18,9 @@ import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { ProGate } from '@/components/ProGate';
 import { TextField2 } from '@/components/TextField2';
+import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
@@ -52,7 +56,38 @@ function parseOptionalNonNegative(text: string): number | null | undefined {
   return Number.isNaN(value) || value < 0 ? undefined : value;
 }
 
+/**
+ * Bloco de IA para quem nao e Pro (locked): borra o bloco real e sobrepoe o
+ * convite. Foto = secao inteira (o seletor Foto/Manual fica FORA e continua
+ * clicavel); Manual = so o "Estimar com IA". Sem `blockStyle`/`borderRadius`,
+ * cobre a secao de captura com o raio do card de vidro.
+ */
+function MaybeProGate({
+  locked,
+  children,
+  blockStyle,
+  borderRadius = radius3.xl,
+}: {
+  locked: boolean;
+  children: React.ReactNode;
+  blockStyle?: StyleProp<ViewStyle>;
+  borderRadius?: number;
+}) {
+  if (!locked) {
+    return blockStyle ? <View style={blockStyle}>{children}</View> : <>{children}</>;
+  }
+  return (
+    <ProGate variant="card" borderRadius={borderRadius}>
+      {blockStyle ? <View style={blockStyle}>{children}</View> : children}
+    </ProGate>
+  );
+}
+
 export default function AddMealScreen() {
+  // Pro so e exigido pela IA (foto e "Estimar com IA"); o registro manual e livre.
+  // isPro: true = libera, false = ProGate, null (carregando/falhou) = botoes de
+  // IA desabilitados -- null nunca e tratado como "sem Pro".
+  const { isPro } = useAuth();
   const [mode, setMode] = useState<Mode>('photo');
 
   const [stage, setStage] = useState<Stage>('picking');
@@ -126,6 +161,7 @@ export default function AddMealScreen() {
   };
 
   const handleTakePhoto = async () => {
+    if (isPro !== true) return;
     setError(null);
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
@@ -139,6 +175,7 @@ export default function AddMealScreen() {
   };
 
   const handlePickFromLibrary = async () => {
+    if (isPro !== true) return;
     setError(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
@@ -227,7 +264,7 @@ export default function AddMealScreen() {
 
   const handleEstimateManual = async () => {
     const trimmedDescription = manualDescription.trim();
-    if (!trimmedDescription) return;
+    if (!trimmedDescription || isPro !== true) return;
 
     setError(null);
     setManualAnalyzing(true);
@@ -311,6 +348,7 @@ export default function AddMealScreen() {
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         {mode === 'photo' && stage === 'picking' && (
+          <MaybeProGate locked={isPro === false}>
           <View style={styles.photoSection}>
             <View style={styles.photoSectionHeader}>
               <Text style={styles.photoSectionTitle}>Registrar por foto</Text>
@@ -325,16 +363,17 @@ export default function AddMealScreen() {
               onChangeText={setPhotoHint}
             />
             <View style={styles.pickButtons}>
-              <Pressable style={styles.pickButton} onPress={handleTakePhoto}>
+              <Pressable style={[styles.pickButton, isPro === null && styles.pickButtonDisabled]} onPress={handleTakePhoto} disabled={isPro === null}>
                 <Ionicons name="camera" size={28} color={colors3.primary} />
                 <Text style={styles.pickButtonText}>Tirar foto</Text>
               </Pressable>
-              <Pressable style={styles.pickButton} onPress={handlePickFromLibrary}>
+              <Pressable style={[styles.pickButton, isPro === null && styles.pickButtonDisabled]} onPress={handlePickFromLibrary} disabled={isPro === null}>
                 <Ionicons name="images" size={28} color={colors3.primary} />
                 <Text style={styles.pickButtonText}>Escolher da galeria</Text>
               </Pressable>
             </View>
           </View>
+          </MaybeProGate>
         )}
 
         {mode === 'photo' && stage === 'analyzing' && (
@@ -435,19 +474,21 @@ export default function AddMealScreen() {
               onChangeText={setManualWeight}
             />
 
-            <View style={styles.estimateHeader}>
-              <Text style={styles.estimateLabel}>Não sabe os valores? Deixe a IA estimar</Text>
-              <View style={styles.iaBadge}>
-                <Text style={styles.iaBadgeText}>IA</Text>
+            <MaybeProGate locked={isPro === false} blockStyle={styles.reviewContainer} borderRadius={radius3.lg}>
+              <View style={styles.estimateHeader}>
+                <Text style={styles.estimateLabel}>Não sabe os valores? Deixe a IA estimar</Text>
+                <View style={styles.iaBadge}>
+                  <Text style={styles.iaBadgeText}>IA</Text>
+                </View>
               </View>
-            </View>
-            <Button3
-              label={manualAnalyzing ? 'Estimando...' : 'Estimar com IA'}
-              variant="secondary"
-              onPress={handleEstimateManual}
-              loading={manualAnalyzing}
-              disabled={!manualDescription.trim() || manualAnalyzing}
-            />
+              <Button3
+                label={manualAnalyzing ? 'Estimando...' : 'Estimar com IA'}
+                variant="secondary"
+                onPress={handleEstimateManual}
+                loading={manualAnalyzing}
+                disabled={!manualDescription.trim() || manualAnalyzing || isPro !== true}
+              />
+            </MaybeProGate>
 
             <TextField2
               label="Calorias (kcal)"
@@ -521,6 +562,7 @@ const styles = StyleSheet.create({
   estimateLabel: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant, flex: 1 },
 
   pickButtons: { gap: spacing3.md },
+  pickButtonDisabled: { opacity: 0.5 },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',

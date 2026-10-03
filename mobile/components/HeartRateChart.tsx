@@ -4,10 +4,13 @@ import { LineChart } from 'react-native-chart-kit';
 
 import { formatShortDate } from '@/services/dashboard';
 import { DailyHeartRatePoint } from '@/services/heartRate';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
+// Migrado pro tema claro (colors3) junto com app/heart-rate-report.tsx -- unico
+// consumidor do componente, entao troca direta, sem prop variant.
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CHART_WIDTH = SCREEN_WIDTH - spacing.lg * 4;
+// 2x margem da tela + 2x padding interno do GlassCard (spacing3.lg cada)
+const CHART_WIDTH = SCREEN_WIDTH - spacing3.containerMargin * 2 - spacing3.lg * 2;
 
 interface SelectedPoint {
   x: number;
@@ -47,13 +50,15 @@ export function HeartRateChart({ data }: { data: DailyHeartRatePoint[] }) {
         withOuterLines={false}
         segments={4}
         chartConfig={{
-          backgroundGradientFrom: colors.surface,
-          backgroundGradientTo: colors.surface,
+          backgroundGradientFrom: colors3.surfaceContainerLowest,
+          backgroundGradientTo: colors3.surfaceContainerLowest,
+          backgroundGradientFromOpacity: 0,
+          backgroundGradientToOpacity: 0,
           decimalPlaces: 0,
-          color: (opacity = 1) => `rgba(248, 113, 113, ${opacity})`,
-          labelColor: () => colors.textMuted,
-          propsForDots: { r: '3', strokeWidth: '2', stroke: colors.danger },
-          propsForBackgroundLines: { stroke: colors.border },
+          color: (opacity = 1) => `rgba(186, 26, 26, ${opacity})`,
+          labelColor: () => colors3.onSurfaceVariant,
+          propsForDots: { r: '3', strokeWidth: '2', stroke: colors3.error },
+          propsForBackgroundLines: { stroke: colors3.outlineVariant },
         }}
         onDataPointClick={({ x, y, index }) => {
           setSelected({ x, y, date: data[index].date, bpm: data[index].avg_bpm });
@@ -76,19 +81,19 @@ export function HeartRateChart({ data }: { data: DailyHeartRatePoint[] }) {
 }
 
 const styles = StyleSheet.create({
-  chart: { borderRadius: radius.md },
-  empty: { paddingVertical: spacing.xl, alignItems: 'center' },
-  emptyText: { ...typography.bodySecondary, textAlign: 'center' },
+  chart: { borderRadius: radius3.md },
+  empty: { paddingVertical: spacing3.xl, alignItems: 'center' },
+  emptyText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, textAlign: 'center' },
   tooltip: {
     position: 'absolute',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.sm,
+    backgroundColor: colors3.surfaceContainerLowest,
+    borderRadius: radius3.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    borderColor: colors3.outlineVariant,
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: spacing3.xs,
     alignItems: 'center',
   },
-  tooltipBpm: { ...typography.bodySecondary, color: colors.text, fontWeight: '700' },
-  tooltipDate: { ...typography.caption },
+  tooltipBpm: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurface, fontWeight: '700' },
+  tooltipDate: { ...typography3.labelSm },
 });
