@@ -1,4 +1,4 @@
-import { User } from '@/context/AuthContext';
+import type { User } from '@/context/AuthContext';
 import { api } from '@/services/api';
 
 export interface UserUpdatePayload {

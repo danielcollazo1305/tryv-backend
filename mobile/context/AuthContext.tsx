@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
+import { getUserBadges } from '@/services/user';
 
 // Reexportado de services/api.ts — a chave mora la porque a importacao
 // automatica de treinos tambem precisa ler o token fora do React (ver
@@ -38,6 +39,16 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /**
+   * Tryv Pro do usuario logado (GET /users/{id}/badges, buscado no
+   * login/boot). `null` = ainda nao se sabe (carregando OU a busca falhou) --
+   * NUNCA tratar null como "nao e Pro": uma falha de rede nao pode virar
+   * paywall pra quem assina. Quem for bloquear algo deve esperar `false`
+   * explicito.
+   */
+  isPro: boolean | null;
+  /** Re-busca isPro manualmente (ex: depois de assinar). Nao lanca: falha mantem o ultimo valor conhecido. */
+  refreshIsPro: () => Promise<void>;
+  /**
    * Flag de transicao pro wizard de cadastro: entre o passo que cria a
    * conta (token ja setado, ver register()) e um passo extra opcional
    * depois dele (ex: register-avatar.tsx), o guard de app/_layout.tsx
@@ -57,11 +68,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingInProgress, setOnboardingInProgress] = useState(false);
+  const [isPro, setIsPro] = useState<boolean | null>(null);
+  // Id do usuario da sessao atual -- descarta resposta de badges que chega
+  // depois de um logout/troca de conta, pra nao gravar isPro do usuario errado.
+  const currentUserIdRef = useRef<string | null>(null);
+
+  const fetchIsPro = useCallback(async (userId: string) => {
+    try {
+      const badges = await getUserBadges(userId);
+      if (currentUserIdRef.current === userId) setIsPro(badges.is_pro);
+    } catch {
+      // Falha (rede/servidor): nao mexe em isPro -- fica null se nunca
+      // carregou, ou mantem o ultimo valor conhecido. Nunca vira false.
+    }
+  }, []);
 
   const loadUser = useCallback(async () => {
     const response = await api.get<User>('/users/me');
+    currentUserIdRef.current = response.data.id;
     setUser(response.data);
-  }, []);
+    // Sem await de proposito: nao atrasa o boot/login (isLoading) por causa
+    // do Pro -- quem precisa dele le `isPro === null` como "carregando".
+    void fetchIsPro(response.data.id);
+  }, [fetchIsPro]);
+
+  const refreshIsPro = useCallback(async () => {
+    const userId = currentUserIdRef.current;
+    if (userId) await fetchIsPro(userId);
+  }, [fetchIsPro]);
 
   useEffect(() => {
     (async () => {
@@ -115,11 +149,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthToken(null);
     setToken(null);
     setUser(null);
+    currentUserIdRef.current = null;
+    setIsPro(null);
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, login, register, logout, refreshUser: loadUser, onboardingInProgress, setOnboardingInProgress }}
+      value={{
+        user,
+        token,
+        isLoading,
+        login,
+        register,
+        logout,
+        refreshUser: loadUser,
+        isPro,
+        refreshIsPro,
+        onboardingInProgress,
+        setOnboardingInProgress,
+      }}
     >
       {children}
     </AuthContext.Provider>
