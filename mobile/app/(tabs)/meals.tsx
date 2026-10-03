@@ -142,6 +142,7 @@ export default function MealsScreen() {
                 <Text style={styles.addMealTitle}>Adicionar refeição</Text>
               </View>
               <Button3 label="Registrar refeição" onPress={() => router.push('/meal/add')} />
+              <Button3 label="Usar refeição salva" variant="secondary" onPress={() => router.push('/meal/saved')} />
             </GlassCard>
           </View>
         }

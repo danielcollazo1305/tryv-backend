@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +25,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
 import { uploadMedia } from '@/services/media';
+import { SavedMealCreate, createSavedMeal } from '@/services/savedMeals';
 import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -83,6 +85,26 @@ function MaybeProGate({
   );
 }
 
+/** Alternador discreto "Salvar como favorito", logo acima do botao de confirmar. */
+function FavoriteToggle({ value, onChange }: { value: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      hitSlop={8}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: value }}
+      style={styles.favoriteRow}
+    >
+      <Ionicons
+        name={value ? 'star' : 'star-outline'}
+        size={20}
+        color={value ? colors3.primary : colors3.onSurfaceVariant}
+      />
+      <Text style={[styles.favoriteText, value && styles.favoriteTextOn]}>Salvar como favorito</Text>
+    </Pressable>
+  );
+}
+
 export default function AddMealScreen() {
   // Pro so e exigido pela IA (foto e "Estimar com IA"); o registro manual e livre.
   // isPro: true = libera, false = ProGate, null (carregando/falhou) = botoes de
@@ -121,6 +143,10 @@ export default function AddMealScreen() {
   const [manualSaving, setManualSaving] = useState(false);
   const [manualAnalyzing, setManualAnalyzing] = useState(false);
 
+  // "Salvar como favorito": opcional, desligado por padrao -- quem nao marca nao
+  // ve nenhuma diferenca no fluxo. Vale pros 2 fluxos (foto-IA e manual).
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
+
   // 'none' por padrao — registro de refeicao nao gera post nenhum (so
   // contagem de nutrientes) a menos que o usuario opte explicitamente por
   // compartilhar, agora com 3 niveis (nao compartilhar / seguidores /
@@ -138,6 +164,21 @@ export default function AddMealScreen() {
       media_url: mediaUrl ?? null,
       visibility,
     }).catch(() => {});
+  };
+
+  // Roda DEPOIS da refeicao ja ter sido salva com sucesso, com os mesmos campos
+  // enviados ao createMeal. Falha aqui nunca desfaz nem bloqueia a refeicao
+  // (ja registrada) -- so avisa que o favorito nao foi criado.
+  const saveFavoriteIfRequested = async (payload: SavedMealCreate) => {
+    if (!saveAsFavorite) return;
+    try {
+      await createSavedMeal(payload);
+    } catch {
+      Alert.alert(
+        'Refeição registrada',
+        'Mas não foi possível salvá-la como favorita desta vez. Você pode marcar "Salvar como favorito" ao registrar de novo.'
+      );
+    }
   };
 
   const runAnalysis = async (uri: string, hint?: string) => {
@@ -237,14 +278,16 @@ export default function AddMealScreen() {
 
     setStage('saving');
     try {
-      await createMeal({
+      const mealPayload = {
         photo_url: photoUrl,
         description: analysis.description,
         calories: Number(calories) || 0,
         protein: Number(protein) || 0,
         carbs: Number(carbs) || 0,
         fat: Number(fat) || 0,
-      });
+      };
+      await createMeal(mealPayload);
+      await saveFavoriteIfRequested(mealPayload);
       if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, photoUrl);
       router.back();
     } catch (err) {
@@ -314,14 +357,16 @@ export default function AddMealScreen() {
 
     setManualSaving(true);
     try {
-      await createMeal({
+      const mealPayload = {
         photo_url: null,
         description,
         calories: caloriesValue,
         protein: proteinValue,
         carbs: carbsValue,
         fat: fatValue,
-      });
+      };
+      await createMeal(mealPayload);
+      await saveFavoriteIfRequested(mealPayload);
       if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, description);
       router.back();
     } catch (err) {
@@ -445,6 +490,8 @@ export default function AddMealScreen() {
               onChange={setShareVisibility}
             />
 
+            <FavoriteToggle value={saveAsFavorite} onChange={setSaveAsFavorite} />
+
             <Button3
               label={stage === 'uploading' ? 'Enviando foto...' : 'Confirmar'}
               onPress={handleConfirm}
@@ -526,6 +573,8 @@ export default function AddMealScreen() {
               onChange={setShareVisibility}
             />
 
+            <FavoriteToggle value={saveAsFavorite} onChange={setSaveAsFavorite} />
+
             <Button3 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
           </View>
         )}
@@ -563,6 +612,9 @@ const styles = StyleSheet.create({
 
   pickButtons: { gap: spacing3.md },
   pickButtonDisabled: { opacity: 0.5 },
+  favoriteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, paddingVertical: spacing3.xs },
+  favoriteText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
+  favoriteTextOn: { color: colors3.primary, fontFamily: 'Inter_600SemiBold' },
   pickButton: {
     flexDirection: 'row',
     alignItems: 'center',
