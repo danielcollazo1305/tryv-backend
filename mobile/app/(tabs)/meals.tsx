@@ -13,6 +13,7 @@ import { MealCard } from '@/components/MealCard';
 import { MealsHistoryCard } from '@/components/MealsHistoryCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { WaterCreatineCards } from '@/components/WaterCreatineCards';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, isToday, listMeals } from '@/services/meals';
@@ -119,6 +120,8 @@ export default function MealsScreen() {
 
             {!!error && <Text style={styles.error}>{error}</Text>}
             {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+
+            <WaterCreatineCards />
 
             <Text style={styles.sectionTitle}>Refeições de hoje</Text>
 
