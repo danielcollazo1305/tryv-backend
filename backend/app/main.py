@@ -21,6 +21,7 @@ from app.routers import (
     ranking,
     readiness,
     runs,
+    saved_meals,
     smartwatch,
     social,
     squads,
@@ -81,6 +82,7 @@ app.include_router(dashboard.router)
 app.include_router(overall.router)
 app.include_router(water_logs.router)
 app.include_router(creatine_logs.router)
+app.include_router(saved_meals.router)
 app.include_router(equipment.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)

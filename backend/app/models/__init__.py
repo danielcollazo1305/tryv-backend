@@ -16,6 +16,7 @@ from app.models.password_reset import PasswordResetToken  # noqa: F401
 from app.models.points_event import PointsEvent  # noqa: F401
 from app.models.readiness_score import ReadinessScore  # noqa: F401
 from app.models.run import Run  # noqa: F401
+from app.models.saved_meal import SavedMeal  # noqa: F401
 from app.models.smartwatch import SmartwatchData  # noqa: F401
 from app.models.social import Comment, Follow, Like, Post  # noqa: F401
 from app.models.squad import Squad, SquadMembership  # noqa: F401
