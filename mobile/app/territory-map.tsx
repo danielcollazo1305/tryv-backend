@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import MapView, { Callout, Marker } from 'react-native-maps';
 
@@ -19,6 +20,42 @@ const BRAZIL_REGION = {
   longitudeDelta: 35,
 };
 
+// Zoom de cidade pra quando a localizacao do usuario esta disponivel (mesmo
+// padrao do Uber ao pedir corrida). activity/new.tsx usa 0.01, mas la e
+// rastreamento rua a rua; aqui queremos ver varias cidades vizinhas.
+const CITY_DELTA = 0.1;
+
+// Teto de espera pelo GPS: sem isso, getCurrentPositionAsync pode demorar
+// (ou nunca resolver, sem sinal) e a tela ficaria presa no loading.
+const LOCATION_TIMEOUT_MS = 5000;
+
+type Region = typeof BRAZIL_REGION;
+
+/**
+ * Regiao inicial do mapa: posicao atual do usuario com zoom de cidade, ou
+ * BRAZIL_REGION se a permissao for negada / a localizacao falhar / estourar o
+ * tempo. Nunca rejeita -- o fallback e silencioso, sem erro pro usuario.
+ */
+async function resolveInitialRegion(): Promise<Region> {
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') return BRAZIL_REGION;
+    const position = await Promise.race([
+      Location.getCurrentPositionAsync({}),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), LOCATION_TIMEOUT_MS)),
+    ]);
+    if (!position) return BRAZIL_REGION;
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      latitudeDelta: CITY_DELTA,
+      longitudeDelta: CITY_DELTA,
+    };
+  } catch {
+    return BRAZIL_REGION;
+  }
+}
+
 type Stage = 'loading' | 'ready' | 'error';
 
 /**
@@ -34,12 +71,16 @@ type Stage = 'loading' | 'ready' | 'error';
 export default function TerritoryMapScreen() {
   const [stage, setStage] = useState<Stage>('loading');
   const [cities, setCities] = useState<TerritoryCity[]>([]);
+  const [initialRegion, setInitialRegion] = useState<Region>(BRAZIL_REGION);
 
   const load = useCallback(async () => {
     setStage('loading');
     try {
-      const data = await getTerritory();
+      // Em paralelo: o MapView so monta no stage 'ready', entao a regiao certa
+      // ja esta pronta antes de ele aparecer (initialRegion so vale no mount).
+      const [data, region] = await Promise.all([getTerritory(), resolveInitialRegion()]);
       setCities(data);
+      setInitialRegion(region);
       setStage('ready');
     } catch {
       setStage('error');
@@ -79,7 +120,7 @@ export default function TerritoryMapScreen() {
       )}
 
       {stage === 'ready' && (
-        <MapView style={styles.flex} initialRegion={BRAZIL_REGION}>
+        <MapView style={styles.flex} initialRegion={initialRegion} showsUserLocation>
           {citiesWithCoords.map((city) => (
             <Marker
               key={`${city.latitude}-${city.longitude}`}
