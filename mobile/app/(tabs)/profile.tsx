@@ -11,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
+import { OverallCard } from '@/components/OverallCard';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
@@ -537,6 +538,10 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
+        <View style={styles.overallWrap}>
+          <OverallCard />
+        </View>
+
         <View style={styles.badgesWrap}>
           {/*
             Marketplace desativado pre-lancamento — badge "TEAM {profissional}"
@@ -996,6 +1001,7 @@ const styles = StyleSheet.create({
   followStatNumber: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   followStatLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, marginTop: 2 },
 
+  overallWrap: { marginBottom: spacing3.lg, width: '100%' },
   badgesWrap: { marginBottom: spacing3.lg, width: '100%' },
 
   // Grid unificado premium (2 colunas) — ver comentario extenso na JSX
