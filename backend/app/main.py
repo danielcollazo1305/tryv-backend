@@ -8,6 +8,7 @@ from app.routers import (
     activities,
     auth,
     challenges,
+    creatine_logs,
     dashboard,
     diet_plans,
     equipment,
@@ -28,6 +29,7 @@ from app.routers import (
     trainers,
     users,
     waitlist,
+    water_logs,
     webhooks,
     weight_logs,
     workout_plans,
@@ -77,6 +79,8 @@ app.include_router(media.router)
 app.include_router(weight_logs.router)
 app.include_router(dashboard.router)
 app.include_router(overall.router)
+app.include_router(water_logs.router)
+app.include_router(creatine_logs.router)
 app.include_router(equipment.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
