@@ -1,8 +1,15 @@
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     app_name: str = "Tryv API"
+
+    # Fuso (nome IANA) que define o "dia do usuario" (metas, sequencias, resumos) -- ver
+    # core/timezone.py. Fixo por enquanto; env APP_TIMEZONE. Validado no boot.
+    app_timezone: str = "America/Sao_Paulo"
 
     # URL publica desta API — usada para montar success_url/cancel_url do
     # Stripe Checkout (o navegador do usuario e redirecionado para ca).
@@ -54,6 +61,18 @@ class Settings(BaseSettings):
     # ate la (ver docstring de services/email.py).
     resend_api_key: str = ""
     resend_from_email: str = "Tryv Fit <onboarding@resend.dev>"
+
+    @field_validator("app_timezone")
+    @classmethod
+    def _validate_app_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError, OSError) as exc:
+            raise ValueError(
+                f"APP_TIMEZONE invalido: {value!r} nao e um fuso IANA valido (ex: America/Sao_Paulo). "
+                "Em Linux sem base de fusos, confirme que o pacote tzdata esta instalado."
+            ) from exc
+        return value
 
     class Config:
         env_file = ".env"
