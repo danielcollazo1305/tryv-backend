@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app import models  # noqa: F401 — garante que Base.metadata conheça todas as tabelas
 from app.core.config import settings
 from app.core.database import Base, engine
+from app.core.logging_config import configure_app_logging
 from app.routers import (
     activities,
     auth,
@@ -51,31 +52,25 @@ from app.routers import (
 # (ver README.md), nunca so editando o model e confiando neste create_all.
 Base.metadata.create_all(bind=engine)
 
-# Diagnostico do fuso da sessao do Postgres (so log, nenhum comportamento muda).
-# Logger PROPRIO e com handler proprio de proposito: o projeto nao configura logging,
-# entao o nivel raiz e WARNING e uma linha INFO de um logger comum nao sairia nos
-# logs de producao. Isolado aqui, nao altera o logging do resto do app.
-_diag_logger = logging.getLogger("tryv.diag")
-_diag_logger.setLevel(logging.INFO)
-_diag_logger.propagate = False
-if not _diag_logger.handlers:
-    _diag_handler = logging.StreamHandler()
-    _diag_handler.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
-    _diag_logger.addHandler(_diag_handler)
+# Logs INFO dos modulos do app passam a sair em producao (ver core/logging_config.py).
+configure_app_logging()
+logger = logging.getLogger(__name__)
 
 
-def _log_db_timezone_diag() -> None:
-    """Loga UMA linha DB_TIMEZONE_DIAG com o fuso da sessao do banco, now() como o
-    banco devolve, now() em UTC e o utcnow() do Python. Nunca levanta: qualquer falha
-    vira um WARNING (so o tipo do erro, sem dado sensivel). Conexao curta, devolvida
-    ao pool ao sair do with."""
+def _log_boot_diagnostics() -> None:
+    """Loga DB_TIMEZONE_DIAG (fuso da sessao do banco, now() como o banco devolve, now()
+    em UTC e o utcnow() do Python) e uma linha `app_started` (confirma que a config de
+    logging funciona em producao). Nunca levanta: qualquer falha vira um WARNING (so o
+    tipo do erro, sem dado sensivel) e o `app_started` sai mesmo assim. Conexao curta,
+    devolvida ao pool ao sair do with."""
+    db_timezone = "unknown"
     try:
         with engine.connect() as conn:
             db_timezone, db_now, db_now_utc = conn.execute(
                 text("SELECT current_setting('TimeZone'), now(), now() AT TIME ZONE 'UTC'")
             ).one()
         python_utcnow = datetime.utcnow()
-        _diag_logger.info(
+        logger.info(
             "DB_TIMEZONE_DIAG db_timezone=%s db_now=%s db_now_utc=%s python_utcnow=%s",
             db_timezone,
             db_now.isoformat(),
@@ -83,14 +78,15 @@ def _log_db_timezone_diag() -> None:
             python_utcnow.isoformat(),
         )
     except Exception as exc:
-        _diag_logger.warning("DB_TIMEZONE_DIAG failed error_type=%s", type(exc).__name__)
+        logger.warning("DB_TIMEZONE_DIAG failed error_type=%s", type(exc).__name__)
+    logger.info("app_started db_timezone=%s", db_timezone)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Thread daemon, sem esperar por ela: o boot nunca atrasa nem cai por causa do
     # diagnostico (nem se o banco demorar a responder).
-    threading.Thread(target=_log_db_timezone_diag, name="db-timezone-diag", daemon=True).start()
+    threading.Thread(target=_log_boot_diagnostics, name="boot-diagnostics", daemon=True).start()
     yield
 
 
