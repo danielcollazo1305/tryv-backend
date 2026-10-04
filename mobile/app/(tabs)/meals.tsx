@@ -143,6 +143,7 @@ export default function MealsScreen() {
               </View>
               <Button3 label="Registrar refeição" onPress={() => router.push('/meal/add')} />
               <Button3 label="Usar refeição salva" variant="secondary" onPress={() => router.push('/meal/saved')} />
+              <Button3 label="Buscar alimento" variant="secondary" onPress={() => router.push('/meal/food-search')} />
             </GlassCard>
           </View>
         }

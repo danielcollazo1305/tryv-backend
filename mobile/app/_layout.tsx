@@ -116,6 +116,7 @@ function RootNavigator() {
         <Stack.Screen name="meal/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="meal/photos" options={{ presentation: 'modal' }} />
         <Stack.Screen name="meal/saved" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="meal/food-search" options={{ presentation: 'modal' }} />
         <Stack.Screen name="workout-plan/generate" options={{ presentation: 'modal' }} />
         <Stack.Screen name="activity/index" />
         <Stack.Screen name="activity/progress" />
