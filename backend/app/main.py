@@ -12,6 +12,7 @@ from app.routers import (
     dashboard,
     diet_plans,
     equipment,
+    foods,
     heart_rate,
     insights,
     live_activities,
@@ -83,6 +84,7 @@ app.include_router(overall.router)
 app.include_router(water_logs.router)
 app.include_router(creatine_logs.router)
 app.include_router(saved_meals.router)
+app.include_router(foods.router)
 app.include_router(equipment.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
