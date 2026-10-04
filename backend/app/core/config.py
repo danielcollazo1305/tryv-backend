@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     # commitada, sempre via .env.
     openai_api_key: str = ""
 
+    # Modelo da geracao de avatar (env AVATAR_IMAGE_MODEL) -- ver services/avatar_generation.py.
+    # Trocavel sem novo codigo. O gpt-image-1-mini nao suporta input_fidelity.
+    avatar_image_model: str = "gpt-image-1.5"
+    # Limite de geracoes de avatar por usuario numa janela deslizante (env
+    # AVATAR_GENERATION_LIMIT e AVATAR_LIMIT_WINDOW_DAYS) -- ver routers/users.py.
+    # Cada geracao custa dinheiro real; pra testar, suba o valor no Railway e volte depois.
+    avatar_generation_limit: int = 3
+    avatar_limit_window_days: int = 30
+
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

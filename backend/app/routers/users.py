@@ -1,11 +1,15 @@
 import logging
+import math
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.avatar_generation import AvatarGeneration
 from app.models.social import Follow
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
@@ -13,7 +17,7 @@ from app.models.user import User
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.schemas.subscription import TeamBadge, UserBadgesOut
 from app.schemas.user import AvatarOut, ContactsMatchRequest, MatchedContact, UserOut, UserSearchResult, UserUpdate
-from app.services.avatar_generation import AvatarGenerationError, generate_ps1_avatar
+from app.services.avatar_generation import AvatarGenerationError, AvatarServiceUnavailableError, generate_ps1_avatar
 from app.services.storage import StorageError, upload_image
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -83,11 +87,54 @@ async def generate_avatar(
             detail=f"Arquivo excede o tamanho maximo permitido ({MAX_IMAGE_FILE_SIZE_BYTES // (1024 * 1024)}MB)",
         )
 
+    # Limite de geracoes (settings.avatar_generation_limit a cada
+    # settings.avatar_limit_window_days dias, janela deslizante), ANTES de gastar com a
+    # OpenAI. Duas requisicoes simultaneas podem passar juntas pela checagem e estourar o
+    # limite por 1 (aceito: nao ha lock, e o custo extra e de uma geracao).
+    # max(1, ...): um valor invalido na env (0, negativo) nao pode travar nem bloquear tudo.
+    limit = max(1, settings.avatar_generation_limit)
+    window_days = max(1, settings.avatar_limit_window_days)
+    window = timedelta(days=window_days)
+    now = datetime.utcnow()
+    recent_times = [
+        row[0]
+        for row in db.query(AvatarGeneration.created_at)
+        .filter(AvatarGeneration.user_id == current_user.id, AvatarGeneration.created_at >= now - window)
+        .order_by(AvatarGeneration.created_at.asc())
+        .all()
+    ]
+    if len(recent_times) >= limit:
+        # A vaga que abre primeiro e a da geracao de indice (count - limite) na ordem
+        # crescente: depois que ela sai da janela, sobram limite-1 dentro dela. (Se por
+        # corrida count passar do limite, so esse indice libera de verdade.) Abre em
+        # created_at + janela; arredonda pra cima, minimo 1 dia.
+        opens_at = recent_times[len(recent_times) - limit] + window
+        days_left = max(1, math.ceil((opens_at - now).total_seconds() / 86400))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Voce atingiu o limite de {limit} avatares a cada {window_days} dias. Tente novamente em {days_left} dia(s).",
+        )
+
     try:
-        result_bytes = generate_ps1_avatar(file_bytes, content_type)
+        result_bytes = generate_ps1_avatar(file_bytes, content_type, user_id=current_user.id)
+    except AvatarServiceUnavailableError as e:
+        # Saldo/cota ou chave da OpenAI (o servico ja logou o marcador em nivel ERROR).
+        # 503, nao 429: nao pode parecer o limite de geracoes. Nao consome a cota do usuario.
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     except AvatarGenerationError as e:
+        # Falha comum (moderacao, timeout, rede, resposta vazia): 502, nao consome a cota.
         logger.error("Falha ao gerar avatar (user_id=%s): %s", current_user.id, e)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+
+    # Registra a geracao logo apos a OpenAI responder com sucesso e ANTES do S3: o
+    # custo ja foi incorrido mesmo se o upload falhar. Falha em gravar o registro
+    # nao bloqueia o usuario (so loga).
+    try:
+        db.add(AvatarGeneration(user_id=current_user.id))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.error("Falha ao registrar geracao de avatar (user_id=%s)", current_user.id, exc_info=True)
 
     try:
         url = upload_image(result_bytes, "image/png", "profiles")
