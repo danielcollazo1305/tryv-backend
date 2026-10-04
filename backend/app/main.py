@@ -1,5 +1,11 @@
+import logging
+import threading
+from contextlib import asynccontextmanager
+from datetime import datetime
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app import models  # noqa: F401 — garante que Base.metadata conheça todas as tabelas
 from app.core.config import settings
@@ -45,7 +51,50 @@ from app.routers import (
 # (ver README.md), nunca so editando o model e confiando neste create_all.
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title=settings.app_name)
+# Diagnostico do fuso da sessao do Postgres (so log, nenhum comportamento muda).
+# Logger PROPRIO e com handler proprio de proposito: o projeto nao configura logging,
+# entao o nivel raiz e WARNING e uma linha INFO de um logger comum nao sairia nos
+# logs de producao. Isolado aqui, nao altera o logging do resto do app.
+_diag_logger = logging.getLogger("tryv.diag")
+_diag_logger.setLevel(logging.INFO)
+_diag_logger.propagate = False
+if not _diag_logger.handlers:
+    _diag_handler = logging.StreamHandler()
+    _diag_handler.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
+    _diag_logger.addHandler(_diag_handler)
+
+
+def _log_db_timezone_diag() -> None:
+    """Loga UMA linha DB_TIMEZONE_DIAG com o fuso da sessao do banco, now() como o
+    banco devolve, now() em UTC e o utcnow() do Python. Nunca levanta: qualquer falha
+    vira um WARNING (so o tipo do erro, sem dado sensivel). Conexao curta, devolvida
+    ao pool ao sair do with."""
+    try:
+        with engine.connect() as conn:
+            db_timezone, db_now, db_now_utc = conn.execute(
+                text("SELECT current_setting('TimeZone'), now(), now() AT TIME ZONE 'UTC'")
+            ).one()
+        python_utcnow = datetime.utcnow()
+        _diag_logger.info(
+            "DB_TIMEZONE_DIAG db_timezone=%s db_now=%s db_now_utc=%s python_utcnow=%s",
+            db_timezone,
+            db_now.isoformat(),
+            db_now_utc.isoformat(),
+            python_utcnow.isoformat(),
+        )
+    except Exception as exc:
+        _diag_logger.warning("DB_TIMEZONE_DIAG failed error_type=%s", type(exc).__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Thread daemon, sem esperar por ela: o boot nunca atrasa nem cai por causa do
+    # diagnostico (nem se o banco demorar a responder).
+    threading.Thread(target=_log_db_timezone_diag, name="db-timezone-diag", daemon=True).start()
+    yield
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 # CORS -- so existe pra viabilizar a landing page (site estatico separado,
 # outro dominio) chamando o endpoint publico /waitlist do navegador. O app
