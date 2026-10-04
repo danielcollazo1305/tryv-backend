@@ -97,11 +97,19 @@ export function CityPickerModal({ visible, onClose, onSelect }: CityPickerModalP
     onClose();
   };
 
+  // So busca local a partir de 3 letras -- com a lista inteira do estado
+  // baixada de uma vez (ate ~650 municipios em SP), mostrar tudo por ordem
+  // alfabetica assim que o estagio 'city' abre (ou com 1-2 letras digitadas)
+  // deixava a lista grande e pouco util antes da pessoa digitar algo que
+  // realmente filtre.
+  const normalizedQuery = query.trim();
+  const hasMinQueryLength = normalizedQuery.length >= 3;
+
   const filteredCities = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return cities;
+    if (!hasMinQueryLength) return [];
+    const normalized = normalizedQuery.toLowerCase();
     return cities.filter((city) => city.nome.toLowerCase().includes(normalized));
-  }, [cities, query]);
+  }, [cities, normalizedQuery, hasMinQueryLength]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
@@ -159,6 +167,8 @@ export function CityPickerModal({ visible, onClose, onSelect }: CityPickerModalP
             <ActivityIndicator color={colors3.primary} style={styles.loading} />
           ) : citiesError ? (
             <Text style={styles.error}>{citiesError}</Text>
+          ) : !hasMinQueryLength ? (
+            <Text style={styles.searchHint}>Digite pelo menos 3 letras pra buscar.</Text>
           ) : (
             <FlatList
               data={filteredCities}
@@ -229,4 +239,5 @@ const styles = StyleSheet.create({
   rowName: { ...typography3.bodyMd, color: colors3.onSurface, flex: 1, marginRight: spacing3.sm },
   rowUf: { ...typography3.labelSm, color: colors3.onSurfaceVariant },
   empty: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
+  searchHint: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
 });
