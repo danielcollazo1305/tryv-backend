@@ -55,6 +55,12 @@ const AVATAR_MIME_TYPES_BY_EXTENSION: Record<string, string> = {
  * persistida no backend (ver docstring do endpoint). Timeout bem maior que
  * o upload comum (uploadMedia usa 30s) porque a geracao por IA em si leva
  * alguns segundos, alem do tempo de upload/download.
+ *
+ * 130 s, um pouco acima dos 120 s de timeout do servidor com a OpenAI
+ * (AVATAR_OPENAI_TIMEOUT_SECONDS em backend/app/services/avatar_generation.py):
+ * o app nunca desiste antes do backend. Com 60 s, uma geracao lenta fazia o app
+ * mostrar erro de conexao enquanto o servidor seguia gerando, cobrando e
+ * consumindo a cota de geracoes do usuario.
  */
 export async function uploadAvatarSelfie(fileUri: string): Promise<string> {
   const filename = fileUri.split('/').pop() ?? 'selfie.jpg';
@@ -69,6 +75,6 @@ export async function uploadAvatarSelfie(fileUri: string): Promise<string> {
     type: mimeType,
   } as unknown as Blob);
 
-  const response = await api.post<{ avatar_url: string }>('/users/me/avatar', formData, { timeout: 60000 });
+  const response = await api.post<{ avatar_url: string }>('/users/me/avatar', formData, { timeout: 130000 });
   return response.data.avatar_url;
 }
