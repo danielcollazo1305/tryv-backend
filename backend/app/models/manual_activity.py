@@ -21,12 +21,18 @@ class ManualActivity(Base):
             unique=True,
             postgresql_where=text("external_id IS NOT NULL"),
         ),
+        # Consultas por usuario e data (GET /dashboard/modalities, listagens).
+        Index("ix_manual_activities_user_performed_at", "user_id", "performed_at"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     activity_type = Column(String, nullable=False)
+    # Estilo de luta (boxe, muay_thai, jiu_jitsu, mma, judo, karate, outra) -- so quando activity_type == 'fight';
+    # validado em app/core/activity_types.py (FIGHT_STYLES), nao enum do banco. NULL em tudo que nao informa
+    # (importacao automatica, app antigo).
+    fight_style = Column(String, nullable=True)
     duration_minutes = Column(Integer, nullable=False)
     calories_burned = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)

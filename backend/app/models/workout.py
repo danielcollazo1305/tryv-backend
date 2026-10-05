@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, JSON, Float, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Index, JSON, Float, Integer
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -33,6 +33,8 @@ class WorkoutPlan(Base):
 
 class WorkoutSession(Base):
     __tablename__ = "workout_sessions"
+    # Consultas por usuario e data (GET /dashboard/modalities, listagens).
+    __table_args__ = (Index("ix_workout_sessions_user_completed_at", "user_id", "completed_at"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Nullable — sessao "livre" (sem plano associado, exercicios escolhidos

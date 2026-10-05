@@ -4,11 +4,18 @@ from datetime import date, datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
+from app.core.modalities import (
+    DISTANCE_MODALITIES,
+    MANUAL_ACTIVITY_TO_MODALITY,
+    MODALITY_IDS,
+    RUN_ACTIVITY_TO_MODALITY,
+    WORKOUT_SESSION_MODALITY,
+)
 from app.core.period import parse_period_days, validate_date_range
 from app.core.timezone import local_date, local_range_bounds, local_today, to_local_date
 from app.models.manual_activity import ManualActivity
@@ -23,6 +30,8 @@ from app.schemas.dashboard import (
     DailyDistanceKm,
     HomeSummaryOut,
     MetricComparison,
+    ModalitiesOut,
+    ModalityStatsOut,
     MonthComparisonOut,
     PeriodComparisonOut,
     ProgressChartPoint,
@@ -737,3 +746,115 @@ def get_period_comparison(
             current_metrics["weight_change_kg"], previous_metrics["weight_change_kg"]
         ),
     )
+
+
+@router.get("/modalities", response_model=ModalitiesOut)
+def get_modalities(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Estatisticas do MES LOCAL das 4 modalidades da tela Treinar (bike, halter, luva, tenis), SEMPRE as 4 nessa
+    ordem, mesmo zeradas. Livre, sem Pro-gate. Mapeamento tipo -> modalidade em core/modalities.py:
+    Run run/walk -> tenis, bike -> bike; ManualActivity fight -> luva; WorkoutSession (plano e livre) -> halter.
+    hiit/swim/other (e manuais importados sem rota) ficam FORA das 4.
+
+    - Mes = dia 1 ate o ultimo dia do mes corrente no fuso LOCAL (core/timezone.py); a janela em UTC
+      (local_range_bounds, fim exclusivo) entra nas somas condicionais -- as colunas de instante ficam cruas.
+    - last_session_at = MAX do instante (started_at / performed_at / completed_at) SEM limite de mes.
+    - distance_km so em tenis/bike (null nas outras). Duracao: Run em duration_seconds/60; manual e treino em
+      duration_minutes (halter: null quando ha sessoes no mes mas nenhuma com duracao; 0 sem sessoes).
+    - 3 consultas agregadas (runs, manual_activities, workout_sessions), sem N+1. runs e manual_activities sao
+      agrupadas pelo tipo bruto (usa o indice (user_id, data)) e o tipo -> modalidade e feito em Python.
+    """
+    today = local_today()
+    month_start = today.replace(day=1)
+    month_end = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    start_utc, end_utc = local_range_bounds(month_start, month_end)
+
+    stats = {
+        modality: {"sessions": 0, "meters": 0.0, "seconds": 0, "minutes": 0, "last": None}
+        for modality in MODALITY_IDS
+    }
+
+    def _merge(modality: str, sessions: int, meters: float, seconds: int, minutes: int, last) -> None:
+        entry = stats[modality]
+        entry["sessions"] += int(sessions or 0)
+        entry["meters"] += float(meters or 0.0)
+        entry["seconds"] += int(seconds or 0)
+        entry["minutes"] += int(minutes or 0)
+        if last is not None and (entry["last"] is None or last > entry["last"]):
+            entry["last"] = last
+
+    # 1) runs
+    run_in_month = and_(Run.started_at >= start_utc, Run.started_at < end_utc)
+    run_rows = (
+        db.query(
+            Run.activity_type,
+            func.coalesce(func.sum(case((run_in_month, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((run_in_month, Run.distance_meters), else_=0.0)), 0.0),
+            func.coalesce(func.sum(case((run_in_month, Run.duration_seconds), else_=0)), 0),
+            func.max(Run.started_at),
+        )
+        .filter(Run.user_id == current_user.id, Run.activity_type.in_(list(RUN_ACTIVITY_TO_MODALITY)))
+        .group_by(Run.activity_type)
+        .all()
+    )
+    for activity_type, sessions, meters, seconds, last in run_rows:
+        _merge(RUN_ACTIVITY_TO_MODALITY[activity_type], sessions, meters, seconds, 0, last)
+
+    # 2) manual_activities (so os tipos mapeados: fight -> luva)
+    manual_in_month = and_(ManualActivity.performed_at >= start_utc, ManualActivity.performed_at < end_utc)
+    manual_rows = (
+        db.query(
+            ManualActivity.activity_type,
+            func.coalesce(func.sum(case((manual_in_month, 1), else_=0)), 0),
+            func.coalesce(func.sum(case((manual_in_month, ManualActivity.duration_minutes), else_=0)), 0),
+            func.max(ManualActivity.performed_at),
+        )
+        .filter(
+            ManualActivity.user_id == current_user.id,
+            ManualActivity.activity_type.in_(list(MANUAL_ACTIVITY_TO_MODALITY)),
+        )
+        .group_by(ManualActivity.activity_type)
+        .all()
+    )
+    for activity_type, sessions, minutes, last in manual_rows:
+        _merge(MANUAL_ACTIVITY_TO_MODALITY[activity_type], sessions, 0.0, 0, minutes, last)
+
+    # 3) workout_sessions (plano e livre -> halter). duration_minutes e anulavel: sum so dos que tem.
+    session_in_month = and_(WorkoutSession.completed_at >= start_utc, WorkoutSession.completed_at < end_utc)
+    sessions_count, sessions_minutes, sessions_last = (
+        db.query(
+            func.coalesce(func.sum(case((session_in_month, 1), else_=0)), 0),
+            func.sum(case((session_in_month, WorkoutSession.duration_minutes))),
+            func.max(WorkoutSession.completed_at),
+        )
+        .filter(WorkoutSession.user_id == current_user.id)
+        .one()
+    )
+    _merge(WORKOUT_SESSION_MODALITY, sessions_count, 0.0, 0, sessions_minutes, sessions_last)
+
+    result: list[ModalityStatsOut] = []
+    for modality in MODALITY_IDS:
+        entry = stats[modality]
+        if modality in DISTANCE_MODALITIES:
+            distance_km = round(entry["meters"] / 1000, 2)
+            duration = round(entry["seconds"] / 60)
+        elif modality == WORKOUT_SESSION_MODALITY:
+            distance_km = None
+            # null quando ha sessoes no mes mas nenhuma tem duracao; 0 quando nao ha sessoes.
+            duration = None if entry["sessions"] > 0 and sessions_minutes is None else entry["minutes"]
+        else:
+            distance_km = None
+            duration = entry["minutes"]
+        result.append(
+            ModalityStatsOut(
+                id=modality,
+                sessions_this_month=entry["sessions"],
+                distance_km_this_month=distance_km,
+                duration_minutes_this_month=duration,
+                last_session_at=entry["last"],
+            )
+        )
+    return ModalitiesOut(month_start=month_start, month_end=month_end, modalities=result)

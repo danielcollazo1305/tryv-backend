@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -127,3 +127,21 @@ class PeriodComparisonOut(BaseModel):
     workouts_count: MetricComparison
     avg_daily_calories: MetricComparison
     weight_change_kg: MetricComparison
+
+
+class ModalityStatsOut(BaseModel):
+    """Estatisticas do mes LOCAL de uma modalidade da tela Treinar (ver core/modalities.py).
+    distance_km so em tenis e bike (null nas outras). duration_minutes_this_month: halter e null quando as
+    sessoes do mes nao tem duracao registrada. last_session_at = instante UTC (naive) do ultimo treino, SEM
+    limite de mes (null so se nunca houve)."""
+    id: Literal["bike", "halter", "luva", "tenis"]
+    sessions_this_month: int
+    distance_km_this_month: float | None = None
+    duration_minutes_this_month: int | None = None
+    last_session_at: datetime | None = None
+
+
+class ModalitiesOut(BaseModel):
+    month_start: date  # dia 1 do mes corrente (data LOCAL)
+    month_end: date  # ultimo dia do mes corrente (data LOCAL, inclusivo)
+    modalities: list[ModalityStatsOut]  # SEMPRE as 4, na ordem bike, halter, luva, tenis

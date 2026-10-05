@@ -55,6 +55,9 @@ def create_manual_activity(
     assim que o cliente sabe que nada foi criado agora. Ver app/models/run.py
     e createManualActivityFromImport em mobile/services/activities.ts.
     """
+    if payload.fight_style is not None and payload.activity_type != "fight":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="fight_style so vale para luta")
+
     existing = _find_by_external_id(db, current_user, payload)
     if existing:
         response.status_code = status.HTTP_200_OK

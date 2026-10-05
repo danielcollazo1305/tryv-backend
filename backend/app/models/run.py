@@ -18,6 +18,8 @@ class Run(Base):
             postgresql_where=text("external_id IS NOT NULL"),
         ),
         Index("ix_runs_equipment_id", "equipment_id", postgresql_where=text("equipment_id IS NOT NULL")),
+        # Consultas por usuario e data (GET /dashboard/modalities, listagens).
+        Index("ix_runs_user_started_at", "user_id", "started_at"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
