@@ -26,7 +26,7 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 **Treino e atividades**
 - **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) e plano montado por professor.
 - **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa, parciais por km e recordes pessoais **(Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
-- Importação de treinos pelo **Health Connect (Android)**.
+- Importação de treinos pelo **Health Connect (Android)**. O Apple Health (iPhone) está **em breve**.
 - Live Activity no iOS para o treino livre em andamento (extensão de widget nativa).
 
 **Painel e saúde**
@@ -184,7 +184,7 @@ Projeto em desenvolvimento ativo, em fase de pré-lançamento.
 - Integração com IA (Claude e OpenAI) e armazenamento de imagens no S3.
 
 **Em desenvolvimento ou com limitações:**
-- **Apple Health (HealthKit) está desativado**: a biblioteca causava falha no build iOS e foi substituída por um módulo vazio. No Android, o Health Connect está implementado.
+- **Apple Health (iPhone): em breve.** A integração está desativada enquanto o build iOS é corrigido (a biblioteca causava falha no build e foi substituída por um módulo vazio). O **Health Connect (Android) já está disponível**.
 - **Marketplace de professores**: o backend está pronto (cadastro, onboarding no Stripe Connect e assinatura), mas a área está desativada no app até o lançamento.
 - **Catálogo de tênis**: a tabela e a busca existem, mas ainda sem dados carregados; por enquanto o cadastro usa o modelo digitado à mão.
 - **Tela "Treinar"** (menu de modalidades): o endpoint de estatísticas já existe no backend (`GET /dashboard/modalities`); a tela no app ainda não foi construída.
