@@ -63,7 +63,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O Tryv Fit precisa acessar sua localizacao para rastrear a rota da sua corrida ou pedalada.",
+          "locationWhenInUsePermission": "O Tryv Fit usa sua localizacao para rastrear a rota das suas corridas e pedaladas e para mostrar o mapa de territorio da sua cidade.",
           "locationAlwaysAndWhenInUsePermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
