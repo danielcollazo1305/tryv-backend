@@ -5,10 +5,12 @@ is_admin=true direto no Data tab do Railway) e retoma o item 4 (criacao dos
 2 desafios, que antes falhava com 403 por falta de verificacao).
 
 Nao reimplementa nenhuma logica de API -- so chama os endpoints reais ja
-existentes, na mesma API de producao usada por seed_demo_data.py.
+existentes, na mesma API usada por seed_demo_data.py (definida em TRYV_API_URL).
 
-Uso:
-    TEST_ACCOUNT_EMAIL=... TEST_ACCOUNT_PASSWORD=... venv/Scripts/python scripts/verify_trainers_and_challenges.py
+Uso (variaveis de ambiente OBRIGATORIAS, sem valor padrao; nenhuma senha fica no codigo):
+    TRYV_API_URL=http://localhost:8000 TRYV_DEMO_PASSWORD=<senha-das-contas-demo> \n    TEST_ACCOUNT_EMAIL=... TEST_ACCOUNT_PASSWORD=... venv/Scripts/python scripts/verify_trainers_and_challenges.py
+
+Contra qualquer API que nao seja local o script pede confirmacao explicita (digitar o host) antes de enviar algo.
 """
 
 import os
@@ -17,8 +19,11 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-BASE_URL = "https://tryv-backend-production.up.railway.app"
-DEMO_PASSWORD = "TryvDemo2026!"
+from _demo_env import confirm_target, get_base_url, get_demo_password
+
+# Preenchidas em main() a partir do ambiente (TRYV_API_URL / TRYV_DEMO_PASSWORD); nada fica fixo no codigo.
+BASE_URL = ""
+DEMO_PASSWORD = ""
 
 # trainer_id's confirmados na ultima rodada de seed_demo_data.py
 TRAINERS = [
@@ -41,11 +46,16 @@ def auth(token: str) -> dict:
 
 
 def main():
+    global BASE_URL, DEMO_PASSWORD
+    BASE_URL = get_base_url()
+    DEMO_PASSWORD = get_demo_password()
     admin_email = os.environ.get("TEST_ACCOUNT_EMAIL")
     admin_password = os.environ.get("TEST_ACCOUNT_PASSWORD")
     if not admin_email or not admin_password:
         print("Defina TEST_ACCOUNT_EMAIL e TEST_ACCOUNT_PASSWORD no ambiente antes de rodar.")
         sys.exit(1)
+
+    confirm_target(BASE_URL)  # alvo nao-local: exige confirmacao explicita antes de enviar qualquer coisa
 
     print("== Verificando os 5 profissionais (PATCH /trainers/{id}/verify) ==")
     admin_token = login(admin_email, admin_password)
