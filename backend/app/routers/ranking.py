@@ -115,18 +115,24 @@ def ranking_squads(
         .subquery()
     )
 
+    # OUTER JOIN + coalesce: um squad recem-criado (ou cujos membros ainda nao tem nenhum evento de XP)
+    # aparece no fim da lista com 0 XP e tem posicao, em vez de sumir do ranking. A ordem dos squads com
+    # XP nao muda; o desempate (created_at, id) so torna estavel a ordem entre squads empatados (ex: varios
+    # com 0 XP), pra paginacao por offset nao repetir nem pular linhas.
+    total_xp_value = func.coalesce(total_xp_subq.c.total_xp, 0)
+
     rows = (
         db.query(
             Squad.id,
             Squad.name,
             member_count_subq.c.member_count,
-            total_xp_subq.c.total_xp,
+            total_xp_value.label("total_xp"),
             weekly_xp_subq.c.weekly_xp,
         )
-        .join(total_xp_subq, total_xp_subq.c.squad_id == Squad.id)
+        .outerjoin(total_xp_subq, total_xp_subq.c.squad_id == Squad.id)
         .outerjoin(member_count_subq, member_count_subq.c.squad_id == Squad.id)
         .outerjoin(weekly_xp_subq, weekly_xp_subq.c.squad_id == Squad.id)
-        .order_by(total_xp_subq.c.total_xp.desc())
+        .order_by(total_xp_value.desc(), Squad.created_at.asc(), Squad.id.asc())
         .offset(offset)
         .limit(limit)
         .all()
