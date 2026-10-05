@@ -27,7 +27,7 @@ from app.schemas.run import (
     RunSummaryOut,
 )
 from app.services.activity_insight import generate_activity_insight
-from app.services.equipment import validate_equipment_for_activity
+from app.services.equipment import resolve_run_equipment
 from app.services.personal_records import ActivityRecords, compute_personal_records, detect_new_prs
 from app.services.points import award_points, equipment_bonus_points, run_points
 from app.services.run_calculator import (
@@ -101,8 +101,11 @@ def create_run(
     weight_kg = payload.user_weight_kg or current_user.weight
     calories = calculate_calories_burned(payload.activity_type, distance_meters, duration_seconds, weight_kg)
 
-    if payload.equipment_id is not None:
-        validate_equipment_for_activity(db, current_user, payload.equipment_id, "run")
+    # Equipamento final: id valido pro tipo, ou o padrao (quando equipment_id AUSENTE do payload), ou
+    # nenhum -- nunca recusa (app antigo). null explicito = "Nenhum" escolhido, nao aplica o padrao.
+    equipment_id = resolve_run_equipment(
+        db, current_user.id, payload.activity_type, "equipment_id" in payload.model_fields_set, payload.equipment_id
+    )
 
     # Calculado ANTES do commit da corrida nova — assim a query de "recorde
     # anterior" nunca ve a propria linha que esta sendo comparada.
@@ -123,7 +126,7 @@ def create_run(
         finished_at=payload.finished_at,
         external_source=payload.external_source,
         external_id=payload.external_id,
-        equipment_id=payload.equipment_id,
+        equipment_id=equipment_id,
     )
     db.add(run)
     try:

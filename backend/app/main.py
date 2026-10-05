@@ -30,6 +30,7 @@ from app.routers import (
     readiness,
     runs,
     saved_meals,
+    shoe_models,
     smartwatch,
     social,
     squads,
@@ -131,6 +132,7 @@ app.include_router(creatine_logs.router)
 app.include_router(saved_meals.router)
 app.include_router(foods.router)
 app.include_router(equipment.router)
+app.include_router(shoe_models.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
 app.include_router(live_activities.router)

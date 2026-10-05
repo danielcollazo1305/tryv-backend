@@ -16,9 +16,8 @@ class ManualActivityCreate(BaseModel):
     # externa, torna o POST idempotente quando preenchida.
     external_source: str | None = None
     external_id: str | None = None
-    # Equipamento marcado nesta atividade (opcional) -- validado no router
-    # contra ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL["manual_activity"] e posse
-    # do usuario, nao aqui (precisa de acesso ao banco).
+    # LEGADO: atividade manual nao aceita mais equipamento; o campo continua no schema so pra um app antigo
+    # nao tomar 422 -- o valor e ignorado (services/equipment.py:ignore_equipment_for_activity).
     equipment_id: uuid.UUID | None = None
 
     @field_validator("activity_type")

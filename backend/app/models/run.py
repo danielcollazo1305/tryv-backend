@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, Float, Integer, String, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Float, Index, Integer, String, DateTime, ForeignKey, JSON, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -8,6 +8,17 @@ from app.core.database import Base
 
 class Run(Base):
     __tablename__ = "runs"
+    # Indice parcial (migration a3f7c9e15b28): agregacao de km/uso por equipamento (GET /equipment).
+    __table_args__ = (
+        # Idempotencia da importacao do hub de saude (migration d4c1a7f93b02) -- ver comentario abaixo.
+        Index(
+            "ix_runs_user_external_unique",
+            "user_id", "external_source", "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+        ),
+        Index("ix_runs_equipment_id", "equipment_id", postgresql_where=text("equipment_id IS NOT NULL")),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -42,8 +53,8 @@ class Run(Base):
     external_source = Column(String, nullable=True)
     external_id = Column(String, nullable=True)
 
-    # Item de equipamento marcado nesta corrida (tenis/bike/faixa cardiaca --
-    # ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL em app/core/equipment_categories.py),
-    # opcional. Gera um PointsEvent bonus separado quando preenchido, ver
+    # Item de equipamento desta corrida (tenis em run/walk, bike em bike -- ver
+    # RUN_ACTIVITY_EQUIPMENT_CATEGORY em app/core/equipment_categories.py; o padrao do usuario e aplicado
+    # sozinho quando o app nao informa), opcional. Gera um PointsEvent bonus separado quando preenchido, ver
     # routers/runs.py.
     equipment_id = Column(UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)

@@ -31,9 +31,9 @@ class RunCreate(BaseModel):
     # existente em vez de criar outro.
     external_source: str | None = None
     external_id: str | None = None
-    # Equipamento marcado nesta corrida (opcional) -- validado no router
-    # contra ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL["run"] e posse do usuario,
-    # nao aqui (precisa de acesso ao banco).
+    # Equipamento desta corrida (opcional). AUSENTE = aplica o equipamento padrao (tenis p/ run/walk, bike p/
+    # bike); null EXPLICITO = "Nenhum"; id invalido pro tipo e ignorado, nunca 400 -- ver
+    # services/equipment.py:resolve_run_equipment (precisa de acesso ao banco, por isso nao aqui).
     equipment_id: uuid.UUID | None = None
 
     @field_validator("activity_type")

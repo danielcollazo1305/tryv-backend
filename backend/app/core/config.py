@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     avatar_generation_limit: int = 3
     avatar_limit_window_days: int = 30
 
+    # Equipamentos (env DEFAULT_SHOE_LIFESPAN_KM / DEFAULT_BIKE_MAINTENANCE_KM): padroes quando o item nao
+    # informa vida util (tenis) ou intervalo de revisao (bike) -- ver routers/equipment.py.
+    default_shoe_lifespan_km: float = 600.0
+    default_bike_maintenance_km: float = 1000.0
+
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

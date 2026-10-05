@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Float, Text, DateTime, ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -13,6 +13,15 @@ class ManualActivity(Base):
     em app/core/activity_types.py.
     """
     __tablename__ = "manual_activities"
+    # Idempotencia da importacao do hub de saude (migration d4c1a7f93b02) -- ver comentario abaixo.
+    __table_args__ = (
+        Index(
+            "ix_manual_activities_user_external_unique",
+            "user_id", "external_source", "external_id",
+            unique=True,
+            postgresql_where=text("external_id IS NOT NULL"),
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -31,8 +40,7 @@ class ManualActivity(Base):
     external_source = Column(String, nullable=True)
     external_id = Column(String, nullable=True)
 
-    # Item de equipamento marcado nesta atividade (luva_faixa/faixa cardiaca --
-    # ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL em app/core/equipment_categories.py),
-    # opcional. Gera um PointsEvent bonus separado quando preenchido, ver
+    # LEGADO: atividade manual nao aceita mais equipamento (nada novo grava aqui; so vinculos antigos).
+    # Antes: luva_faixa/faixa cardiaca, opcional. Gera um PointsEvent bonus separado quando preenchido, ver
     # routers/activities.py.
     equipment_id = Column(UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="SET NULL"), nullable=True)
