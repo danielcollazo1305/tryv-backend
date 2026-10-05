@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -7,18 +7,61 @@ import * as WebBrowser from 'expo-web-browser';
 import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { checkoutTryvPro } from '@/services/subscriptions';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
+// Verificacao do pagamento: o Pro so e ativado quando o webhook do Stripe chega no backend, o que
+// pode levar alguns segundos depois do usuario fechar o navegador.
+const VERIFY_MAX_ATTEMPTS = 6;
+const VERIFY_INTERVAL_MS = 2000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export default function SubscriptionCheckoutScreen() {
+  const { refreshIsPro } = useAuth();
   const [subscribing, setSubscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // true depois que o navegador do Stripe foi aberto e fechado pelo menos
-  // uma vez — nao confirma pagamento de verdade (sem deep link de retorno
-  // configurado hoje), so libera o botao "Ja paguei" pra seguir pro visual
-  // de confirmacao, igual a suposicao que a tela antiga ja fazia.
+  // true depois que o navegador do Stripe foi aberto e fechado pelo menos uma vez; libera o
+  // botao "Ja paguei". Nao confirma pagamento: quem confirma e a verificacao do isPro abaixo.
   const [browserOpened, setBrowserOpened] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  // true quando uma verificacao terminou sem o servidor informar Pro (webhook ainda nao chegou).
+  const [pending, setPending] = useState(false);
+  const verifyingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Unica verificacao de pagamento (usada ao voltar do navegador, em "Ja paguei" e em "Verificar de
+  // novo"): consulta o servidor ate VERIFY_MAX_ATTEMPTS vezes, parando assim que isPro virar true.
+  // So navega pra confirmacao com isPro === true -- nunca mostra confirmacao pra quem nao e Pro.
+  const verifyPayment = useCallback(async () => {
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
+    setVerifying(true);
+    setPending(false);
+    try {
+      for (let attempt = 1; attempt <= VERIFY_MAX_ATTEMPTS; attempt++) {
+        if ((await refreshIsPro()) === true) {
+          if (mountedRef.current) router.replace('/subscriptions/confirmation');
+          return;
+        }
+        if (!mountedRef.current) return;
+        if (attempt < VERIFY_MAX_ATTEMPTS) await sleep(VERIFY_INTERVAL_MS);
+      }
+      if (mountedRef.current) setPending(true);
+    } finally {
+      verifyingRef.current = false;
+      if (mountedRef.current) setVerifying(false);
+    }
+  }, [refreshIsPro]);
 
   const handleContinue = async () => {
     setSubscribing(true);
@@ -27,6 +70,9 @@ export default function SubscriptionCheckoutScreen() {
       const { checkout_url } = await checkoutTryvPro();
       await WebBrowser.openBrowserAsync(checkout_url);
       setBrowserOpened(true);
+      setSubscribing(false);
+      // O usuario voltou do navegador: confere no servidor se o Pro foi ativado.
+      void verifyPayment();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel iniciar a assinatura, tente novamente.'));
     } finally {
@@ -94,12 +140,24 @@ export default function SubscriptionCheckoutScreen() {
 
         {browserOpened && (
           <GlassCard variant="glass" style={styles.returnCard}>
-            <Text style={styles.returnText}>Ja concluiu o pagamento no navegador?</Text>
-            <Button3
-              label="Ja paguei — ver confirmacao"
-              variant="secondary"
-              onPress={() => router.push('/subscriptions/confirmation')}
-            />
+            {verifying ? (
+              <>
+                <ActivityIndicator color={colors3.primary} />
+                <Text style={styles.returnText}>Confirmando pagamento...</Text>
+              </>
+            ) : pending ? (
+              <>
+                <Text style={styles.returnText}>
+                  Pagamento ainda sendo processado. Pode levar alguns instantes.
+                </Text>
+                <Button3 label="Verificar de novo" variant="secondary" onPress={verifyPayment} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.returnText}>Ja concluiu o pagamento no navegador?</Text>
+                <Button3 label="Ja paguei — ver confirmacao" variant="secondary" onPress={verifyPayment} />
+              </>
+            )}
           </GlassCard>
         )}
       </View>

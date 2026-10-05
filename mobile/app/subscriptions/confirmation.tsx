@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { Button2 } from '@/components/Button2';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { useAuth } from '@/context/AuthContext';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
 const FEATURE_CHIPS: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
@@ -19,12 +20,19 @@ const FEATURE_CHIPS: { icon: React.ComponentProps<typeof Ionicons>['name']; labe
 ];
 
 /**
- * Sem deep link de retorno do Stripe configurado hoje (ver checkout.tsx) —
- * esta tela nao confirma pagamento de verdade, so mostra o mesmo visual de
- * sucesso que a suposicao ja fazia antes (assume que, se o usuario chegou
- * aqui, o pagamento foi concluido no navegador).
+ * So mostra o visual de sucesso quando o servidor confirmou o Pro (isPro === true no AuthContext;
+ * a verificacao em checkout.tsx so navega pra ca nesse caso). Quem NAO e Pro (isPro === false)
+ * e devolvido pro checkout; isPro null (ainda carregando/falha de rede) nao mostra nada.
  */
 export default function SubscriptionConfirmationScreen() {
+  const { isPro } = useAuth();
+
+  useEffect(() => {
+    if (isPro === false) router.replace('/subscriptions/checkout');
+  }, [isPro]);
+
+  if (isPro !== true) return <ScreenBackground2 style={styles.flex}><View /></ScreenBackground2>;
+
   return (
     <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>

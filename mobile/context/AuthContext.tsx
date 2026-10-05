@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
@@ -8,6 +9,9 @@ import { getUserBadges } from '@/services/user';
 // automatica de treinos tambem precisa ler o token fora do React (ver
 // ensureAuthToken).
 const TOKEN_KEY = AUTH_TOKEN_STORAGE_KEY;
+
+// Intervalo minimo entre re-buscas de isPro disparadas pelo retorno do app ao primeiro plano.
+const IS_PRO_FOREGROUND_THROTTLE_MS = 60_000;
 
 export interface User {
   id: string;
@@ -46,8 +50,12 @@ interface AuthContextValue {
    * explicito.
    */
   isPro: boolean | null;
-  /** Re-busca isPro manualmente (ex: depois de assinar). Nao lanca: falha mantem o ultimo valor conhecido. */
-  refreshIsPro: () => Promise<void>;
+  /**
+   * Re-busca isPro manualmente (ex: depois de assinar). Nao lanca: falha mantem o ultimo valor
+   * conhecido. Devolve o valor que o SERVIDOR acabou de informar (true/false), ou null se a busca
+   * falhou / nao ha sessao -- nesse caso isPro nao foi alterado (nunca vira false por falha de rede).
+   */
+  refreshIsPro: () => Promise<boolean | null>;
   /**
    * Flag de transicao pro wizard de cadastro: entre o passo que cria a
    * conta (token ja setado, ver register()) e um passo extra opcional
@@ -72,14 +80,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Id do usuario da sessao atual -- descarta resposta de badges que chega
   // depois de um logout/troca de conta, pra nao gravar isPro do usuario errado.
   const currentUserIdRef = useRef<string | null>(null);
+  // Momento da ultima busca de isPro (qualquer origem) -- base do throttle do retorno ao primeiro plano.
+  const lastIsProFetchRef = useRef(0);
 
-  const fetchIsPro = useCallback(async (userId: string) => {
+  const fetchIsPro = useCallback(async (userId: string): Promise<boolean | null> => {
+    lastIsProFetchRef.current = Date.now();
     try {
       const badges = await getUserBadges(userId);
-      if (currentUserIdRef.current === userId) setIsPro(badges.is_pro);
+      if (currentUserIdRef.current !== userId) return null;
+      setIsPro(badges.is_pro);
+      return badges.is_pro;
     } catch {
       // Falha (rede/servidor): nao mexe em isPro -- fica null se nunca
       // carregou, ou mantem o ultimo valor conhecido. Nunca vira false.
+      return null;
     }
   }, []);
 
@@ -92,10 +106,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void fetchIsPro(response.data.id);
   }, [fetchIsPro]);
 
-  const refreshIsPro = useCallback(async () => {
+  const refreshIsPro = useCallback(async (): Promise<boolean | null> => {
     const userId = currentUserIdRef.current;
-    if (userId) await fetchIsPro(userId);
+    return userId ? fetchIsPro(userId) : null;
   }, [fetchIsPro]);
+
+  // O Pro e ativado pelo webhook do Stripe, fora do app: sem isto o isPro so seria relido no
+  // login/boot. Ao voltar pro primeiro plano com sessao ativa, re-busca (no maximo 1x por 60 s).
+  useEffect(() => {
+    if (!token) return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      if (Date.now() - lastIsProFetchRef.current < IS_PRO_FOREGROUND_THROTTLE_MS) return;
+      void refreshIsPro();
+    });
+    return () => subscription.remove();
+  }, [token, refreshIsPro]);
 
   useEffect(() => {
     (async () => {
