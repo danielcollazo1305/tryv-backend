@@ -842,59 +842,63 @@ export default function ProfileScreen() {
         {/*
           DEBUG TEMPORARIO -- insere dado de teste (Steps + ActiveCaloriesBurned
           de hoje) no Health Connect do emulador, pra validar a Etapa 3 com
-          numero real. Visivel de proposito enquanto valida a Etapa 3.
-          REMOVER (funcao + botao) depois que a Etapa 3 for validada -- o Tryv
-          nao escreve dado de saude em producao.
+          numero real. So renderiza em desenvolvimento (__DEV__): nunca aparece
+          em build de release/preview. REMOVER (funcao + botao) depois que a
+          Etapa 3 for validada -- o Tryv nao escreve dado de saude em producao.
         */}
-        <Pressable
-          style={styles.optionWrap}
-          onPress={handleDebugSeedHealthConnectData}
-          disabled={seedingHealthConnectData}
-        >
-          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
-            <View style={styles.optionRow}>
-              <View style={styles.optionIconWrap}>
-                <Ionicons name="bug" size={20} color={colors3.error} />
+        {__DEV__ && (
+          <Pressable
+            style={styles.optionWrap}
+            onPress={handleDebugSeedHealthConnectData}
+            disabled={seedingHealthConnectData}
+          >
+            <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+              <View style={styles.optionRow}>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="bug" size={20} color={colors3.error} />
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={styles.optionTitle}>[DEBUG] Inserir dado de teste (Health Connect)</Text>
+                  <Text style={styles.optionSubtitle}>
+                    {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (so Android)'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
               </View>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>[DEBUG] Inserir dado de teste (Health Connect)</Text>
-                <Text style={styles.optionSubtitle}>
-                  {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (so Android)'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
-            </View>
-          </GlassCard>
-        </Pressable>
+            </GlassCard>
+          </Pressable>
+        )}
 
         {/*
           DEBUG TEMPORARIO -- insere FC (amostras), Sono (1 sessao com
           estagios) e 1 treino de corrida com rota GPS no Health Connect do
-          emulador, pra validar as Etapas 4-6 com numero real. Visivel de
-          proposito enquanto valida. REMOVER (funcao + botao) depois que as
-          Etapas 4-6 forem validadas -- o Tryv nao escreve dado de saude em
-          producao.
+          emulador, pra validar as Etapas 4-6 com numero real. So renderiza em
+          desenvolvimento (__DEV__): nunca aparece em build de release/preview.
+          REMOVER (funcao + botao) depois que as Etapas 4-6 forem validadas --
+          o Tryv nao escreve dado de saude em producao.
         */}
-        <Pressable
-          style={styles.optionWrap}
-          onPress={handleDebugSeedHealthConnectFcSonoTreino}
-          disabled={seedingHealthConnectFcSonoTreino}
-        >
-          <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
-            <View style={styles.optionRow}>
-              <View style={styles.optionIconWrap}>
-                <Ionicons name="bug" size={20} color={colors3.error} />
+        {__DEV__ && (
+          <Pressable
+            style={styles.optionWrap}
+            onPress={handleDebugSeedHealthConnectFcSonoTreino}
+            disabled={seedingHealthConnectFcSonoTreino}
+          >
+            <GlassCard variant="card" style={styles.optionCard} padding={spacing3.md}>
+              <View style={styles.optionRow}>
+                <View style={styles.optionIconWrap}>
+                  <Ionicons name="bug" size={20} color={colors3.error} />
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={styles.optionTitle}>[DEBUG] Inserir FC/Sono/Treino de teste (Health Connect)</Text>
+                  <Text style={styles.optionSubtitle}>
+                    {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (so Android)'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
               </View>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>[DEBUG] Inserir FC/Sono/Treino de teste (Health Connect)</Text>
-                <Text style={styles.optionSubtitle}>
-                  {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (so Android)'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
-            </View>
-          </GlassCard>
-        </Pressable>
+            </GlassCard>
+          </Pressable>
+        )}
 
         <View style={styles.postsSection}>
           <Text style={styles.sectionTitle}>Meus posts</Text>

@@ -75,19 +75,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottom = insets.bottom + TAB_BAR_BOTTOM_GAP;
 
-  // DEBUG TEMPORARIO — confirma em tempo de execucao os valores de fato
-  // aplicados na arquitetura nova. Remover depois de confirmado no device.
-  console.log(
-    '[DEBUG CustomTabBar] sideMargin=',
-    TAB_BAR_SIDE_MARGIN,
-    'height=',
-    TAB_BAR_HEIGHT,
-    'bottom=',
-    bottom,
-    'insets.bottom=',
-    insets.bottom
-  );
-
   return (
     <View
       style={[

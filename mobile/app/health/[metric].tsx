@@ -206,15 +206,7 @@ export default function HealthMetricDetailScreen() {
       setHistory(current);
       setPreviousAverage(previous.average);
       setStatus('ready');
-    } catch (err) {
-      // DEBUG TEMPORARIO — o catch generico anterior descartava a excecao
-      // de verdade (nunca logada em lugar nenhum), tornando impossivel
-      // saber SE era permissao/rede/exception nativa do HealthKit sem isso.
-      // Remover depois de identificada a causa raiz real.
-      console.error(
-        `[DEBUG health/[metric]] falha ao buscar historico (metric=${metric}, period=${period}, offset=${offset}):`,
-        err
-      );
+    } catch {
       setStatus('error');
     }
   }, [metric, period, offset]);

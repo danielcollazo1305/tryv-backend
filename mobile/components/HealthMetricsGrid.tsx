@@ -92,13 +92,7 @@ export function HealthMetricsGrid() {
       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
       setSummary(await fetchHealthSummary());
       setStatus('ready');
-    } catch (err) {
-      // DEBUG TEMPORARIO — mesmo motivo do catch em app/health/[metric].tsx:
-      // ver se o resumo (fetchHealthSummary, consulta mais simples) tambem
-      // falha, ou so o historico por periodo (fetchHealthMetricHistory) —
-      // isola se e permissao (os 2 falhariam) ou algo especifico da consulta
-      // de historico. Remover junto com o outro debug.
-      console.error('[DEBUG HealthMetricsGrid] falha ao buscar resumo de saude:', err);
+    } catch {
       setStatus('error');
     }
   }, []);
