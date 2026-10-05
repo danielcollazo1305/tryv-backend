@@ -10,6 +10,7 @@ import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { checkoutTryvPro } from '@/services/subscriptions';
+import { PRO_PRICE_MONTHLY_LABEL } from '@/constants/pricing';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 // Verificacao do pagamento: o Pro so e ativado quando o webhook do Stripe chega no backend, o que
@@ -104,7 +105,7 @@ export default function SubscriptionCheckoutScreen() {
             <Text style={styles.summaryTitle}>Tryv Fit Pro</Text>
           </View>
           <View style={styles.summaryRight}>
-            <Text style={styles.summaryPrice}>R$ 39,90</Text>
+            <Text style={styles.summaryPrice}>{PRO_PRICE_MONTHLY_LABEL}</Text>
             <Text style={styles.summaryPriceUnit}>/mes</Text>
           </View>
         </GlassCard>

@@ -9,6 +9,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { UserBadges, getUserBadges } from '@/services/user';
+import { PRO_PRICE_MONTHLY_LABEL } from '@/constants/pricing';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 // Mesmos 7 recursos do mockup assinatura-planos.html — todos com gating real
@@ -111,7 +112,7 @@ export default function TryvProScreen() {
 
         <GlassCard variant="glass" style={styles.priceCard}>
           <Text style={styles.priceLabel}>Plano mensal</Text>
-          <Text style={styles.price}>R$ 39,90</Text>
+          <Text style={styles.price}>{PRO_PRICE_MONTHLY_LABEL}</Text>
           <Text style={styles.priceHint}>/mes · cancele quando quiser</Text>
         </GlassCard>
 
