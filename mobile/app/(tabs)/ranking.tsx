@@ -9,6 +9,7 @@ import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { TerritoryMap } from '@/components/TerritoryMap';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { TrainingStreaks, getTrainingStreaks } from '@/services/dashboard';
@@ -34,36 +35,6 @@ type RankingViewMode = 'individual' | 'squad';
 
 function formatXp(value: number): string {
   return value.toLocaleString('pt-BR');
-}
-
-/** "ago" (sem ponto) a partir de um Date — mesma convencao ja usada em outras telas (ex: HomeScreen.todayLabel). */
-function monthAbbrev(date: Date): string {
-  return date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-}
-
-/**
- * Periodo/reset do ranking — calculado de verdade a partir da semana atual
- * (segunda a domingo), mesmo criterio usado no backend (routers/ranking.py
- * _week_start) pro corte de XP semanal.
- */
-function getWeekPeriodInfo(): { rangeLabel: string; daysUntilReset: number } {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = domingo .. 6 = sabado
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
-  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-  const nextMonday = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + 1);
-
-  const daysUntilReset = Math.max(
-    1,
-    Math.ceil((nextMonday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  );
-  const rangeLabel =
-    monday.getMonth() === sunday.getMonth()
-      ? `${monday.getDate()} a ${sunday.getDate()} de ${monthAbbrev(sunday)}`
-      : `${monday.getDate()} de ${monthAbbrev(monday)} a ${sunday.getDate()} de ${monthAbbrev(sunday)}`;
-
-  return { rangeLabel, daysUntilReset };
 }
 
 /**
@@ -134,8 +105,9 @@ export default function RankingScreen() {
   const [squadActionSubmitting, setSquadActionSubmitting] = useState(false);
   const [squadActionError, setSquadActionError] = useState<string | null>(null);
 
-  const fetchMySquad = useCallback(async () => {
-    setLoadingMySquad(true);
+  // `silent` = refetch por cima de dado ja exibido: nao liga o spinner (que trocaria o conteudo da tela).
+  const fetchMySquad = useCallback(async (silent = false) => {
+    if (!silent) setLoadingMySquad(true);
     setErrorMySquad(null);
     try {
       setMySquad(await getMySquad());
@@ -146,8 +118,8 @@ export default function RankingScreen() {
     }
   }, []);
 
-  const fetchIndividualRanking = useCallback(async () => {
-    setLoadingIndividual(true);
+  const fetchIndividualRanking = useCallback(async (silent = false) => {
+    if (!silent) setLoadingIndividual(true);
     setErrorIndividual(null);
     try {
       setIndividualRanking(await getIndividualRanking(50, 0));
@@ -158,8 +130,8 @@ export default function RankingScreen() {
     }
   }, []);
 
-  const fetchSquadRanking = useCallback(async () => {
-    setLoadingSquadRanking(true);
+  const fetchSquadRanking = useCallback(async (silent = false) => {
+    if (!silent) setLoadingSquadRanking(true);
     setErrorSquadRanking(null);
     try {
       // limit alto (nao so os N exibidos na lista) pra tambem conseguir
@@ -208,7 +180,6 @@ export default function RankingScreen() {
     levelInfo && levelInfo.xp_next_level > 0
       ? Math.max(0, Math.min(1, levelInfo.xp_current / levelInfo.xp_next_level))
       : 0;
-  const weekPeriod = getWeekPeriodInfo();
 
   // Linha do proprio squad dentro do ranking geral (ver comentario em
   // fetchSquadRanking) -- pode nao ser encontrada se o squad estiver fora
@@ -237,10 +208,22 @@ export default function RankingScreen() {
     setSubmitting(true);
     setModalError(null);
     try {
-      await createSquad(name);
+      const created = await createSquad(name);
+      // A resposta do POST ja e o squad completo: atualiza o estado na hora, pra nunca piscar "Você
+      // ainda joga solo" depois do sucesso. (Sem estado anterior nao ha level_info pra reaproveitar;
+      // nesse caso o refetch abaixo preenche.)
+      setMySquad((prev) => (prev ? { ...prev, squad: created } : prev));
+      setErrorMySquad(null);
       setCreateModalVisible(false);
-      fetchMySquad();
-      fetchSquadRanking();
+      // Tudo que depende do squad e re-buscado em paralelo e aguardado (cada fetch trata o proprio
+      // erro, entao um deles falhar nao vira "erro ao criar"): meu squad, rankings, streaks e territorio.
+      await Promise.all([
+        fetchMySquad(true),
+        fetchIndividualRanking(true),
+        fetchSquadRanking(true),
+        fetchStreaks(),
+        fetchTerritory(),
+      ]);
     } catch (err) {
       setModalError(getApiErrorMessage(err, 'Não foi possível criar o squad.'));
     } finally {
@@ -468,6 +451,30 @@ export default function RankingScreen() {
           </>
         )}
 
+        {/*
+          Mapa de territorio (visivel nas duas abas, com ou sem squad). Reaproveita o `territory` que a
+          tela ja busca (fetchTerritory -> foco da tela e depois de criar squad), sem segundo fetch.
+          Conflito de gesto com a rolagem: o mapa captura o arrasto que COMECA dentro dele (comportamento
+          nativo do MKMapView no iOS); a pagina continua rolando arrastando fora dele -- cabecalho do
+          card, margens verticais e as laterais do container (padding da ScrollView). O card nao ocupa a
+          altura toda da tela, entao sempre sobra area de rolagem em volta.
+        */}
+        <View style={styles.territoryCard}>
+          <View style={styles.territoryHeader}>
+            <Text style={styles.territoryTitle}>Território</Text>
+            <Pressable
+              style={styles.territoryExpand}
+              onPress={() => router.push('/territory-map')}
+              hitSlop={8}
+              accessibilityLabel="Abrir o mapa de território em tela cheia"
+            >
+              <Text style={styles.territoryExpandText}>Tela cheia</Text>
+              <Ionicons name="expand-outline" size={14} color={colors3.primary} />
+            </Pressable>
+          </View>
+          <TerritoryMap cities={territory} height={280} />
+        </View>
+
         <View style={styles.pillsRow}>
           <Pressable
             style={[styles.pill, viewMode === 'individual' && styles.pillSelected]}
@@ -485,12 +492,7 @@ export default function RankingScreen() {
 
         <View style={styles.periodLine}>
           <Ionicons name="time-outline" size={13} color={colors3.onSurfaceVariant} />
-          <Text style={styles.periodText}>
-            Semana de {weekPeriod.rangeLabel} ·{' '}
-            <Text style={styles.periodTextStrong}>
-              reseta em {weekPeriod.daysUntilReset} {weekPeriod.daysUntilReset === 1 ? 'dia' : 'dias'}
-            </Text>
-          </Text>
+          <Text style={styles.periodText}>XP total acumulado</Text>
         </View>
 
         {viewMode === 'individual' ? (
@@ -499,23 +501,37 @@ export default function RankingScreen() {
             {!!errorIndividual && <Text style={styles.error}>{errorIndividual}</Text>}
             {!loadingIndividual && !errorIndividual && (
               <View style={styles.list}>
-                {individualRanking.map((person) => (
-                  <GlassCard key={person.position} variant="card" style={styles.listRow}>
+                {individualRanking.map((person) => {
+                  const isMe = person.user_id === user?.id;
+                  return (
+                  <GlassCard
+                    key={person.user_id}
+                    variant="card"
+                    style={isMe ? [styles.listRow, styles.listRowMe] : styles.listRow}
+                  >
                     <View style={styles.listPositionWrap}>
                       <Text style={styles.listPosition}>{person.position}</Text>
                     </View>
                     <Avatar initials={getInitials(person.name)} size={36} />
                     <View style={styles.listInfo}>
-                      <Text style={styles.listName} numberOfLines={1}>
-                        {person.name}
-                      </Text>
+                      <View style={styles.listNameRow}>
+                        <Text style={[styles.listName, styles.listNameFlex]} numberOfLines={1}>
+                          {person.name}
+                        </Text>
+                        {isMe && (
+                          <View style={styles.meBadge}>
+                            <Text style={styles.meBadgeText}>Você</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.listSubInfo} numberOfLines={1}>
                         {person.squad_name ?? 'Solo'}
                       </Text>
                     </View>
-                    <Text style={styles.listXp}>{formatXp(person.weekly_xp)} XP</Text>
+                    <Text style={styles.listXp}>{formatXp(person.total_xp)} XP</Text>
                   </GlassCard>
-                ))}
+                  );
+                })}
               </View>
             )}
           </>
@@ -525,8 +541,14 @@ export default function RankingScreen() {
             {!!errorSquadRanking && <Text style={styles.error}>{errorSquadRanking}</Text>}
             {!loadingSquadRanking && !errorSquadRanking && (
               <View style={styles.list}>
-                {squadRanking.map((row) => (
-                  <GlassCard key={row.position} variant="card" style={styles.listRow}>
+                {squadRanking.map((row) => {
+                  const isMine = row.squad_id === squad?.id;
+                  return (
+                  <GlassCard
+                    key={row.squad_id}
+                    variant="card"
+                    style={isMine ? [styles.listRow, styles.listRowMe] : styles.listRow}
+                  >
                     <View style={styles.listPositionWrap}>
                       <Text style={styles.listPosition}>{row.position}</Text>
                     </View>
@@ -534,16 +556,24 @@ export default function RankingScreen() {
                       <Ionicons name="shield" size={18} color={colors3.primary} />
                     </View>
                     <View style={styles.listInfo}>
-                      <Text style={styles.listName} numberOfLines={1}>
-                        {row.name}
-                      </Text>
+                      <View style={styles.listNameRow}>
+                        <Text style={[styles.listName, styles.listNameFlex]} numberOfLines={1}>
+                          {row.name}
+                        </Text>
+                        {isMine && (
+                          <View style={styles.meBadge}>
+                            <Text style={styles.meBadgeText}>Seu squad</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.listSubInfo} numberOfLines={1}>
                         {row.member_count} {row.member_count === 1 ? 'membro' : 'membros'}
                       </Text>
                     </View>
-                    <Text style={styles.listXp}>{formatXp(row.weekly_xp)} XP</Text>
+                    <Text style={styles.listXp}>{formatXp(row.total_xp)} XP</Text>
                   </GlassCard>
-                ))}
+                  );
+                })}
               </View>
             )}
           </>
@@ -731,8 +761,29 @@ const styles = StyleSheet.create({
   periodText: { ...typography3.labelSm, textTransform: 'none', fontSize: 11.5, color: colors3.onSurfaceVariant },
   periodTextStrong: { fontFamily: 'Inter_700Bold', color: colors3.onSurface },
 
+  territoryCard: {
+    marginVertical: spacing3.sm,
+    borderRadius: radius3.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: colors3.surfaceContainerLowest,
+  },
+  territoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm + 4,
+  },
+  territoryTitle: { ...typography3.labelMd, fontFamily: 'Inter_700Bold' },
+  territoryExpand: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
+  territoryExpandText: { ...typography3.labelMd, color: colors3.primary },
+
   list: { gap: spacing3.sm },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  // Destaque "voce" na lista: fundo suave na cor primaria do tema + borda fina.
+  listRowMe: { backgroundColor: 'rgba(107, 56, 212, 0.10)', borderRadius: radius3.lg, borderWidth: 1, borderColor: 'rgba(107, 56, 212, 0.3)' },
   listPositionWrap: { width: 24, alignItems: 'center', gap: 1 },
   listPosition: {
     ...typography3.bodyMd,
@@ -750,6 +801,15 @@ const styles = StyleSheet.create({
   },
   listInfo: { flex: 1, gap: 2, minWidth: 0 },
   listName: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold' },
+  listNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },
+  listNameFlex: { flexShrink: 1 },
+  meBadge: {
+    paddingHorizontal: spacing3.sm,
+    paddingVertical: 1,
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.14)',
+  },
+  meBadgeText: { ...typography3.labelSm, textTransform: 'none', fontFamily: 'Inter_700Bold', color: colors3.primary },
   listSubInfo: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   listXp: { ...typography3.headlineMd, fontSize: 13, lineHeight: 16, color: colors3.onSurface },
 
