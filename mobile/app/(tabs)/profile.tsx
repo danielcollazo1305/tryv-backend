@@ -701,7 +701,7 @@ export default function ProfileScreen() {
                 <GridIcon name="bicycle" />
                 <View style={styles.tileFullTexts}>
                   <Text style={styles.tileFullTitle}>Meu equipamento</Text>
-                  <Text style={styles.tileFullSubtitle}>Tênis, bike e outros itens usados nas suas atividades</Text>
+                  <Text style={styles.tileFullSubtitle}>Tênis, bike, relógio e fita cardíaca</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
               </GlassCard>

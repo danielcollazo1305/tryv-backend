@@ -3,7 +3,6 @@ import { Alert, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } fr
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button3 } from '@/components/Button3';
-import { EquipmentPicker } from '@/components/EquipmentPicker';
 import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { GlassCard } from '@/components/GlassCard';
 import { ExerciseVideoBlock, SetEntry, SetLogSection } from '@/components/WorkoutDayCard';
@@ -90,7 +89,6 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [equipmentId, setEquipmentId] = useState<string | null>(null);
 
   // Rede de seguranca pra remocao de exercicio (ou o proprio draft
   // encolhendo por qualquer outro motivo): sem isso, remover o card atual
@@ -190,7 +188,6 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
               completed: set.completed,
             })),
         })),
-        equipment_id: equipmentId,
       });
       setDraft(null);
       onDone();
@@ -271,13 +268,6 @@ export function FreeWorkoutLogView({ onDone }: FreeWorkoutLogViewProps) {
                 onChange={(sets) => handleSetsChange(currentExercise.name, sets)}
                 exerciseName={currentExercise.name}
               />
-              {isLast && (
-                <EquipmentPicker
-                  allowedCategories={['suplemento', 'faixa_cardiaca']}
-                  value={equipmentId}
-                  onChange={setEquipmentId}
-                />
-              )}
               <Button3
                 label={isLast ? 'Finalizar treino' : 'Finalizar exercício'}
                 onPress={isLast ? handleComplete : goNext}

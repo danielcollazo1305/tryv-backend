@@ -19,6 +19,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { Button2 } from '@/components/Button2';
 import { EquipmentPicker } from '@/components/EquipmentPicker';
+import { EquipmentCategory } from '@/services/equipment';
 import { LiquiglassCard } from '@/components/LiquiglassCard';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
@@ -137,10 +138,13 @@ export default function NewActivityScreen() {
   const [caloriesManual, setCaloriesManual] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Equipamento (inventario) -- opcional, oferecido no encerramento de uma
-  // corrida/bike/caminhada com GPS e no registro manual de Luta (unico tipo
-  // manual com categoria de equipamento hoje, ver ALLOWED_CATEGORIES_BY_ACTIVITY_MODEL).
-  const [equipmentId, setEquipmentId] = useState<string | null>(null);
+  // Equipamento (inventario) -- opcional, oferecido SO no encerramento de uma corrida/caminhada/bike com
+  // GPS (atividade manual e treino nao aceitam equipamento). Tres estados:
+  //  - undefined = o usuario nao mexeu: a chave equipment_id e OMITIDA do payload e o servidor aplica o
+  //    equipamento PADRAO da categoria (o seletor mostra o padrao marcado);
+  //  - string = item escolhido;
+  //  - null = "Nenhum" escolhido: enviado como null explicito, o que DESLIGA o padrao.
+  const [equipmentId, setEquipmentId] = useState<string | null | undefined>(undefined);
 
   // Resultado
   const [savedRun, setSavedRun] = useState<Run | null>(null);
@@ -150,6 +154,15 @@ export default function NewActivityScreen() {
   const [insightError, setInsightError] = useState<string | null>(null);
 
   const isGpsType = isValidGpsPreset(selectedType ?? undefined);
+  // Categoria de equipamento certa pro tipo: run/walk -> tenis; bike -> bike; outros tipos -> sem seletor.
+  const equipmentCategory: EquipmentCategory | null =
+    selectedType === 'bike' ? 'bike' : selectedType === 'run' || selectedType === 'walk' ? 'tenis' : null;
+
+  // O estado do equipamento e do fluxo atual: trocar o tipo (ou voltar pra selecao) volta a "nao mexeu", pra
+  // um id escolhido numa atividade nao vazar pra outra.
+  useEffect(() => {
+    setEquipmentId(undefined);
+  }, [selectedType]);
 
   const liveDistanceMeters = useMemo(() => {
     let total = 0;
@@ -366,7 +379,7 @@ export default function NewActivityScreen() {
     setElapsedSeconds(0);
     setError(null);
     setShowBackgroundUpsell(false);
-    setEquipmentId(null);
+    setEquipmentId(undefined);
   };
 
   const handleSaveRun = async () => {
@@ -380,7 +393,8 @@ export default function NewActivityScreen() {
         route_points: routePoints,
         started_at: startedAt.toISOString(),
         finished_at: finish.toISOString(),
-        equipment_id: equipmentId,
+        // undefined = nao mexeu: omite a chave (o servidor aplica o padrao); null = "Nenhum" explicito.
+        ...(equipmentId !== undefined ? { equipment_id: equipmentId } : {}),
       });
       setSavedRun(run);
       setStage('result');
@@ -406,7 +420,6 @@ export default function NewActivityScreen() {
         calories_burned: caloriesManual.trim() ? Number(caloriesManual) : undefined,
         notes: notes.trim() || undefined,
         performed_at: new Date().toISOString(),
-        equipment_id: selectedType === 'fight' ? equipmentId : undefined,
       });
       setSavedManual(activity);
       setStage('result');
@@ -525,13 +538,11 @@ export default function NewActivityScreen() {
             </Pressable>
           ) : (
             <View style={styles.trackingResultButtons}>
-              <LiquiglassCard style={styles.equipmentPickerCard}>
-                <EquipmentPicker
-                  allowedCategories={['tenis', 'bike', 'faixa_cardiaca']}
-                  value={equipmentId}
-                  onChange={setEquipmentId}
-                />
-              </LiquiglassCard>
+              {equipmentCategory && (
+                <LiquiglassCard style={styles.equipmentPickerCard}>
+                  <EquipmentPicker category={equipmentCategory} value={equipmentId} onChange={setEquipmentId} />
+                </LiquiglassCard>
+              )}
               <Button2 label="Salvar atividade" onPress={handleSaveRun} />
               <Button2 label="Descartar atividade" variant="secondary" onPress={handleDiscardTracking} />
             </View>
@@ -596,13 +607,6 @@ export default function NewActivityScreen() {
               numberOfLines={3}
               style={styles.notesInput}
             />
-            {selectedType === 'fight' && (
-              <EquipmentPicker
-                allowedCategories={['luva_faixa', 'faixa_cardiaca']}
-                value={equipmentId}
-                onChange={setEquipmentId}
-              />
-            )}
             <Button2 label="Salvar atividade" onPress={handleSaveManual} disabled={!canSubmitManual} />
           </>
         )}
