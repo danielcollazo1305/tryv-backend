@@ -1,11 +1,10 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_range_bounds
 from app.models.points_event import PointsEvent
 from app.models.run import Run
 from app.models.user import User
@@ -51,10 +50,10 @@ def get_overall(
       caloria / 30.
     """
     start_date, end_date, days_total, _ = _resolve_window(f"{WINDOW_DAYS}d", None)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    # Janela em dias LOCAIS (herdada de _resolve_window); WHERE na coluna crua com limites UTC.
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
-    sessions = _query_workout_sessions(db, current_user.id, start_datetime, end_datetime)
+    sessions = _query_workout_sessions(db, current_user.id, start_utc, end_utc)
     total_volume_kg = sum(_session_stats(session)[1] for session in sessions)
     forca = _clamp_score(total_volume_kg / WEEKS_IN_WINDOW / STRENGTH_CEILING_KG_PER_WEEK * 100)
 
@@ -63,8 +62,8 @@ def get_overall(
         .filter(
             Run.user_id == current_user.id,
             Run.activity_type == "run",
-            Run.started_at >= start_datetime,
-            Run.started_at <= end_datetime,
+            Run.started_at >= start_utc,
+            Run.started_at < end_utc,
         )
         .scalar()
     )

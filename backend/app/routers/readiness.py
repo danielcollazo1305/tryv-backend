@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_pro_subscription
+from app.core.timezone import local_date, local_day_bounds, local_range_bounds, local_today
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
 from app.models.readiness_score import ReadinessScore
@@ -50,12 +51,12 @@ def _load_score(db: Session, user_id, today: date) -> float:
     7 dias, entende-se como "sem fadiga acumulada" (score maximo) — o que
     faz sentido pra esse pilar especifico, mesmo que nao reflita
     condicionamento fisico geral."""
-    start = datetime.combine(today - timedelta(days=SEVEN_DAYS - 1), datetime.min.time())
-    end = datetime.combine(today, datetime.max.time())
+    # `today` e o dia LOCAL; janela de SEVEN_DAYS dias locais -> limites UTC (fim exclusivo).
+    start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS - 1), today)
 
     run_seconds = (
         db.query(func.sum(Run.duration_seconds))
-        .filter(Run.user_id == user_id, Run.started_at >= start, Run.started_at <= end)
+        .filter(Run.user_id == user_id, Run.started_at >= start, Run.started_at < end)
         .scalar()
         or 0
     )
@@ -64,7 +65,7 @@ def _load_score(db: Session, user_id, today: date) -> float:
         .filter(
             ManualActivity.user_id == user_id,
             ManualActivity.performed_at >= start,
-            ManualActivity.performed_at <= end,
+            ManualActivity.performed_at < end,
         )
         .scalar()
         or 0
@@ -84,11 +85,11 @@ def _hr_score(db: Session, user_id, today: date) -> float | None:
     nao recuperado. Exige pelo menos alguns dias com dado pra nao tirar
     conclusao de uma amostra minuscula; sem isso, retorna None (o peso e
     redistribuido entre sono e carga)."""
-    baseline_start = datetime.combine(today - timedelta(days=HR_BASELINE_WINDOW_DAYS), datetime.min.time())
+    baseline_start = local_day_bounds(today - timedelta(days=HR_BASELINE_WINDOW_DAYS))[0]
     daily_min = dict(
-        db.query(func.date(HeartRateSample.recorded_at), func.min(HeartRateSample.bpm))
+        db.query(local_date(HeartRateSample.recorded_at), func.min(HeartRateSample.bpm))
         .filter(HeartRateSample.user_id == user_id, HeartRateSample.recorded_at >= baseline_start)
-        .group_by(func.date(HeartRateSample.recorded_at))
+        .group_by(local_date(HeartRateSample.recorded_at))
         .all()
     )
     if len(daily_min) < HR_MIN_DAYS_WITH_DATA:
@@ -148,8 +149,10 @@ def get_today_readiness(
     de sono pode passar de ausente pra disponivel entre uma chamada e outra
     no mesmo dia (ex: usuario conecta o Apple Health no meio do dia), entao
     faz sentido sempre refletir a informacao mais recente.
+
+    O "dia" do registro (ReadinessScore.date, upsert por dia) e o dia LOCAL.
     """
-    today = date.today()
+    today = local_today()
 
     sleep_score = _sleep_score(sleep_hours) if sleep_hours is not None else None
     load_score = _load_score(db, current_user.id, today)

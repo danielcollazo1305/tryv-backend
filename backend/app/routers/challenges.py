@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_date, local_day_bounds, local_range_bounds, local_today, to_local_date
 from app.models.challenge import Challenge, ChallengeCheckin
 from app.models.meal import Meal
 from app.models.run import Run
@@ -47,13 +48,13 @@ def _day_goal_met(db: Session, challenge: Challenge, user_id, day: date) -> bool
     pergunta diferente, que o heatmap ja deixa visivel de forma visual
     (contar celulas preenchidas na semana) sem precisar calcular aqui.
     """
-    start_dt = datetime.combine(day, datetime.min.time())
-    end_dt = datetime.combine(day, datetime.max.time())
+    # `day` e um dia LOCAL (core/timezone.py): WHERE na coluna crua com limites UTC (fim exclusivo).
+    start_utc, end_utc = local_day_bounds(day)
 
     if challenge.goal_type == "nutrition":
         total_protein = (
             db.query(func.sum(Meal.protein))
-            .filter(Meal.user_id == user_id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
+            .filter(Meal.user_id == user_id, Meal.logged_at >= start_utc, Meal.logged_at < end_utc)
             .scalar()
         )
         return (total_protein or 0) >= (challenge.target_value or 0)
@@ -63,8 +64,8 @@ def _day_goal_met(db: Session, challenge: Challenge, user_id, day: date) -> bool
             db.query(Run.id)
             .filter(
                 Run.user_id == user_id,
-                Run.started_at >= start_dt,
-                Run.started_at <= end_dt,
+                Run.started_at >= start_utc,
+                Run.started_at < end_utc,
                 Run.distance_meters >= (challenge.target_value or 0) * 1000,
             )
             .first()
@@ -77,8 +78,8 @@ def _day_goal_met(db: Session, challenge: Challenge, user_id, day: date) -> bool
             .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
             .filter(
                 WorkoutPlan.user_id == user_id,
-                WorkoutSession.completed_at >= start_dt,
-                WorkoutSession.completed_at <= end_dt,
+                WorkoutSession.completed_at >= start_utc,
+                WorkoutSession.completed_at < end_utc,
             )
             .first()
         )
@@ -96,25 +97,25 @@ def _compute_goal_progress_days(db: Session, challenge: Challenge, user_id, star
     goal_type automaticos, usado por GET /challenges/{id}/progress/me
     (alimenta o heatmap de consistencia).
     """
-    start_dt = datetime.combine(start_date, datetime.min.time())
-    end_dt = datetime.combine(end_date, datetime.max.time())
+    # Dias LOCAIS: limites UTC no WHERE (coluna crua), local_date so no SELECT/GROUP BY.
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     if challenge.goal_type == "nutrition":
         rows = (
-            db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.protein).label("total"))
-            .filter(Meal.user_id == user_id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
-            .group_by(func.date(Meal.logged_at))
+            db.query(local_date(Meal.logged_at).label("day"), func.sum(Meal.protein).label("total"))
+            .filter(Meal.user_id == user_id, Meal.logged_at >= start_utc, Meal.logged_at < end_utc)
+            .group_by(local_date(Meal.logged_at))
             .all()
         )
         return {row.day for row in rows if (row.total or 0) >= (challenge.target_value or 0)}
 
     if challenge.goal_type == "distance":
         rows = (
-            db.query(func.date(Run.started_at).label("day"))
+            db.query(local_date(Run.started_at).label("day"))
             .filter(
                 Run.user_id == user_id,
-                Run.started_at >= start_dt,
-                Run.started_at <= end_dt,
+                Run.started_at >= start_utc,
+                Run.started_at < end_utc,
                 Run.distance_meters >= (challenge.target_value or 0) * 1000,
             )
             .distinct()
@@ -124,12 +125,12 @@ def _compute_goal_progress_days(db: Session, challenge: Challenge, user_id, star
 
     if challenge.goal_type == "training_frequency":
         rows = (
-            db.query(func.date(WorkoutSession.completed_at).label("day"))
+            db.query(local_date(WorkoutSession.completed_at).label("day"))
             .join(WorkoutPlan, WorkoutSession.plan_id == WorkoutPlan.id)
             .filter(
                 WorkoutPlan.user_id == user_id,
-                WorkoutSession.completed_at >= start_dt,
-                WorkoutSession.completed_at <= end_dt,
+                WorkoutSession.completed_at >= start_utc,
+                WorkoutSession.completed_at < end_utc,
             )
             .distinct()
             .all()
@@ -152,12 +153,12 @@ def _challenge_out(db: Session, challenge: Challenge) -> ChallengeOut:
     elif challenge.goal_type == "manual":
         checkins_today = (
             db.query(ChallengeCheckin)
-            .filter(ChallengeCheckin.challenge_id == challenge.id, ChallengeCheckin.date == date.today())
+            .filter(ChallengeCheckin.challenge_id == challenge.id, ChallengeCheckin.date == local_today())
             .count()
         )
         community_progress_percent = round(min(checkins_today, participants_count) / participants_count * 100)
     else:
-        today = date.today()
+        today = local_today()
         met_today = sum(
             1 for participant_id in challenge.participant_ids if _day_goal_met(db, challenge, participant_id, today)
         )
@@ -496,7 +497,7 @@ def create_checkin(
             detail="E necessario estar participando do desafio para fazer check-in",
         )
 
-    today = date.today()
+    today = local_today()  # dia LOCAL: um check-in por dia local (antes: dia UTC, permitia 2 no mesmo dia real depois das 21h)
     existing = (
         db.query(ChallengeCheckin)
         .filter(
@@ -560,8 +561,8 @@ def get_my_goal_progress(
             detail="Este desafio usa check-in manual — use GET /challenges/{id}/checkins/me",
         )
 
-    start_date = challenge.start_date.date()
-    end_date = min(challenge.end_date.date(), date.today())
+    start_date = to_local_date(challenge.start_date)
+    end_date = min(to_local_date(challenge.end_date), local_today())
     if end_date < start_date:
         return []
 

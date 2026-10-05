@@ -10,6 +10,14 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
+from app.core.timezone import (
+    local_date,
+    local_day_bounds,
+    local_range_bounds,
+    local_timestamp,
+    local_today,
+    to_local_date,
+)
 from app.models.meal import Meal
 from app.models.user import User
 from app.schemas.meal import (
@@ -88,13 +96,15 @@ def _award_daily_goal_points(db: Session, current_user: User, logged_at: datetim
     sem job de fim de dia). Pula silenciosamente quando o usuario nao tem a
     meta definida (a maioria, inicialmente) -- nao e um erro.
     """
-    day = logged_at.date()
-    start_dt = datetime.combine(day, datetime.min.time())
-    end_dt = datetime.combine(day, datetime.max.time())
+    # logged_at e UTC naive; o dia da meta e o dia LOCAL da refeicao (uma refeicao as 23:30 de
+    # Brasilia, 02:30 UTC do dia seguinte, conta pro dia em que a pessoa a registrou).
+    # source_date (PointsEvent) recebe essa DATA LOCAL.
+    day = to_local_date(logged_at)
+    start_utc, end_utc = local_day_bounds(day)
 
     totals = (
         db.query(func.sum(Meal.calories).label("calories"), func.sum(Meal.protein).label("protein"))
-        .filter(Meal.user_id == current_user.id, Meal.logged_at >= start_dt, Meal.logged_at <= end_dt)
+        .filter(Meal.user_id == current_user.id, Meal.logged_at >= start_utc, Meal.logged_at < end_utc)
         .one()
     )
 
@@ -144,8 +154,10 @@ def _resolve_summary_window(period: MealsSummaryPeriod, offset: int) -> tuple[da
     linhas diarias seria impraticavel; a propria tela de referencia (Apple
     Health) tambem agrega por mes na aba de 1 ano. As demais (1d/7d/4w)
     sao granularidade diaria.
+
+    "Hoje" e o dia LOCAL (core/timezone.py), nao o dia UTC do servidor.
     """
-    today = date.today()
+    today = local_today()
 
     if period == "1d":
         end = today - timedelta(days=offset)
@@ -185,15 +197,15 @@ def get_meals_summary(
     registro nao entram na media nem viram 0).
     """
     start_date, end_date, granularity = _resolve_summary_window(period, offset)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    # Buckets = dias/meses LOCAIS. WHERE compara a coluna crua com limites UTC (fim exclusivo).
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     daily: list[MealDailySummary] = []
 
     if granularity == "day":
         rows = (
             db.query(
-                func.date(Meal.logged_at).label("bucket"),
+                local_date(Meal.logged_at).label("bucket"),
                 func.sum(Meal.calories).label("calories"),
                 func.sum(Meal.protein).label("protein"),
                 func.sum(Meal.carbs).label("carbs"),
@@ -201,10 +213,10 @@ def get_meals_summary(
             )
             .filter(
                 Meal.user_id == current_user.id,
-                Meal.logged_at >= start_datetime,
-                Meal.logged_at <= end_datetime,
+                Meal.logged_at >= start_utc,
+                Meal.logged_at < end_utc,
             )
-            .group_by(func.date(Meal.logged_at))
+            .group_by(local_date(Meal.logged_at))
             .all()
         )
         by_bucket = {row.bucket: row for row in rows}
@@ -229,8 +241,8 @@ def get_meals_summary(
     else:
         rows = (
             db.query(
-                extract("year", Meal.logged_at).label("y"),
-                extract("month", Meal.logged_at).label("m"),
+                extract("year", local_timestamp(Meal.logged_at)).label("y"),
+                extract("month", local_timestamp(Meal.logged_at)).label("m"),
                 func.sum(Meal.calories).label("calories"),
                 func.sum(Meal.protein).label("protein"),
                 func.sum(Meal.carbs).label("carbs"),
@@ -238,10 +250,13 @@ def get_meals_summary(
             )
             .filter(
                 Meal.user_id == current_user.id,
-                Meal.logged_at >= start_datetime,
-                Meal.logged_at <= end_datetime,
+                Meal.logged_at >= start_utc,
+                Meal.logged_at < end_utc,
             )
-            .group_by(extract("year", Meal.logged_at), extract("month", Meal.logged_at))
+            .group_by(
+                extract("year", local_timestamp(Meal.logged_at)),
+                extract("month", local_timestamp(Meal.logged_at)),
+            )
             .all()
         )
         by_bucket = {(int(row.y), int(row.m)): row for row in rows}

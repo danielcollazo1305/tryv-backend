@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_day_bounds, local_week_start
 from app.models.points_event import PointsEvent
 from app.models.squad import Squad, SquadMembership
 from app.models.user import User
@@ -27,10 +28,11 @@ with open(_CITY_COORDINATES_PATH, encoding="utf-8") as _f:
 
 
 def _week_start() -> datetime:
-    """Segunda 00h da semana atual -- mesmo criterio de getWeekPeriodInfo em app/(tabs)/ranking.tsx (mobile)."""
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-    return datetime.combine(monday, time.min)
+    """Inicio da semana atual como INSTANTE UTC naive: a segunda-feira 00h LOCAL (core/timezone.py)
+    convertida pra UTC -- comparavel direto com PointsEvent.created_at (UTC naive). Mesmo criterio
+    de getWeekPeriodInfo em app/(tabs)/ranking.tsx (mobile): uma atividade de domingo 23:30 em
+    Brasilia (02:30 UTC de segunda) ainda conta na semana ANTERIOR."""
+    return local_day_bounds(local_week_start())[0]
 
 
 @router.get("/ranking/individual", response_model=list[IndividualRankingEntryOut])

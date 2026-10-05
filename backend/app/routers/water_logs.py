@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import func
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_day_bounds, local_today
 from app.models.user import User
 from app.models.water_log import WaterLog
 from app.schemas.water_log import WaterLogCreate, WaterLogOut, WaterTodayOut
@@ -37,17 +38,15 @@ def get_water_today(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Soma do dia atual (mesma janela de dia civil do servidor usada em
-    meals.py/dashboard.py)."""
-    today = date.today()
-    start_dt = datetime.combine(today, datetime.min.time())
-    end_dt = datetime.combine(today, datetime.max.time())
+    """Soma do dia LOCAL de hoje (core/timezone.py; mesma definicao de dia do
+    dashboard/meals)."""
+    start_utc, end_utc = local_day_bounds(local_today())
     total = (
         db.query(func.coalesce(func.sum(WaterLog.amount_ml), 0))
         .filter(
             WaterLog.user_id == current_user.id,
-            WaterLog.logged_at >= start_dt,
-            WaterLog.logged_at <= end_dt,
+            WaterLog.logged_at >= start_utc,
+            WaterLog.logged_at < end_utc,
         )
         .scalar()
     )

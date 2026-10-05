@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
 from app.core.period import parse_period_days, validate_date_range
+from app.core.timezone import local_date, local_range_bounds, local_today, to_local_date
 from app.models.manual_activity import ManualActivity
 from app.models.meal import Meal
 from app.models.run import Run
@@ -72,7 +73,7 @@ def _resolve_window(
         return start_date, end_date, last_day, month
 
     days = parse_period_days(period)
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=days - 1)
     return start_date, end_date, days, period
 
@@ -97,37 +98,38 @@ def _compute_training_frequency(
     reaproveitada por /dashboard/training-frequency (versao livre, sem
     Pro-gate) sem duplicar a query.
     """
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    # Dia = dia LOCAL (core/timezone.py). WHERE compara a coluna crua com limites UTC
+    # (usa indice); local_date so no SELECT/GROUP BY.
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     run_counts = dict(
-        db.query(func.date(Run.started_at), func.count(Run.id))
+        db.query(local_date(Run.started_at), func.count(Run.id))
         .filter(
             Run.user_id == user_id,
-            Run.started_at >= start_datetime,
-            Run.started_at <= end_datetime,
+            Run.started_at >= start_utc,
+            Run.started_at < end_utc,
         )
-        .group_by(func.date(Run.started_at))
+        .group_by(local_date(Run.started_at))
         .all()
     )
     manual_counts = dict(
-        db.query(func.date(ManualActivity.performed_at), func.count(ManualActivity.id))
+        db.query(local_date(ManualActivity.performed_at), func.count(ManualActivity.id))
         .filter(
             ManualActivity.user_id == user_id,
-            ManualActivity.performed_at >= start_datetime,
-            ManualActivity.performed_at <= end_datetime,
+            ManualActivity.performed_at >= start_utc,
+            ManualActivity.performed_at < end_utc,
         )
-        .group_by(func.date(ManualActivity.performed_at))
+        .group_by(local_date(ManualActivity.performed_at))
         .all()
     )
     workout_counts = dict(
-        db.query(func.date(WorkoutSession.completed_at), func.count(WorkoutSession.id))
+        db.query(local_date(WorkoutSession.completed_at), func.count(WorkoutSession.id))
         .filter(
             WorkoutSession.user_id == user_id,
-            WorkoutSession.completed_at >= start_datetime,
-            WorkoutSession.completed_at <= end_datetime,
+            WorkoutSession.completed_at >= start_utc,
+            WorkoutSession.completed_at < end_utc,
         )
-        .group_by(func.date(WorkoutSession.completed_at))
+        .group_by(local_date(WorkoutSession.completed_at))
         .all()
     )
     trained_dates = set(run_counts) | set(manual_counts) | set(workout_counts)
@@ -205,18 +207,18 @@ def _compute_training_streaks(db: Session, user_id) -> tuple[int, int]:
     """
     run_dates = {
         row[0]
-        for row in db.query(func.date(Run.started_at)).filter(Run.user_id == user_id).distinct().all()
+        for row in db.query(local_date(Run.started_at)).filter(Run.user_id == user_id).distinct().all()
     }
     manual_dates = {
         row[0]
-        for row in db.query(func.date(ManualActivity.performed_at))
+        for row in db.query(local_date(ManualActivity.performed_at))
         .filter(ManualActivity.user_id == user_id)
         .distinct()
         .all()
     }
     workout_dates = {
         row[0]
-        for row in db.query(func.date(WorkoutSession.completed_at))
+        for row in db.query(local_date(WorkoutSession.completed_at))
         .filter(WorkoutSession.user_id == user_id)
         .distinct()
         .all()
@@ -235,7 +237,7 @@ def _compute_training_streaks(db: Session, user_id) -> tuple[int, int]:
             current_run = 1
 
     trained_set = set(trained_dates)
-    today = date.today()
+    today = local_today()
     cursor = today if today in trained_set else today - timedelta(days=1)
     current_streak = 0
     while cursor in trained_set:
@@ -274,19 +276,18 @@ def _compute_weekly_activity(db: Session, user_id) -> list[DailyDistanceKm]:
     Extraida de get_weekly_activity pra ser reaproveitada por
     get_user_weekly_activity (perfil publico de outra pessoa).
     """
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=6)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     run_distance = dict(
-        db.query(func.date(Run.started_at), func.sum(Run.distance_meters))
+        db.query(local_date(Run.started_at), func.sum(Run.distance_meters))
         .filter(
             Run.user_id == user_id,
-            Run.started_at >= start_datetime,
-            Run.started_at <= end_datetime,
+            Run.started_at >= start_utc,
+            Run.started_at < end_utc,
         )
-        .group_by(func.date(Run.started_at))
+        .group_by(local_date(Run.started_at))
         .all()
     )
 
@@ -327,14 +328,13 @@ def get_user_weekly_activity(
 
 def _compute_run_this_week(db: Session, user_id) -> tuple[float, float, float]:
     """(distance_km, duration_minutes, elevation_gain_m) somados dos ultimos 7 dias (hoje incluso), fixo — nao muda com o toggle Semanal/Mensal do card."""
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=6)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     runs = (
         db.query(Run)
-        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .filter(Run.user_id == user_id, Run.started_at >= start_utc, Run.started_at < end_utc)
         .all()
     )
     distance_km = round(sum(r.distance_meters for r in runs) / 1000, 2)
@@ -351,15 +351,14 @@ def _compute_run_chart(db: Session, user_id, granularity: Literal["day", "week"]
     toggle Mensal, sem duplicar a query.
     """
     bucket_count, bucket_days = (7, 1) if granularity == "day" else (12, 7)
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=bucket_count * bucket_days - 1)
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     run_distance = dict(
-        db.query(func.date(Run.started_at), func.sum(Run.distance_meters))
-        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
-        .group_by(func.date(Run.started_at))
+        db.query(local_date(Run.started_at), func.sum(Run.distance_meters))
+        .filter(Run.user_id == user_id, Run.started_at >= start_utc, Run.started_at < end_utc)
+        .group_by(local_date(Run.started_at))
         .all()
     )
 
@@ -420,8 +419,9 @@ def _session_stats(session: WorkoutSession) -> tuple[int, float]:
     return sets_count, volume_kg
 
 
-def _query_workout_sessions(db: Session, user_id, start_datetime: datetime, end_datetime: datetime) -> list[WorkoutSession]:
-    """Filtra direto em WorkoutSession.user_id (coluna propria, preenchida tanto
+def _query_workout_sessions(db: Session, user_id, start_utc: datetime, end_utc: datetime) -> list[WorkoutSession]:
+    """Sessoes com completed_at em [start_utc, end_utc) -- limites UTC naive (de dias locais,
+    ver local_range_bounds); fim EXCLUSIVO. Filtra direto em WorkoutSession.user_id (coluna propria, preenchida tanto
     por sessao de plano quanto por sessao livre -- ver models/workout.py) em vez
     de fazer JOIN com WorkoutPlan, que excluia sessoes livres (plan_id NULL) da
     agregacao inteira."""
@@ -429,8 +429,8 @@ def _query_workout_sessions(db: Session, user_id, start_datetime: datetime, end_
         db.query(WorkoutSession)
         .filter(
             WorkoutSession.user_id == user_id,
-            WorkoutSession.completed_at >= start_datetime,
-            WorkoutSession.completed_at <= end_datetime,
+            WorkoutSession.completed_at >= start_utc,
+            WorkoutSession.completed_at < end_utc,
         )
         .all()
     )
@@ -438,11 +438,9 @@ def _query_workout_sessions(db: Session, user_id, start_datetime: datetime, end_
 
 def _compute_workout_this_week(db: Session, user_id) -> tuple[int, int, float]:
     """(treinos, series_completas, volume_kg) dos ultimos 7 dias (hoje incluso), fixo — nao muda com o toggle."""
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=6)
-    sessions = _query_workout_sessions(
-        db, user_id, datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.max.time())
-    )
+    sessions = _query_workout_sessions(db, user_id, *local_range_bounds(start_date, end_date))
     sets_count = 0
     volume_kg = 0.0
     for session in sessions:
@@ -455,16 +453,14 @@ def _compute_workout_this_week(db: Session, user_id) -> tuple[int, int, float]:
 def _compute_workout_chart(db: Session, user_id, granularity: Literal["day", "week"]) -> list[ProgressChartPoint]:
     """Mesma janela/bucket de _compute_run_chart, so que o valor por bucket e volume_kg (soma das series completas do dia) em vez de km."""
     bucket_count, bucket_days = (7, 1) if granularity == "day" else (12, 7)
-    end_date = date.today()
+    end_date = local_today()
     start_date = end_date - timedelta(days=bucket_count * bucket_days - 1)
-    sessions = _query_workout_sessions(
-        db, user_id, datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.max.time())
-    )
+    sessions = _query_workout_sessions(db, user_id, *local_range_bounds(start_date, end_date))
 
     volume_by_day: dict[date, float] = {}
     for session in sessions:
         _, volume = _session_stats(session)
-        day = session.completed_at.date()
+        day = to_local_date(session.completed_at)
         volume_by_day[day] = volume_by_day.get(day, 0.0) + volume
 
     points = []
@@ -535,19 +531,18 @@ def get_home_summary(
         db, current_user.id, start_date, end_date, days_total
     )
 
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     # --- Resumo calorico: media diaria consumida (refeicoes) vs meta, se houver ---
     meal_rows = (
-        db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total"))
+        db.query(local_date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total"))
         .filter(
             Meal.user_id == current_user.id,
-            Meal.logged_at >= start_datetime,
-            Meal.logged_at <= end_datetime,
+            Meal.logged_at >= start_utc,
+            Meal.logged_at < end_utc,
             Meal.calories.isnot(None),
         )
-        .group_by(func.date(Meal.logged_at))
+        .group_by(local_date(Meal.logged_at))
         .all()
     )
     avg_consumed = (sum(row.total for row in meal_rows) / len(meal_rows)) if meal_rows else 0.0
@@ -592,19 +587,18 @@ def _compute_period_metrics(db: Session, user_id, start_date: date, end_date: da
     (nenhuma refeicao registrada, ou menos de 2 registros de peso no mes) —
     ai sim e "sem dado", nao zero.
     """
-    start_datetime = datetime.combine(start_date, datetime.min.time())
-    end_datetime = datetime.combine(end_date, datetime.max.time())
+    start_utc, end_utc = local_range_bounds(start_date, end_date)
 
     distance_meters = (
         db.query(func.sum(Run.distance_meters))
-        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .filter(Run.user_id == user_id, Run.started_at >= start_utc, Run.started_at < end_utc)
         .scalar()
         or 0.0
     )
 
     run_count = (
         db.query(func.count(Run.id))
-        .filter(Run.user_id == user_id, Run.started_at >= start_datetime, Run.started_at <= end_datetime)
+        .filter(Run.user_id == user_id, Run.started_at >= start_utc, Run.started_at < end_utc)
         .scalar()
         or 0
     )
@@ -612,22 +606,22 @@ def _compute_period_metrics(db: Session, user_id, start_date: date, end_date: da
         db.query(func.count(ManualActivity.id))
         .filter(
             ManualActivity.user_id == user_id,
-            ManualActivity.performed_at >= start_datetime,
-            ManualActivity.performed_at <= end_datetime,
+            ManualActivity.performed_at >= start_utc,
+            ManualActivity.performed_at < end_utc,
         )
         .scalar()
         or 0
     )
 
     meal_rows = (
-        db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total"))
+        db.query(local_date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total"))
         .filter(
             Meal.user_id == user_id,
-            Meal.logged_at >= start_datetime,
-            Meal.logged_at <= end_datetime,
+            Meal.logged_at >= start_utc,
+            Meal.logged_at < end_utc,
             Meal.calories.isnot(None),
         )
-        .group_by(func.date(Meal.logged_at))
+        .group_by(local_date(Meal.logged_at))
         .all()
     )
     avg_daily_calories = (
@@ -680,7 +674,7 @@ def get_month_comparison(
 ):
     """Mes civil atual vs. mes civil anterior, sempre — sem navegacao (isso
     ja existe em /home-summary via ?month=)."""
-    today = date.today()
+    today = local_today()
     current_start, current_end = _month_bounds(today.year, today.month)
     previous_year, previous_month = _shift_month(today.year, today.month, -1)
     previous_start, previous_end = _month_bounds(previous_year, previous_month)

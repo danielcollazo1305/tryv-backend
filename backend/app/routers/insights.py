@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_pro_subscription
+from app.core.timezone import local_date, local_day_bounds, local_today, to_local_date
 from app.models.daily_insight import DailyInsight
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
@@ -28,12 +29,14 @@ _NO_DATA_CATEGORY = "general"
 
 
 def _collect_weekly_summary(db: Session, current_user: User) -> dict:
-    start_datetime = datetime.utcnow() - timedelta(days=_WINDOW_DAYS)
+    # Ultimos _WINDOW_DAYS dias LOCAIS (hoje incluso): limite UTC do comeco do 1o dia local no
+    # WHERE (coluna crua); o agrupamento por dia e local.
+    start_datetime = local_day_bounds(local_today() - timedelta(days=_WINDOW_DAYS - 1))[0]
 
     meal_rows = (
-        db.query(func.date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total_calories"))
+        db.query(local_date(Meal.logged_at).label("day"), func.sum(Meal.calories).label("total_calories"))
         .filter(Meal.user_id == current_user.id, Meal.logged_at >= start_datetime, Meal.calories.isnot(None))
-        .group_by(func.date(Meal.logged_at))
+        .group_by(local_date(Meal.logged_at))
         .order_by("day")
         .all()
     )
@@ -54,7 +57,7 @@ def _collect_weekly_summary(db: Session, current_user: User) -> dict:
 
     activities = [
         {
-            "date": run.started_at.date().isoformat(),
+            "date": to_local_date(run.started_at).isoformat(),
             "type": run.activity_type,
             "duration_minutes": round(run.duration_seconds / 60, 1),
             "distance_meters": run.distance_meters,
@@ -63,7 +66,7 @@ def _collect_weekly_summary(db: Session, current_user: User) -> dict:
         for run in runs
     ] + [
         {
-            "date": activity.performed_at.date().isoformat(),
+            "date": to_local_date(activity.performed_at).isoformat(),
             "type": activity.activity_type,
             "duration_minutes": activity.duration_minutes,
         }
@@ -94,7 +97,7 @@ def _has_any_data(summary: dict) -> bool:
 
 
 def _generate_and_upsert(db: Session, current_user: User) -> DailyInsight:
-    today = date.today()
+    today = local_today()  # DailyInsight.date = dia LOCAL
     summary = _collect_weekly_summary(db, current_user)
 
     if not _has_any_data(summary):
@@ -160,7 +163,7 @@ def get_daily_insight(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_pro_subscription),
 ):
-    today = date.today()
+    today = local_today()  # cache por dia LOCAL (um insight por dia local)
     existing = (
         db.query(DailyInsight)
         .filter(DailyInsight.user_id == current_user.id, DailyInsight.date == today)

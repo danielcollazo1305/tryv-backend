@@ -1,10 +1,10 @@
 import uuid
-from datetime import datetime
 
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
+from app.core import timezone as tz
 
 
 class Meal(Base):
@@ -20,4 +20,7 @@ class Meal(Base):
     carbs = Column(Float, nullable=True)
     fat = Column(Float, nullable=True)
 
-    logged_at = Column(DateTime, default=datetime.utcnow)
+    # Instante em UTC naive. tz.utc_now (core/timezone.py) e o ponto unico de relogio; a chamada
+    # e TARDIA (lambda) de proposito: assim os testes de "dia local" congelam o horario da
+    # refeicao patchando so app.core.timezone.utc_now.
+    logged_at = Column(DateTime, default=lambda: tz.utc_now())

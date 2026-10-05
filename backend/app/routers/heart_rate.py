@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_pro_subscription
+from app.core.timezone import local_date, local_range_bounds
 from app.core.period import validate_date_range
 from app.models.heart_rate import HeartRateSample
 from app.models.user import User
@@ -99,25 +100,27 @@ def get_heart_rate_report(
     """
     if start_date and end_date:
         validate_date_range(start_date, end_date)
-        start = datetime.combine(start_date, datetime.min.time())
-        end = datetime.combine(end_date, datetime.max.time())
+        # Intervalo em dias LOCAIS -> limites UTC (fim exclusivo); coluna crua no WHERE.
+        start, end = local_range_bounds(start_date, end_date)
         period_days = (end_date - start_date).days + 1
-        date_filter = (HeartRateSample.recorded_at >= start, HeartRateSample.recorded_at <= end)
+        date_filter = (HeartRateSample.recorded_at >= start, HeartRateSample.recorded_at < end)
     else:
+        # Janela por INSTANTE (ultimas N*24 h): continua em UTC de proposito; so o agrupamento
+        # por dia, abaixo, e local.
         start = datetime.utcnow() - timedelta(days=days)
         period_days = days
         date_filter = (HeartRateSample.recorded_at >= start,)
 
     daily_rows = (
         db.query(
-            func.date(HeartRateSample.recorded_at).label("day"),
+            local_date(HeartRateSample.recorded_at).label("day"),
             func.avg(HeartRateSample.bpm).label("avg_bpm"),
             func.min(HeartRateSample.bpm).label("min_bpm"),
             func.max(HeartRateSample.bpm).label("max_bpm"),
         )
         .filter(HeartRateSample.user_id == current_user.id, *date_filter)
-        .group_by(func.date(HeartRateSample.recorded_at))
-        .order_by(func.date(HeartRateSample.recorded_at).asc())
+        .group_by(local_date(HeartRateSample.recorded_at))
+        .order_by(local_date(HeartRateSample.recorded_at).asc())
         .all()
     )
 

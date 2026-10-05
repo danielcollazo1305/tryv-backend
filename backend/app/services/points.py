@@ -58,7 +58,8 @@ def award_points(
         db.commit()
     except IntegrityError:
         db.rollback()
-        logger.info(
+        # DEBUG (nao INFO): acontece a cada refeicao registrada depois da meta do dia ja batida.
+        logger.debug(
             "PointsEvent duplicado ignorado (user_id=%s, source_type=%s, source_id=%s, source_date=%s)",
             user_id, source_type, source_id, source_date,
         )

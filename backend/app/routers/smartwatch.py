@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_today
 from app.models.smartwatch import SmartwatchData
 from app.models.user import User
 from app.schemas.smartwatch import SmartwatchDataIn, SmartwatchDataOut, SmartwatchSummaryOut
@@ -94,7 +95,7 @@ def summary(
     current_user: User = Depends(get_current_user),
 ):
     """Resumo agregado dos ultimos 7 dias (incluindo hoje)."""
-    end = date.today()
+    end = local_today()  # "hoje" local; recorded_date ja vem do cliente em dia local
     start = end - timedelta(days=6)
 
     rows = (

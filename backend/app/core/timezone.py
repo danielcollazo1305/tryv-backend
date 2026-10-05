@@ -12,10 +12,17 @@ CONVENCAO (vale pro projeto inteiro):
 - Fuso FIXO hoje (Settings.app_timezone, env APP_TIMEZONE, padrao America/Sao_Paulo).
   Por usuario depois: toda funcao aceita `tz` opcional (nome IANA ou ZoneInfo), entao
   trocar pro fuso do usuario e so passar outro valor, sem mudar as funcoes.
-- Todas as funcoes aceitam `now_utc` injetavel pra teste (nunca dependem do relogio
-  real nos testes). `now_utc` pode ser naive (entendido como UTC) ou com tzinfo.
+- PONTO UNICO DE RELOGIO: utc_now(). Quando `now_utc` nao e passado, local_now/local_today/
+  local_week_start usam utc_now() (consultado a cada chamada, pelo nome do modulo), entao os
+  testes congelam o tempo patchando so `app.core.timezone.utc_now`. `now_utc` tambem pode ser
+  passado por funcao; naive e entendido como UTC, e com tzinfo e convertido.
+- Filtros WHERE comparam a COLUNA CRUA com limites UTC (local_day_bounds / local_range_bounds),
+  pra manter o uso de indice; a expressao local_date(col) so entra no SELECT / GROUP BY.
 
-Nenhum modulo usa isto ainda (passo 1 da migracao de fuso); os endpoints migram no passo 2.
+Estado atual: os passos 1-2 da migracao estao feitos -- metas, XP, resumos, dashboard, desafios,
+ranking, insights e prontidao ja usam o dia LOCAL daqui. INSTANTES PUROS continuam em UTC e nao passam
+por estas funcoes (tokens/expiracoes, janelas rolantes de N dias, synced_at, created_at/logged_at
+gravados). Challenge.start_date/end_date sao INSTANTES (o app envia toISOString()).
 """
 from datetime import date, datetime, time, timedelta, timezone
 from functools import lru_cache
@@ -28,6 +35,12 @@ from app.core.config import settings
 UTC = timezone.utc
 
 TzLike = str | ZoneInfo | None
+
+
+def utc_now() -> datetime:
+    """Agora em UTC, como datetime NAIVE (o mesmo formato das colunas de instante). Unico
+    ponto de relogio do backend pra logica de "dia": monkeypatche esta funcao nos testes."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @lru_cache(maxsize=32)
@@ -47,9 +60,9 @@ def _tz_name(tz: TzLike = None) -> str:
 
 
 def _as_aware_utc(moment: datetime | None) -> datetime:
-    """Naive = UTC; com tzinfo = converte pra UTC; None = agora."""
+    """Naive = UTC; com tzinfo = converte pra UTC; None = agora (utc_now())."""
     if moment is None:
-        return datetime.now(UTC)
+        moment = utc_now()
     if moment.tzinfo is None:
         return moment.replace(tzinfo=UTC)
     return moment.astimezone(UTC)
@@ -85,10 +98,26 @@ def local_day_bounds(day: date, tz: TzLike = None) -> tuple[datetime, datetime]:
     return midnight_utc(day), midnight_utc(day + timedelta(days=1))
 
 
+def local_range_bounds(start_day: date, end_day: date, tz: TzLike = None) -> tuple[datetime, datetime]:
+    """Limites UTC naive de um intervalo de dias LOCAIS, inclusivo nos dois extremos:
+    (inicio de start_day, fim EXCLUSIVO de end_day). Filtre com `col >= inicio` e `col < fim`."""
+    return local_day_bounds(start_day, tz)[0], local_day_bounds(end_day, tz)[1]
+
+
 def local_week_start(tz: TzLike = None, now_utc: datetime | None = None) -> date:
     """Segunda-feira (data local) da semana corrente no fuso local."""
     today = local_today(tz, now_utc)
     return today - timedelta(days=today.weekday())
+
+
+def local_timestamp(col, tz: TzLike = None):
+    """
+    Expressao SQL: o horario LOCAL (timestamp sem fuso) de uma coluna de instante em UTC naive:
+    timezone(<tz>, timezone('UTC', col)). Base de local_date; use direto quando precisar de
+    partes do horario local (ex: extract('month', local_timestamp(col))). NAO depende do
+    fuso da sessao do banco.
+    """
+    return func.timezone(_tz_name(tz), func.timezone("UTC", col))
 
 
 def local_date(col, tz: TzLike = None):
@@ -102,4 +131,4 @@ def local_date(col, tz: TzLike = None):
     a data. Tudo com fuso EXPLICITO: o resultado NAO depende do fuso da sessao do
     banco. Substitui func.date(col) em filtros/agrupamentos por dia.
     """
-    return cast(func.timezone(_tz_name(tz), func.timezone("UTC", col)), Date)
+    return cast(local_timestamp(col, tz), Date)

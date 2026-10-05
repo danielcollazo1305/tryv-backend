@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.timezone import local_today
 from app.models.creatine_log import CreatineLog
 from app.models.user import User
 from app.schemas.creatine_log import CreatineLogOut, CreatineTodayOut
@@ -30,7 +31,7 @@ def mark_creatine_today(
     dois toques simultaneos -- o perdedor da corrida cai no IntegrityError e
     devolve o registro que o outro acabou de criar. Sem XP.
     """
-    today = date.today()
+    today = local_today()  # dia LOCAL (core/timezone.py)
 
     existing = _get_log_for_day(db, current_user.id, today)
     if existing:
@@ -54,4 +55,4 @@ def get_creatine_today(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return CreatineTodayOut(taken_today=_get_log_for_day(db, current_user.id, date.today()) is not None)
+    return CreatineTodayOut(taken_today=_get_log_for_day(db, current_user.id, local_today()) is not None)
