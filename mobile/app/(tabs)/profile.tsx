@@ -512,18 +512,31 @@ export default function ProfileScreen() {
       <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
         <Text style={styles.logo}>Tryv Fit</Text>
 
-        <Pressable onPress={() => setAvatarPickerVisible(true)} hitSlop={8}>
-          <Avatar
-            initials={user ? getInitials(user.name) : '?'}
-            imageUrl={user?.avatar_url}
-            size={88}
-            style={styles.avatar}
+        {/*
+          Overall (carta de jogador): o card agora carrega a identidade (avatar + nome), entao
+          o bloco avatar/nome que ficava aqui saiu. O avatar abaixo e o MESMO elemento de antes
+          (Pressable que abre a troca/geracao de avatar, com o badge de camera), so em 64 px e
+          passado pro card por prop. Avatar e nome aparecem mesmo se o overall falhar.
+        */}
+        <View style={styles.overallWrap}>
+          <OverallCard
+            name={user?.name ?? ''}
+            avatar={
+              <Pressable onPress={() => setAvatarPickerVisible(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Trocar avatar">
+                <Avatar
+                  initials={user ? getInitials(user.name) : '?'}
+                  imageUrl={user?.avatar_url}
+                  size={64}
+                  style={styles.avatarRing}
+                />
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera" size={12} color={colors3.onPrimary} />
+                </View>
+              </Pressable>
+            }
           />
-          <View style={styles.avatarEditBadge}>
-            <Ionicons name="camera" size={14} color={colors3.onPrimary} />
-          </View>
-        </Pressable>
-        <Text style={styles.name}>{user?.name}</Text>
+        </View>
+
         <Text style={styles.email}>{user?.email}</Text>
 
         <Pressable style={styles.followStatsRow} onPress={() => router.push('/social/follows')}>
@@ -537,10 +550,6 @@ export default function ProfileScreen() {
             <Text style={styles.followStatLabel}>Seguindo</Text>
           </View>
         </Pressable>
-
-        <View style={styles.overallWrap}>
-          <OverallCard />
-        </View>
 
         <View style={styles.badgesWrap}>
           {/*
@@ -942,21 +951,22 @@ const styles = StyleSheet.create({
     paddingBottom: spacing3.xl,
   },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
-  avatar: { marginBottom: spacing3.md },
+  // Borda do avatar sobre o card escuro do Overall.
+  avatarRing: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.25)' },
+  // Badge de camera sobre o avatar de 64 px; a borda tem a cor do fundo do card pra "recortar" o circulo.
   avatarEditBadge: {
     position: 'absolute',
-    bottom: spacing3.md + 2,
+    bottom: -2,
     right: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors3.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors3.background,
+    borderColor: '#1B1236',
   },
-  name: { ...typography3.headlineMd, fontSize: 22 },
   email: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.xs, marginBottom: spacing3.sm },
 
   avatarModalBackdrop: {
@@ -1001,7 +1011,7 @@ const styles = StyleSheet.create({
   followStatNumber: { ...typography3.headlineLg, fontSize: 20, lineHeight: 24, color: colors3.onSurface },
   followStatLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, marginTop: 2 },
 
-  overallWrap: { marginBottom: spacing3.lg, width: '100%' },
+  overallWrap: { marginBottom: spacing3.md, width: '100%' },
   badgesWrap: { marginBottom: spacing3.lg, width: '100%' },
 
   // Grid unificado premium (2 colunas) — ver comentario extenso na JSX
