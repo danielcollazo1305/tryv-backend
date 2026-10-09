@@ -340,8 +340,11 @@ def create_student_workout_plan(
 
 
 @router.get("/", response_model=list[TrainerPublicOut])
-def list_trainers(db: Session = Depends(get_db)):
-    """Lista publica — so professores verificados e ativos aparecem na busca."""
+def list_trainers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login (era publica)
+):
+    """Lista (exige login) — so professores verificados e ativos aparecem na busca."""
     rows = (
         db.query(Trainer, User.name)
         .join(User, Trainer.user_id == User.id)
@@ -353,8 +356,12 @@ def list_trainers(db: Session = Depends(get_db)):
 
 
 @router.get("/{trainer_id}", response_model=TrainerPublicOut)
-def get_trainer(trainer_id: str, db: Session = Depends(get_db)):
-    """Perfil publico de um professor — mesma regra da lista: so verificado e ativo."""
+def get_trainer(
+    trainer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login (era publica)
+):
+    """Perfil de um professor (exige login) — mesma regra da lista: so verificado e ativo."""
     try:
         parsed_id = uuid.UUID(trainer_id)
     except ValueError:

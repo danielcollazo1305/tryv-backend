@@ -243,6 +243,7 @@ def list_challenges(
     is_official: bool | None = Query(None),
     category: ChallengeCategory | None = Query(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login (era publica)
 ):
     """
     Listagem geral com filtros — usada pela aba "App" (is_official=true +
@@ -354,8 +355,12 @@ def create_challenge(
 
 
 @router.get("/trainers/{trainer_id}/challenges", response_model=list[ChallengeOut])
-def list_trainer_challenges(trainer_id: str, db: Session = Depends(get_db)):
-    """Vitrine publica — visivel mesmo para quem nao e aluno do professor."""
+def list_trainer_challenges(
+    trainer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login (era publica)
+):
+    """Vitrine (exige login) — visivel mesmo para quem nao e aluno do professor."""
     try:
         parsed_id = uuid.UUID(trainer_id)
     except ValueError:
@@ -383,7 +388,11 @@ def list_trainer_challenges(trainer_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/challenges/{challenge_id}", response_model=ChallengeOut)
-def get_challenge(challenge_id: str, db: Session = Depends(get_db)):
+def get_challenge(
+    challenge_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login (era publica)
+):
     return _challenge_out(db, _get_challenge_or_404(db, challenge_id))
 
 
