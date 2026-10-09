@@ -2,10 +2,11 @@ import logging
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.login_throttle import client_ip, login_throttle
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.password_reset import PasswordResetToken
 from app.models.user import User
@@ -50,15 +51,28 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
+def login(credentials: UserLogin, request: Request, db: Session = Depends(get_db)):
+    # Limite de tentativas (core/login_throttle.py): checado ANTES de olhar a senha e igual para e-mail que
+    # existe e que nao existe, entao nao revela nada. So falhas contam; sucesso zera o contador do e-mail.
+    ip = client_ip(request)
+    retry_after = login_throttle.blocked_for(credentials.email, ip)
+    if retry_after:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas. Tente novamente em alguns minutos.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     user = db.query(User).filter(User.email == credentials.email).first()
 
     if not user or not verify_password(credentials.password, user.hashed_password):
+        login_throttle.record_failure(credentials.email, ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha incorretos",
         )
 
+    login_throttle.reset_email(credentials.email)
     access_token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=access_token)
 

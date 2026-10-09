@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 dias
 
+    # Limite de tentativas de login (janela deslizante em memoria, ver core/login_throttle.py). Envs:
+    # LOGIN_MAX_FAILED_ATTEMPTS, LOGIN_WINDOW_MINUTES, LOGIN_MAX_FAILED_ATTEMPTS_PER_IP.
+    login_max_failed_attempts: int = 5  # falhas por e-mail na janela; a seguinte recebe 429
+    login_window_minutes: int = 15
+    login_max_failed_attempts_per_ip: int = 30  # teto por IP na mesma janela
+
     # Claude API
     anthropic_api_key: str = ""
 
