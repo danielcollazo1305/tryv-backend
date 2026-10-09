@@ -13,6 +13,8 @@ export interface Meal {
   id: string;
   user_id: string;
   photo_url: string | null;
+  /** Miniatura 320x240 WebP (null em refeicoes antigas: usar photo_url). Pode vir ausente. */
+  photo_thumb_url?: string | null;
   description: string | null;
   calories: number | null;
   protein: number | null;
@@ -23,6 +25,8 @@ export interface Meal {
 
 export interface MealCreatePayload {
   photo_url?: string | null;
+  /** Miniatura devolvida pelo upload (thumb_url); o servidor so grava se for do nosso bucket. */
+  photo_thumb_url?: string | null;
   description?: string | null;
   calories: number;
   protein?: number | null;
@@ -78,6 +82,33 @@ export async function createMeal(payload: MealCreatePayload): Promise<Meal> {
 
 export async function listMeals(): Promise<Meal[]> {
   const response = await api.get<Meal[]>('/meals/');
+  return response.data;
+}
+
+/** Um dia de GET /meals/days: hoje primeiro. date e o dia LOCAL do servidor ('YYYY-MM-DD'). */
+export interface MealDay {
+  date: string;
+  total_calories: number;
+  meals_count: number;
+  photo_url: string | null;
+  photo_thumb_url: string | null;
+}
+
+/** Os `days` ultimos dias (1 a 31, padrao 7), do mais recente (hoje) ao mais antigo; sempre `days` itens. */
+export async function getMealDays(days = 7): Promise<MealDay[]> {
+  const response = await api.get<MealDay[]>('/meals/days', { params: { days } });
+  return response.data.map((day) => ({
+    ...day,
+    total_calories: day.total_calories ?? 0,
+    meals_count: day.meals_count ?? 0,
+    photo_url: day.photo_url ?? null,
+    photo_thumb_url: day.photo_thumb_url ?? null,
+  }));
+}
+
+/** Refeicoes de um dia LOCAL ('YYYY-MM-DD'), em ordem crescente de horario. */
+export async function listMealsByDate(date: string): Promise<Meal[]> {
+  const response = await api.get<Meal[]>('/meals/', { params: { date } });
   return response.data;
 }
 

@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
+import { DayStrip } from '@/components/DayStrip';
 import { GlassCard } from '@/components/GlassCard';
 import { DietPlanBanner } from '@/components/DietPlanBanner';
 import { GoalProgressBar } from '@/components/GoalProgressBar';
@@ -16,7 +17,7 @@ import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { WaterCreatineCards } from '@/components/WaterCreatineCards';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { Meal, isToday, listMeals } from '@/services/meals';
+import { Meal, MealDay, getMealDays, isToday, listMeals } from '@/services/meals';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 export default function MealsScreen() {
@@ -25,6 +26,19 @@ export default function MealsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fileira dos 7 dias: null = carregando pela primeira vez; erro de rede = a fileira some (daysFailed) e o resto
+  // da aba segue normal. Em recargas (foco/pull-to-refresh) os dados antigos ficam na tela, sem piscar.
+  const [days, setDays] = useState<MealDay[] | null>(null);
+  const [daysFailed, setDaysFailed] = useState(false);
+
+  const fetchDays = useCallback(async () => {
+    try {
+      setDays(await getMealDays(7));
+      setDaysFailed(false);
+    } catch {
+      setDaysFailed(true);
+    }
+  }, []);
 
   const fetchMeals = useCallback(async (showSpinner: boolean) => {
     if (showSpinner) setLoading(true);
@@ -44,7 +58,8 @@ export default function MealsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchMeals(true);
-    }, [fetchMeals])
+      fetchDays();
+    }, [fetchMeals, fetchDays])
   );
 
   const todaysMeals = useMemo(() => meals.filter((meal) => isToday(meal.logged_at)), [meals]);
@@ -69,6 +84,7 @@ export default function MealsScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchMeals(false);
+    fetchDays();
   };
 
   return (
@@ -92,6 +108,15 @@ export default function MealsScreen() {
               <ProfileAvatarButton size={36} />
             </View>
 
+            {/* Hoje = o PRIMEIRO item devolvido pelo servidor (nao recalcula pelo relogio do aparelho). */}
+            {!daysFailed && (
+              <DayStrip
+                days={days}
+                onPressDay={(day) => router.push({ pathname: '/meal/day/[date]', params: { date: day.date } })}
+                onPressSeeAll={() => router.push('/meal/photos')}
+              />
+            )}
+
             <DietPlanBanner />
 
             <MacrosGrid
@@ -107,16 +132,6 @@ export default function MealsScreen() {
             <GoalProgressBar label="Proteína" current={totals.protein} goal={user?.daily_protein_goal ?? null} />
 
             <MealsHistoryCard />
-
-            <Pressable onPress={() => router.push('/meal/photos')}>
-              <GlassCard variant="glass" style={styles.photosLink}>
-                <View style={styles.photosLinkIconWrap}>
-                  <Ionicons name="images" size={18} color={colors3.primary} />
-                </View>
-                <Text style={styles.photosLinkText}>Histórico de fotos</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
-              </GlassCard>
-            </Pressable>
 
             {!!error && <Text style={styles.error}>{error}</Text>}
             {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
@@ -175,20 +190,6 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography3.headlineMd, fontSize: 18, marginTop: spacing3.xs },
   empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
-
-  photosLink: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
-  photosLinkIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius3.sm,
-    backgroundColor: 'rgba(107, 56, 212, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // fontFamily real (Inter_600SemiBold) em vez de fontWeight sobreposto a
-  // bodyMd (Inter_400Regular) -- fontWeight nao tem efeito confiavel
-  // quando fontFamily ja nomeia um arquivo de peso especifico.
-  photosLinkText: { ...typography3.bodyMd, fontFamily: 'Inter_600SemiBold', flex: 1 },
 
   addMealCard: { gap: spacing3.md },
   addMealHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },

@@ -24,7 +24,7 @@ import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
-import { uploadMedia } from '@/services/media';
+import { uploadMediaWithThumb } from '@/services/media';
 import { SavedMealCreate, createSavedMeal } from '@/services/savedMeals';
 import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -268,8 +268,11 @@ export default function AddMealScreen() {
 
     setStage('uploading');
     let photoUrl: string;
+    let photoThumbUrl: string | null = null;
     try {
-      photoUrl = await uploadMedia(imageUri, 'meals');
+      const uploaded = await uploadMediaWithThumb(imageUri, 'meals');
+      photoUrl = uploaded.url;
+      photoThumbUrl = uploaded.thumb_url;
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
       setStage('reviewing');
@@ -286,7 +289,8 @@ export default function AddMealScreen() {
         carbs: Number(carbs) || 0,
         fat: Number(fat) || 0,
       };
-      await createMeal(mealPayload);
+      // A miniatura so vai na refeicao (a refeicao salva/favorita nao a usa).
+      await createMeal(photoThumbUrl ? { ...mealPayload, photo_thumb_url: photoThumbUrl } : mealPayload);
       await saveFavoriteIfRequested(mealPayload);
       if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, photoUrl);
       router.back();

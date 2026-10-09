@@ -20,8 +20,17 @@ function guessMimeType(extension: string): string {
   return MIME_TYPES_BY_EXTENSION[extension] ?? `image/${extension === 'jpg' ? 'jpeg' : extension}`;
 }
 
-/** Envia uma imagem (ou, na pasta "workouts", um video) local do dispositivo para o S3 e retorna a URL publica. */
-export async function uploadMedia(fileUri: string, folder: MediaFolder): Promise<string> {
+export interface MediaUploadResult {
+  url: string;
+  /** Miniatura 320x240 WebP; so para folder='meals' e null se nao foi possivel gerar (ou ausente em servidor antigo). */
+  thumb_url: string | null;
+}
+
+/**
+ * Envia uma imagem (ou, na pasta "workouts", um video) local do dispositivo para o S3 e retorna a URL publica e,
+ * para a pasta "meals", a miniatura.
+ */
+export async function uploadMediaWithThumb(fileUri: string, folder: MediaFolder): Promise<MediaUploadResult> {
   const filename = fileUri.split('/').pop() ?? `${folder}.jpg`;
   const extensionMatch = /\.(\w+)$/.exec(filename);
   const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'jpg';
@@ -39,6 +48,11 @@ export async function uploadMedia(fileUri: string, folder: MediaFolder): Promise
   // Video pode ser bem maior que uma foto — folga maior de timeout so
   // pra essa pasta, sem penalizar os uploads de imagem existentes.
   const timeout = folder === 'workouts' ? 90000 : 30000;
-  const response = await api.post<{ url: string }>('/media/upload', formData, { timeout });
-  return response.data.url;
+  const response = await api.post<{ url: string; thumb_url?: string | null }>('/media/upload', formData, { timeout });
+  return { url: response.data.url, thumb_url: response.data.thumb_url ?? null };
+}
+
+/** Envia a midia e retorna so a URL publica (os demais chamadores nao precisam da miniatura). */
+export async function uploadMedia(fileUri: string, folder: MediaFolder): Promise<string> {
+  return (await uploadMediaWithThumb(fileUri, folder)).url;
 }
