@@ -12,7 +12,9 @@ import uuid
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
-from PIL import Image
+import re
+
+from PIL import Image, ImageOps
 
 from app.core.config import settings
 
@@ -97,6 +99,56 @@ def upload_avatar_images(png_bytes: bytes) -> tuple[str, str | None]:
         logger.warning("Miniatura do avatar nao gerada/enviada (avatar_id=%s): %s", avatar_id, e)
         return url, None
     return url, thumb_url
+
+
+# ---- fotos de refeicao (pasta meals): original + miniatura 4:3 -----------------------------------------------
+MEAL_THUMB_SIZE = (320, 240)  # 4:3, mesma proporcao do recorte da foto no app
+MEAL_THUMB_QUALITY = 80
+MEALS_PREFIX = "meals/"
+# Chave aceita para a miniatura de uma refeicao: meals/<nome sem barras>.webp (sem "..", sem subpastas).
+_MEAL_THUMB_KEY_RE = re.compile(r"^meals/[A-Za-z0-9_-]+\.webp$")
+
+
+def make_photo_thumbnail(image_bytes: bytes) -> bytes:
+    """Miniatura 320x240 WebP (qualidade 80) de uma foto qualquer: corrige a rotacao do EXIF ANTES de recortar
+    (fotos de celular vem deitadas) e recorta ao centro (cover) para 4:3 quando a foto nao for 4:3. Levanta
+    excecao se o arquivo nao for uma imagem que o Pillow abra (ex: HEIC, corrompido)."""
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        img.load()
+        oriented = ImageOps.exif_transpose(img)
+        thumb = ImageOps.fit(oriented.convert("RGB"), MEAL_THUMB_SIZE, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    out = io.BytesIO()
+    thumb.save(out, format="WEBP", quality=MEAL_THUMB_QUALITY)
+    return out.getvalue()
+
+
+def upload_meal_photo(file_bytes: bytes, content_type: str) -> tuple[str, str | None]:
+    """Sobe a foto de refeicao: original meals/{uuid}.{ext} e miniatura meals/{uuid}_thumb.webp (mesmo uuid), as
+    duas com cache imutavel (o nome muda a cada upload). Retorna (url_original, url_miniatura). Falha na ORIGINAL
+    levanta StorageError; falha ao gerar ou subir a MINIATURA so loga WARNING (sem dado pessoal) e devolve None no
+    lugar dela: o upload da original nunca falha por causa dela."""
+    extension = mimetypes.guess_extension(content_type) or ".jpg"
+    if extension == ".jpe":
+        extension = ".jpg"
+    photo_id = uuid.uuid4()
+    url = _put(f"{MEALS_PREFIX}{photo_id}{extension}", file_bytes, content_type, IMMUTABLE_CACHE_CONTROL)
+    try:
+        thumb_bytes = make_photo_thumbnail(file_bytes)
+        thumb_url = _put(f"{MEALS_PREFIX}{photo_id}_thumb.webp", thumb_bytes, "image/webp", IMMUTABLE_CACHE_CONTROL)
+    except Exception as e:  # noqa: BLE001 -- qualquer falha da miniatura e tolerada
+        logger.warning("Miniatura da foto de refeicao nao gerada/enviada (photo_id=%s, %s)", photo_id, type(e).__name__)
+        return url, None
+    return url, thumb_url
+
+
+def is_own_meal_thumb_url(url: str | None) -> bool:
+    """True so se a URL e uma miniatura do NOSSO bucket/regiao, sob meals/, terminada em .webp, sem '..'."""
+    if not url or ".." in url:
+        return False
+    prefix = _public_url_prefix()
+    if not url.startswith(prefix):
+        return False
+    return bool(_MEAL_THUMB_KEY_RE.match(url[len(prefix):]))
 
 
 def delete_object(key: str) -> bool:

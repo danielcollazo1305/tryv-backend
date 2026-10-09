@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import anthropic
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import extract, func
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -24,6 +25,7 @@ from app.schemas.meal import (
     MealAnalysisOut,
     MealCreate,
     MealDailySummary,
+    MealDayOut,
     MealOut,
     MealsSummaryOut,
     MealsSummaryPeriod,
@@ -133,15 +135,17 @@ def create_meal(
 
 @router.get("/", response_model=list[MealOut])
 def list_meals(
+    # Filtro opcional por dia LOCAL (YYYY-MM-DD; formato invalido -> 422). Com ele, so as refeicoes daquele dia, em
+    # ordem CRESCENTE de horario. Sem ele, todas as refeicoes, mais recentes primeiro (comportamento de sempre).
+    day: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(Meal)
-        .filter(Meal.user_id == current_user.id)
-        .order_by(Meal.logged_at.desc())
-        .all()
-    )
+    query = db.query(Meal).filter(Meal.user_id == current_user.id)
+    if day is not None:
+        start_utc, end_utc = local_day_bounds(day)
+        return query.filter(Meal.logged_at >= start_utc, Meal.logged_at < end_utc).order_by(Meal.logged_at.asc()).all()
+    return query.order_by(Meal.logged_at.desc()).all()
 
 
 def _resolve_summary_window(period: MealsSummaryPeriod, offset: int) -> tuple[date, date, str]:
@@ -301,6 +305,69 @@ def get_meals_summary(
         avg_carbs=_avg("carbs"),
         avg_fat=_avg("fat"),
     )
+
+
+@router.get("/days", response_model=list[MealDayOut])
+def list_meal_days(
+    days: int = Query(7, ge=1, le=31),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Os `days` ultimos dias LOCAIS (hoje primeiro, depois ontem...), SEMPRE `days` itens: total de calorias, quantas
+    refeicoes e a foto da refeicao mais recente do dia que tenha foto (photo_url) com a miniatura DESSA mesma
+    refeicao (photo_thumb_url; null se ela nao tiver).
+    Dias sem refeicao vem zerados. Uma unica consulta agregada (mesmo padrao de GET /meals/summary), sem N+1.
+    """
+    today = local_today()
+    start_day = today - timedelta(days=days - 1)
+    start_utc, end_utc = local_range_bounds(start_day, today)
+    bucket = local_date(Meal.logged_at)
+
+    rows = (
+        db.query(
+            bucket.label("bucket"),
+            func.coalesce(func.sum(Meal.calories), 0).label("total_calories"),
+            func.count(Meal.id).label("meals_count"),
+            # fotos do dia da mais recente para a mais antiga; o primeiro elemento e a foto escolhida. As duas
+            # listas usam o MESMO filtro e a MESMA ordenacao (com desempate por id), entao o par (foto, miniatura)
+            # fica alinhado por posicao.
+            func.array_agg(aggregate_order_by(Meal.photo_url, Meal.logged_at.desc(), Meal.id.desc()))
+            .filter(Meal.photo_url.isnot(None))
+            .label("photos"),
+            func.array_agg(aggregate_order_by(Meal.photo_thumb_url, Meal.logged_at.desc(), Meal.id.desc()))
+            .filter(Meal.photo_url.isnot(None))
+            .label("thumbs"),
+        )
+        .filter(
+            Meal.user_id == current_user.id,
+            Meal.logged_at >= start_utc,
+            Meal.logged_at < end_utc,
+        )
+        .group_by(bucket)
+        .all()
+    )
+    by_bucket = {row.bucket: row for row in rows}
+
+    result: list[MealDayOut] = []
+    for offset in range(days):
+        day = today - timedelta(days=offset)
+        row = by_bucket.get(day)
+        if row is None:
+            result.append(MealDayOut(date=day))
+        else:
+            photos = row.photos or []
+            thumbs = row.thumbs or []
+            result.append(
+                MealDayOut(
+                    date=day,
+                    total_calories=float(row.total_calories or 0),
+                    meals_count=int(row.meals_count),
+                    photo_url=photos[0] if photos else None,
+                    photo_thumb_url=thumbs[0] if thumbs else None,
+                )
+            )
+    return result
 
 
 @router.get("/{meal_id}", response_model=MealOut)

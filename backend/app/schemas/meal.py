@@ -2,7 +2,9 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.services.storage import is_own_meal_thumb_url
 
 
 class MealAnalysisOut(BaseModel):
@@ -25,17 +27,26 @@ class MealTextAnalysisRequest(BaseModel):
 
 class MealCreate(BaseModel):
     photo_url: str | None = None
+    # So e gravada se for uma miniatura do NOSSO bucket/regiao sob meals/ (.webp, sem ..); qualquer outra coisa
+    # vira null, sem erro 400 (o app nao deve falhar o registro da refeicao por causa da miniatura).
+    photo_thumb_url: str | None = None
     description: str | None = None
     calories: float = Field(..., ge=0)
     protein: float | None = Field(None, ge=0)
     carbs: float | None = Field(None, ge=0)
     fat: float | None = Field(None, ge=0)
 
+    @field_validator("photo_thumb_url")
+    @classmethod
+    def _only_our_meal_thumb(cls, value: str | None) -> str | None:
+        return value if is_own_meal_thumb_url(value) else None
+
 
 class MealOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     photo_url: str | None = None
+    photo_thumb_url: str | None = None
     description: str | None = None
     calories: float | None = None
     protein: float | None = None
@@ -73,3 +84,14 @@ class MealsSummaryOut(BaseModel):
     avg_protein: float | None = None
     avg_carbs: float | None = None
     avg_fat: float | None = None
+
+
+class MealDayOut(BaseModel):
+    """Um dia LOCAL de GET /meals/days: sempre presente, mesmo sem refeicao (total_calories=0, meals_count=0,
+    sem foto). photo_url = foto da refeicao MAIS RECENTE do dia que tenha foto; photo_thumb_url = miniatura da
+    MESMA refeicao (null se ela nao tiver miniatura, ex: refeicoes antigas)."""
+    date: date
+    total_calories: float = 0
+    meals_count: int = 0
+    photo_url: str | None = None
+    photo_thumb_url: str | None = None

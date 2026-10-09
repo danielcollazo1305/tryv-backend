@@ -1,11 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.schemas.media import MediaUploadOut
-from app.services.storage import StorageError, upload_image
+from app.services.storage import StorageError, upload_image, upload_meal_photo
 
 router = APIRouter(prefix="/media", tags=["media"])
 logger = logging.getLogger(__name__)
@@ -54,10 +55,16 @@ async def upload_media(
             detail=f"Arquivo excede o tamanho maximo permitido ({max_size // (1024 * 1024)}MB)",
         )
 
+    thumb_url = None
     try:
-        url = upload_image(file_bytes, content_type, folder)
+        if folder == "meals" and is_image:
+            # Foto de refeicao: original + miniatura 4:3 (a miniatura e best-effort). Em thread: decodificar e
+            # recortar uma foto de celular nao pode travar o loop de eventos.
+            url, thumb_url = await run_in_threadpool(upload_meal_photo, file_bytes, content_type)
+        else:
+            url = upload_image(file_bytes, content_type, folder)
     except StorageError as e:
         logger.error("Falha no upload de midia (user_id=%s, folder=%s): %s", current_user.id, folder, e)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
-    return MediaUploadOut(url=url)
+    return MediaUploadOut(url=url, thumb_url=thumb_url)
