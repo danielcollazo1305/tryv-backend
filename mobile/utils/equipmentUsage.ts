@@ -41,7 +41,7 @@ export function parseKmInput(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function localDayNumber(date: Date): number {
+export function localDayNumber(date: Date): number {
   // Dias de calendario no fuso LOCAL do aparelho (ignora a hora): Date.UTC com os campos locais.
   return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000);
 }

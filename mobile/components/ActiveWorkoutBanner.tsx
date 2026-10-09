@@ -42,7 +42,10 @@ export function ActiveWorkoutBanner() {
   // timer interno do hook, sem custo real.
   const elapsedLabel = useElapsedLabel(draft?.mode === 'free' ? draft.startedAt : null);
 
-  if (draft?.mode !== 'free' || exercisesCount === 0 || isFreeSessionScreen) return null;
+  // Tela "Treinar" (menu retro escuro, /treinar e /treinar/...): sem banner flutuante por cima.
+  const isTreinarScreen = pathname === '/treinar' || pathname.startsWith('/treinar/');
+
+  if (draft?.mode !== 'free' || exercisesCount === 0 || isFreeSessionScreen || isTreinarScreen) return null;
 
   const bottom = insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + BANNER_TAB_BAR_GAP;
   const exercisesLabel = exercisesCount === 1 ? '1 exercício' : `${exercisesCount} exercícios`;

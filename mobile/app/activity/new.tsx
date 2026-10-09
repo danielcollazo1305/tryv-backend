@@ -28,6 +28,8 @@ import { getApiErrorMessage } from '@/services/api';
 import {
   ActivityInsight,
   ActivityType,
+  FIGHT_STYLE_OPTIONS,
+  FightStyle,
   GpsActivityType,
   ManualActivity,
   ManualActivityType,
@@ -40,6 +42,7 @@ import {
   formatPace,
   getManualActivityInsight,
   getRunInsight,
+  isFightStyle,
 } from '@/services/activities';
 import {
   clearBackgroundTrackingState,
@@ -79,6 +82,8 @@ const GPS_OPTIONS: { value: GpsActivityType; label: string }[] = [
 
 const GPS_TYPES: GpsActivityType[] = ['run', 'bike', 'walk'];
 
+const MANUAL_TYPES: ManualActivityType[] = ['swim', 'fight', 'hiit', 'other'];
+
 const MANUAL_OPTIONS: { value: ManualActivityType; label: string }[] = [
   { value: 'swim', label: 'Natacao' },
   { value: 'fight', label: 'Luta' },
@@ -103,13 +108,26 @@ export default function NewActivityScreen() {
   // do seletor "Iniciar atividade" da aba Treino. So GPS types fazem
   // sentido aqui (o seletor so oferece Corrida/Bike/Caminhada); um valor
   // invalido/ausente simplesmente cai no fluxo normal de selecao manual.
-  const { type: presetType } = useLocalSearchParams<{ type?: string }>();
+  //
+  // Tela "Treinar" (/treinar): tambem aceita `type` de registro MANUAL (ex: fight) e, para luta,
+  // `fight_style`. Com tipo manual valido a etapa de selecao e pulada e o formulario abre ja com o tipo (e o
+  // estilo) escolhidos. Sem parametros, nada muda (destino de "OUTRAS ATIVIDADES").
+  const { type: presetType, fight_style: presetFightStyle } = useLocalSearchParams<{
+    type?: string;
+    fight_style?: string;
+  }>();
   const isValidGpsPreset = (value?: string): value is GpsActivityType =>
     !!value && (GPS_TYPES as string[]).includes(value);
+  const isValidManualPreset = (value?: string): value is ManualActivityType =>
+    !!value && (MANUAL_TYPES as string[]).includes(value);
 
-  const [stage, setStage] = useState<Stage>('select');
+  const [stage, setStage] = useState<Stage>(isValidManualPreset(presetType) ? 'manual-form' : 'select');
   const [selectedType, setSelectedType] = useState<ActivityType | null>(
-    isValidGpsPreset(presetType) ? presetType : null
+    isValidGpsPreset(presetType) || isValidManualPreset(presetType) ? presetType : null
+  );
+  // Estilo de luta (so quando o tipo e luta). Opcional: sem escolha, nao vai no payload.
+  const [fightStyle, setFightStyle] = useState<FightStyle | null>(
+    isValidManualPreset(presetType) && presetType === 'fight' && isFightStyle(presetFightStyle) ? presetFightStyle : null
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -420,6 +438,7 @@ export default function NewActivityScreen() {
         calories_burned: caloriesManual.trim() ? Number(caloriesManual) : undefined,
         notes: notes.trim() || undefined,
         performed_at: new Date().toISOString(),
+        fight_style: selectedType === 'fight' && fightStyle ? fightStyle : undefined,
       });
       setSavedManual(activity);
       setStage('result');
@@ -584,6 +603,14 @@ export default function NewActivityScreen() {
 
         {stage === 'manual-form' && (
           <>
+            {selectedType === 'fight' && (
+              <ChoiceGroup2
+                label="Estilo de luta"
+                options={FIGHT_STYLE_OPTIONS}
+                value={fightStyle}
+                onChange={setFightStyle}
+              />
+            )}
             <TextField2
               label="Duracao (minutos)"
               placeholder="Ex: 45"

@@ -15,6 +15,22 @@ export type GpsActivityType = 'run' | 'bike' | 'walk';
 export type ManualActivityType = 'swim' | 'fight' | 'hiit' | 'other';
 export type ActivityType = GpsActivityType | ManualActivityType;
 
+/** Estilos de luta (ids do backend, core/activity_types.py) e rotulos; so valem para activity_type === 'fight'. */
+export type FightStyle = 'boxe' | 'muay_thai' | 'jiu_jitsu' | 'mma' | 'judo' | 'karate' | 'outra';
+
+export const FIGHT_STYLE_OPTIONS: { value: FightStyle; label: string }[] = [
+  { value: 'boxe', label: 'Boxe' },
+  { value: 'muay_thai', label: 'Muay thai' },
+  { value: 'jiu_jitsu', label: 'Jiu-jitsu' },
+  { value: 'mma', label: 'MMA' },
+  { value: 'judo', label: 'Judô' },
+  { value: 'karate', label: 'Karatê' },
+  { value: 'outra', label: 'Outra luta' },
+];
+
+export const isFightStyle = (value?: string): value is FightStyle =>
+  !!value && FIGHT_STYLE_OPTIONS.some((option) => option.value === value);
+
 export interface Run {
   id: string;
   user_id: string;
@@ -90,6 +106,8 @@ export interface ManualActivity {
   /** Ver o mesmo par em Run. */
   external_source: string | null;
   external_id: string | null;
+  /** So em luta (activity_type === 'fight'); null nas demais e em lutas antigas. */
+  fight_style: FightStyle | null;
 }
 
 export interface ManualActivityCreatePayload {
@@ -105,6 +123,8 @@ export interface ManualActivityCreatePayload {
   external_id?: string;
   /** Ver o mesmo campo em RunCreatePayload. */
   equipment_id?: string | null;
+  /** So com activity_type === 'fight' (o backend responde 400 nos demais tipos). */
+  fight_style?: FightStyle;
 }
 
 export interface ActivityInsight {

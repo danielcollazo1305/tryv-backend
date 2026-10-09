@@ -23,7 +23,8 @@ import { colors3, spacing3, typography3 } from '@/constants/theme';
  * - SEM plano ativo: o card NAO desaparece mais (antes retornava null) —
  *   convida pro registro LIVRE (FreeWorkoutLogView.tsx, via
  *   workout-plan/free-session.tsx), sem depender de plano nenhum.
- * Religado no tema visual "prism-glass" (ver colors3 em constants/theme.ts).
+ * Os dois botoes abrem a tela "Treinar" (/treinar); o plano do dia, o treino livre e o plano do personal
+ * ficam la dentro, em Halter. Religado no tema visual "prism-glass" (ver colors3 em constants/theme.ts).
  */
 export function TodayWorkoutCard() {
   const [result, setResult] = useState<TodayWorkoutResult | null | undefined>(undefined);
@@ -68,7 +69,7 @@ export function TodayWorkoutCard() {
             {result.day.exercises.length} exercício{result.day.exercises.length === 1 ? '' : 's'} · gerado pela IA a
             partir do seu histórico.
           </Text>
-          <Button3 label="Começar treino" onPress={() => router.push('/(tabs)/workout')} />
+          <Button3 label="Começar treino" onPress={() => router.push('/treinar')} />
         </>
       ) : (
         <>
@@ -80,7 +81,7 @@ export function TodayWorkoutCard() {
             Registre um treino livre: escolha os exercícios e acompanhe peso, reps e séries, sem depender de um
             plano.
           </Text>
-          <Button3 label="Começar treino" onPress={() => router.push('/workout-plan/free-session')} />
+          <Button3 label="Começar treino" onPress={() => router.push('/treinar')} />
         </>
       )}
     </GlassCard>

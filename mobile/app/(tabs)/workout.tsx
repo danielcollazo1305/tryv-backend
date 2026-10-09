@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
@@ -11,77 +11,25 @@ import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { ACTIVITY_TYPE_LABELS, GpsActivityType } from '@/services/activities';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { WorkoutPlan, listWorkoutPlans } from '@/services/workouts';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
-const GPS_FAB_OPTIONS: { type: GpsActivityType; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-  { type: 'run', icon: 'walk' },
-  { type: 'bike', icon: 'bicycle' },
-  { type: 'walk', icon: 'footsteps' },
-];
-
 /**
- * Ponto de entrada unico "Iniciar atividade" (item 3 da task
- * "atividade-entrada-unica") — antes so existia um caminho pra
- * activity/new.tsx (FAB dentro de Atividades, acessada via card "Km
- * rodados" da Home; confirmado na investigacao). Esse FAB fica na aba
- * Treino porque e o lugar mais natural de "vou treinar agora", cobrindo
- * tanto plano estruturado quanto atividade com GPS — o caminho antigo
- * (Home -> Atividades -> FAB) continua existindo tambem, sem conflito
- * (so mais uma porta de entrada pro mesmo activity/new.tsx).
+ * Botao "+" da aba Treino: abre a tela "Treinar" (/treinar, menu retro de 2 niveis). Ela substitui o antigo
+ * modal "Iniciar atividade"; Corrida/Caminhada/Bike, Halter e Luta viraram modalidades de la, e a selecao
+ * antiga (natacao, HIIT, outro) continua em "Outras atividades" (/activity/new sem parametros).
  */
 function StartActivityFab() {
-  const [open, setOpen] = useState(false);
-
-  const handleSelectGps = (type: GpsActivityType) => {
-    setOpen(false);
-    router.push({ pathname: '/activity/new', params: { type } });
-  };
-
   return (
-    <>
-      <Pressable style={styles.fab} onPress={() => setOpen(true)}>
-        <Ionicons name="add" size={28} color={colors3.onPrimary} />
-      </Pressable>
-
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Iniciar atividade</Text>
-
-            {/*
-              "Treino do dia" nao navega pra lugar nenhum — o plano
-              estruturado ja esta bem abaixo, na mesma aba Treino (secoes
-              de IA/Personal Trainer). So fecha o seletor.
-            */}
-            <Pressable style={styles.modalOption} onPress={() => setOpen(false)}>
-              <View style={styles.modalOptionIconWrap}>
-                <Ionicons name="barbell" size={20} color={colors3.primary} />
-              </View>
-              <View style={styles.modalOptionTexts}>
-                <Text style={styles.modalOptionTitle}>Treino do dia</Text>
-                <Text style={styles.modalOptionSubtitle}>Seu plano estruturado, logo abaixo</Text>
-              </View>
-            </Pressable>
-
-            {GPS_FAB_OPTIONS.map((option) => (
-              <Pressable key={option.type} style={styles.modalOption} onPress={() => handleSelectGps(option.type)}>
-                <View style={styles.modalOptionIconWrap}>
-                  <Ionicons name={option.icon} size={20} color={colors3.primary} />
-                </View>
-                <View style={styles.modalOptionTexts}>
-                  <Text style={styles.modalOptionTitle}>{ACTIVITY_TYPE_LABELS[option.type]}</Text>
-                  <Text style={styles.modalOptionSubtitle}>Rastreamento por GPS ao vivo</Text>
-                </View>
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+    <Pressable
+      style={styles.fab}
+      onPress={() => router.push('/treinar')}
+      accessibilityRole="button"
+      accessibilityLabel="Iniciar treino"
+    >
+      <Ionicons name="add" size={28} color={colors3.onPrimary} />
+    </Pressable>
   );
 }
 
@@ -309,41 +257,4 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: colors3.surfaceContainer,
-    borderTopLeftRadius: radius3.lg,
-    borderTopRightRadius: radius3.lg,
-    borderWidth: 1,
-    borderColor: colors3.outlineVariant,
-    padding: spacing3.lg,
-    paddingBottom: spacing3.xl,
-    gap: spacing3.sm,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors3.outlineVariant,
-    alignSelf: 'center',
-    marginBottom: spacing3.xs,
-  },
-  modalTitle: { ...typography3.headlineMd, fontSize: 18, marginBottom: spacing3.xs },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing3.md,
-    paddingVertical: spacing3.sm,
-  },
-  modalOptionIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius3.md,
-    backgroundColor: 'rgba(107, 56, 212, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalOptionTexts: { flex: 1, gap: 2 },
-  modalOptionTitle: { ...typography3.bodyMd, fontWeight: '700' },
-  modalOptionSubtitle: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 });
