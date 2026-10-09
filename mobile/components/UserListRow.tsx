@@ -7,6 +7,9 @@ import { getInitials } from '@/utils/text';
 
 interface UserListRowProps {
   name: string;
+  /** Avatar da pessoa (null/ausente = iniciais). */
+  avatarUrl?: string | null;
+  avatarThumbUrl?: string | null;
   subtitle?: string;
   onPress?: () => void;
   actionLabel: string;
@@ -31,6 +34,8 @@ interface UserListRowProps {
  */
 export function UserListRow({
   name,
+  avatarUrl,
+  avatarThumbUrl,
   subtitle,
   onPress,
   actionLabel,
@@ -52,7 +57,7 @@ export function UserListRow({
   return (
     <View style={s.row}>
       <Pressable style={s.info} onPress={onPress} disabled={!onPress} hitSlop={4}>
-        <Avatar initials={getInitials(name)} size={44} />
+        <Avatar initials={getInitials(name)} imageUrl={avatarUrl} thumbUrl={avatarThumbUrl} size={44} />
         <View style={s.textWrap}>
           <Text style={s.name} numberOfLines={1}>
             {name}

@@ -105,7 +105,12 @@ export default function TrainerProfileScreen() {
           <>
             <View style={styles.profileHeader}>
               <View>
-                <Avatar initials={getInitials(trainer.user_name)} size={100} />
+                <Avatar
+                  initials={getInitials(trainer.user_name)}
+                  imageUrl={trainer.avatar_url}
+                  thumbUrl={trainer.avatar_thumb_url}
+                  size={100}
+                />
                 {trainer.cref_verified && (
                   <View style={styles.verifiedBadge}>
                     <Ionicons name="checkmark" size={14} color={colors2.background} />

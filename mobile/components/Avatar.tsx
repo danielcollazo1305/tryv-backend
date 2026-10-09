@@ -15,8 +15,11 @@ export const AVATAR_BACKDROP_SCALE = 1.35;
 /** blurRadius do fundo = size * fator, com teto (blur grande so custa mais, nao melhora o visual). */
 const AVATAR_BLUR_FACTOR = 0.25;
 const AVATAR_BLUR_MAX = 24;
-/** Ate este tamanho (px) o blur nao vale o custo (listas longas): so a camada nitida, escala maior. */
-const AVATAR_BLUR_MIN_SIZE = 28;
+/** Ate este tamanho (px) o blur nao vale o custo (listas longas): so a camada nitida, escala maior. Blur e duas
+ * camadas so acima disso (card do Overall 64, topo do Ranking 56, perfil publico 100, professores 56/100). */
+const AVATAR_BLUR_MIN_SIZE = 44;
+/** Ate este tamanho (px) a MINIATURA (256 px) basta; acima, a imagem grande (a miniatura ficaria borrada). */
+const AVATAR_THUMB_MAX_SIZE = 64;
 const AVATAR_SMALL_PHOTO_SCALE = 0.9;
 
 interface AvatarProps {
@@ -33,6 +36,12 @@ interface AvatarProps {
    */
   imageUrl?: string | null;
   /**
+   * Miniatura 256x256 WebP (avatar_thumb_url). Com size <= 64 usa `thumbUrl ?? imageUrl`; com size > 64 usa
+   * `imageUrl ?? thumbUrl`. Sem nenhuma das duas, mostra as iniciais. Avatares antigos nao tem miniatura (null):
+   * caem na imagem grande.
+   */
+  thumbUrl?: string | null;
+  /**
    * Com `imageUrl`: true (padrao) = foto inteira um pouco menor sobre uma copia borrada dela mesma
    * (ver AVATAR_PHOTO_SCALE); false = comportamento antigo (uma imagem cover, que corta os cantos).
    * Sem `imageUrl` (iniciais + gradiente) nao muda nada.
@@ -48,7 +57,8 @@ interface AvatarProps {
  * por IA no lugar do gradiente+iniciais (ver prop acima pra justificativa
  * da excecao).
  */
-export function Avatar({ initials, size = 40, style, imageUrl, fit = true }: AvatarProps) {
+export function Avatar({ initials, size = 40, style, imageUrl: imageUrlProp, thumbUrl, fit = true }: AvatarProps) {
+  const imageUrl = size <= AVATAR_THUMB_MAX_SIZE ? (thumbUrl ?? imageUrlProp) : (imageUrlProp ?? thumbUrl);
   const fontSize = Math.round(size * 0.4);
   const circleStyle: StyleProp<ViewStyle> = [
     styles.circle,

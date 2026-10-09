@@ -13,7 +13,17 @@ import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { Post, UserBrief, followUser, listFollowers, listFollowing, listUserPosts, unfollowUser } from '@/services/social';
+import {
+  Post,
+  PublicProfile,
+  UserBrief,
+  followUser,
+  getPublicProfile,
+  listFollowers,
+  listFollowing,
+  listUserPosts,
+  unfollowUser,
+} from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { colors2, spacing2, typography2 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
@@ -27,9 +37,9 @@ export default function UserProfileScreen() {
   const [following, setFollowing] = useState<UserBrief[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [badges, setBadges] = useState<UserBadges | null>(null);
-  // Nao ha um GET /users/{id} generico para o nome — usamos o autor dos
-  // posts (mais confiavel) ou, se ja seguimos essa pessoa, a entrada
-  // correspondente na nossa propria lista de "following".
+  // Nome e avatar vem de GET /users/{id}/profile; se a chamada falhar, o nome cai no autor dos posts ou, se ja
+  // seguimos essa pessoa, na entrada correspondente da nossa lista de "following" (sem avatar: iniciais).
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [followBusy, setFollowBusy] = useState(false);
@@ -47,18 +57,22 @@ export default function UserProfileScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [postsData, followersData, followingData, myFollowingData, badgesData] = await Promise.all([
+      const [postsData, followersData, followingData, myFollowingData, badgesData, profileData] = await Promise.all([
         listUserPosts(userId),
         listFollowers(userId),
         listFollowing(userId),
         listFollowing(currentUser.id),
         getUserBadges(userId).catch(() => null),
+        getPublicProfile(userId).catch(() => null),
       ]);
       setPosts(postsData);
       setFollowers(followersData);
       setFollowing(followingData);
       setIsFollowing(myFollowingData.some((u) => u.id === userId));
-      setDisplayName(postsData[0]?.author ?? myFollowingData.find((u) => u.id === userId)?.name ?? null);
+      setProfile(profileData);
+      setDisplayName(
+        profileData?.name ?? postsData[0]?.author ?? myFollowingData.find((u) => u.id === userId)?.name ?? null
+      );
       setBadges(badgesData);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel carregar este perfil.'));
@@ -107,7 +121,12 @@ export default function UserProfileScreen() {
           {!!error && <Text style={styles.error}>{error}</Text>}
 
           <LiquiglassCard style={styles.profileCard}>
-            <Avatar initials={displayName ? getInitials(displayName) : '?'} size={100} />
+            <Avatar
+              initials={displayName ? getInitials(displayName) : '?'}
+              imageUrl={profile?.avatar_url}
+              thumbUrl={profile?.avatar_thumb_url}
+              size={100}
+            />
             <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
 
             <ProfileBadges2 badges={badges} />

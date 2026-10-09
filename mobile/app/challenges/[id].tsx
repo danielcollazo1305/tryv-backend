@@ -411,7 +411,7 @@ export default function ChallengeDetailScreen() {
                 ) : (
                   participants.map((p) => (
                     <View key={p.id} style={styles.participantRow}>
-                      <Avatar initials={getInitials(p.name)} size={28} />
+                      <Avatar initials={getInitials(p.name)} imageUrl={p.avatar_url} thumbUrl={p.avatar_thumb_url} size={28} />
                       <Text style={styles.participantName}>{p.name}</Text>
                     </View>
                   ))

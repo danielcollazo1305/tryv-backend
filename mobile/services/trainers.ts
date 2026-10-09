@@ -50,6 +50,8 @@ export interface Trainer {
   id: string;
   user_id: string;
   user_name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   professional_type: ProfessionalType;
   license_number: string;
   cref_verified: boolean;
@@ -71,6 +73,8 @@ export interface TrainerPublic {
   id: string;
   user_id: string;
   user_name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   professional_type: ProfessionalType;
   license_number: string;
   cref_verified: boolean;
@@ -119,6 +123,8 @@ export interface CheckoutSession {
 export interface Student {
   user_id: string;
   name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   is_live: boolean;
   live_activity_id: string | null;
 }

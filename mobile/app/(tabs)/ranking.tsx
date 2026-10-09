@@ -48,16 +48,25 @@ function formatXp(value: number): string {
 const AVATAR_STACK_MAX_VISIBLE = 4;
 const AVATAR_STACK_SIZE = 22;
 
-function AvatarStack({ memberNames, totalMembers }: { memberNames: string[]; totalMembers: number }) {
-  const visible = memberNames.slice(0, AVATAR_STACK_MAX_VISIBLE);
+interface AvatarStackMember {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  avatarThumbUrl?: string | null;
+}
+
+function AvatarStack({ members, totalMembers }: { members: AvatarStackMember[]; totalMembers: number }) {
+  const visible = members.slice(0, AVATAR_STACK_MAX_VISIBLE);
   const remaining = totalMembers - visible.length;
 
   return (
     <View style={styles.avatarStack}>
-      {visible.map((name, index) => (
+      {visible.map((member, index) => (
         <Avatar
-          key={name}
-          initials={getInitials(name)}
+          key={member.id}
+          initials={getInitials(member.name)}
+          imageUrl={member.avatarUrl}
+          thumbUrl={member.avatarThumbUrl}
           size={AVATAR_STACK_SIZE}
           style={[
             styles.avatarStackItem,
@@ -322,7 +331,7 @@ export default function RankingScreen() {
           ) : (
             <>
               <View style={styles.userCardTop}>
-                <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} size={56} />
+                <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} thumbUrl={user?.avatar_thumb_url} size={56} />
                 <View style={styles.userCardInfo}>
                   <Text style={styles.userName}>{user?.name}</Text>
                   <View style={[styles.squadBadge, hasSquad ? styles.squadBadgeActive : styles.squadBadgeSolo]}>
@@ -339,7 +348,12 @@ export default function RankingScreen() {
                   </View>
                   {hasSquad && (
                     <AvatarStack
-                      memberNames={squad!.members.map((m) => m.name)}
+                      members={squad!.members.map((m) => ({
+                        id: m.user_id,
+                        name: m.name,
+                        avatarUrl: m.avatar_url,
+                        avatarThumbUrl: m.avatar_thumb_url,
+                      }))}
                       totalMembers={squad!.member_count}
                     />
                   )}
@@ -512,7 +526,12 @@ export default function RankingScreen() {
                     <View style={styles.listPositionWrap}>
                       <Text style={styles.listPosition}>{person.position}</Text>
                     </View>
-                    <Avatar initials={getInitials(person.name)} size={36} />
+                    <Avatar
+                      initials={getInitials(person.name)}
+                      imageUrl={person.avatar_url}
+                      thumbUrl={person.avatar_thumb_url}
+                      size={36}
+                    />
                     <View style={styles.listInfo}>
                       <View style={styles.listNameRow}>
                         <Text style={[styles.listName, styles.listNameFlex]} numberOfLines={1}>

@@ -32,6 +32,8 @@ export interface User {
   city: string | null;
   city_ibge_code: number | null;
   avatar_url: string | null;
+  /** Miniatura 256x256 (null em avatares antigos: usar avatar_url). */
+  avatar_thumb_url?: string | null;
 }
 
 interface AuthContextValue {

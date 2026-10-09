@@ -139,7 +139,12 @@ export default function TrainerStudentsScreen() {
           students.map((student) => (
             <Pressable key={student.user_id} onPress={() => handleSelectStudent(student)}>
               <LiquiglassCard contentStyle={styles.studentCard} padding={spacing2.md}>
-                <Avatar initials={getInitials(student.name)} size={48} />
+                <Avatar
+                  initials={getInitials(student.name)}
+                  imageUrl={student.avatar_url}
+                  thumbUrl={student.avatar_thumb_url}
+                  size={48}
+                />
                 <View style={styles.studentInfo}>
                   <Text style={styles.studentName}>{student.name}</Text>
                   {/*

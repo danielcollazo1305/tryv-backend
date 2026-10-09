@@ -36,7 +36,7 @@ import {
 import { getTrainingFrequency, getTrainingStreaks, getWorkoutProgress } from '@/services/dashboard';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
-import { UserBadges, getUserBadges, uploadAvatarSelfie } from '@/services/user';
+import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { getInitials } from '@/utils/text';
 import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
@@ -104,6 +104,7 @@ export default function ProfileScreen() {
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarRemoving, setAvatarRemoving] = useState(false);
 
   // Grid de consistencia (6 cards) — dados reais:
   // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
@@ -248,6 +249,31 @@ export default function ProfileScreen() {
     } finally {
       setAvatarUploading(false);
     }
+  };
+
+  // "Remover avatar": so aparece com avatar. Confirma, chama DELETE /users/me/avatar e atualiza o usuario (as
+  // iniciais voltam em todo o app). Um novo avatar pode ser gerado depois, como antes.
+  const handleRemoveAvatar = () => {
+    Alert.alert('Remover avatar', 'Seu avatar será removido e suas iniciais aparecerão no lugar. Você pode gerar outro depois.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: async () => {
+          setAvatarRemoving(true);
+          setAvatarError(null);
+          try {
+            await deleteMyAvatar();
+            await refreshUser();
+            setAvatarPickerVisible(false);
+          } catch (err) {
+            setAvatarError(getApiErrorMessage(err, 'Nao foi possivel remover seu avatar, tente novamente.'));
+          } finally {
+            setAvatarRemoving(false);
+          }
+        },
+      },
+    ]);
   };
 
   const handleTakeAvatarPhoto = async () => {
@@ -526,6 +552,7 @@ export default function ProfileScreen() {
                 <Avatar
                   initials={user ? getInitials(user.name) : '?'}
                   imageUrl={user?.avatar_url}
+                  thumbUrl={user?.avatar_thumb_url}
                   size={64}
                   style={styles.avatarRing}
                 />
@@ -915,17 +942,17 @@ export default function ProfileScreen() {
           <View style={styles.avatarModalSheet}>
             <View style={styles.avatarModalHeader}>
               <Text style={styles.avatarModalTitle}>Avatar por IA</Text>
-              <Pressable onPress={handleCloseAvatarPicker} hitSlop={12} disabled={avatarUploading}>
+              <Pressable onPress={handleCloseAvatarPicker} hitSlop={12} disabled={avatarUploading || avatarRemoving}>
                 <Ionicons name="close" size={24} color={colors3.onSurface} />
               </Pressable>
             </View>
 
             {!!avatarError && <Text style={styles.avatarModalError}>{avatarError}</Text>}
 
-            {avatarUploading ? (
+            {avatarUploading || avatarRemoving ? (
               <View style={styles.avatarModalLoading}>
                 <ActivityIndicator size="large" color={colors3.primary} />
-                <Text style={styles.avatarModalLoadingText}>Gerando seu avatar...</Text>
+                <Text style={styles.avatarModalLoadingText}>{avatarRemoving ? 'Removendo seu avatar...' : 'Gerando seu avatar...'}</Text>
               </View>
             ) : (
               <View style={styles.avatarPickButtons}>
@@ -937,6 +964,17 @@ export default function ProfileScreen() {
                   <Ionicons name="images" size={28} color={colors3.primary} />
                   <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
                 </Pressable>
+                {!!user?.avatar_url && (
+                  <Pressable
+                    style={styles.avatarPickButton}
+                    onPress={handleRemoveAvatar}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remover avatar"
+                  >
+                    <Ionicons name="trash-outline" size={28} color={colors3.error} />
+                    <Text style={[styles.avatarPickButtonText, { color: colors3.error }]}>Remover avatar</Text>
+                  </Pressable>
+                )}
               </View>
             )}
           </View>

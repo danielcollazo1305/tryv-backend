@@ -21,7 +21,12 @@ function TrainerCard({ trainer }: { trainer: TrainerPublic }) {
     <Pressable onPress={() => router.push({ pathname: '/trainers/[id]', params: { id: trainer.id } })}>
       <LiquiglassCard style={styles.card} padding={spacing2.md}>
         <View style={styles.cardTopRow}>
-          <Avatar initials={getInitials(trainer.user_name)} size={56} />
+          <Avatar
+            initials={getInitials(trainer.user_name)}
+            imageUrl={trainer.avatar_url}
+            thumbUrl={trainer.avatar_thumb_url}
+            size={56}
+          />
           <View style={styles.cardInfo}>
             <Text style={styles.name}>{trainer.user_name}</Text>
             <View style={styles.licenseBadge}>

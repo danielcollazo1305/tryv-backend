@@ -27,6 +27,9 @@ export interface Post {
   id: string;
   user_id: string;
   author: string;
+  /** Avatar visivel para quem ve (null = mostrar iniciais; menores de 18 e quem nao informou a idade vem null). */
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   type: string;
   caption: string | null;
   media_url: string | null;
@@ -50,6 +53,8 @@ export interface Comment {
   post_id: string;
   user_id: string;
   author: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   content: string;
   created_at: string;
 }
@@ -57,12 +62,16 @@ export interface Comment {
 export interface UserBrief {
   id: string;
   name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
 }
 
 export interface UserSearchResult {
   id: string;
   name: string;
   is_following: boolean;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
 }
 
 export interface MatchedContact {
@@ -70,6 +79,8 @@ export interface MatchedContact {
   id: string;
   name: string;
   is_following: boolean;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
 }
 
 export interface ContactEntry {
@@ -98,6 +109,19 @@ export async function deletePost(postId: string): Promise<void> {
 
 export async function listUserPosts(userId: string): Promise<Post[]> {
   const response = await api.get<Post[]>(`/users/${userId}/posts`);
+  return response.data;
+}
+
+/** Perfil publico minimo (GET /users/{id}/profile). Avatar null = iniciais (menor de 18 ou sem data de nascimento). */
+export interface PublicProfile {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  avatar_thumb_url: string | null;
+}
+
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+  const response = await api.get<PublicProfile>(`/users/${userId}/profile`);
   return response.data;
 }
 

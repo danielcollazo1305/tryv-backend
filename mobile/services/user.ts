@@ -78,3 +78,8 @@ export async function uploadAvatarSelfie(fileUri: string): Promise<string> {
   const response = await api.post<{ avatar_url: string }>('/users/me/avatar', formData, { timeout: 130000 });
   return response.data.avatar_url;
 }
+
+/** Remove o proprio avatar (DELETE /users/me/avatar, 204, idempotente). Depois, chame refreshUser(). */
+export async function deleteMyAvatar(): Promise<void> {
+  await api.delete('/users/me/avatar');
+}

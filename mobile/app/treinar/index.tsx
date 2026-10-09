@@ -144,7 +144,7 @@ export default function TreinarScreen() {
         </View>
 
         <View style={styles.statusRow}>
-          <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} size={32} />
+          <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} thumbUrl={user?.avatar_thumb_url} size={32} />
           <RetroText size={9} numberOfLines={1} style={{ flex: 1 }}>
             {user?.name ?? ''}
           </RetroText>

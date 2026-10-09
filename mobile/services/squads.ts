@@ -3,6 +3,8 @@ import { api } from '@/services/api';
 export interface SquadMember {
   user_id: string;
   name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   total_xp: number;
   is_you: boolean;
 }
@@ -34,6 +36,8 @@ export interface IndividualRankingEntry {
   position: number;
   user_id: string;
   name: string;
+  avatar_url?: string | null;
+  avatar_thumb_url?: string | null;
   squad_name: string | null;
   total_xp: number;
   weekly_xp: number;

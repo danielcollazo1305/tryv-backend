@@ -64,7 +64,12 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
   return (
     <GlassCard variant="glass" style={styles.card}>
       <Pressable style={styles.authorRow} onPress={onPressAuthor} hitSlop={4}>
-        <Avatar initials={getInitials(post.author)} size={40} />
+        <Avatar
+          initials={getInitials(post.author)}
+          imageUrl={post.avatar_url}
+          thumbUrl={post.avatar_thumb_url}
+          size={40}
+        />
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.authorName}>{post.author}</Text>

@@ -68,7 +68,7 @@ export function ProfileAvatarButton({ size = 36, isPro: isProOverride }: Profile
   return (
     <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
       <View>
-        <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} size={size} />
+        <Avatar initials={user ? getInitials(user.name) : '?'} imageUrl={user?.avatar_url} thumbUrl={user?.avatar_thumb_url} size={size} />
         {!isPro && (
           <View
             style={[

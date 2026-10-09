@@ -230,6 +230,8 @@ export default function DiscoverScreen() {
             renderItem={({ item }) => (
               <UserListRow
                 name={item.name}
+                avatarUrl={item.avatar_url}
+                avatarThumbUrl={item.avatar_thumb_url}
                 actionLabel={item.is_following ? 'Seguindo' : 'Seguir'}
                 actionActive={item.is_following}
                 actionLoading={!!followBusy[item.id]}
@@ -293,6 +295,8 @@ export default function DiscoverScreen() {
                 return (
                   <UserListRow
                     name={contact.name}
+                    avatarUrl={contact.avatar_url}
+                    avatarThumbUrl={contact.avatar_thumb_url}
                     actionLabel={contact.is_following ? 'Seguindo' : 'Seguir'}
                     actionActive={contact.is_following}
                     actionLoading={!!matchedBusy[contact.id]}

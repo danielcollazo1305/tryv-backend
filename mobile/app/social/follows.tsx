@@ -127,6 +127,8 @@ export default function FollowsScreen() {
             return (
               <UserListRow
                 name={item.name}
+                avatarUrl={item.avatar_url}
+                avatarThumbUrl={item.avatar_thumb_url}
                 actionLabel={isFollowing ? 'Seguindo' : 'Seguir de volta'}
                 actionActive={isFollowing}
                 actionLoading={!!busy[item.id]}
@@ -151,6 +153,8 @@ export default function FollowsScreen() {
           renderItem={({ item }) => (
             <UserListRow
               name={item.name}
+              avatarUrl={item.avatar_url}
+              avatarThumbUrl={item.avatar_thumb_url}
               actionLabel="Seguindo"
               actionActive
               actionLoading={!!busy[item.id]}
@@ -186,6 +190,8 @@ export default function FollowsScreen() {
         renderItem={({ item }) => (
           <UserListRow
             name={item.name}
+            avatarUrl={item.avatar_url}
+            avatarThumbUrl={item.avatar_thumb_url}
             actionLabel={item.is_following ? 'Seguindo' : 'Seguir'}
             actionActive={item.is_following}
             actionLoading={!!busy[item.id]}
