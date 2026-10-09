@@ -17,6 +17,8 @@ class SquadJoin(BaseModel):
 class SquadMemberOut(BaseModel):
     user_id: uuid.UUID
     name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     total_xp: int
     is_you: bool
 
@@ -51,6 +53,8 @@ class IndividualRankingEntryOut(BaseModel):
     position: int
     user_id: uuid.UUID
     name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     squad_name: str | None = None
     total_xp: int
     weekly_xp: int

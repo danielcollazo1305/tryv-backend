@@ -76,3 +76,10 @@ def require_pro_subscription(
             detail="Esta funcionalidade requer uma assinatura Tryv Fit Pro ativa",
         )
     return current_user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency para endpoints restritos a administradores (User.is_admin). 403 para os demais."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
+    return current_user

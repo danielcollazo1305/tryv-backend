@@ -73,5 +73,8 @@ class User(Base):
     # PATCH /users/me generico (ver UserUpdate em schemas/user.py, que nao
     # tem esse campo de proposito).
     avatar_url = Column(String, nullable=True)
+    # Miniatura 256x256 WebP do mesmo avatar (profiles/{uuid}_256.webp), usada em listas. Nullable: avatares
+    # anteriores nao tem (o app cai na imagem grande) e a geracao da miniatura pode falhar sem falhar o avatar.
+    avatar_thumb_url = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)

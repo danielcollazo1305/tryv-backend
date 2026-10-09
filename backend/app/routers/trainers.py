@@ -5,6 +5,7 @@ import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields, visible_avatar
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.trainer_specialties import validate_specialties
@@ -45,12 +46,27 @@ def _get_my_trainer(db: Session, current_user: User) -> Trainer:
     return trainer
 
 
-def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None) -> TrainerOut:
+def _row_avatar(row, owner_id: uuid.UUID, viewer_id: uuid.UUID) -> dict:
+    """avatar_url/avatar_thumb_url do dono para o espectador (core/avatar_visibility) a partir das colunas do SELECT."""
+    url, thumb = visible_avatar(row.avatar_url, row.avatar_thumb_url, row.date_of_birth, owner_id, viewer_id)
+    return {"avatar_url": url, "avatar_thumb_url": thumb}
+
+
+def _to_trainer_out(
+    db: Session,
+    trainer: Trainer,
+    user_name: str | None = None,
+    avatar: dict | None = None,
+    viewer_id: uuid.UUID | None = None,
+) -> TrainerOut:
     """TrainerOut inclui user_name, que nao existe na tabela trainers — busca
     (ou reaproveita, se ja veio de um join) o nome do usuario associado."""
     if user_name is None:
-        user_name = db.query(User.name).filter(User.id == trainer.user_id).scalar() or ""
+        owner = db.query(User).filter(User.id == trainer.user_id).first()
+        user_name = owner.name if owner else ""
+        avatar = avatar_fields(owner, viewer_id) if owner else None
     return TrainerOut(
+        **(avatar or {}),
         id=trainer.id,
         user_id=trainer.user_id,
         user_name=user_name,
@@ -68,12 +84,21 @@ def _to_trainer_out(db: Session, trainer: Trainer, user_name: str | None = None)
     )
 
 
-def _to_trainer_public_out(db: Session, trainer: Trainer, user_name: str | None = None) -> TrainerPublicOut:
+def _to_trainer_public_out(
+    db: Session,
+    trainer: Trainer,
+    user_name: str | None = None,
+    avatar: dict | None = None,
+    viewer_id: uuid.UUID | None = None,
+) -> TrainerPublicOut:
     """Mesma logica de _to_trainer_out, mas sem platform_fee_percent — usado
     nas rotas publicas/sem autenticacao (vitrine de professores)."""
     if user_name is None:
-        user_name = db.query(User.name).filter(User.id == trainer.user_id).scalar() or ""
+        owner = db.query(User).filter(User.id == trainer.user_id).first()
+        user_name = owner.name if owner else ""
+        avatar = avatar_fields(owner, viewer_id) if owner else None
     return TrainerPublicOut(
+        **(avatar or {}),
         id=trainer.id,
         user_id=trainer.user_id,
         user_name=user_name,
@@ -116,7 +141,7 @@ def register(
     db.add(trainer)
     db.commit()
     db.refresh(trainer)
-    return _to_trainer_out(db, trainer, user_name=current_user.name)
+    return _to_trainer_out(db, trainer, user_name=current_user.name, avatar=avatar_fields(current_user, current_user.id))
 
 
 @router.get("/me", response_model=TrainerOut)
@@ -125,7 +150,7 @@ def get_my_profile(
     current_user: User = Depends(get_current_user),
 ):
     trainer = _get_my_trainer(db, current_user)
-    return _to_trainer_out(db, trainer, user_name=current_user.name)
+    return _to_trainer_out(db, trainer, user_name=current_user.name, avatar=avatar_fields(current_user, current_user.id))
 
 
 @router.patch("/me", response_model=TrainerOut)
@@ -148,7 +173,7 @@ def update_my_profile(
 
     db.commit()
     db.refresh(trainer)
-    return _to_trainer_out(db, trainer, user_name=current_user.name)
+    return _to_trainer_out(db, trainer, user_name=current_user.name, avatar=avatar_fields(current_user, current_user.id))
 
 
 @router.post("/me/stripe-onboarding", response_model=StripeOnboardingOut, status_code=status.HTTP_201_CREATED)
@@ -229,7 +254,7 @@ def list_my_students(
     trainer = _get_my_trainer(db, current_user)
 
     rows = (
-        db.query(User.id, User.name)
+        db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(Subscription, Subscription.user_id == User.id)
         .filter(
             Subscription.trainer_id == trainer.id,
@@ -258,6 +283,7 @@ def list_my_students(
         StudentOut(
             user_id=row.id,
             name=row.name,
+            **avatar_fields(row, current_user.id),
             is_live=row.id in live_by_user,
             live_activity_id=live_by_user.get(row.id),
         )
@@ -346,13 +372,21 @@ def list_trainers(
 ):
     """Lista (exige login) — so professores verificados e ativos aparecem na busca."""
     rows = (
-        db.query(Trainer, User.name)
+        db.query(Trainer, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Trainer.user_id == User.id)
         .filter(Trainer.cref_verified.is_(True), Trainer.active.is_(True))
         .order_by(Trainer.created_at.desc())
         .all()
     )
-    return [_to_trainer_public_out(db, trainer, user_name=user_name) for trainer, user_name in rows]
+    return [
+        _to_trainer_public_out(
+            db,
+            row[0],
+            user_name=row[1],
+            avatar=_row_avatar(row, row[0].user_id, current_user.id),
+        )
+        for row in rows
+    ]
 
 
 @router.get("/{trainer_id}", response_model=TrainerPublicOut)
@@ -368,7 +402,7 @@ def get_trainer(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
 
     row = (
-        db.query(Trainer, User.name)
+        db.query(Trainer, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Trainer.user_id == User.id)
         .filter(
             Trainer.id == parsed_id,
@@ -379,8 +413,10 @@ def get_trainer(
     )
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Professor nao encontrado")
-    trainer, user_name = row
-    return _to_trainer_public_out(db, trainer, user_name=user_name)
+    trainer, user_name = row[0], row[1]
+    return _to_trainer_public_out(
+        db, trainer, user_name=user_name, avatar=_row_avatar(row, trainer.user_id, current_user.id)
+    )
 
 
 @router.patch("/{trainer_id}/verify", response_model=TrainerOut)
@@ -405,4 +441,4 @@ def verify_trainer(
     trainer.cref_verified = True
     db.commit()
     db.refresh(trainer)
-    return _to_trainer_out(db, trainer)
+    return _to_trainer_out(db, trainer, viewer_id=current_user.id)

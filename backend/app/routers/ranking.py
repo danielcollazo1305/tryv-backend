@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.timezone import local_day_bounds, local_week_start
@@ -60,6 +61,9 @@ def ranking_individual(
         db.query(
             User.id,
             User.name,
+            User.avatar_url,
+            User.avatar_thumb_url,
+            User.date_of_birth,
             total_xp_subq.c.total_xp,
             weekly_xp_subq.c.weekly_xp,
             Squad.name.label("squad_name"),
@@ -79,6 +83,7 @@ def ranking_individual(
             position=offset + index + 1,
             user_id=row.id,
             name=row.name,
+            **avatar_fields(row, current_user.id),
             squad_name=row.squad_name,
             total_xp=int(row.total_xp or 0),
             weekly_xp=int(row.weekly_xp or 0),

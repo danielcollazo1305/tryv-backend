@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.timezone import local_date, local_day_bounds, local_range_bounds, local_today, to_local_date
@@ -483,8 +484,12 @@ def list_participants(
     if not participant_ids:
         return []
 
-    rows = db.query(User.id, User.name).filter(User.id.in_(participant_ids)).all()
-    return [UserBrief(id=row.id, name=row.name) for row in rows]
+    rows = (
+        db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
+        .filter(User.id.in_(participant_ids))
+        .all()
+    )
+    return [UserBrief(id=row.id, name=row.name, **avatar_fields(row, current_user.id)) for row in rows]
 
 
 @router.post(

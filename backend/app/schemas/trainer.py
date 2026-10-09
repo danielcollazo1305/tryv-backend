@@ -66,6 +66,8 @@ class TrainerOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     user_name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     professional_type: str
     license_number: str
     cref_verified: bool
@@ -91,6 +93,8 @@ class TrainerPublicOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     user_name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     professional_type: str
     license_number: str
     cref_verified: bool
@@ -121,5 +125,7 @@ class StudentOut(BaseModel):
     """Um aluno com assinatura ativa no professor logado — usado pela tela de Live Activity do professor."""
     user_id: uuid.UUID
     name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     is_live: bool
     live_activity_id: uuid.UUID | None = None

@@ -44,6 +44,8 @@ class UserOut(BaseModel):
     # so e gravado pelo endpoint dedicado POST /users/me/avatar, nunca por
     # PATCH generico).
     avatar_url: str | None = None
+    # Miniatura 256x256 WebP (null em avatares antigos: use a imagem grande).
+    avatar_thumb_url: str | None = None
 
     class Config:
         from_attributes = True
@@ -51,6 +53,17 @@ class UserOut(BaseModel):
 
 class AvatarOut(BaseModel):
     avatar_url: str
+    # Aditivo: null se a miniatura nao pode ser gerada.
+    avatar_thumb_url: str | None = None
+
+
+class PublicProfileOut(BaseModel):
+    """GET /users/{id}/profile: so o minimo publico. avatar_* seguem core/avatar_visibility (menores de 18 e quem
+    nao informou a data de nascimento aparecem sem avatar para os outros)."""
+    id: uuid.UUID
+    name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -73,6 +86,8 @@ class UserSearchResult(BaseModel):
     id: uuid.UUID
     name: str
     is_following: bool
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
 
 
 class ContactEntry(BaseModel):
@@ -98,6 +113,8 @@ class MatchedContact(BaseModel):
     id: uuid.UUID
     name: str
     is_following: bool
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
 
 
 class Token(BaseModel):

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.points_event import PointsEvent
@@ -43,6 +44,7 @@ def _to_squad_out(db: Session, squad: Squad, current_user_id: uuid.UUID) -> Squa
         SquadMemberOut(
             user_id=member_id,
             name=users_by_id[member_id].name if member_id in users_by_id else "",
+            **(avatar_fields(users_by_id[member_id], current_user_id) if member_id in users_by_id else {}),
             total_xp=_total_xp(db, member_id),
             is_you=member_id == current_user_id,
         )

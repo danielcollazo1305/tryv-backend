@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.database import Base, engine
 from app.core.logging_config import configure_app_logging
 from app.routers import (
+    admin,
     activities,
     auth,
     challenges,
@@ -109,6 +110,7 @@ app.add_middleware(
     allow_credentials=False,
 )
 
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(meals.router)

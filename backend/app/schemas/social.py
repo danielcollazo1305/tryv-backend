@@ -21,6 +21,9 @@ class PostOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     author: str
+    # Avatar do autor pela regra de core/avatar_visibility (aditivo; null = mostrar iniciais).
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     type: str
     caption: str | None = None
     media_url: str | None = None
@@ -61,6 +64,8 @@ class CommentOut(BaseModel):
     post_id: uuid.UUID
     user_id: uuid.UUID
     author: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None
     content: str
     created_at: datetime
 
@@ -68,3 +73,5 @@ class CommentOut(BaseModel):
 class UserBrief(BaseModel):
     id: uuid.UUID
     name: str
+    avatar_url: str | None = None
+    avatar_thumb_url: str | None = None

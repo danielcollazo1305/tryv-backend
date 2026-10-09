@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -16,9 +17,17 @@ from app.models.trainer import Trainer
 from app.models.user import User
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.schemas.subscription import TeamBadge, UserBadgesOut
-from app.schemas.user import AvatarOut, ContactsMatchRequest, MatchedContact, UserOut, UserSearchResult, UserUpdate
+from app.schemas.user import (
+    AvatarOut,
+    ContactsMatchRequest,
+    MatchedContact,
+    PublicProfileOut,
+    UserOut,
+    UserSearchResult,
+    UserUpdate,
+)
 from app.services.avatar_generation import AvatarGenerationError, AvatarServiceUnavailableError, generate_ps1_avatar
-from app.services.storage import StorageError, upload_image
+from app.services.storage import StorageError, delete_object_by_url, upload_avatar_images
 
 router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -52,6 +61,17 @@ def update_current_user(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+def remove_user_avatar(db: Session, user: User) -> int:
+    """Zera avatar_url/avatar_thumb_url e apaga os objetos antigos (usado pelo usuario e pelo admin). Devolve
+    quantos objetos que EXISTIAM (URL preenchida) nao puderam ser apagados do S3 (0 = tudo certo); o banco fica
+    zerado de qualquer forma."""
+    old_urls = (user.avatar_url, user.avatar_thumb_url)
+    user.avatar_url = None
+    user.avatar_thumb_url = None
+    db.commit()
+    return sum(1 for old in old_urls if old and not delete_object_by_url(old))
 
 
 @router.post("/me/avatar", response_model=AvatarOut, status_code=status.HTTP_201_CREATED)
@@ -136,16 +156,34 @@ async def generate_avatar(
         db.rollback()
         logger.error("Falha ao registrar geracao de avatar (user_id=%s)", current_user.id, exc_info=True)
 
+    # Imagem grande + miniatura 256 WebP (mesmo uuid). A miniatura e best-effort: se falhar, thumb_url fica
+    # None (WARNING no log) e o avatar segue normalmente, sem afetar a cota (ja registrada acima).
     try:
-        url = upload_image(result_bytes, "image/png", "profiles")
+        url, thumb_url = upload_avatar_images(result_bytes)
     except StorageError as e:
         logger.error("Falha no upload do avatar gerado (user_id=%s): %s", current_user.id, e)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
+    old_urls = (current_user.avatar_url, current_user.avatar_thumb_url)
     current_user.avatar_url = url
+    current_user.avatar_thumb_url = thumb_url  # as duas colunas na MESMA transacao
     db.commit()
     db.refresh(current_user)
-    return AvatarOut(avatar_url=url)
+
+    # So depois de gravar as novas: apaga os objetos anteriores (best-effort, erros so logados).
+    for old in old_urls:
+        delete_object_by_url(old)
+    return AvatarOut(avatar_url=url, avatar_thumb_url=thumb_url)
+
+
+@router.delete("/me/avatar", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_avatar(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove o proprio avatar (zera as 2 colunas e apaga os objetos do S3, best-effort). Idempotente: sem avatar,
+    tambem responde 204."""
+    remove_user_avatar(db, current_user)
 
 
 @router.get("/search", response_model=list[UserSearchResult])
@@ -173,7 +211,10 @@ def search_users(
     following_ids = {
         row[0] for row in db.query(Follow.following_id).filter(Follow.follower_id == current_user.id).all()
     }
-    return [UserSearchResult(id=u.id, name=u.name, is_following=u.id in following_ids) for u in rows]
+    return [
+        UserSearchResult(id=u.id, name=u.name, is_following=u.id in following_ids, **avatar_fields(u, current_user.id))
+        for u in rows
+    ]
 
 
 @router.get("/suggestions", response_model=list[UserSearchResult])
@@ -196,7 +237,7 @@ def get_suggestions(
         .limit(limit)
         .all()
     )
-    return [UserSearchResult(id=u.id, name=u.name, is_following=False) for u in rows]
+    return [UserSearchResult(id=u.id, name=u.name, is_following=False, **avatar_fields(u, current_user.id)) for u in rows]
 
 
 @router.post("/match-contacts", response_model=list[MatchedContact])
@@ -248,8 +289,34 @@ def match_contacts(
     for u in rows:
         ref = number_to_ref.get(u.phone_number)
         if ref:
-            results.append(MatchedContact(contact_ref=ref, id=u.id, name=u.name, is_following=u.id in following_ids))
+            results.append(
+                MatchedContact(
+                    contact_ref=ref,
+                    id=u.id,
+                    name=u.name,
+                    is_following=u.id in following_ids,
+                    **avatar_fields(u, current_user.id),
+                )
+            )
     return results
+
+
+@router.get("/{user_id}/profile", response_model=PublicProfileOut)
+def get_public_profile(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Perfil publico minimo (id, nome, avatar). O avatar segue core/avatar_visibility. 404 se nao existir (id
+    invalido tambem)."""
+    try:
+        parsed_id = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    user = db.query(User).filter(User.id == parsed_id).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    return PublicProfileOut(id=user.id, name=user.name, **avatar_fields(user, current_user.id))
 
 
 @router.get("/{user_id}/badges", response_model=UserBadgesOut)

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import avatar_fields, visible_avatar
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.social import Comment, Follow, Like, Post
@@ -21,14 +22,25 @@ from app.schemas.social import (
 router = APIRouter(tags=["social"])
 
 
+def _author_avatar(row_or_user, owner_id: uuid.UUID, viewer_id: uuid.UUID) -> dict:
+    """avatar_url/avatar_thumb_url do autor para o espectador, pela regra unica de core/avatar_visibility.
+    row_or_user precisa ter avatar_url, avatar_thumb_url e date_of_birth (colunas do mesmo SELECT)."""
+    url, thumb = visible_avatar(
+        row_or_user.avatar_url, row_or_user.avatar_thumb_url, row_or_user.date_of_birth, owner_id, viewer_id
+    )
+    return {"avatar_url": url, "avatar_thumb_url": thumb}
+
+
 def _post_out(
     post: Post,
     author_name: str,
     likes_count: int = 0,
     comments_count: int = 0,
     is_liked_by_me: bool = False,
+    avatar: dict | None = None,
 ) -> PostOut:
     return PostOut(
+        **(avatar or {}),
         id=post.id,
         user_id=post.user_id,
         author=author_name,
@@ -44,8 +56,9 @@ def _post_out(
     )
 
 
-def _comment_out(comment: Comment, author_name: str) -> CommentOut:
+def _comment_out(comment: Comment, author_name: str, avatar: dict | None = None) -> CommentOut:
     return CommentOut(
+        **(avatar or {}),
         id=comment.id,
         post_id=comment.post_id,
         user_id=comment.user_id,
@@ -138,7 +151,8 @@ def create_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    return _post_out(post, current_user.name)  # post recem-criado: 0 curtidas, 0 comentarios
+    # post recem-criado: 0 curtidas, 0 comentarios; o autor e o proprio usuario (sempre ve o seu avatar)
+    return _post_out(post, current_user.name, avatar=avatar_fields(current_user, current_user.id))
 
 
 @router.get("/posts/{post_id}", response_model=PostOut)
@@ -153,7 +167,7 @@ def get_post(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
 
     row = (
-        db.query(Post, User.name)
+        db.query(Post, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Post.user_id == User.id)
         .filter(Post.id == parsed_id)
         .first()
@@ -161,13 +175,20 @@ def get_post(
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
 
-    post, author_name = row
+    post, author_name = row[0], row[1]
     if not _can_view_post(db, current_user, post):
         # Mesma resposta de "nao encontrado" — nao revela que o post existe.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
 
     counts = _post_counts(db, [post.id], current_user.id).get(post.id, {"likes": 0, "comments": 0, "liked": False})
-    return _post_out(post, author_name, counts["likes"], counts["comments"], counts["liked"])
+    return _post_out(
+        post,
+        author_name,
+        counts["likes"],
+        counts["comments"],
+        counts["liked"],
+        avatar=_author_avatar(row, post.user_id, current_user.id),
+    )
 
 
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -219,6 +240,7 @@ def list_user_posts(
             counts[post.id]["likes"],
             counts[post.id]["comments"],
             counts[post.id]["liked"],
+            avatar=avatar_fields(target_user, current_user.id),
         )
         for post in posts
     ]
@@ -282,12 +304,12 @@ def list_followers(
 ):
     parsed_id = _parse_user_id(user_id, db)
     rows = (
-        db.query(User.id, User.name)
+        db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(Follow, Follow.follower_id == User.id)
         .filter(Follow.following_id == parsed_id)
         .all()
     )
-    return [UserBrief(id=row.id, name=row.name) for row in rows]
+    return [UserBrief(id=row.id, name=row.name, **avatar_fields(row, current_user.id)) for row in rows]
 
 
 @router.get("/users/{user_id}/following", response_model=list[UserBrief])
@@ -298,12 +320,12 @@ def list_following(
 ):
     parsed_id = _parse_user_id(user_id, db)
     rows = (
-        db.query(User.id, User.name)
+        db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(Follow, Follow.following_id == User.id)
         .filter(Follow.follower_id == parsed_id)
         .all()
     )
-    return [UserBrief(id=row.id, name=row.name) for row in rows]
+    return [UserBrief(id=row.id, name=row.name, **avatar_fields(row, current_user.id)) for row in rows]
 
 
 def _get_viewable_post(db: Session, current_user: User, post_id: str) -> Post:
@@ -380,7 +402,7 @@ def create_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    return _comment_out(comment, current_user.name)
+    return _comment_out(comment, current_user.name, avatar_fields(current_user, current_user.id))
 
 
 @router.get("/posts/{post_id}/comments", response_model=list[CommentOut])
@@ -392,13 +414,15 @@ def list_comments(
     post = _get_viewable_post(db, current_user, post_id)
 
     rows = (
-        db.query(Comment, User.name)
+        db.query(Comment, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Comment.user_id == User.id)
         .filter(Comment.post_id == post.id)
         .order_by(Comment.created_at.asc())
         .all()
     )
-    return [_comment_out(comment, author_name) for comment, author_name in rows]
+    return [
+        _comment_out(row[0], row[1], _author_avatar(row, row[0].user_id, current_user.id)) for row in rows
+    ]
 
 
 @router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -443,7 +467,7 @@ def get_feed(
     )
 
     rows = (
-        db.query(Post, User.name)
+        db.query(Post, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Post.user_id == User.id)
         .filter(
             or_(
@@ -458,14 +482,15 @@ def get_feed(
         .all()
     )
 
-    counts = _post_counts(db, [post.id for post, _ in rows], current_user.id)
+    counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
     return [
         _post_out(
-            post,
-            author_name,
-            counts[post.id]["likes"],
-            counts[post.id]["comments"],
-            counts[post.id]["liked"],
+            row[0],
+            row[1],
+            counts[row[0].id]["likes"],
+            counts[row[0].id]["comments"],
+            counts[row[0].id]["liked"],
+            avatar=_author_avatar(row, row[0].user_id, current_user.id),
         )
-        for post, author_name in rows
+        for row in rows
     ]
