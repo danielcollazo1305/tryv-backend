@@ -275,7 +275,11 @@ def unfollow_user(
 
 
 @router.get("/users/{user_id}/followers", response_model=list[UserBrief])
-def list_followers(user_id: str, db: Session = Depends(get_db)):
+def list_followers(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login: a lista expoe nomes (era publica por engano)
+):
     parsed_id = _parse_user_id(user_id, db)
     rows = (
         db.query(User.id, User.name)
@@ -287,7 +291,11 @@ def list_followers(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/users/{user_id}/following", response_model=list[UserBrief])
-def list_following(user_id: str, db: Session = Depends(get_db)):
+def list_following(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # exige login: a lista expoe nomes (era publica por engano)
+):
     parsed_id = _parse_user_id(user_id, db)
     rows = (
         db.query(User.id, User.name)
