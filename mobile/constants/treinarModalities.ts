@@ -6,6 +6,8 @@ import type { ModalityId } from '@/services/modalities';
 export interface ModalityMeta {
   id: ModalityId;
   title: string;
+  /** Rótulo da linha "Modalidade" da tela Treinar (o `title` é o nome do item; este é a categoria). */
+  category: string;
   image: ImageSourcePropType;
   description: string;
   /** Tem distancia no painel (so tenis e bike). */
@@ -18,6 +20,7 @@ export const MODALITY_META: Record<ModalityId, ModalityMeta> = {
   tenis: {
     id: 'tenis',
     title: 'Tênis',
+    category: 'Corrida e caminhada',
     image: require('@/assets/sports/tenis.png'),
     description: 'Corrida e caminhada com rastreio por GPS.',
     hasDistance: true,
@@ -26,6 +29,7 @@ export const MODALITY_META: Record<ModalityId, ModalityMeta> = {
   bike: {
     id: 'bike',
     title: 'Bike',
+    category: 'Ciclismo',
     image: require('@/assets/sports/bike.png'),
     description: 'Pedalada com rastreio por GPS.',
     hasDistance: true,
@@ -34,6 +38,7 @@ export const MODALITY_META: Record<ModalityId, ModalityMeta> = {
   halter: {
     id: 'halter',
     title: 'Halter',
+    category: 'Musculação',
     image: require('@/assets/sports/halter.png'),
     description: 'Musculação: plano do dia, treino livre ou plano do personal.',
     hasDistance: false,
@@ -42,6 +47,7 @@ export const MODALITY_META: Record<ModalityId, ModalityMeta> = {
   luva: {
     id: 'luva',
     title: 'Luva',
+    category: 'Artes marciais',
     image: require('@/assets/sports/luva.png'),
     description: 'Lutas: boxe, muay thai, jiu-jitsu e mais.',
     hasDistance: false,

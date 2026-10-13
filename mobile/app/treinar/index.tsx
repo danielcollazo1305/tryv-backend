@@ -198,7 +198,7 @@ export default function TreinarScreen() {
 
         <View style={styles.panel}>
           <Row label="N." value={`${selectedIndex + 1} / ${order.length}`} />
-          <Row label="Modalidade" value={meta.title} highlight />
+          <Row label="Modalidade" value={meta.category} highlight />
           <Row label="Sessões no mês" value={sessionsText} />
           {meta.hasDistance && <Row label="Distância" value={distanceText} />}
           <Row label="Último treino" value={lastText} />

@@ -120,7 +120,7 @@ function ModalityMenu({ id }: { id: Exclude<ModalityId, 'bike'> }) {
           <View style={styles.titleTexts}>
             <RetroText size={8} color={RETRO.textDim}>Modalidade</RetroText>
             <RetroText size={12} color={RETRO.accent} numberOfLines={2}>
-              {meta.title}
+              {meta.category}
             </RetroText>
           </View>
         </View>
