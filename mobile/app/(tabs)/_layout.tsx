@@ -7,13 +7,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { colors3, spacing3 } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
+import { getInitials } from '@/utils/text';
 
 // Exportada — telas com ScrollView (Home, e as proximas que migrarem)
 // precisam somar isso ao paddingBottom do conteudo, senao o ultimo item
@@ -26,6 +29,11 @@ import { colors3, spacing3 } from '@/constants/theme';
 // dourado do Mizan), o resto e identico.
 export const TAB_BAR_HEIGHT = 60;
 const TAB_ICON_SIZE = 22;
+// Botao central "Treinar": circulo CONTIDO na altura da barra (nao sobressai, entao nada que usa TAB_BAR_HEIGHT muda).
+const CENTER_BUTTON_SIZE = 48;
+// Foto do usuario na aba Perfil: aro (borda de 2 pt, roxa quando ativa) + foto redonda dentro.
+const PROFILE_PHOTO_SIZE = 24;
+const PROFILE_RING_SIZE = PROFILE_PHOTO_SIZE + 6;
 const TAB_BAR_RADIUS = 30; // = height/2, mesmo valor literal do Mizan (nao radius3.pill=9999)
 // Espaco entre a base segura da tela (insets.bottom) e a propria barra —
 // mesmo valor usado no `bottom` do container abaixo, exportado pra quem
@@ -44,6 +52,47 @@ const TAB_BAR_SIDE_MARGIN = 18;
 
 const ACTIVE_COLOR = colors3.primary;
 const INACTIVE_COLOR = colors3.outline;
+
+/**
+ * Icone da aba Perfil: a FOTO do usuario (componente Avatar; sem foto = iniciais sobre o gradiente) no lugar do
+ * icone. Redonda so aqui: o Avatar do app e quadrado (avatarRadius), mas a prop `style` e aplicada por ultimo,
+ * entao `borderRadius: size / 2` basta (o componente Avatar nao e alterado). Menor de 18 anos tambem ve o proprio
+ * avatar (a regra de core/avatar_visibility so esconde para os outros). Tamanho <= 64 usa a miniatura.
+ */
+function ProfileTabIcon({ focused }: { focused: boolean }) {
+  const { user } = useAuth();
+  return (
+    <View style={[styles.profileRing, { borderColor: focused ? ACTIVE_COLOR : 'transparent' }]}>
+      <Avatar
+        initials={user ? getInitials(user.name) : '?'}
+        imageUrl={user?.avatar_url}
+        thumbUrl={user?.avatar_thumb_url}
+        size={PROFILE_PHOTO_SIZE}
+        style={{ borderRadius: PROFILE_PHOTO_SIZE / 2 }}
+      />
+    </View>
+  );
+}
+
+/**
+ * Botao central de destaque (estilo "Gravar" do Strava). NAO e uma aba: nao tem rota em <Tabs.Screen>, so abre a
+ * tela Treinar (pilha raiz `/treinar`, menu retro de modalidades) e nunca fica "selecionado".
+ */
+function CenterTrainButton() {
+  return (
+    <View style={styles.centerSlot}>
+      <Pressable
+        onPress={() => router.push('/treinar')}
+        accessibilityRole="button"
+        accessibilityLabel="Treinar"
+        hitSlop={4}
+        style={({ pressed }) => [styles.centerButton, pressed && styles.centerButtonPressed]}
+      >
+        <Ionicons name="fitness" size={26} color={colors3.onPrimary} />
+      </Pressable>
+    </View>
+  );
+}
 
 /**
  * Barra de tab totalmente customizada — arquitetura copiada do app Mizan
@@ -108,12 +157,16 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             };
 
             return (
-              <Pressable key={route.key} onPress={onPress} style={styles.tabBtn}>
-                {options.tabBarIcon?.({ color, focused: isFocused, size: TAB_ICON_SIZE })}
-                <Text style={[styles.label, { color }]} numberOfLines={1}>
-                  {options.title ?? route.name}
-                </Text>
-              </Pressable>
+              <React.Fragment key={route.key}>
+                <Pressable onPress={onPress} style={styles.tabBtn}>
+                  {options.tabBarIcon?.({ color, focused: isFocused, size: TAB_ICON_SIZE })}
+                  <Text style={[styles.label, { color }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                    {options.title ?? route.name}
+                  </Text>
+                </Pressable>
+                {/* Botao central entre Social (feed) e Refeicoes: ordem visivel = Home | Social | Treinar | Refeicoes | Perfil. */}
+                {route.name === 'feed' && <CenterTrainButton />}
+              </React.Fragment>
             );
           })}
         </View>
@@ -129,12 +182,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
  * de elevacao. Ver CustomTabBar acima pro porque da mudanca de arquitetura
  * (tabBarStyle -> tabBar customizado).
  *
- * Compartilhada pelas 5 abas (Home/Feed/Refeicoes/Treino/Desafios) — so a
- * Home migrou pro tema claro ate agora, entao essa barra clara flutua
- * sobre 4 telas ainda escuras. Isso e esperado (mesma migracao gradual ja
- * aceita pro avatar do header) e nao compromete a legibilidade: o blur +
- * tint branco sempre cria uma "ilha" clara atras dos icones, seja o fundo
- * por tras claro (Home) ou escuro (as outras 4).
+ * Abas visiveis: Home (index), Social (feed), Refeicoes (meals) e Perfil (profile, com a foto do usuario), mais o
+ * botao central Treinar (nao e aba). Treino (workout), Ranking e Desafios continuam como rotas (href: null), nao
+ * apagadas: o plano de treino abre pela Home/`/treinar`, o Ranking pelo trofeu do Social e Desafios pelo carrossel
+ * da Home.
  */
 export default function TabsLayout() {
   return (
@@ -151,53 +202,37 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
         }}
       />
+      {/* A rota continua `feed` (nao renomeada, para nao quebrar referencias); so o rotulo e "Social". */}
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'Feed',
-          tabBarIcon: ({ color, size }) => <Ionicons name="grid" color={color} size={size} />,
+          title: 'Social',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="meals"
         options={{
-          title: 'Refeicoes',
+          title: 'Refeições',
           tabBarIcon: ({ color, size }) => <Ionicons name="restaurant" color={color} size={size} />,
         }}
       />
+      {/* Perfil: 5a posicao, com a foto do usuario no lugar do icone (ver ProfileTabIcon). */}
       <Tabs.Screen
-        name="workout"
+        name="profile"
         options={{
-          title: 'Treino',
-          tabBarIcon: ({ color, size }) => <Ionicons name="barbell" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="ranking"
-        options={{
-          title: 'Ranking',
-          tabBarIcon: ({ color, size }) => <Ionicons name="trophy" color={color} size={size} />,
+          title: 'Perfil',
+          tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} />,
         }}
       />
       {/*
-        Desafios saiu da tab bar (deu lugar ao Ranking) mas continua
-        existindo como rota — mesmo padrao de href:null ja usado pro
-        Perfil logo abaixo. Nao apagada: acessivel pelo carrossel "Para
-        voce" da Home (DesafiosCarouselSlide.tsx).
+        Rotas ocultas (href: null, nao desregistradas): Treino (plano de IA/do personal; acessivel pela Home,
+        AiWorkoutCard e /treinar/[modalidade]), Ranking (ponte temporaria: trofeu no cabecalho do Social, ate o
+        Social ganhar abas) e Desafios (carrossel da Home).
       */}
+      <Tabs.Screen name="workout" options={{ href: null }} />
+      <Tabs.Screen name="ranking" options={{ href: null }} />
       <Tabs.Screen name="challenges" options={{ href: null }} />
-      {/*
-        Perfil saiu da tab bar (item 3 do pedido original) mas continua
-        existindo como rota dentro do grupo (tabs) — href: null so tira o
-        botao da barra, sem desregistrar a tela. Acesso agora e via avatar
-        no topo de Home/Feed/Refeicoes/Treino (ver cada uma), nao mais um
-        botao fixo sempre visivel. Com a barra customizada, e a checagem
-        de `tabBarItemStyle?.display === 'none'` dentro de CustomTabBar
-        (que o expo-router seta sozinho por causa do href:null) que de
-        fato esconde esse item agora — antes era a barra padrao do React
-        Navigation que fazia isso sozinha.
-      */}
-      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -241,6 +276,29 @@ const styles = StyleSheet.create({
   // temos instalado ainda (ver comentario no topo do arquivo).
   tint: { backgroundColor: 'rgba(255, 255, 255, 0.32)' },
   row: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%', gap: 2 },
+  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%', gap: 2, paddingHorizontal: 1 },
+  // Mesma largura de um item (flex: 1) para as 5 posicoes ficarem iguais; o circulo fica centrado e contido nos 60 pt.
+  centerSlot: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%' },
+  centerButton: {
+    width: CENTER_BUTTON_SIZE,
+    height: CENTER_BUTTON_SIZE,
+    borderRadius: CENTER_BUTTON_SIZE / 2,
+    backgroundColor: colors3.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: { shadowColor: colors3.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 6 },
+      android: { elevation: 4 },
+    }),
+  },
+  centerButtonPressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
+  profileRing: {
+    width: PROFILE_RING_SIZE,
+    height: PROFILE_RING_SIZE,
+    borderRadius: PROFILE_RING_SIZE / 2,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   label: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
 });

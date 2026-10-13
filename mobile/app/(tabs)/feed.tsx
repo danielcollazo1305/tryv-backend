@@ -130,7 +130,7 @@ export default function FeedScreen() {
       <FlatList
         data={showEmptyFollowingState ? [] : posts}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + spacing3.md }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors3.primary} />
         }
@@ -138,7 +138,7 @@ export default function FeedScreen() {
           <View style={styles.header}>
             <Text style={styles.logo}>Tryv Fit</Text>
             <View style={styles.headerTop}>
-              <Text style={styles.title}>Feed</Text>
+              <Text style={styles.title}>Social</Text>
               <View style={styles.headerActions}>
                 {/*
                   Entrada pro Descobrir (item 3) — o pedido original nao
@@ -147,6 +147,15 @@ export default function FeedScreen() {
                   padrao mais comum pra "encontrar pessoas" em apps sociais
                   (decisao minha, documentada aqui).
                 */}
+                {/* PONTE TEMPORARIA: o Ranking saiu da barra; este trofeu o mantem acessivel ate o Social ganhar abas (etapa E2). */}
+                <Pressable
+                  onPress={() => router.push('/(tabs)/ranking')}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ranking"
+                >
+                  <Ionicons name="trophy-outline" size={22} color={colors3.onSurfaceVariant} />
+                </Pressable>
                 <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
                   <Ionicons name="search" size={22} color={colors3.onSurfaceVariant} />
                 </Pressable>
