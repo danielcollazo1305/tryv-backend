@@ -145,3 +145,19 @@ class ModalitiesOut(BaseModel):
     month_start: date  # dia 1 do mes corrente (data LOCAL)
     month_end: date  # ultimo dia do mes corrente (data LOCAL, inclusivo)
     modalities: list[ModalityStatsOut]  # SEMPRE as 4, na ordem bike, halter, luva, tenis
+
+
+class ExerciseVolumeItem(BaseModel):
+    exercise_name: str  # primeiro nome original visto no periodo (o agrupamento e por nome normalizado)
+    sets_count: int
+    sessions_count: int
+
+
+class ExerciseVolumeOut(BaseModel):
+    """Series concluidas por exercicio no periodo (dias locais, inclusivo nos dois extremos). O mapeamento
+    exercicio -> musculo fica no app (exerciseLibrary)."""
+    start_date: date
+    end_date: date
+    total_sets: int
+    total_sessions: int  # sessoes do periodo com pelo menos 1 serie concluida
+    exercises: list[ExerciseVolumeItem]

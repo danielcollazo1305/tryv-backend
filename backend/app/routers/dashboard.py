@@ -30,6 +30,8 @@ from app.schemas.dashboard import (
     DailyDistanceKm,
     HomeSummaryOut,
     MetricComparison,
+    ExerciseVolumeItem,
+    ExerciseVolumeOut,
     ModalitiesOut,
     ModalityStatsOut,
     MonthComparisonOut,
@@ -45,6 +47,9 @@ from app.schemas.dashboard import (
 )
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+EXERCISE_VOLUME_DEFAULT_DAYS = 30  # mesma janela do Overall
+EXERCISE_VOLUME_MAX_DAYS = 366
 
 
 def _resolve_window(
@@ -858,3 +863,72 @@ def get_modalities(
             )
         )
     return ModalitiesOut(month_start=month_start, month_end=month_end, modalities=result)
+
+
+@router.get("/exercise-volume", response_model=ExerciseVolumeOut)
+def get_exercise_volume(
+    start_date: date | None = Query(None, description="YYYY-MM-DD, dia local (padrao: 29 dias antes de end_date)"),
+    end_date: date | None = Query(None, description="YYYY-MM-DD, dia local (padrao: hoje)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Series CONCLUIDAS por exercicio nas sessoes de treino do usuario logado (so dele, sem variante por usuario),
+    em [start_date, end_date] em dias LOCAIS (inclusivo nos dois extremos; padrao: ultimos 30 dias terminando hoje, a
+    janela do Overall). Serie = item de sets com completed == true (mesmo criterio de _session_stats). Agrupa por
+    nome normalizado (strip + lower, como get_last_exercise) e devolve o primeiro nome original visto. Exercicio sem
+    serie concluida nao entra; total_sessions = sessoes com pelo menos 1 serie concluida. Ordem: sets_count
+    decrescente, depois nome. Uma unica consulta (indice user_id, completed_at); agrupamento em Python.
+    """
+    end = end_date or local_today()
+    start = start_date or (end - timedelta(days=EXERCISE_VOLUME_DEFAULT_DAYS - 1))
+    if end < start:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A data final deve ser igual ou posterior a data inicial",
+        )
+    if (end - start).days + 1 > EXERCISE_VOLUME_MAX_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"O periodo nao pode ultrapassar {EXERCISE_VOLUME_MAX_DAYS} dias",
+        )
+
+    start_utc, end_utc = local_range_bounds(start, end)
+    sessions = _query_workout_sessions(db, current_user.id, start_utc, end_utc)
+    # Ordem cronologica (a consulta nao ordena): "primeiro nome original visto" fica deterministico.
+    sessions.sort(key=lambda session: (session.completed_at, str(session.id)))
+
+    groups: dict[str, dict] = {}
+    total_sets = 0
+    total_sessions = 0
+    for session_index, session in enumerate(sessions):
+        counted_session = False
+        for exercise in (session.exercises or {}).get("exercises") or []:
+            done = sum(1 for set_log in exercise.get("sets") or [] if set_log.get("completed"))
+            if done == 0:
+                continue
+            raw_name = exercise.get("name") or ""
+            key = raw_name.strip().lower()
+            if not key:
+                continue
+            group = groups.setdefault(key, {"name": raw_name, "sets": 0, "sessions": 0, "key": key, "last": None})
+            group["sets"] += done
+            if group["last"] != session_index:  # o mesmo exercicio repetido na sessao conta 1 sessao so
+                group["sessions"] += 1
+                group["last"] = session_index
+            total_sets += done
+            counted_session = True
+        if counted_session:
+            total_sessions += 1
+
+    items = sorted(groups.values(), key=lambda g: (-g["sets"], g["key"]))
+    return ExerciseVolumeOut(
+        start_date=start,
+        end_date=end,
+        total_sets=total_sets,
+        total_sessions=total_sessions,
+        exercises=[
+            ExerciseVolumeItem(exercise_name=g["name"], sets_count=g["sets"], sessions_count=g["sessions"])
+            for g in items
+        ],
+    )
