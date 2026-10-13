@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { MealDay } from '@/services/meals';
@@ -9,6 +9,10 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 /** Largura do cartao (pt): no iPhone SE (320) cabem ~2,5 cartoes e o resto convida a rolar. */
 export const DAY_CARD_WIDTH = 112;
 const CARD_PADDING = 5;
+/** Altura do bloco do icone (pt). O esqueleto e o cartao tracejado "Ver todas" usam as mesmas medidas. */
+const ICON_BOX_HEIGHT = 56;
+/** Altura do corpo: borda+padding (6 por lado) + icone + gap + kcal (20) + gap + meta (16). */
+const BODY_HEIGHT = 12 + ICON_BOX_HEIGHT + spacing3.xs + 20 + spacing3.xs + 16;
 
 interface DayCardProps {
   day: MealDay;
@@ -18,14 +22,14 @@ interface DayCardProps {
 }
 
 /**
- * Cartao "de pasta" de um dia: aba pequena no topo (rotulo), corpo claro com borda, foto 4:3 (miniatura quando
- * existe), calorias do dia e "dia da semana + numero · N ref.". Hoje ganha borda de 2 pt e aba na cor primaria. Dia
- * sem refeicao fica apagado mas continua tocavel; dia com refeicao e sem foto mostra o prato no lugar da foto.
+ * Cartao "de pasta" de um dia: aba pequena no topo (rotulo), corpo claro com borda, icone de garfo e faca (sem
+ * foto; as fotos ficam na lista do dia e em "Ver todas as fotos"), calorias do dia e "dia da semana + numero ·
+ * N ref.". Hoje ganha borda de 2 pt e aba na cor primaria. Dia com refeicao: icone cheio roxo; dia sem refeicao:
+ * icone vazado cinza e cartao apagado, mas continua tocavel.
  */
 export function DayCard({ day, index, onPress }: DayCardProps) {
   const isToday = index === 0;
   const isEmpty = day.meals_count === 0;
-  const photo = day.photo_thumb_url ?? day.photo_url;
   const tab = dayTabLabel(day.date, index);
 
   return (
@@ -42,13 +46,13 @@ export function DayCard({ day, index, onPress }: DayCardProps) {
       </View>
 
       <View style={[styles.body, isToday && styles.bodyToday]}>
-        {photo ? (
-          <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
-        ) : (
-          <View style={[styles.photo, styles.photoPlaceholder]}>
-            <Ionicons name={isEmpty ? 'restaurant-outline' : 'restaurant'} size={22} color={colors3.primary} />
-          </View>
-        )}
+        <View style={[styles.iconBox, isEmpty ? styles.iconBoxEmpty : styles.iconBoxFilled]}>
+          <Ionicons
+            name={isEmpty ? 'restaurant-outline' : 'restaurant'}
+            size={28}
+            color={isEmpty ? colors3.outline : colors3.primary}
+          />
+        </View>
         <Text style={styles.kcal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {formatKcal(day.total_calories)}
         </Text>
@@ -78,7 +82,7 @@ export function DayCardSkeleton() {
     <View style={styles.wrapper}>
       <View style={[styles.tab, styles.skeleton, { width: 44 }]} />
       <View style={[styles.body, styles.skeletonBody]}>
-        <View style={[styles.photo, styles.skeleton]} />
+        <View style={[styles.iconBox, styles.skeleton]} />
         <View style={[styles.skeleton, { height: 14, width: '70%', borderRadius: radius3.sm }]} />
         <View style={[styles.skeleton, { height: 10, width: '55%', borderRadius: radius3.sm }]} />
       </View>
@@ -119,24 +123,23 @@ const styles = StyleSheet.create({
     gap: spacing3.xs,
   },
   bodyToday: { borderWidth: 2, borderColor: colors3.primary, padding: CARD_PADDING - 1 },
-  photo: {
+  iconBox: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: ICON_BOX_HEIGHT,
     borderRadius: radius3.md,
-    backgroundColor: colors3.surfaceVariant,
-  },
-  photoPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(107, 56, 212, 0.12)',
   },
+  iconBoxFilled: { backgroundColor: 'rgba(107, 56, 212, 0.16)' },
+  iconBoxEmpty: { backgroundColor: colors3.surfaceContainerHigh },
   kcal: { ...typography3.labelMd, fontFamily: 'Inter_700Bold', letterSpacing: 0, color: colors3.onSurface },
   meta: { ...typography3.labelSm, letterSpacing: 0, textTransform: 'none' },
 
-  seeAllWrapper: { width: DAY_CARD_WIDTH - 16, paddingTop: 22 },
+  // paddingTop 21 = aba (22) menos a sobreposicao de 1 pt; minHeight = corpo do cartao do dia
+  seeAllWrapper: { width: DAY_CARD_WIDTH - 16, paddingTop: 21 },
   seeAll: {
     flex: 1,
-    minHeight: 108,
+    minHeight: BODY_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing3.xs,
@@ -148,5 +151,5 @@ const styles = StyleSheet.create({
   seeAllText: { ...typography3.labelMd, color: colors3.primary },
 
   skeleton: { backgroundColor: colors3.surfaceContainerHigh },
-  skeletonBody: { opacity: 0.8 },
+  skeletonBody: { opacity: 0.8, minHeight: BODY_HEIGHT },
 });
