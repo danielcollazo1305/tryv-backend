@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Avatar } from '@/components/Avatar';
+import { Avatar, avatarRadius } from '@/components/Avatar';
 import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   avatarStackMore: {
     width: AVATAR_STACK_SIZE,
     height: AVATAR_STACK_SIZE,
-    borderRadius: AVATAR_STACK_SIZE / 2,
+    borderRadius: avatarRadius(AVATAR_STACK_SIZE),
     backgroundColor: colors3.surfaceContainerHigh,
     borderWidth: 2,
     borderColor: colors3.background,

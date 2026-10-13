@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
   // Borda do avatar sobre o card escuro do Overall.
   avatarRing: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.25)' },
-  // Badge de camera sobre o avatar de 64 px; a borda tem a cor do fundo do card pra "recortar" o circulo.
+  // Badge de camera sobre o avatar de 64 px; a borda tem a cor do fundo do card pra "recortar" o avatar quadrado; o selo continua redondo.
   avatarEditBadge: {
     position: 'absolute',
     bottom: -2,
