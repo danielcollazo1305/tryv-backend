@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas.subscription import TeamBadge
+
 BiologicalSex = Literal["masculino", "feminino", "prefiro_nao_informar"]
 TrainingLevel = Literal["iniciante", "intermediario", "avancado"]
 
@@ -64,6 +66,21 @@ class PublicProfileOut(BaseModel):
     name: str
     avatar_url: str | None = None
     avatar_thumb_url: str | None = None
+    # Aditivos (app antigo ignora). Estatisticas de desempenho (Overall dos ultimos 30 dias, 0-100, e sequencias):
+    # null para menores de 18 e para quem nao informou a data de nascimento (core/avatar_visibility.can_show_stats).
+    # O tier (Elite/Ouro/...) e calculado no app a partir de `overall`.
+    overall: int | None = None
+    forca: int | None = None
+    resistencia: int | None = None
+    consistencia: int | None = None
+    disciplina: int | None = None
+    current_streak_days: int | None = None
+    best_streak_days: int | None = None
+    # Sempre visiveis (inclusive de menores): selo Pro, selos Team e contagens sociais.
+    is_pro: bool | None = None
+    teams: list[TeamBadge] | None = None
+    followers_count: int | None = None
+    following_count: int | None = None
 
 
 class UserUpdate(BaseModel):

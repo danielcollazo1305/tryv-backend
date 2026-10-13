@@ -19,6 +19,11 @@ def age_in_years(date_of_birth: date, today: date | None = None) -> int:
     return today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
 
 
+def is_adult(date_of_birth: date | None) -> bool:
+    """Maior de idade pela regra unica (>= MIN_AGE_TO_SHOW_AVATAR). Sem data de nascimento = nao (nao ha como saber)."""
+    return date_of_birth is not None and age_in_years(date_of_birth) >= MIN_AGE_TO_SHOW_AVATAR
+
+
 def visible_avatar(
     avatar_url: str | None,
     avatar_thumb_url: str | None,
@@ -29,7 +34,7 @@ def visible_avatar(
     """(avatar_url, avatar_thumb_url) que `viewer_id` pode ver do dono `owner_id`."""
     if owner_id is not None and owner_id == viewer_id:
         return avatar_url, avatar_thumb_url
-    if date_of_birth is None or age_in_years(date_of_birth) < MIN_AGE_TO_SHOW_AVATAR:
+    if not is_adult(date_of_birth):
         return None, None
     return avatar_url, avatar_thumb_url
 
@@ -39,3 +44,12 @@ def avatar_fields(user, viewer_id: uuid.UUID | None) -> dict:
     para espalhar num schema (`**avatar_fields(u, viewer.id)`). Delega a visible_avatar."""
     url, thumb = visible_avatar(user.avatar_url, user.avatar_thumb_url, user.date_of_birth, user.id, viewer_id)
     return {"avatar_url": url, "avatar_thumb_url": thumb}
+
+
+def can_show_stats(user, viewer_id: uuid.UUID | None = None) -> bool:
+    """Se `viewer_id` pode ver as estatisticas de desempenho (Overall, atributos, sequencias) de `user`. Mesma regra do
+    avatar: o proprio dono sempre ve; para os outros, so de maiores de 18 anos com data de nascimento informada.
+    Quem decide e o backend: os campos escondidos voltam null."""
+    if viewer_id is not None and user.id == viewer_id:
+        return True
+    return is_adult(user.date_of_birth)

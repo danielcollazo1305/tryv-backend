@@ -4,9 +4,10 @@ import uuid
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.avatar_visibility import avatar_fields
+from app.core.avatar_visibility import avatar_fields, can_show_stats
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -15,7 +16,9 @@ from app.models.social import Follow
 from app.models.subscription import Subscription
 from app.models.trainer import Trainer
 from app.models.user import User
+from app.routers.dashboard import _compute_training_streaks
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
+from app.routers.overall import compute_overall
 from app.schemas.subscription import TeamBadge, UserBadgesOut
 from app.schemas.user import (
     AvatarOut,
@@ -307,8 +310,11 @@ def get_public_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Perfil publico minimo (id, nome, avatar). O avatar segue core/avatar_visibility. 404 se nao existir (id
-    invalido tambem)."""
+    """Perfil publico: id, nome, avatar, selo Pro/Team, contagens de seguidores/seguindo e, para maiores de 18 com data
+    de nascimento, Overall + 4 atributos (30 dias) e sequencias. Avatar e estatisticas seguem core/avatar_visibility
+    (menores e quem nao informou a data: avatar e estatisticas null). Nunca devolve calorias, refeicoes, peso, localizacao,
+    e-mail nem data de nascimento. Numero constante de consultas (sem laco por registro). 404 se nao existir (id invalido
+    tambem)."""
     try:
         parsed_id = uuid.UUID(user_id)
     except ValueError:
@@ -316,7 +322,66 @@ def get_public_profile(
     user = db.query(User).filter(User.id == parsed_id).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
-    return PublicProfileOut(id=user.id, name=user.name, **avatar_fields(user, current_user.id))
+
+    badges = compute_user_badges(db, user.id)
+    followers_count, following_count = db.query(
+        db.query(func.count(Follow.id)).filter(Follow.following_id == user.id).scalar_subquery(),
+        db.query(func.count(Follow.id)).filter(Follow.follower_id == user.id).scalar_subquery(),
+    ).one()
+
+    stats: dict = {}
+    if can_show_stats(user, current_user.id):
+        overall = compute_overall(db, user.id)
+        current_streak_days, best_streak_days = _compute_training_streaks(db, user.id)
+        stats = {
+            **overall.model_dump(),
+            "current_streak_days": current_streak_days,
+            "best_streak_days": best_streak_days,
+        }
+
+    return PublicProfileOut(
+        id=user.id,
+        name=user.name,
+        **avatar_fields(user, current_user.id),
+        **stats,
+        is_pro=badges.is_pro,
+        teams=badges.teams,
+        followers_count=followers_count,
+        following_count=following_count,
+    )
+
+
+def compute_user_badges(db: Session, user_id: uuid.UUID) -> UserBadgesOut:
+    """Selo Pro (assinatura base ativa) e selos Team (um por professor com trainer_addon ativo). 2 consultas."""
+    is_pro = (
+        db.query(Subscription)
+        .filter(
+            Subscription.user_id == user_id,
+            Subscription.type == "base",
+            Subscription.status == "active",
+        )
+        .first()
+        is not None
+    )
+
+    team_rows = (
+        db.query(Trainer.professional_type, User.name)
+        .select_from(Subscription)
+        .join(Trainer, Subscription.trainer_id == Trainer.id)
+        .join(User, Trainer.user_id == User.id)
+        .filter(
+            Subscription.user_id == user_id,
+            Subscription.type == "trainer_addon",
+            Subscription.status == "active",
+        )
+        .all()
+    )
+    teams = [
+        TeamBadge(trainer_name=name, professional_type=professional_type)
+        for professional_type, name in team_rows
+    ]
+
+    return UserBadgesOut(is_pro=is_pro, teams=teams)
 
 
 @router.get("/{user_id}/badges", response_model=UserBadgesOut)
@@ -335,32 +400,4 @@ def get_user_badges(
     """
     parsed_id = _parse_user_id(user_id, db)
 
-    is_pro = (
-        db.query(Subscription)
-        .filter(
-            Subscription.user_id == parsed_id,
-            Subscription.type == "base",
-            Subscription.status == "active",
-        )
-        .first()
-        is not None
-    )
-
-    team_rows = (
-        db.query(Trainer.professional_type, User.name)
-        .select_from(Subscription)
-        .join(Trainer, Subscription.trainer_id == Trainer.id)
-        .join(User, Trainer.user_id == User.id)
-        .filter(
-            Subscription.user_id == parsed_id,
-            Subscription.type == "trainer_addon",
-            Subscription.status == "active",
-        )
-        .all()
-    )
-    teams = [
-        TeamBadge(trainer_name=name, professional_type=professional_type)
-        for professional_type, name in team_rows
-    ]
-
-    return UserBadgesOut(is_pro=is_pro, teams=teams)
+    return compute_user_badges(db, parsed_id)

@@ -32,13 +32,9 @@ def _clamp_score(value: float) -> int:
     return round(max(0.0, min(100.0, value)))
 
 
-@router.get("/overall", response_model=OverallStatsOut)
-def get_overall(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
+def compute_overall(db: Session, user_id) -> OverallStatsOut:
     """
-    Overall do perfil, sobre os ultimos 30 dias (hoje incluso). Cada atributo
+    Overall do perfil de `user_id`, sobre os ultimos 30 dias (hoje incluso). Cada atributo
     vai de 0 a 100 (clamp, mesmo se passar do teto) e o overall e a media
     simples dos 4, arredondada:
     - forca: volume medio semanal (peso x reps das series completas de todas
@@ -48,19 +44,22 @@ def get_overall(
     - consistencia: dias com Run, ManualActivity ou WorkoutSession / 30.
     - disciplina: dias distintos com PointsEvent de meta de proteina ou
       caloria / 30.
+
+    Funcao pura (sem usuario logado): usada por /dashboard/overall (o proprio) e por GET /users/{id}/profile
+    (outra pessoa, sujeito a core/avatar_visibility.can_show_stats).
     """
     start_date, end_date, days_total, _ = _resolve_window(f"{WINDOW_DAYS}d", None)
     # Janela em dias LOCAIS (herdada de _resolve_window); WHERE na coluna crua com limites UTC.
     start_utc, end_utc = local_range_bounds(start_date, end_date)
 
-    sessions = _query_workout_sessions(db, current_user.id, start_utc, end_utc)
+    sessions = _query_workout_sessions(db, user_id, start_utc, end_utc)
     total_volume_kg = sum(_session_stats(session)[1] for session in sessions)
     forca = _clamp_score(total_volume_kg / WEEKS_IN_WINDOW / STRENGTH_CEILING_KG_PER_WEEK * 100)
 
     run_meters = (
         db.query(func.coalesce(func.sum(Run.distance_meters), 0.0))
         .filter(
-            Run.user_id == current_user.id,
+            Run.user_id == user_id,
             Run.activity_type == "run",
             Run.started_at >= start_utc,
             Run.started_at < end_utc,
@@ -69,13 +68,13 @@ def get_overall(
     )
     resistencia = _clamp_score(run_meters / 1000 / ENDURANCE_CEILING_KM * 100)
 
-    _, days_trained = _compute_training_frequency(db, current_user.id, start_date, end_date, days_total)
+    _, days_trained = _compute_training_frequency(db, user_id, start_date, end_date, days_total)
     consistencia = _clamp_score(days_trained / days_total * 100)
 
     goal_days = (
         db.query(func.count(func.distinct(PointsEvent.source_date)))
         .filter(
-            PointsEvent.user_id == current_user.id,
+            PointsEvent.user_id == user_id,
             PointsEvent.source_type.in_(DISCIPLINE_SOURCE_TYPES),
             PointsEvent.source_date >= start_date,
             PointsEvent.source_date <= end_date,
@@ -92,3 +91,12 @@ def get_overall(
         disciplina=disciplina,
         overall=overall,
     )
+
+
+@router.get("/overall", response_model=OverallStatsOut)
+def get_overall(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Overall do usuario logado, ultimos 30 dias (formulas em compute_overall)."""
+    return compute_overall(db, current_user.id)
