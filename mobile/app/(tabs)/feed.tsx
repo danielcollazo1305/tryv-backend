@@ -1,248 +1,131 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
-import { EmptyFollowingState } from '@/components/EmptyFollowingState';
-import { PostCard2 } from '@/components/PostCard2';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
-import { useAuth } from '@/context/AuthContext';
-import { getApiErrorMessage } from '@/services/api';
-import { Post, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
-import { UserBadges, getUserBadges } from '@/services/user';
+import { FeedView } from '@/components/social/FeedView';
+import { RankingView } from '@/components/social/RankingView';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
-import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from './_layout';
 
-const PAGE_SIZE = 20;
+type SocialTab = 'feed' | 'ranking';
 
-export default function FeedScreen() {
-  const { user } = useAuth();
+const TABS: { key: SocialTab; label: string }[] = [
+  { key: 'feed', label: 'Feed' },
+  { key: 'ranking', label: 'Ranking' },
+];
+
+function parseTab(value: string | string[] | undefined): SocialTab {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === 'ranking' ? 'ranking' : 'feed';
+}
+
+/**
+ * Social (rota `feed`, nome mantido para nao quebrar referencias). Cabecalho unico (logo, titulo, busca de pessoas e
+ * avatar) + pilulas das abas com rolagem horizontal + a view da aba ativa. Abas desta etapa: Feed e Ranking
+ * (Clubes/Desafios/Seguindo/Explorar entram depois).
+ *
+ * Montagem sob demanda: uma aba so e montada na 1a vez que e selecionada (o Ranking nao busca nada enquanto o
+ * usuario so olha o Feed); depois de visitada continua montada e a inativa fica com `display: 'none'`, o que preserva
+ * rolagem, alternador individual/squad, modais e dados ao voltar. Sem biblioteca de pager: a troca e por toque.
+ * Param de rota opcional `tab` (`feed` | `ranking`) abre direto numa aba.
+ */
+export default function SocialScreen() {
   const insets = useSafeAreaInsets();
-  const [posts, setPosts] = useState<Post[]>([]);
-  // Badges (Pro/Team) do autor de cada post — GET /users/{id}/badges,
-  // mesmo endpoint usado no Perfil Publico, so que buscado em paralelo pra
-  // cada autor distinto da pagina em vez de um unico usuario.
-  const [badgesByUser, setBadgesByUser] = useState<Record<string, UserBadges | null>>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<SocialTab>(parseTab(tabParam));
+  const [visited, setVisited] = useState<Record<SocialTab, boolean>>({
+    feed: true,
+    ranking: parseTab(tabParam) === 'ranking',
+  });
 
-  // "Nao sigo ninguem" (item 2) e um estado DIFERENTE de "feed vazio" —
-  // GET /feed traz posts publicos de qualquer usuario, entao ele pode nao
-  // estar vazio mesmo sem seguir ninguem (posts publicos de estranhos). A
-  // decisao aqui foi priorizar o convite pra seguir gente sempre que
-  // followingCount for 0, substituindo o feed inteiro (mesmo que existam
-  // posts publicos pra mostrar) — mesmo padrao de apps de referencia, que
-  // tratam "nao segue ninguem" como o estado prioritario a resolver.
-  const [followingCount, setFollowingCount] = useState<number | null>(null);
-
-  const fetchBadgesFor = useCallback((postsToFetch: Post[]) => {
-    const uniqueUserIds = Array.from(new Set(postsToFetch.map((p) => p.user_id)));
-    uniqueUserIds.forEach((userId) => {
-      getUserBadges(userId)
-        .then((data) => setBadgesByUser((prev) => ({ ...prev, [userId]: data })))
-        .catch(() => setBadgesByUser((prev) => ({ ...prev, [userId]: null })));
-    });
-  }, []);
-
-  const fetchFirstPage = useCallback(async () => {
-    setError(null);
-    try {
-      const [data, myFollowing] = await Promise.all([
-        getFeed(PAGE_SIZE, 0),
-        user ? listFollowing(user.id) : Promise.resolve([]),
-      ]);
-      setPosts(data);
-      setHasMore(data.length === PAGE_SIZE);
-      setFollowingCount(myFollowing.length);
-      fetchBadgesFor(data);
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Não foi possível carregar o feed.'));
-    }
-  }, [fetchBadgesFor, user]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      fetchFirstPage().finally(() => setLoading(false));
-    }, [fetchFirstPage])
-  );
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchFirstPage();
-    setRefreshing(false);
+  const selectTab = (tab: SocialTab) => {
+    setActiveTab(tab);
+    setVisited((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }));
   };
 
-  const handleLoadMore = async () => {
-    if (loadingMore || !hasMore || loading) return;
-    setLoadingMore(true);
-    try {
-      const data = await getFeed(PAGE_SIZE, posts.length);
-      setPosts((prev) => [...prev, ...data]);
-      setHasMore(data.length === PAGE_SIZE);
-      fetchBadgesFor(data);
-    } catch {
-      // Silencioso: o usuario ja ve o que carregou antes, e o proximo scroll tenta de novo.
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  const handleToggleLike = async (post: Post) => {
-    const wasLiked = post.is_liked_by_me;
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === post.id ? { ...p, is_liked_by_me: !wasLiked, likes_count: p.likes_count + (wasLiked ? -1 : 1) } : p
-      )
-    );
-    try {
-      if (wasLiked) await unlikePost(post.id);
-      else await likePost(post.id);
-    } catch {
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id ? { ...p, is_liked_by_me: wasLiked, likes_count: p.likes_count + (wasLiked ? 1 : -1) } : p
-        )
-      );
-    }
-  };
-
-  const handlePressAuthor = (post: Post) => {
-    if (post.user_id === user?.id) {
-      router.push('/(tabs)/profile');
-    } else {
-      router.push({ pathname: '/social/[userId]', params: { userId: post.user_id } });
-    }
-  };
-
-  // followingCount === 0 substitui o feed inteiro pelo convite pra seguir
-  // gente (ver nota no state) — so depois de carregar, pra nao piscar o
-  // estado vazio antes da primeira resposta chegar.
-  const showEmptyFollowingState = !loading && followingCount === 0;
+  // Param `tab` mudou com a tela ja montada (ex.: router.navigate com outro tab): acompanha.
+  useEffect(() => {
+    if (tabParam !== undefined) selectTab(parseTab(tabParam));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
 
   return (
     <ScreenBackground3 style={styles.flex}>
-      <FlatList
-        data={showEmptyFollowingState ? [] : posts}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + spacing3.md }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors3.primary} />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <Text style={styles.logo}>Tryv Fit</Text>
-            <View style={styles.headerTop}>
-              <Text style={styles.title}>Social</Text>
-              <View style={styles.headerActions}>
-                {/*
-                  Entrada pro Descobrir (item 3) — o pedido original nao
-                  especificava de onde essa tela seria acessada, so a
-                  estrutura interna dela. Icone de busca no topo do Feed e o
-                  padrao mais comum pra "encontrar pessoas" em apps sociais
-                  (decisao minha, documentada aqui).
-                */}
-                {/* PONTE TEMPORARIA: o Ranking saiu da barra; este trofeu o mantem acessivel ate o Social ganhar abas (etapa E2). */}
-                <Pressable
-                  onPress={() => router.push('/(tabs)/ranking')}
-                  hitSlop={12}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ranking"
-                >
-                  <Ionicons name="trophy-outline" size={22} color={colors3.onSurfaceVariant} />
-                </Pressable>
-                <Pressable onPress={() => router.push('/social/discover')} hitSlop={12}>
-                  <Ionicons name="search" size={22} color={colors3.onSurfaceVariant} />
-                </Pressable>
-                {/* Entrada pro Perfil (Perfil saiu da tab bar, ver (tabs)/_layout.tsx). ProfileAvatarButton e compartilhado com Home/Refeicoes/Ranking/Treino — estava 100% colors2 ate ser migrado numa tarefa separada (achado na investigacao anterior, comentario antigo aqui estava incorreto). */}
-                <ProfileAvatarButton size={32} />
-              </View>
-            </View>
-            {!!error && <Text style={styles.error}>{error}</Text>}
-            {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+      <View style={[styles.header, { paddingTop: insets.top + spacing3.md }]}>
+        <Text style={styles.logo}>Tryv Fit</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>Social</Text>
+          <View style={styles.headerActions}>
+            {/* Entrada pro Descobrir: icone de busca no topo (padrao de apps sociais para encontrar pessoas). */}
+            <Pressable onPress={() => router.push('/social/discover')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Descobrir pessoas">
+              <Ionicons name="search" size={22} color={colors3.onSurfaceVariant} />
+            </Pressable>
+            <ProfileAvatarButton size={32} />
           </View>
-        }
-        renderItem={({ item }) => (
-          <PostCard2
-            post={item}
-            badges={badgesByUser[item.user_id]}
-            onPressAuthor={() => handlePressAuthor(item)}
-            onToggleLike={() => handleToggleLike(item)}
-            onPressComments={() =>
-              router.push({ pathname: '/social/comments/[postId]', params: { postId: item.id } })
-            }
-          />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
-        onEndReachedThreshold={0.4}
-        onEndReached={handleLoadMore}
-        ListFooterComponent={
-          loadingMore ? <ActivityIndicator color={colors3.primary} style={styles.footerLoading} /> : null
-        }
-        ListEmptyComponent={
-          !loading ? (
-            showEmptyFollowingState ? (
-              <EmptyFollowingState variant="light" />
-            ) : (
-              <View style={styles.empty}>
-                <Ionicons name="images-outline" size={32} color={colors3.onSurfaceVariant} />
-                <Text style={styles.emptyText}>Nenhum post ainda. Siga outras pessoas ou crie o primeiro!</Text>
-              </View>
-            )
-          ) : null
-        }
-      />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pillsScroll}
+          contentContainerStyle={styles.pillsContent}
+          accessibilityRole="tablist"
+        >
+          {TABS.map(({ key, label }) => {
+            const selected = key === activeTab;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => selectTab(key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                style={[styles.pill, selected && styles.pillSelected]}
+              >
+                <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-      {/*
-        FAB "+" -> /social/new — ja existia no codigo antes desta tarefa (nao
-        e novo, so recolorido pro claro). `bottom` calculado a partir da tab
-        bar flutuante (TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_GAP + safe area, mesma
-        formula ja usada no paddingBottom do scroll da Home em (tabs)/index.tsx)
-        — antes usava so spacing3.lg fixo, que nao considerava a altura da
-        tab bar e por isso o botao ficava parcialmente atras dela.
-      */}
-      <Pressable
-        style={[styles.fab, { bottom: insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + spacing3.lg }]}
-        onPress={() => router.push('/social/new')}
-      >
-        <Ionicons name="add" size={28} color={colors3.onPrimary} />
-      </Pressable>
+      <View style={styles.flex}>
+        {visited.feed && (
+          <View style={[styles.flex, activeTab !== 'feed' && styles.hidden]}>
+            <FeedView active={activeTab === 'feed'} />
+          </View>
+        )}
+        {visited.ranking && (
+          <View style={[styles.flex, activeTab !== 'ranking' && styles.hidden]}>
+            <RankingView active={activeTab === 'ranking'} />
+          </View>
+        )}
+      </View>
     </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  listContent: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl * 2 },
-  header: { gap: spacing3.xs, marginBottom: spacing3.md },
+  hidden: { display: 'none' },
+  header: { gap: spacing3.xs, paddingHorizontal: spacing3.containerMargin, marginBottom: spacing3.xs },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   title: { ...typography3.headlineLgMobile, fontSize: 26 },
-  error: { color: colors3.error, textAlign: 'center' },
-  loading: { marginTop: spacing3.sm },
-  footerLoading: { marginVertical: spacing3.md },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing3.xl, gap: spacing3.sm },
-  emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
-
-  fab: {
-    position: 'absolute',
-    right: spacing3.lg,
-    width: 56,
-    height: 56,
+  // Rolagem horizontal das pilulas: margem negativa + padding para ir de borda a borda sem cortar a 1a pilula.
+  pillsScroll: { marginHorizontal: -spacing3.containerMargin, flexGrow: 0, marginTop: spacing3.sm },
+  pillsContent: { paddingHorizontal: spacing3.containerMargin, gap: spacing3.sm },
+  pill: {
+    paddingHorizontal: spacing3.md,
+    paddingVertical: spacing3.sm,
     borderRadius: radius3.pill,
-    backgroundColor: colors3.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors3.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    backgroundColor: colors3.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors3.outlineVariant,
   },
+  pillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
+  pillText: { ...typography3.labelSm, fontSize: 13, textTransform: 'none' },
+  pillTextSelected: { color: colors3.white, fontFamily: 'Inter_700Bold' },
 });
