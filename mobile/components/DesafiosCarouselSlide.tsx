@@ -81,7 +81,7 @@ export function DesafiosCarouselSlide() {
         title="Desafios"
         subtitle="Acompanhe desafios dos seus profissionais e da comunidade Tryv Fit."
         accessibilityLabel="Grupo de pessoas correndo ao entardecer"
-        onPress={() => router.push('/challenges')}
+        onPress={() => router.push({ pathname: '/(tabs)/feed', params: { tab: 'challenges' } })}
         ctaLabel="Ver desafios"
       />
     );

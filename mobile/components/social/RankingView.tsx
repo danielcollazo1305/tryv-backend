@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Avatar } from '@/components/Avatar';
+import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
 import { TerritoryMap } from '@/components/TerritoryMap';
 import { useAuth } from '@/context/AuthContext';
@@ -42,10 +43,15 @@ interface RankingViewProps {
    * estatisticas e o territorio dependem do squad, entao sao recarregados (em silencio, como antes) quando muda.
    */
   refreshKey?: number;
+  /**
+   * Atalho para quem joga solo: leva o usuario a aba Clubes (criar/entrar num squad). Dentro do Social e o
+   * `selectTab('clubs')`; sem a prop o cartao de atalho nao aparece.
+   */
+  onGoToClubs?: () => void;
 }
 
 /** Conteudo do Ranking (usuario/squad, estatisticas, territorio e alternador individual/squad). Gestao do squad: ClubsView. Sem cabecalho. */
-export function RankingView({ active = true, refreshKey = 0 }: RankingViewProps) {
+export function RankingView({ active = true, refreshKey = 0, onGoToClubs }: RankingViewProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<RankingViewMode>('individual');
@@ -290,9 +296,16 @@ export function RankingView({ active = true, refreshKey = 0 }: RankingViewProps)
                   </GlassCard>
                 )}
               </>
-            ) : (
-              null
-            )}
+            ) : onGoToClubs ? (
+              <GlassCard variant="glass" style={styles.soloCard}>
+                <Text style={styles.soloTitle}>Você ainda joga solo</Text>
+                <Text style={styles.soloText}>
+                  Entre num squad pra somar XP com outras pessoas, disputar território na cidade e aparecer no
+                  ranking de squads — ou crie o seu e chame quem treina com você.
+                </Text>
+                <Button3 label="Ir para Clubes" onPress={onGoToClubs} />
+              </GlassCard>
+            ) : null}
           </>
         )}
 
@@ -437,6 +450,10 @@ export function RankingView({ active = true, refreshKey = 0 }: RankingViewProps)
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: spacing3.containerMargin, paddingTop: spacing3.sm, gap: spacing3.md },
+
+  soloCard: { gap: spacing3.sm },
+  soloTitle: { ...typography3.headlineMd, fontSize: 18 },
+  soloText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
 
   loading: { marginVertical: spacing3.lg },
   error: { color: colors3.error, textAlign: 'center', marginVertical: spacing3.sm },

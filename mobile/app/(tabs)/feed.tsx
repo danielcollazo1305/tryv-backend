@@ -52,9 +52,13 @@ export default function SocialScreen() {
     setVisited((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }));
   };
 
-  // Param `tab` mudou com a tela ja montada (ex.: router.navigate com outro tab): acompanha.
+  // Param `tab` (ex.: router.push com { tab: 'challenges' } vindo da Home, com o Social ja montado): acompanha e depois
+  // LIMPA o param. Sem limpar, o mesmo valor repetido (Home -> Desafios, trocar de pilula, Home -> Desafios de novo)
+  // nao mudaria `tabParam` e o efeito nao dispararia.
   useEffect(() => {
-    if (tabParam !== undefined) selectTab(parseTab(tabParam));
+    if (tabParam === undefined) return;
+    selectTab(parseTab(tabParam));
+    router.setParams({ tab: undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam]);
 
@@ -104,7 +108,7 @@ export default function SocialScreen() {
         )}
         {visited.ranking && (
           <View style={[styles.flex, activeTab !== 'ranking' && styles.hidden]}>
-            <RankingView active={activeTab === 'ranking'} refreshKey={squadVersion} />
+            <RankingView active={activeTab === 'ranking'} refreshKey={squadVersion} onGoToClubs={() => selectTab('clubs')} />
           </View>
         )}
         {visited.clubs && (

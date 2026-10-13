@@ -18,3 +18,10 @@ export async function shareProfile(userName: string): Promise<void> {
     message: `Me segue no Tryv! Sou ${userName}.`,
   });
 }
+
+/** Convite para um squad (nao confundir com shareInvite, que convida para o app): repassa o codigo de 6 caracteres. */
+export async function shareSquadInvite(inviteCode: string): Promise<void> {
+  await Share.share({
+    message: `Entra no meu squad no Tryv Fit! Código: ${inviteCode}`,
+  });
+}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Clipboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { SquadMe, createSquad, deleteSquad, getMySquad, joinSquad, leaveSquad } from '@/services/squads';
+import { shareSquadInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from '@/app/(tabs)/_layout';
@@ -92,6 +93,16 @@ export function ClubsView({ active = true, onSquadChanged }: ClubsViewProps) {
   const [squadActionSubmitting, setSquadActionSubmitting] = useState(false);
   const [squadActionError, setSquadActionError] = useState<string | null>(null);
 
+  // "Copiado" some sozinho depois de 2 s.
+  const [codeCopied, setCodeCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    []
+  );
+
   // `silent` = refetch por cima de dado ja exibido: nao liga o spinner (que trocaria o conteudo da tela).
   const fetchMySquad = useCallback(async (silent = false) => {
     if (!silent) setLoadingMySquad(true);
@@ -126,6 +137,24 @@ export function ClubsView({ active = true, onSquadChanged }: ClubsViewProps) {
   const squad = mySquad?.squad ?? null;
   const hasSquad = squad != null;
   const isSquadOwner = !!(hasSquad && user && squad!.created_by === user.id);
+
+  // Copiar usa o Clipboard do proprio React Native (o projeto nao tem expo-clipboard instalado; ver review).
+  function copyInviteCode() {
+    if (!squad) return;
+    Clipboard.setString(squad.invite_code);
+    setCodeCopied(true);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCodeCopied(false), 2000);
+  }
+
+  async function shareInviteCode() {
+    if (!squad) return;
+    try {
+      await shareSquadInvite(squad.invite_code);
+    } catch {
+      // Folha de compartilhamento fechada/falhou: nada a fazer.
+    }
+  }
 
   function openCreateModal() {
     setModalError(null);
@@ -269,6 +298,38 @@ export function ClubsView({ active = true, onSquadChanged }: ClubsViewProps) {
               />
             )}
 
+            {/* Codigo de convite: a API o devolve a TODOS os membros (copiar nao da poder administrativo). */}
+            <View style={styles.inviteBox}>
+              <Text style={styles.inviteLabel}>Código de convite</Text>
+              <Text
+                style={styles.inviteCode}
+                selectable
+                accessibilityLabel={`Código de convite: ${squad!.invite_code.split('').join(' ')}`}
+              >
+                {squad!.invite_code}
+              </Text>
+              <View style={styles.inviteButtons}>
+                <Pressable
+                  onPress={copyInviteCode}
+                  style={styles.inviteButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={codeCopied ? 'Código copiado' : 'Copiar código de convite'}
+                >
+                  <Ionicons name={codeCopied ? 'checkmark' : 'copy-outline'} size={16} color={colors3.primary} />
+                  <Text style={styles.inviteButtonText}>{codeCopied ? 'Copiado' : 'Copiar'}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={shareInviteCode}
+                  style={styles.inviteButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Compartilhar código de convite"
+                >
+                  <Ionicons name="share-outline" size={16} color={colors3.primary} />
+                  <Text style={styles.inviteButtonText}>Compartilhar</Text>
+                </Pressable>
+              </View>
+            </View>
+
             {hasSquad && (
               <Pressable
                 onPress={isSquadOwner ? confirmDeleteSquad : confirmLeaveSquad}
@@ -396,6 +457,23 @@ const styles = StyleSheet.create({
   squadBadgeSolo: { backgroundColor: colors3.surfaceContainerHigh, borderColor: colors3.outlineVariant },
   squadBadgeText: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   squadBadgeTextActive: { color: colors3.primary, fontFamily: 'Inter_700Bold' },
+  inviteBox: { gap: 2, paddingTop: spacing3.sm, borderTopWidth: 1, borderTopColor: colors3.outlineVariant },
+  inviteLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+  inviteCode: { fontFamily: 'Inter_800ExtraBold', fontSize: 24, letterSpacing: 5, color: colors3.onSurface },
+  inviteButtons: { flexDirection: 'row', gap: spacing3.sm, marginTop: spacing3.sm },
+  inviteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(107, 56, 212, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(107, 56, 212, 0.25)',
+  },
+  inviteButtonText: { ...typography3.labelSm, fontSize: 13, textTransform: 'none', color: colors3.primary, fontFamily: 'Inter_700Bold' },
   squadActionRow: {
     flexDirection: 'row',
     alignItems: 'center',

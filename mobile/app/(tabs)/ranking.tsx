@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
@@ -23,7 +24,7 @@ export default function RankingScreen() {
           <ProfileAvatarButton size={36} />
         </View>
       </View>
-      <RankingView />
+      <RankingView onGoToClubs={() => router.push({ pathname: '/(tabs)/feed', params: { tab: 'clubs' } })} />
     </ScreenBackground3>
   );
 }
