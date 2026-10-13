@@ -6,40 +6,46 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
+import { ChallengesView } from '@/components/social/ChallengesView';
+import { ClubsView } from '@/components/social/ClubsView';
 import { FeedView } from '@/components/social/FeedView';
 import { RankingView } from '@/components/social/RankingView';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
-type SocialTab = 'feed' | 'ranking';
+type SocialTab = 'feed' | 'ranking' | 'clubs' | 'challenges';
 
 const TABS: { key: SocialTab; label: string }[] = [
   { key: 'feed', label: 'Feed' },
   { key: 'ranking', label: 'Ranking' },
+  { key: 'clubs', label: 'Clubes' },
+  { key: 'challenges', label: 'Desafios' },
 ];
 
 function parseTab(value: string | string[] | undefined): SocialTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'ranking' ? 'ranking' : 'feed';
+  return raw === 'ranking' || raw === 'clubs' || raw === 'challenges' ? raw : 'feed';
 }
 
 /**
  * Social (rota `feed`, nome mantido para nao quebrar referencias). Cabecalho unico (logo, titulo, busca de pessoas e
- * avatar) + pilulas das abas com rolagem horizontal + a view da aba ativa. Abas desta etapa: Feed e Ranking
- * (Clubes/Desafios/Seguindo/Explorar entram depois).
+ * avatar) + pilulas das abas com rolagem horizontal + a view da aba ativa. Abas: Feed, Ranking, Clubes e Desafios
+ * (Seguindo/Explorar entram depois).
  *
  * Montagem sob demanda: uma aba so e montada na 1a vez que e selecionada (o Ranking nao busca nada enquanto o
  * usuario so olha o Feed); depois de visitada continua montada e a inativa fica com `display: 'none'`, o que preserva
  * rolagem, alternador individual/squad, modais e dados ao voltar. Sem biblioteca de pager: a troca e por toque.
- * Param de rota opcional `tab` (`feed` | `ranking`) abre direto numa aba.
+ * Param de rota opcional `tab` (`feed` | `ranking` | `clubs` | `challenges`) abre direto numa aba.
  */
 export default function SocialScreen() {
   const insets = useSafeAreaInsets();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<SocialTab>(parseTab(tabParam));
-  const [visited, setVisited] = useState<Record<SocialTab, boolean>>({
-    feed: true,
-    ranking: parseTab(tabParam) === 'ranking',
+  const [visited, setVisited] = useState<Record<SocialTab, boolean>>(() => {
+    const initial = parseTab(tabParam);
+    return { feed: true, ranking: initial === 'ranking', clubs: initial === 'clubs', challenges: initial === 'challenges' };
   });
+  // Incrementado pela aba Clubes quando o squad muda; a aba Ranking se atualiza (ver RankingView.refreshKey).
+  const [squadVersion, setSquadVersion] = useState(0);
 
   const selectTab = (tab: SocialTab) => {
     setActiveTab(tab);
@@ -98,7 +104,17 @@ export default function SocialScreen() {
         )}
         {visited.ranking && (
           <View style={[styles.flex, activeTab !== 'ranking' && styles.hidden]}>
-            <RankingView active={activeTab === 'ranking'} />
+            <RankingView active={activeTab === 'ranking'} refreshKey={squadVersion} />
+          </View>
+        )}
+        {visited.clubs && (
+          <View style={[styles.flex, activeTab !== 'clubs' && styles.hidden]}>
+            <ClubsView active={activeTab === 'clubs'} onSquadChanged={() => setSquadVersion((v) => v + 1)} />
+          </View>
+        )}
+        {visited.challenges && (
+          <View style={[styles.flex, activeTab !== 'challenges' && styles.hidden]}>
+            <ChallengesView active={activeTab === 'challenges'} />
           </View>
         )}
       </View>

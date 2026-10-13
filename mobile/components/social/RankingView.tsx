@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Avatar, avatarRadius } from '@/components/Avatar';
-import { Button3 } from '@/components/Button3';
+import { Avatar } from '@/components/Avatar';
 import { GlassCard } from '@/components/GlassCard';
 import { TerritoryMap } from '@/components/TerritoryMap';
 import { useAuth } from '@/context/AuthContext';
@@ -16,14 +15,10 @@ import {
   SquadMe,
   SquadRankingEntry,
   TerritoryCity,
-  createSquad,
-  deleteSquad,
   getIndividualRanking,
   getMySquad,
   getSquadRanking,
   getTerritory,
-  joinSquad,
-  leaveSquad,
 } from '@/services/squads';
 import { getInitials } from '@/utils/text';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -35,52 +30,6 @@ function formatXp(value: number): string {
   return value.toLocaleString('pt-BR');
 }
 
-/**
- * Avatar stack — fileira de avatares sobrepostos representando membros de
- * um squad, mesmo componente Avatar (iniciais + gradiente) ja usado no
- * resto do app, so em tamanho reduzido. So usado no card do proprio squad
- * do usuario (GET /squads/me retorna a lista de membros de verdade) — a
- * lista de ranking de squads (GET /ranking/squads) nao devolve membros
- * individuais, so member_count, entao nao da pra montar isso la.
- */
-const AVATAR_STACK_MAX_VISIBLE = 4;
-const AVATAR_STACK_SIZE = 22;
-
-interface AvatarStackMember {
-  id: string;
-  name: string;
-  avatarUrl?: string | null;
-  avatarThumbUrl?: string | null;
-}
-
-function AvatarStack({ members, totalMembers }: { members: AvatarStackMember[]; totalMembers: number }) {
-  const visible = members.slice(0, AVATAR_STACK_MAX_VISIBLE);
-  const remaining = totalMembers - visible.length;
-
-  return (
-    <View style={styles.avatarStack}>
-      {visible.map((member, index) => (
-        <Avatar
-          key={member.id}
-          initials={getInitials(member.name)}
-          imageUrl={member.avatarUrl}
-          thumbUrl={member.avatarThumbUrl}
-          size={AVATAR_STACK_SIZE}
-          style={[
-            styles.avatarStackItem,
-            { marginLeft: index === 0 ? 0 : -AVATAR_STACK_SIZE * 0.35, zIndex: visible.length - index },
-          ]}
-        />
-      ))}
-      {remaining > 0 && (
-        <View style={[styles.avatarStackMore, { marginLeft: -AVATAR_STACK_SIZE * 0.35 }]}>
-          <Text style={styles.avatarStackMoreText}>+{remaining}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
 interface RankingViewProps {
   /**
    * Aba visivel no Social. A view fica montada depois da 1a visita (preserva rolagem, alternador e modais), entao o
@@ -88,10 +37,15 @@ interface RankingViewProps {
    * recarrega quando ela voltar a ser a ativa.
    */
   active?: boolean;
+  /**
+   * Contador incrementado pela aba Clubes quando o squad do usuario muda (criar, entrar, sair, deletar): o ranking, as
+   * estatisticas e o territorio dependem do squad, entao sao recarregados (em silencio, como antes) quando muda.
+   */
+  refreshKey?: number;
 }
 
-/** Conteudo do Ranking (usuario/squad, estatisticas, territorio, alternador individual/squad e modais). Sem cabecalho. */
-export function RankingView({ active = true }: RankingViewProps) {
+/** Conteudo do Ranking (usuario/squad, estatisticas, territorio e alternador individual/squad). Gestao do squad: ClubsView. Sem cabecalho. */
+export function RankingView({ active = true, refreshKey = 0 }: RankingViewProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<RankingViewMode>('individual');
@@ -111,16 +65,6 @@ export function RankingView({ active = true }: RankingViewProps) {
   const [errorSquadRanking, setErrorSquadRanking] = useState<string | null>(null);
 
   const [territory, setTerritory] = useState<TerritoryCity[]>([]);
-
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [joinModalVisible, setJoinModalVisible] = useState(false);
-  const [squadNameInput, setSquadNameInput] = useState('');
-  const [inviteCodeInput, setInviteCodeInput] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
-
-  const [squadActionSubmitting, setSquadActionSubmitting] = useState(false);
-  const [squadActionError, setSquadActionError] = useState<string | null>(null);
 
   // `silent` = refetch por cima de dado ja exibido: nao liga o spinner (que trocaria o conteudo da tela).
   const fetchMySquad = useCallback(async (silent = false) => {
@@ -206,6 +150,23 @@ export function RankingView({ active = true }: RankingViewProps) {
     }
   }, [active, loadAll]);
 
+  // Squad mudou na aba Clubes: refetch silencioso (mesmos fetches que o antigo fluxo de criar squad fazia).
+  const lastRefreshKeyRef = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === lastRefreshKeyRef.current) return; // so reage a MUDANCAS depois da montagem
+    lastRefreshKeyRef.current = refreshKey;
+    if (activeRef.current) {
+      fetchMySquad(true);
+      fetchIndividualRanking(true);
+      fetchSquadRanking(true);
+      fetchStreaks();
+      fetchTerritory();
+    } else {
+      staleRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
   const squad = mySquad?.squad ?? null;
   const hasSquad = squad != null;
   const levelInfo = mySquad?.level_info;
@@ -221,115 +182,6 @@ export function RankingView({ active = true }: RankingViewProps) {
 
   const myCityTerritory = user?.city ? territory.find((t) => t.city === user.city) ?? null : null;
   const isDominantInCity = !!(hasSquad && myCityTerritory && myCityTerritory.dominant_squad_id === squad!.id);
-  const isSquadOwner = !!(hasSquad && user && squad!.created_by === user.id);
-
-  function openCreateModal() {
-    setModalError(null);
-    setSquadNameInput('');
-    setCreateModalVisible(true);
-  }
-
-  function openJoinModal() {
-    setModalError(null);
-    setInviteCodeInput('');
-    setJoinModalVisible(true);
-  }
-
-  async function handleCreateSquad() {
-    const name = squadNameInput.trim();
-    if (!name) return;
-    setSubmitting(true);
-    setModalError(null);
-    try {
-      const created = await createSquad(name);
-      // A resposta do POST ja e o squad completo: atualiza o estado na hora, pra nunca piscar "Você
-      // ainda joga solo" depois do sucesso. (Sem estado anterior nao ha level_info pra reaproveitar;
-      // nesse caso o refetch abaixo preenche.)
-      setMySquad((prev) => (prev ? { ...prev, squad: created } : prev));
-      setErrorMySquad(null);
-      setCreateModalVisible(false);
-      // Tudo que depende do squad e re-buscado em paralelo e aguardado (cada fetch trata o proprio
-      // erro, entao um deles falhar nao vira "erro ao criar"): meu squad, rankings, streaks e territorio.
-      await Promise.all([
-        fetchMySquad(true),
-        fetchIndividualRanking(true),
-        fetchSquadRanking(true),
-        fetchStreaks(),
-        fetchTerritory(),
-      ]);
-    } catch (err) {
-      setModalError(getApiErrorMessage(err, 'Não foi possível criar o squad.'));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleJoinSquad() {
-    const code = inviteCodeInput.trim();
-    if (code.length !== 6) return;
-    setSubmitting(true);
-    setModalError(null);
-    try {
-      await joinSquad(code);
-      setJoinModalVisible(false);
-      fetchMySquad();
-      fetchSquadRanking();
-    } catch (err) {
-      setModalError(getApiErrorMessage(err, 'Não foi possível entrar no squad.'));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function performLeaveSquad() {
-    setSquadActionSubmitting(true);
-    setSquadActionError(null);
-    try {
-      await leaveSquad();
-      await fetchMySquad();
-      fetchSquadRanking();
-    } catch (err) {
-      setSquadActionError(getApiErrorMessage(err, 'Não foi possível sair do squad.'));
-    } finally {
-      setSquadActionSubmitting(false);
-    }
-  }
-
-  function confirmLeaveSquad() {
-    if (!squad) return;
-    Alert.alert('Sair do squad', `Tem certeza que quer sair de ${squad.name}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: performLeaveSquad },
-    ]);
-  }
-
-  async function performDeleteSquad() {
-    if (!squad) return;
-    setSquadActionSubmitting(true);
-    setSquadActionError(null);
-    try {
-      await deleteSquad(squad.id);
-      await fetchMySquad();
-      fetchSquadRanking();
-    } catch (err) {
-      setSquadActionError(getApiErrorMessage(err, 'Não foi possível deletar o squad.'));
-    } finally {
-      setSquadActionSubmitting(false);
-    }
-  }
-
-  function confirmDeleteSquad() {
-    if (!squad) return;
-    const memberWord = squad.member_count === 1 ? 'membro' : 'membros';
-    Alert.alert(
-      'Deletar squad',
-      `Isso vai remover o squad para todos os ${squad.member_count} ${memberWord}. Tem certeza?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Deletar', style: 'destructive', onPress: performDeleteSquad },
-      ]
-    );
-  }
 
   return (
     <View style={styles.flex}>
@@ -362,17 +214,6 @@ export function RankingView({ active = true }: RankingViewProps) {
                         : 'Solo · sem squad'}
                     </Text>
                   </View>
-                  {hasSquad && (
-                    <AvatarStack
-                      members={squad!.members.map((m) => ({
-                        id: m.user_id,
-                        name: m.name,
-                        avatarUrl: m.avatar_url,
-                        avatarThumbUrl: m.avatar_thumb_url,
-                      }))}
-                      totalMembers={squad!.member_count}
-                    />
-                  )}
                 </View>
               </View>
 
@@ -390,18 +231,6 @@ export function RankingView({ active = true }: RankingViewProps) {
                 </>
               )}
 
-              {hasSquad && (
-                <Pressable
-                  onPress={isSquadOwner ? confirmDeleteSquad : confirmLeaveSquad}
-                  disabled={squadActionSubmitting}
-                  hitSlop={8}
-                  style={styles.squadActionRow}
-                >
-                  <Ionicons name={isSquadOwner ? 'trash-outline' : 'exit-outline'} size={14} color={colors3.error} />
-                  <Text style={styles.squadActionText}>{isSquadOwner ? 'Deletar squad' : 'Sair do squad'}</Text>
-                </Pressable>
-              )}
-              {!!squadActionError && <Text style={styles.error}>{squadActionError}</Text>}
             </>
           )}
         </GlassCard>
@@ -462,21 +291,7 @@ export function RankingView({ active = true }: RankingViewProps) {
                 )}
               </>
             ) : (
-              <GlassCard variant="glass" style={styles.soloCard}>
-                <Text style={styles.soloTitle}>Você ainda joga solo</Text>
-                <Text style={styles.soloText}>
-                  Entre num squad pra somar XP com outras pessoas, disputar território na cidade e aparecer no
-                  ranking de squads — ou crie o seu e chame quem treina com você.
-                </Text>
-                <View style={styles.soloButtons}>
-                  <View style={styles.soloButtonWrap}>
-                    <Button3 label="Criar squad" onPress={openCreateModal} />
-                  </View>
-                  <View style={styles.soloButtonWrap}>
-                    <Button3 label="Entrar em um" variant="secondary" onPress={openJoinModal} />
-                  </View>
-                </View>
-              </GlassCard>
+              null
             )}
           </>
         )}
@@ -615,75 +430,6 @@ export function RankingView({ active = true }: RankingViewProps) {
         )}
       </ScrollView>
 
-      <Modal
-        visible={createModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setCreateModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Criar squad</Text>
-              <Pressable onPress={() => setCreateModalVisible(false)} hitSlop={12} accessibilityLabel="Fechar">
-                <Ionicons name="close" size={24} color={colors3.onSurface} />
-              </Pressable>
-            </View>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Nome do squad"
-              placeholderTextColor={colors3.onSurfaceVariant}
-              value={squadNameInput}
-              onChangeText={setSquadNameInput}
-              maxLength={60}
-              autoFocus
-            />
-            {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
-            <Button3
-              label="Criar"
-              onPress={handleCreateSquad}
-              loading={submitting}
-              disabled={!squadNameInput.trim() || submitting}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={joinModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setJoinModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Entrar em um squad</Text>
-              <Pressable onPress={() => setJoinModalVisible(false)} hitSlop={12} accessibilityLabel="Fechar">
-                <Ionicons name="close" size={24} color={colors3.onSurface} />
-              </Pressable>
-            </View>
-            <TextInput
-              style={[styles.modalInput, styles.modalInviteInput]}
-              placeholder="Código de convite"
-              placeholderTextColor={colors3.onSurfaceVariant}
-              value={inviteCodeInput}
-              onChangeText={(text) => setInviteCodeInput(text.toUpperCase())}
-              maxLength={6}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              autoFocus
-            />
-            {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}
-            <Button3
-              label="Entrar"
-              onPress={handleJoinSquad}
-              loading={submitting}
-              disabled={inviteCodeInput.trim().length !== 6 || submitting}
-            />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -725,14 +471,6 @@ const styles = StyleSheet.create({
   },
   levelProgressFill: { height: '100%', borderRadius: radius3.pill, backgroundColor: colors3.primary },
 
-  squadActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    gap: 4,
-    marginTop: -spacing3.xs,
-  },
-  squadActionText: { ...typography3.labelSm, textTransform: 'none', color: colors3.error },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   statTile: { flexBasis: '47%', flexGrow: 1 },
@@ -753,25 +491,7 @@ const styles = StyleSheet.create({
   cityHintCard: { paddingVertical: spacing3.sm },
   cityHintText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 
-  avatarStack: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  avatarStackItem: { borderWidth: 2, borderColor: colors3.background },
-  avatarStackMore: {
-    width: AVATAR_STACK_SIZE,
-    height: AVATAR_STACK_SIZE,
-    borderRadius: avatarRadius(AVATAR_STACK_SIZE),
-    backgroundColor: colors3.surfaceContainerHigh,
-    borderWidth: 2,
-    borderColor: colors3.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarStackMoreText: { fontSize: 8.5, fontFamily: 'Inter_700Bold', color: colors3.onSurfaceVariant },
 
-  soloCard: { gap: spacing3.sm },
-  soloTitle: { ...typography3.headlineMd, fontSize: 18 },
-  soloText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
-  soloButtons: { flexDirection: 'row', gap: spacing3.sm, marginTop: spacing3.xs },
-  soloButtonWrap: { flex: 1 },
 
   pillsRow: { flexDirection: 'row', gap: spacing3.xs },
   pill: {
@@ -843,31 +563,4 @@ const styles = StyleSheet.create({
   listSubInfo: { ...typography3.bodyMd, fontSize: 12, color: colors3.onSurfaceVariant },
   listXp: { ...typography3.headlineMd, fontSize: 13, lineHeight: 16, color: colors3.onSurface },
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: colors3.background,
-    borderTopLeftRadius: radius3.xl,
-    borderTopRightRadius: radius3.xl,
-    padding: spacing3.lg,
-    paddingBottom: spacing3.xl,
-    gap: spacing3.md,
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { ...typography3.headlineMd, fontSize: 18 },
-  modalInput: {
-    ...typography3.bodyMd,
-    borderRadius: radius3.md,
-    borderWidth: 1,
-    borderColor: colors3.outlineVariant,
-    backgroundColor: colors3.surfaceVariant,
-    paddingHorizontal: spacing3.md,
-    paddingVertical: spacing3.sm + 2,
-    color: colors3.onSurface,
-  },
-  modalInviteInput: { textTransform: 'uppercase', letterSpacing: 4, textAlign: 'center' },
-  modalError: { color: colors3.error, fontSize: 13 },
 });
