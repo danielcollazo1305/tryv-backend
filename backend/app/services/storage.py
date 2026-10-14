@@ -216,3 +216,64 @@ def delete_post_media_by_url(url: str | None) -> bool:
         logger.warning("Falha ao apagar midia de post no S3 (%s)", type(e).__name__)
         return False
     return True
+
+
+# ---- midia de REFEICOES (meals/) e de CHECK-INS de desafio (challenges/): exclusao na exclusao de conta ---------------
+# Mesmo padrao e travas de delete_post_media_by_url: so URL do nosso bucket/regiao (https), chave
+# <pasta>/<nome>.<ext de 1-5 letras/numeros> com [A-Za-z0-9_-] (a miniatura meals/<uuid>_thumb.webp cabe no padrao), sem
+# '..', '?', '#', '%', '\\', subpastas. delete_object(), delete_object_by_url() e delete_post_media_by_url() nao mudam.
+CHALLENGES_PREFIX = "challenges/"
+
+
+def _media_key_from_url(url: str | None, prefix: str) -> str | None:
+    if not url or not isinstance(url, str):
+        return None
+    if any(bad in url for bad in ("..", "?", "#", "%", "\\")):
+        return None
+    public_prefix = _public_url_prefix()
+    if not url.startswith(public_prefix):
+        return None
+    key = url[len(public_prefix):]
+    pattern = re.compile(re.escape(prefix) + r"[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,5}")
+    return key if pattern.fullmatch(key) else None
+
+
+def _delete_media_key_by_url(url: str | None, prefix: str) -> bool:
+    key = _media_key_from_url(url, prefix)
+    if key is None:
+        logger.warning("exclusao de midia recusada: URL fora do nosso bucket ou fora de '%s'", prefix)
+        return False
+    try:
+        _get_client().delete_object(Bucket=settings.aws_s3_bucket, Key=key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Falha ao apagar midia no S3 (%s)", type(e).__name__)
+        return False
+    return True
+
+
+def delete_meal_media_by_url(url: str | None) -> bool:
+    """Apaga a foto (ou a miniatura .webp) de uma refeicao em meals/. True se apagou."""
+    return _delete_media_key_by_url(url, MEALS_PREFIX)
+
+
+def delete_challenge_media_by_url(url: str | None) -> bool:
+    """Apaga a foto de um check-in de desafio em challenges/. True se apagou."""
+    return _delete_media_key_by_url(url, CHALLENGES_PREFIX)
+
+
+def delete_user_media_by_url(url: str | None) -> bool:
+    """Despacha para o helper certo pela pasta da URL (profiles/, posts/, meals/ ou challenges/); qualquer outra pasta,
+    host ou formato e recusado (False). Usado pela exclusao de conta, DEPOIS do commit."""
+    if not url or not isinstance(url, str) or not url.startswith(_public_url_prefix()):
+        return False
+    key = url[len(_public_url_prefix()):]
+    if key.startswith(PROFILES_PREFIX):
+        # Helper sem a chave no log (delete_object_by_url loga a chave e a mensagem do erro; ele segue como esta).
+        return _delete_media_key_by_url(url, PROFILES_PREFIX)
+    if key.startswith(POSTS_PREFIX):
+        return delete_post_media_by_url(url)
+    if key.startswith(MEALS_PREFIX):
+        return delete_meal_media_by_url(url)
+    if key.startswith(CHALLENGES_PREFIX):
+        return delete_challenge_media_by_url(url)
+    return False

@@ -58,7 +58,8 @@ class PostReport(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # NULL = denunciante com a conta excluida (a denuncia continua como registro de moderacao, anonima).
+    reporter_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     post_id = Column(UUID(as_uuid=True), nullable=True)
     comment_id = Column(UUID(as_uuid=True), nullable=True)
     target_author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

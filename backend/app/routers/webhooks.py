@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.subscription import Subscription
+from app.models.trainer import Trainer
+from app.models.user import User
 from app.schemas.common import WebhookAckOut
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -49,10 +51,25 @@ def _handle_checkout_completed(db: Session, session: dict) -> None:
     if already_processed:
         return  # Stripe pode reenviar o mesmo evento — idempotencia
 
+    # Usuario (ou profissional) que ja nao existe -- ex.: a conta foi excluida entre o checkout e o webhook: IGNORA (200),
+    # sem criar Subscription (a FK daria erro e o Stripe ficaria reenviando). So ids no log.
+    try:
+        parsed_user_id = uuid.UUID(str(student_user_id))
+        parsed_trainer_id = uuid.UUID(str(trainer_id)) if trainer_id else None
+    except ValueError:
+        logger.warning("checkout.session.completed ignorado: id de usuario/profissional invalido na metadata")
+        return
+    if db.query(User.id).filter(User.id == parsed_user_id).first() is None:
+        logger.warning("checkout.session.completed ignorado: usuario inexistente (user_id=%s)", parsed_user_id)
+        return
+    if parsed_trainer_id is not None and db.query(Trainer.id).filter(Trainer.id == parsed_trainer_id).first() is None:
+        logger.warning("checkout.session.completed ignorado: profissional inexistente (trainer_id=%s)", parsed_trainer_id)
+        return
+
     db.add(Subscription(
-        user_id=uuid.UUID(student_user_id),
+        user_id=parsed_user_id,
         type="trainer_addon" if trainer_id else "base",
-        trainer_id=uuid.UUID(trainer_id) if trainer_id else None,
+        trainer_id=parsed_trainer_id,
         stripe_subscription_id=stripe_subscription_id,
         status="active",
     ))

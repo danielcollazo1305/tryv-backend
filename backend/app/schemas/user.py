@@ -153,3 +153,9 @@ class ResetPasswordRequest(BaseModel):
 
 class MessageOut(BaseModel):
     message: str
+
+
+class AccountDeleteRequest(BaseModel):
+    """POST /users/me/delete: reconfirmacao por senha atual + a palavra EXCLUIR (comparacao exata apos strip)."""
+    password: str = Field(..., min_length=1)
+    confirmation: str

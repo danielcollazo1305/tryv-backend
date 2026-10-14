@@ -3,14 +3,16 @@ import math
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.avatar_visibility import avatar_fields, can_show_stats
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.login_throttle import client_ip, login_throttle
 from app.core.deps import get_current_user
+from app.core.security import verify_password
 from app.models.avatar_generation import AvatarGeneration
 from app.models.social import Follow
 from app.models.subscription import Subscription
@@ -20,8 +22,16 @@ from app.routers.dashboard import _compute_training_streaks
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.routers.overall import compute_overall
 from app.schemas.subscription import TeamBadge, UserBadgesOut
+from app.services.account_deletion import (
+    CONFIRMATION_WORD,
+    AccountAlreadyGone,
+    AccountDeletionBlocked,
+    AccountDeletionStripeError,
+    delete_user_account,
+)
 from app.services.moderation import has_blocked, is_blocked_between, not_blocked
 from app.schemas.user import (
+    AccountDeleteRequest,
     AvatarOut,
     ContactsMatchRequest,
     MatchedContact,
@@ -188,6 +198,56 @@ def delete_my_avatar(
     """Remove o proprio avatar (zera as 2 colunas e apaga os objetos do S3, best-effort). Idempotente: sem avatar,
     tambem responde 204."""
     remove_user_avatar(db, current_user)
+
+
+@router.post("/me/delete", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(
+    payload: AccountDeleteRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Exclusao de conta IMEDIATA e irreversivel (Apple 5.1.1(v)): apaga a conta e os dados da pessoa. Exige a senha atual e
+    a palavra EXCLUIR. 422 confirmacao diferente de EXCLUIR; 429 muitas tentativas; 401 senha incorreta (conta no mesmo
+    limite do login); 409 pendencia (ultimo admin; profissional com alunos/desafios ativos ou conta Stripe Connect);
+    502 falha ao cancelar a assinatura no Stripe (nada e apagado); 204 em sucesso. Ver services/account_deletion.py.
+    """
+    if payload.confirmation.strip() != CONFIRMATION_WORD:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Digite {CONFIRMATION_WORD} para confirmar a exclusao da conta.",
+        )
+
+    ip = client_ip(request)
+    retry_after = login_throttle.blocked_for(current_user.email, ip)
+    if retry_after:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas. Tente novamente em alguns minutos.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    if not verify_password(payload.password, current_user.hashed_password):
+        login_throttle.record_failure(current_user.email, ip)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Senha incorreta")
+    login_throttle.reset_email(current_user.email)
+
+    try:
+        delete_user_account(db, current_user)
+    except AccountDeletionBlocked as blocked:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(blocked))
+    except AccountDeletionStripeError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Nao foi possivel cancelar sua assinatura agora. Tente novamente em instantes.",
+        )
+    except AccountAlreadyGone:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Não foi possível validar as credenciais",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/search", response_model=list[UserSearchResult])

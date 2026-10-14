@@ -74,7 +74,7 @@ def admin_list_reports(
     posts = {p.id: p for p in db.query(Post).filter(Post.id.in_(post_ids)).all()} if post_ids else {}
     comments = {c.id: c for c in db.query(Comment).filter(Comment.id.in_(comment_ids)).all()} if comment_ids else {}
 
-    user_ids = {r.reporter_id for r in reports}
+    user_ids = {r.reporter_id for r in reports if r.reporter_id is not None}
     for r in reports:
         if r.post_id in posts:
             user_ids.add(posts[r.post_id].user_id)
@@ -109,7 +109,12 @@ def admin_list_reports(
                 target_text=text,
                 target_media_url=media,
                 target_author=_brief(users.get(author_id), admin.id) if author_id is not None else None,
-                reporter=_brief(users.get(r.reporter_id), admin.id) or UserBrief(id=r.reporter_id, name=""),
+                reporter=(
+                    None
+                    if r.reporter_id is None
+                    else _brief(users.get(r.reporter_id), admin.id) or UserBrief(id=r.reporter_id, name="")
+                ),
+                reporter_deleted=r.reporter_id is None,
             )
         )
     return out
