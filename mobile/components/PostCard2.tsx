@@ -17,6 +17,8 @@ interface PostCard2Props {
   onPressAuthor: () => void;
   onToggleLike: () => void;
   onPressComments: () => void;
+  /** Menu "⋯" (denunciar/bloquear em post de outra pessoa; excluir em post meu). Sem a prop, o botao nao aparece. */
+  onPressMore?: () => void;
 }
 
 /**
@@ -50,7 +52,7 @@ interface PostCard2Props {
  * ("nao inventar dado") — mantida a estrutura real (caption + imagem
  * opcional), so recolorida.
  */
-export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressComments }: PostCard2Props) {
+export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressComments, onPressMore }: PostCard2Props) {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handleLikePress = () => {
@@ -63,7 +65,8 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
 
   return (
     <GlassCard variant="glass" style={styles.card}>
-      <Pressable style={styles.authorRow} onPress={onPressAuthor} hitSlop={4}>
+      <View style={styles.headerRow}>
+      <Pressable style={[styles.authorRow, styles.authorPressable]} onPress={onPressAuthor} hitSlop={4}>
         <Avatar
           initials={getInitials(post.author)}
           imageUrl={post.avatar_url}
@@ -97,6 +100,18 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
           </View>
         </View>
       </Pressable>
+      {!!onPressMore && (
+        <Pressable
+          onPress={onPressMore}
+          style={styles.moreButton}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel="Mais opções"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors3.onSurfaceVariant} />
+        </Pressable>
+      )}
+      </View>
 
       {!!post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
@@ -131,6 +146,9 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
 
 const styles = StyleSheet.create({
   card: { gap: spacing3.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  authorPressable: { flex: 1 },
+  moreButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -spacing3.sm },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   authorInfo: { flex: 1, gap: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs },

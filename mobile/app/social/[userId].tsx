@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import axios from 'axios';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
@@ -12,6 +13,7 @@ import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
 import { useAuth } from '@/context/AuthContext';
+import { blockUser, classifyModerationError, unblockUser } from '@/services/moderation';
 import { getApiErrorMessage } from '@/services/api';
 import {
   Post,
@@ -43,6 +45,10 @@ export default function UserProfileScreen() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [followBusy, setFollowBusy] = useState(false);
+  // 404 no perfil = "Perfil indisponivel" (inclui quem me bloqueou, sem revelar o motivo). blockedByMe = eu bloqueei esta pessoa.
+  const [unavailable, setUnavailable] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const [moderationBusy, setModerationBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Se por algum motivo o proprio usuario cair aqui, manda pro tab de Perfil.
@@ -56,14 +62,40 @@ export default function UserProfileScreen() {
     if (!userId || !currentUser) return;
     setLoading(true);
     setError(null);
+    setUnavailable(false);
     try {
-      const [postsData, followersData, followingData, myFollowingData, badgesData, profileData] = await Promise.all([
+      // Perfil primeiro: 404 do backend (usuario inexistente ou que me bloqueou) = tela "Perfil indisponivel"; se EU
+      // bloqueei, so o cabecalho com Desbloquear (posts/seguidores dessa pessoa dao 404 para mim). Outros erros mantem o
+      // comportamento antigo (a tela carrega sem o perfil).
+      let profileData: PublicProfile | null = null;
+      try {
+        profileData = await getPublicProfile(userId);
+      } catch (profileErr) {
+        const detail = axios.isAxiosError(profileErr) ? (profileErr.response?.data as { detail?: unknown } | undefined)?.detail : undefined;
+        // So 404 com `detail` PROPRIO do backend (string diferente de "Not Found") = indisponivel; 404 sem detail ou com o
+        // "Not Found" padrao (rota inexistente numa API antiga) mantem o comportamento antigo (a tela carrega).
+        if (axios.isAxiosError(profileErr) && profileErr.response?.status === 404 && typeof detail === 'string' && detail !== 'Not Found') {
+          setUnavailable(true);
+          return;
+        }
+      }
+      if (profileData?.is_blocked_by_me) {
+        setBlockedByMe(true);
+        setProfile(profileData);
+        setDisplayName(profileData.name);
+        setPosts([]);
+        setFollowers([]);
+        setFollowing([]);
+        setBadges(null);
+        return;
+      }
+      setBlockedByMe(false);
+      const [postsData, followersData, followingData, myFollowingData, badgesData] = await Promise.all([
         listUserPosts(userId),
         listFollowers(userId),
         listFollowing(userId),
         listFollowing(currentUser.id),
         getUserBadges(userId).catch(() => null),
-        getPublicProfile(userId).catch(() => null),
       ]);
       setPosts(postsData);
       setFollowers(followersData);
@@ -102,20 +134,107 @@ export default function UserProfileScreen() {
     }
   };
 
+  const personName = displayName ?? 'esta pessoa';
+
+  const doBlock = async () => {
+    setModerationBusy(true);
+    try {
+      await blockUser(userId);
+      router.back();
+    } catch (err) {
+      Alert.alert('Não foi possível bloquear', classifyModerationError(err, 'Tente novamente.').message);
+    } finally {
+      setModerationBusy(false);
+    }
+  };
+
+  const doUnblock = async () => {
+    setModerationBusy(true);
+    try {
+      await unblockUser(userId);
+      setBlockedByMe(false);
+      await fetchAll();
+    } catch (err) {
+      Alert.alert('Não foi possível desbloquear', classifyModerationError(err, 'Tente novamente.').message);
+    } finally {
+      setModerationBusy(false);
+    }
+  };
+
+  const handleOpenMenu = () => {
+    if (blockedByMe) {
+      Alert.alert('Opções', undefined, [
+        { text: `Desbloquear ${personName}`, onPress: doUnblock },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+      return;
+    }
+    Alert.alert('Opções', undefined, [
+      {
+        text: `Bloquear ${personName}`,
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(
+            `Bloquear ${personName}?`,
+            'Você não verá mais os posts dessa pessoa e ela não verá os seus. Você pode desbloquear depois em Perfil > Usuários bloqueados.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Bloquear', style: 'destructive', onPress: doBlock },
+            ]
+          ),
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
   return (
     <ScreenBackground2 style={styles.flex}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
         </Pressable>
         <Text style={styles.headerTitle}>Tryv Fit</Text>
-        <View style={{ width: 22 }} />
+        {!loading && !unavailable ? (
+          <Pressable
+            onPress={handleOpenMenu}
+            disabled={moderationBusy}
+            hitSlop={8}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel="Mais opções"
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={colors2.onSurface} />
+          </Pressable>
+        ) : (
+          <View style={styles.headerButton} />
+        )}
       </View>
 
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors2.violet} />
         </View>
+      ) : unavailable ? (
+        <View style={styles.centered}>
+          <Ionicons name="person-remove-outline" size={36} color={colors2.onSurfaceVariant} />
+          <Text style={styles.unavailableTitle}>Perfil indisponível</Text>
+          <Text style={styles.emptyText}>Este perfil não está disponível no momento.</Text>
+          <Button2 label="Voltar" variant="secondary" onPress={() => router.back()} />
+        </View>
+      ) : blockedByMe ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          <LiquiglassCard style={styles.profileCard}>
+            <Avatar
+              initials={displayName ? getInitials(displayName) : '?'}
+              imageUrl={profile?.avatar_url}
+              thumbUrl={profile?.avatar_thumb_url}
+              size={100}
+            />
+            <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
+            <Text style={styles.emptyText}>Você bloqueou esta pessoa.</Text>
+            <Button2 label="Desbloquear" onPress={doUnblock} loading={moderationBusy} />
+          </LiquiglassCard>
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {!!error && <Text style={styles.error}>{error}</Text>}
@@ -203,7 +322,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing2.md,
   },
   headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing2.md, padding: spacing2.containerMargin },
+  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  unavailableTitle: { ...typography2.headlineMd, fontSize: 18 },
   content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg },
   error: { color: colors2.danger, textAlign: 'center' },
 

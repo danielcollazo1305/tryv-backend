@@ -118,6 +118,8 @@ export interface PublicProfile {
   name: string;
   avatar_url: string | null;
   avatar_thumb_url: string | null;
+  /** Eu bloqueei esta pessoa (aditivo; ausente em API antiga = false). */
+  is_blocked_by_me?: boolean;
 }
 
 export async function getPublicProfile(userId: string): Promise<PublicProfile> {

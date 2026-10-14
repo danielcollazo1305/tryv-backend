@@ -13,12 +13,24 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
+import { ModerationTarget, useModeration } from '@/components/moderation/useModeration';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Comment, createComment, deleteComment, formatPostDate, listComments } from '@/services/social';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-function CommentRow({ comment, canDelete, onDelete }: { comment: Comment; canDelete: boolean; onDelete: () => void }) {
+function CommentRow({
+  comment,
+  canDelete,
+  onDelete,
+  onPressMore,
+}: {
+  comment: Comment;
+  canDelete: boolean;
+  onDelete: () => void;
+  /** Menu "⋯" so em comentario de OUTRA pessoa (denunciar/bloquear). */
+  onPressMore?: () => void;
+}) {
   return (
     <View style={styles.commentRow}>
       <View style={styles.avatar}>
@@ -34,6 +46,17 @@ function CommentRow({ comment, canDelete, onDelete }: { comment: Comment; canDel
       {canDelete && (
         <Pressable onPress={onDelete} hitSlop={8}>
           <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
+        </Pressable>
+      )}
+      {!!onPressMore && (
+        <Pressable
+          onPress={onPressMore}
+          style={styles.moreButton}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel="Mais opções"
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
         </Pressable>
       )}
     </View>
@@ -84,6 +107,15 @@ export default function CommentsScreen() {
     }
   };
 
+  // Moderacao: bloquear tira da lista todos os comentarios da pessoa; denunciar tira o comentario denunciado (o feed
+  // se atualiza sozinho ao voltar para ele, pois recarrega ao ganhar foco).
+  const { openMenu, sheet } = useModeration({
+    onBlocked: (blockedId) => setComments((prev) => prev.filter((c) => c.user_id !== blockedId)),
+    onContentRemoved: (target: ModerationTarget) => {
+      if (target.kind === 'comment') setComments((prev) => prev.filter((c) => c.id !== target.id));
+    },
+  });
+
   const handleDelete = async (comment: Comment) => {
     try {
       await deleteComment(comment.id);
@@ -119,6 +151,18 @@ export default function CommentsScreen() {
               comment={item}
               canDelete={item.user_id === user?.id}
               onDelete={() => handleDelete(item)}
+              onPressMore={
+                item.user_id === user?.id
+                  ? undefined
+                  : () =>
+                      openMenu({
+                        kind: 'comment',
+                        id: item.id,
+                        authorId: item.user_id,
+                        authorName: item.author,
+                        isOwn: false,
+                      })
+              }
             />
           )}
           ListEmptyComponent={
@@ -150,6 +194,7 @@ export default function CommentsScreen() {
           )}
         </Pressable>
       </View>
+      {sheet}
     </KeyboardAvoidingView>
   );
 }
@@ -183,6 +228,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   commentInfo: { flex: 1, gap: spacing.xs },
+  moreButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: -10, marginRight: -10 },
   commentText: { ...typography.bodySecondary, color: colors.text },
   commentAuthor: { fontWeight: '700', color: colors.text },
   commentDate: { ...typography.caption },

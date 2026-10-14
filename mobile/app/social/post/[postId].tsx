@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { PostCard } from '@/components/PostCard';
+import { confirmDeletePost, useModeration } from '@/components/moderation/useModeration';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, deletePost, getPost, likePost, unlikePost } from '@/services/social';
@@ -62,24 +63,24 @@ export default function PostDetailScreen() {
 
   const handleDelete = () => {
     if (!postId) return;
-    Alert.alert('Excluir post?', 'Essa acao nao pode ser desfeita.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            await deletePost(postId);
-            router.back();
-          } catch (err) {
-            setError(getApiErrorMessage(err, 'Nao foi possivel excluir o post.'));
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+    // Mesma confirmacao usada pelo menu do Feed (components/moderation/useModeration).
+    confirmDeletePost(async () => {
+      setDeleting(true);
+      try {
+        await deletePost(postId);
+        router.back();
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'Nao foi possivel excluir o post.'));
+        setDeleting(false);
+      }
+    });
   };
+
+  // Post de OUTRA pessoa: "⋯" com Denunciar / Bloquear. Bloqueou ou denunciou: fecha o post (o Social recarrega ao focar).
+  const { openMenu, sheet } = useModeration({
+    onBlocked: () => router.back(),
+    onContentRemoved: () => router.back(),
+  });
 
   const isOwnPost = post?.user_id === user?.id;
 
@@ -88,6 +89,19 @@ export default function PostDetailScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Post</Text>
         <View style={styles.headerActions}>
+          {!!post && !isOwnPost && (
+            <Pressable
+              onPress={() =>
+                openMenu({ kind: 'post', id: post.id, authorId: post.user_id, authorName: post.author, isOwn: false })
+              }
+              hitSlop={12}
+              style={styles.moreButton}
+              accessibilityRole="button"
+              accessibilityLabel="Mais opções"
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
+            </Pressable>
+          )}
           {isOwnPost && (
             <Pressable onPress={handleDelete} hitSlop={12} disabled={deleting}>
               {deleting ? (
@@ -123,6 +137,7 @@ export default function PostDetailScreen() {
           />
         )}
       </ScrollView>
+      {sheet}
     </View>
   );
 }
@@ -139,6 +154,7 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.h2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  moreButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginVertical: -10 },
   content: { padding: spacing.lg, paddingTop: 0, gap: spacing.md },
   centered: { alignItems: 'center', marginTop: spacing.xl },
   error: { color: colors.danger, textAlign: 'center' },

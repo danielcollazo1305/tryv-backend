@@ -44,8 +44,9 @@ export default function SocialScreen() {
     const initial = parseTab(tabParam);
     return { feed: true, ranking: initial === 'ranking', clubs: initial === 'clubs', challenges: initial === 'challenges' };
   });
-  // Incrementado pela aba Clubes quando o squad muda; a aba Ranking se atualiza (ver RankingView.refreshKey).
-  const [squadVersion, setSquadVersion] = useState(0);
+  // Incrementado quando o squad muda (aba Clubes) ou quando alguem e bloqueado no Feed: a aba Ranking se atualiza (ver
+  // RankingView.refreshKey; se estiver escondida, marca stale e recarrega ao voltar a ser a ativa).
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   const selectTab = (tab: SocialTab) => {
     setActiveTab(tab);
@@ -103,17 +104,17 @@ export default function SocialScreen() {
       <View style={styles.flex}>
         {visited.feed && (
           <View style={[styles.flex, activeTab !== 'feed' && styles.hidden]}>
-            <FeedView active={activeTab === 'feed'} />
+            <FeedView active={activeTab === 'feed'} onUserBlocked={() => setRefreshVersion((v) => v + 1)} />
           </View>
         )}
         {visited.ranking && (
           <View style={[styles.flex, activeTab !== 'ranking' && styles.hidden]}>
-            <RankingView active={activeTab === 'ranking'} refreshKey={squadVersion} onGoToClubs={() => selectTab('clubs')} />
+            <RankingView active={activeTab === 'ranking'} refreshKey={refreshVersion} onGoToClubs={() => selectTab('clubs')} />
           </View>
         )}
         {visited.clubs && (
           <View style={[styles.flex, activeTab !== 'clubs' && styles.hidden]}>
-            <ClubsView active={activeTab === 'clubs'} onSquadChanged={() => setSquadVersion((v) => v + 1)} />
+            <ClubsView active={activeTab === 'clubs'} onSquadChanged={() => setRefreshVersion((v) => v + 1)} />
           </View>
         )}
         {visited.challenges && (

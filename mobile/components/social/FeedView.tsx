@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,7 +8,8 @@ import { EmptyFollowingState } from '@/components/EmptyFollowingState';
 import { PostCard2 } from '@/components/PostCard2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { Post, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
+import { ModerationTarget, useModeration } from '@/components/moderation/useModeration';
+import { Post, deletePost, getFeed, likePost, listFollowing, unlikePost } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { TAB_BAR_BOTTOM_GAP, TAB_BAR_HEIGHT } from '@/app/(tabs)/_layout';
@@ -22,10 +23,12 @@ interface FeedViewProps {
    * voltar a ser a ativa.
    */
   active?: boolean;
+  /** Bloqueou alguem aqui: o Social avisa as outras abas (ex.: Ranking) para recarregarem (ver `refreshKey`). */
+  onUserBlocked?: (userId: string) => void;
 }
 
 /** Conteudo da aba "Feed" do Social: lista paginada de posts + FAB de novo post. Sem cabecalho (fica no conteiner). */
-export function FeedView({ active = true }: FeedViewProps) {
+export function FeedView({ active = true, onUserBlocked }: FeedViewProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -136,6 +139,32 @@ export function FeedView({ active = true }: FeedViewProps) {
     }
   };
 
+  // Moderacao: bloquear remove NA HORA da lista todos os posts da pessoa; denunciar remove o post; excluir (meu) chama
+  // DELETE /posts/{id} e remove da lista.
+  const handleBlocked = useCallback(
+    (blockedId: string) => {
+      setPosts((prev) => prev.filter((p) => p.user_id !== blockedId));
+      onUserBlocked?.(blockedId);
+    },
+    [onUserBlocked]
+  );
+  const handleContentRemoved = useCallback((target: ModerationTarget) => {
+    if (target.kind === 'post') setPosts((prev) => prev.filter((p) => p.id !== target.id));
+  }, []);
+  const handleDeleteOwnPost = useCallback(async (postId: string) => {
+    try {
+      await deletePost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      Alert.alert('Não foi possível excluir o post', getApiErrorMessage(err, 'Tente novamente mais tarde.'));
+    }
+  }, []);
+  const { openMenu, sheet } = useModeration({
+    onBlocked: handleBlocked,
+    onContentRemoved: handleContentRemoved,
+    onDeletePost: handleDeleteOwnPost,
+  });
+
   const handlePressAuthor = (post: Post) => {
     if (post.user_id === user?.id) {
       router.push('/(tabs)/profile');
@@ -175,6 +204,15 @@ export function FeedView({ active = true }: FeedViewProps) {
             onPressComments={() =>
               router.push({ pathname: '/social/comments/[postId]', params: { postId: item.id } })
             }
+            onPressMore={() =>
+              openMenu({
+                kind: 'post',
+                id: item.id,
+                authorId: item.user_id,
+                authorName: item.author,
+                isOwn: item.user_id === user?.id,
+              })
+            }
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
@@ -211,6 +249,7 @@ export function FeedView({ active = true }: FeedViewProps) {
       >
         <Ionicons name="add" size={28} color={colors3.onPrimary} />
       </Pressable>
+      {sheet}
     </View>
   );
 }

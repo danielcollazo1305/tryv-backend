@@ -12,6 +12,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { OverallCard } from '@/components/OverallCard';
+import { openSupportEmail } from '@/components/moderation/ReportSheet';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
@@ -729,6 +730,32 @@ export default function ProfileScreen() {
                 <View style={styles.tileFullTexts}>
                   <Text style={styles.tileFullTitle}>Meu equipamento</Text>
                   <Text style={styles.tileFullSubtitle}>Tênis, bike, relógio e fita cardíaca</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => router.push('/settings/blocked')} accessibilityRole="button">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="ban-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Usuários bloqueados</Text>
+                  <Text style={styles.tileFullSubtitle}>Quem você bloqueou no Social</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => openSupportEmail('Contato e denúncias no Tryv')} accessibilityRole="button">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="mail-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Contato e denúncias</Text>
+                  <Text style={styles.tileFullSubtitle}>Fale com a gente por e-mail</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
               </GlassCard>
