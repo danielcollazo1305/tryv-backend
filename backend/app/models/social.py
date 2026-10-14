@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Index, UniqueConstraint, CheckConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -9,6 +9,11 @@ from app.core.database import Base
 
 class Post(Base):
     __tablename__ = "posts"
+    __table_args__ = (
+        # Feed e posts por usuario (migration f2a6c93b1d58); o parcial serve o escopo publico (Explorar).
+        Index("ix_posts_user_created", "user_id", text("created_at DESC")),
+        Index("ix_posts_public_created", text("created_at DESC"), text("id DESC"), postgresql_where=text("visibility = 'public'")),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
@@ -35,6 +40,7 @@ class Follow(Base):
     __table_args__ = (
         UniqueConstraint("follower_id", "following_id", name="uq_follow_follower_following"),
         CheckConstraint("follower_id != following_id", name="ck_follow_no_self_follow"),
+        Index("ix_follows_following", "following_id"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -59,6 +65,7 @@ class Like(Base):
 
 class Comment(Base):
     __tablename__ = "comments"
+    __table_args__ = (Index("ix_comments_post", "post_id"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     post_id = Column(UUID(as_uuid=True), ForeignKey("posts.id"), nullable=False)

@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.social import Comment, Follow, Like, Post
 from app.models.user import User
+from app.services.moderation import is_blocked_between, not_blocked, not_reported_comment, not_reported_post
 from app.schemas.social import (
     CommentCreate,
     CommentOut,
@@ -115,6 +116,9 @@ def _is_following(db: Session, follower_id: uuid.UUID, following_id: uuid.UUID) 
 
 
 def _can_view_post(db: Session, viewer: User, post: Post) -> bool:
+    # Bloqueio nos dois sentidos: o post some (404 generico nos endpoints, sem revelar o bloqueio).
+    if post.user_id != viewer.id and is_blocked_between(db, viewer.id, post.user_id):
+        return False
     if post.visibility == "public":
         return True
     if post.user_id == viewer.id:
@@ -223,11 +227,13 @@ def list_user_posts(
     current_user: User = Depends(get_current_user),
 ):
     parsed_id = _parse_user_id(user_id, db)
+    if parsed_id != current_user.id and is_blocked_between(db, current_user.id, parsed_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
     target_user = db.query(User).filter(User.id == parsed_id).first()
 
     can_view_private = parsed_id == current_user.id or _is_following(db, current_user.id, parsed_id)
 
-    query = db.query(Post).filter(Post.user_id == parsed_id)
+    query = db.query(Post).filter(Post.user_id == parsed_id, not_reported_post(Post.id, current_user.id))
     if not can_view_private:
         query = query.filter(Post.visibility == "public")
 
@@ -261,6 +267,10 @@ def follow_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nao e possivel seguir a si mesmo")
 
     if not db.query(User).filter(User.id == parsed_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+
+    # Bloqueio nos dois sentidos impede seguir (404 generico: nao revela o bloqueio).
+    if is_blocked_between(db, current_user.id, parsed_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
 
     if _is_following(db, current_user.id, parsed_id):
@@ -303,10 +313,12 @@ def list_followers(
     current_user: User = Depends(get_current_user),  # exige login: a lista expoe nomes (era publica por engano)
 ):
     parsed_id = _parse_user_id(user_id, db)
+    if parsed_id != current_user.id and is_blocked_between(db, current_user.id, parsed_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
     rows = (
         db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(Follow, Follow.follower_id == User.id)
-        .filter(Follow.following_id == parsed_id)
+        .filter(Follow.following_id == parsed_id, not_blocked(User.id, current_user.id))
         .all()
     )
     return [UserBrief(id=row.id, name=row.name, **avatar_fields(row, current_user.id)) for row in rows]
@@ -319,10 +331,12 @@ def list_following(
     current_user: User = Depends(get_current_user),  # exige login: a lista expoe nomes (era publica por engano)
 ):
     parsed_id = _parse_user_id(user_id, db)
+    if parsed_id != current_user.id and is_blocked_between(db, current_user.id, parsed_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
     rows = (
         db.query(User.id, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(Follow, Follow.following_id == User.id)
-        .filter(Follow.follower_id == parsed_id)
+        .filter(Follow.follower_id == parsed_id, not_blocked(User.id, current_user.id))
         .all()
     )
     return [UserBrief(id=row.id, name=row.name, **avatar_fields(row, current_user.id)) for row in rows]
@@ -416,7 +430,11 @@ def list_comments(
     rows = (
         db.query(Comment, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
         .join(User, Comment.user_id == User.id)
-        .filter(Comment.post_id == post.id)
+        .filter(
+            Comment.post_id == post.id,
+            not_blocked(Comment.user_id, current_user.id),
+            not_reported_comment(Comment.id, current_user.id),
+        )
         .order_by(Comment.created_at.asc())
         .all()
     )
@@ -474,7 +492,10 @@ def get_feed(
                 Post.visibility == "public",
                 Post.user_id.in_(following_ids),
                 Post.user_id == current_user.id,
-            )
+            ),
+            # Bloqueados (nos dois sentidos) e posts que EU denunciei somem do meu feed.
+            not_blocked(Post.user_id, current_user.id),
+            not_reported_post(Post.id, current_user.id),
         )
         .order_by(Post.created_at.desc())
         .offset(offset)

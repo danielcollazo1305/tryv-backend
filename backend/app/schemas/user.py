@@ -81,6 +81,8 @@ class PublicProfileOut(BaseModel):
     teams: list[TeamBadge] | None = None
     followers_count: int | None = None
     following_count: int | None = None
+    # Aditivo: eu bloqueei esta pessoa (para o app mostrar "Desbloquear").
+    is_blocked_by_me: bool = False
 
 
 class UserUpdate(BaseModel):

@@ -20,6 +20,7 @@ from app.routers.dashboard import _compute_training_streaks
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.routers.overall import compute_overall
 from app.schemas.subscription import TeamBadge, UserBadgesOut
+from app.services.moderation import has_blocked, not_blocked
 from app.schemas.user import (
     AvatarOut,
     ContactsMatchRequest,
@@ -205,7 +206,7 @@ def search_users(
     """
     rows = (
         db.query(User)
-        .filter(User.name.ilike(f"%{q}%"), User.id != current_user.id)
+        .filter(User.name.ilike(f"%{q}%"), User.id != current_user.id, not_blocked(User.id, current_user.id))
         .order_by(User.name.asc())
         .offset(offset)
         .limit(limit)
@@ -235,7 +236,7 @@ def get_suggestions(
     following_ids = db.query(Follow.following_id).filter(Follow.follower_id == current_user.id).subquery()
     rows = (
         db.query(User)
-        .filter(User.id != current_user.id, User.id.notin_(following_ids))
+        .filter(User.id != current_user.id, User.id.notin_(following_ids), not_blocked(User.id, current_user.id))
         .order_by(User.created_at.desc())
         .limit(limit)
         .all()
@@ -281,6 +282,7 @@ def match_contacts(
             User.phone_number.isnot(None),
             User.phone_number.in_(all_numbers),
             User.id != current_user.id,
+            not_blocked(User.id, current_user.id),
         )
         .all()
     )
@@ -323,6 +325,12 @@ def get_public_profile(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
 
+    # Quem me bloqueou nao me deixa ver o perfil (404 generico, sem revelar o bloqueio); eu bloqueei: perfil normal.
+    is_self = user.id == current_user.id
+    if not is_self and has_blocked(db, user.id, current_user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    is_blocked_by_me = (not is_self) and has_blocked(db, current_user.id, user.id)
+
     badges = compute_user_badges(db, user.id)
     followers_count, following_count = db.query(
         db.query(func.count(Follow.id)).filter(Follow.following_id == user.id).scalar_subquery(),
@@ -348,6 +356,7 @@ def get_public_profile(
         teams=badges.teams,
         followers_count=followers_count,
         following_count=following_count,
+        is_blocked_by_me=is_blocked_by_me,
     )
 
 
