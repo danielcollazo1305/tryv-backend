@@ -10,6 +10,7 @@ from app.core.deps import get_current_user
 from app.models.social import Comment, Follow, Like, Post
 from app.models.user import User
 from app.services.moderation import is_blocked_between, not_blocked, not_reported_comment, not_reported_post
+from app.services.post_removal import delete_media_after_commit, purge_post
 from app.schemas.social import (
     CommentCreate,
     CommentOut,
@@ -216,8 +217,12 @@ def delete_post(
             detail="Voce nao tem permissao para excluir este post",
         )
 
-    db.delete(post)
+    # Curtidas e comentarios primeiro (as FKs nao tem CASCADE: antes, post com filhos dava 500). Denuncias ficam como
+    # registro. A midia no S3 so e apagada DEPOIS do commit e uma falha dela nao impede a remocao.
+    post_pk = post.id
+    media_to_delete = purge_post(db, post)
     db.commit()
+    delete_media_after_commit(post_pk, media_to_delete)
 
 
 @router.get("/users/{user_id}/posts", response_model=list[PostOut])

@@ -176,3 +176,43 @@ def delete_object_by_url(url: str | None) -> bool:
         logger.warning("delete_object_by_url recusado: URL fora do nosso bucket (%r)", url[:80])
         return False
     return delete_object(url[len(prefix):])
+
+
+# ---- midia de POSTS (pasta posts/): exclusao em helper SEPARADO, com trava propria -----------------------------------
+# O upload de posts vai para posts/{uuid}.{ext} (routers/media.py, folder='posts' -> upload_image). Outras pastas NAO
+# entram aqui de proposito: 'meals/' e 'challenges/' sao a MESMA foto referenciada pela refeicao/check-in (um post de
+# refeicao compartilha a URL da foto da refeicao) e 'profiles/' e o avatar. delete_object() continua so com 'profiles/'.
+POSTS_PREFIX = "posts/"
+# Chave aceita: posts/<nome sem barras>.<extensao curta>, so [A-Za-z0-9_-] (sem "..", sem "%", sem subpastas).
+_POST_MEDIA_KEY_RE = re.compile(r"posts/[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,5}")
+
+
+def post_media_key_from_url(url: str | None) -> str | None:
+    """Chave S3 de uma URL de midia de post, ou None se a URL nao for do NOSSO bucket/regiao, nao estiver em posts/, tiver
+    '..', query string, fragmento, '%' (traversal codificado), barra invertida ou qualquer caractere fora da lista."""
+    if not url or not isinstance(url, str):
+        return None
+    if any(bad in url for bad in ("..", "?", "#", "%", "\\")):
+        return None
+    prefix = _public_url_prefix()
+    if not url.startswith(prefix):
+        return None
+    key = url[len(prefix):]
+    return key if _POST_MEDIA_KEY_RE.fullmatch(key) else None
+
+
+def delete_post_media_by_url(url: str | None) -> bool:
+    """Apaga do S3 a midia de um post a partir da URL publica. Trava equivalente a de delete_object(), para posts/: so
+    URL do nosso bucket/regiao, so chave posts/<nome>.<ext>; qualquer outra (profiles/, meals/, outro bucket, '..',
+    query string...) e recusada (False) e nunca chega ao S3. Erros do S3 so sao logados (best-effort, sem a chave):
+    retorna True se apagou."""
+    key = post_media_key_from_url(url)
+    if key is None:
+        logger.warning("delete_post_media_by_url recusado: URL fora do nosso bucket ou fora de '%s'", POSTS_PREFIX)
+        return False
+    try:
+        _get_client().delete_object(Bucket=settings.aws_s3_bucket, Key=key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Falha ao apagar midia de post no S3 (%s)", type(e).__name__)
+        return False
+    return True

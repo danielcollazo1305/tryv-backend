@@ -20,7 +20,7 @@ from app.routers.dashboard import _compute_training_streaks
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
 from app.routers.overall import compute_overall
 from app.schemas.subscription import TeamBadge, UserBadgesOut
-from app.services.moderation import has_blocked, not_blocked
+from app.services.moderation import has_blocked, is_blocked_between, not_blocked
 from app.schemas.user import (
     AvatarOut,
     ContactsMatchRequest,
@@ -408,5 +408,8 @@ def get_user_badges(
     social.
     """
     parsed_id = _parse_user_id(user_id, db)
+    # Bloqueio em qualquer sentido: mesmo 404 de usuario inexistente (nao revela o bloqueio).
+    if parsed_id != current_user.id and is_blocked_between(db, current_user.id, parsed_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
 
     return compute_user_badges(db, parsed_id)

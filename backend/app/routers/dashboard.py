@@ -24,6 +24,7 @@ from app.models.run import Run
 from app.models.user import User
 from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutSession
+from app.services.moderation import is_blocked_between
 from app.services.run_calculator import elevation_gain_meters
 from app.schemas.dashboard import (
     CalorieSummary,
@@ -92,13 +93,16 @@ def _resolve_window(
     return start_date, end_date, days, period
 
 
-def _parse_and_validate_user_id(user_id: str, db: Session) -> uuid.UUID:
-    """Mesmo padrao de _parse_user_id em routers/social.py — 404 tanto pra id invalido quanto pra usuario inexistente, sem distinguir os dois casos."""
+def _parse_and_validate_user_id(user_id: str, db: Session, viewer_id: uuid.UUID | None = None) -> uuid.UUID:
+    """Mesmo padrao de _parse_user_id em routers/social.py — 404 tanto pra id invalido quanto pra usuario inexistente, sem distinguir os dois casos.
+    Com `viewer_id`, bloqueio entre os dois (em qualquer sentido) tambem vira o MESMO 404 (nao revela o bloqueio)."""
     try:
         parsed_id = uuid.UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
     if not db.query(User).filter(User.id == parsed_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+    if viewer_id is not None and parsed_id != viewer_id and is_blocked_between(db, viewer_id, parsed_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
     return parsed_id
 
@@ -197,7 +201,7 @@ def get_user_training_frequency(
     current_user: User = Depends(get_current_user),
 ):
     """Versao publica de /dashboard/training-frequency — mesma decisao de visibilidade de get_user_weekly_activity (sem gate de seguidor)."""
-    parsed_id = _parse_and_validate_user_id(user_id, db)
+    parsed_id = _parse_and_validate_user_id(user_id, db, current_user.id)
     start_date, end_date, days_total, period_label = _resolve_window(period, month)
     training_frequency, days_trained = _compute_training_frequency(db, parsed_id, start_date, end_date, days_total)
     return TrainingFrequencyOut(
@@ -336,7 +340,7 @@ def get_user_weekly_activity(
     posts do item 1. current_user aqui so exige estar autenticado, nao
     escopa o dado retornado.
     """
-    parsed_id = _parse_and_validate_user_id(user_id, db)
+    parsed_id = _parse_and_validate_user_id(user_id, db, current_user.id)
     return WeeklyActivityOut(daily=_compute_weekly_activity(db, parsed_id))
 
 

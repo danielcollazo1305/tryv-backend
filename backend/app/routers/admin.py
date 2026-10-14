@@ -10,11 +10,12 @@ from app.core.avatar_visibility import avatar_fields
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.models.moderation import PostReport
-from app.models.social import Comment, Like, Post
+from app.models.social import Comment, Post
 from app.models.user import User
 from app.routers.users import remove_user_avatar
 from app.schemas.moderation import AdminReportOut, ResolveReportIn, ResolveReportOut
 from app.schemas.social import UserBrief
+from app.services.post_removal import delete_media_after_commit, purge_post
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
@@ -123,8 +124,8 @@ def admin_resolve_report(
 ):
     """Resolve uma denuncia aberta. `dismiss`: marca `dismissed`. `remove_content`: apaga o post (com curtidas e
     comentarios) ou o comentario, e marca como `actioned` TODAS as denuncias abertas sobre esse conteudo. Grava quem
-    revisou (`reviewed_by`) e quando. 404 se nao existir, 409 se ja resolvida. A midia no S3 NAO e apagada (o helper
-    de exclusao do S3 so aceita a pasta `profiles/`; ver review)."""
+    revisou (`reviewed_by`) e quando. 404 se nao existir, 409 se ja resolvida. A midia do post em `posts/` e apagada do S3
+    (storage.delete_post_media_by_url, best-effort)."""
     try:
         parsed_id = uuid.UUID(report_id)
     except ValueError:
@@ -138,6 +139,8 @@ def admin_resolve_report(
     now = datetime.utcnow()
     review = {"reviewed_at": now, "reviewed_by": admin.id}
     removed = False
+    media_to_delete: str | None = None
+    removed_post_id = report.post_id
 
     if payload.action == "dismiss":
         report.status = "dismissed"
@@ -148,9 +151,7 @@ def admin_resolve_report(
             post = db.query(Post).filter(Post.id == report.post_id).first()
             comment_ids = [c.id for c in db.query(Comment.id).filter(Comment.post_id == report.post_id).all()]
             if post is not None:
-                db.query(Like).filter(Like.post_id == post.id).delete(synchronize_session=False)
-                db.query(Comment).filter(Comment.post_id == post.id).delete(synchronize_session=False)
-                db.delete(post)
+                media_to_delete = purge_post(db, post)
                 removed = True
             target = PostReport.post_id == report.post_id
             if comment_ids:
@@ -170,6 +171,8 @@ def admin_resolve_report(
 
     db.commit()
     db.refresh(report)
+    # Midia do post no S3 (best-effort, DEPOIS do commit: falha so loga o id e nao desfaz a remocao).
+    delete_media_after_commit(removed_post_id, media_to_delete)
     # So ids no log.
     logger.info(
         "admin_report_resolved admin_id=%s report_id=%s action=%s content_removed=%s", admin.id, report.id, payload.action, removed
