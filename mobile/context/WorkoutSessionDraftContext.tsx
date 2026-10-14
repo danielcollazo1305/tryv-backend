@@ -18,7 +18,7 @@ import {
  * versionada (v1) pra permitir invalidar rascunhos antigos com formato
  * incompativel numa mudanca futura, sem precisar de migracao de dado.
  */
-const FREE_DRAFT_STORAGE_KEY = 'workout-session-draft-free-v1';
+export const FREE_DRAFT_STORAGE_KEY ='workout-session-draft-free-v1';
 
 /** Espera ficar quieto antes de gravar — evita um write no disco a cada tecla digitada em peso/reps. */
 const PERSIST_DEBOUNCE_MS = 500;

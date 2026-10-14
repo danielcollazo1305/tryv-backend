@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { fetchHeartRateSamplesSince } from '@/services/health';
 import { syncHeartRateSamples } from '@/services/heartRate';
 
-const LAST_SYNC_KEY = 'heart_rate_last_synced_at';
+export const LAST_SYNC_KEY ='heart_rate_last_synced_at';
 // Nao tenta de novo antes disso — evita bater no backend toda vez que a tela
 // de Atividades ganha foco (ela remonta a cada navegacao, nao so uma vez).
 const MIN_SYNC_INTERVAL_MS = 15 * 60 * 1000;

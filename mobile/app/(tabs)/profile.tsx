@@ -52,19 +52,21 @@ function currentMonthParam(): string {
  * fundo chapado (acabamento "premium" pedido no mockup aprovado). tone
  * "pro" so pro card Tryv Pro, levemente mais saturado.
  */
-function GridIcon({ name, tone = 'primary' }: { name: React.ComponentProps<typeof Ionicons>['name']; tone?: 'primary' | 'pro' }) {
+function GridIcon({ name, tone = 'primary' }: { name: React.ComponentProps<typeof Ionicons>['name']; tone?: 'primary' | 'pro' | 'danger' }) {
   return (
     <LinearGradient
       colors={
         tone === 'pro'
           ? ['rgba(107, 56, 212, 0.22)', 'rgba(132, 85, 239, 0.1)']
-          : ['rgba(107, 56, 212, 0.16)', 'rgba(107, 56, 212, 0.06)']
+          : tone === 'danger'
+            ? ['rgba(186, 26, 26, 0.16)', 'rgba(186, 26, 26, 0.06)']
+            : ['rgba(107, 56, 212, 0.16)', 'rgba(107, 56, 212, 0.06)']
       }
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.tileIconWrap}
     >
-      <Ionicons name={name} size={19} color={colors3.primary} />
+      <Ionicons name={name} size={19} color={tone === 'danger' ? colors3.error : colors3.primary} />
     </LinearGradient>
   );
 }
@@ -761,6 +763,19 @@ export default function ProfileScreen() {
               </GlassCard>
             </Pressable>
           </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => router.push('/settings/delete-account')} accessibilityRole="button" accessibilityLabel="Excluir conta">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="trash-outline" tone="danger" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={[styles.tileFullTitle, styles.dangerText]}>Excluir conta</Text>
+                  <Text style={styles.tileFullSubtitle}>Apague sua conta e seus dados</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
         </View>
 
         {/*
@@ -1147,6 +1162,7 @@ const styles = StyleSheet.create({
   tileFullRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   tileFullTexts: { flex: 1, gap: 2 },
   tileFullTitle: { ...typography3.bodyMd, fontWeight: '700', fontSize: 15 },
+  dangerText: { color: colors3.error },
   tileFullSubtitle: { ...typography3.bodyMd, fontSize: 12.5, color: colors3.onSurfaceVariant },
 
   // challengesSection/challengeCard* — usados so pelo bloco "Desafios de

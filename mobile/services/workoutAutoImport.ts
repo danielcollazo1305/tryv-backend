@@ -57,9 +57,9 @@ const FIRST_RUN_LOOKBACK_DAYS = 7;
 const DUPLICATE_TOLERANCE_MS = 5 * 60 * 1000;
 
 /** Anchor da consulta ancorada do HealthKit (iOS). Nunca usado no Android — ver fetchWorkoutsSinceAnchor em healthConnect.ts. */
-const ANCHOR_KEY = 'workout_auto_import_anchor_v1';
+export const ANCHOR_KEY ='workout_auto_import_anchor_v1';
 /** Diagnostico da ultima execucao — existe pra dar pra investigar no aparelho real, sem Xcode. */
-const LAST_RUN_KEY = 'workout_auto_import_last_run_v1';
+export const LAST_RUN_KEY ='workout_auto_import_last_run_v1';
 /** Ligado/desligado pelo usuario nas configuracoes. Ausente = ligado. */
 const ENABLED_KEY = 'workout_auto_import_enabled_v1';
 
