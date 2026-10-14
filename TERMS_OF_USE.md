@@ -1,6 +1,6 @@
 # Termos de Uso — Tryv
 
-**Última atualização:** [DATA A DEFINIR]
+**Última atualização:** 14/10/2026
 
 > ⚠️ **AVISO IMPORTANTE:** Este documento é um rascunho inicial, criado como ponto de partida, e não constitui aconselhamento jurídico. Antes de publicar ou submeter o app à App Store, recomenda-se revisão por um advogado — especialmente as cláusulas de isenção de responsabilidade sobre saúde/nutrição (seção 6), o marketplace de professores (seção 7), a legislação aplicável (seção 13) e o modelo de cobrança via Stripe fora do sistema de compras da Apple (seção 4, ver nota específica).
 
@@ -57,7 +57,7 @@ Ao publicar posts, fotos, comentários ou qualquer outro conteúdo no Tryv, voc�
 - Concede ao Tryv uma licença não exclusiva, mundial e gratuita para hospedar, exibir e distribuir esse conteúdo dentro do aplicativo, exclusivamente para operar as funcionalidades da plataforma (feed social, perfil, etc.)
 - Declara que possui os direitos necessários sobre o conteúdo publicado e que ele não viola direitos de terceiros
 
-O Tryv pode remover conteúdo que viole estes Termos, seja ofensivo, ilegal, ou que infrinja direitos de terceiros, a nosso critério.
+O Tryv pode remover conteúdo que viole estes Termos, seja ofensivo, ilegal, ou que infrinja direitos de terceiros, a nosso critério. Veja a seção 9 sobre condutas proibidas, como denunciar e como bloquear.
 
 ---
 
@@ -95,15 +95,29 @@ Ao autorizar a integração com o Apple Health, você permite que o Tryv **leia*
 
 ---
 
-## 9. Condutas Proibidas
+## 9. Conteúdo e Conduta
 
+### 9.1 Condutas proibidas
 Ao usar o Tryv, você concorda em não:
 - Publicar conteúdo ilegal, ofensivo, discriminatório ou que viole direitos de terceiros
+- Assediar, ameaçar, intimidar ou humilhar outras pessoas
+- Publicar nudez, conteúdo sexual explícito ou conteúdo violento
+- Publicar conteúdo que envolva menores de idade de forma indevida
+- Enviar spam ou conteúdo repetitivo, promocional ou enganoso
 - Utilizar o aplicativo para fins fraudulentos ou enganosos
 - Tentar acessar dados de outros usuários sem autorização
 - Utilizar bots, scripts automatizados ou qualquer meio para manipular métricas do aplicativo (curtidas, seguidores, desafios)
-- Se passar por outra pessoa ou entidade
+- Se passar por outra pessoa ou entidade (falsificação de identidade)
 - Interferir na segurança ou funcionamento do aplicativo
+
+### 9.2 Como denunciar
+Em qualquer post ou comentário de outra pessoa, toque no menu "⋯" e escolha **Denunciar**. Você escolhe o motivo (spam, assédio, nudez, violência, envolve menor de idade ou outro) e, se quiser, acrescenta detalhes. A pessoa denunciada não é informada de quem fez a denúncia. Você também pode escrever para contato@tryv.com.br.
+
+### 9.3 Como bloquear
+No menu "⋯" de um post ou comentário, ou no perfil da pessoa, escolha **Bloquear**. Depois de bloquear, você não verá mais os posts dessa pessoa e ela não verá os seus. Para desbloquear, acesse **Perfil > Usuários bloqueados**.
+
+### 9.4 Análise das denúncias e medidas
+O Tryv analisa as denúncias em até 24 horas. O conteúdo que violar estes Termos é removido, e o autor pode ter a conta suspensa ou excluída. Para dúvidas ou denúncias fora do aplicativo, escreva para contato@tryv.com.br.
 
 ---
 
@@ -123,9 +137,16 @@ Na máxima extensão permitida pela lei aplicável, o Tryv não se responsabiliz
 
 ## 12. Encerramento
 
-Você pode encerrar sua conta a qualquer momento através das configurações do aplicativo. O Tryv pode suspender ou encerrar sua conta em caso de violação destes Termos, mediante notificação, exceto em casos de violação grave, quando o encerramento pode ser imediato.
+### 12.1 Exclusão da conta por você
+Você pode excluir sua conta a qualquer momento, diretamente no aplicativo, em **Perfil > Excluir conta**. Para confirmar, o aplicativo pede sua senha e a palavra **EXCLUIR**.
+- **A exclusão é imediata e irreversível.** Não é possível recuperar a conta nem os dados depois de confirmada.
+- São apagados seu perfil, treinos, corridas e atividades, refeições, fotos, posts, comentários, curtidas, seguidores, dados de saúde e os demais dados da conta (ver Política de Privacidade, seção 7, sobre cópias de segurança e registros que podem permanecer).
+- Assinaturas ativas (Pro e de professor) são canceladas na hora, **sem reembolso** do período já pago.
+- Se você é profissional do marketplace, é preciso antes encerrar seus alunos ativos e seus desafios ativos, e a conta de recebimentos (Stripe) não pode estar vinculada; o aplicativo informa o que estiver pendente, e você pode falar com o suporte em contato@tryv.com.br.
+- Se você é o único administrador, é preciso transferir a administração antes de excluir a conta.
 
-> **Nota de implementação:** hoje não existe, dentro do aplicativo, nenhuma função de autoexclusão de conta — o encerramento precisa ser solicitado por contato direto (ver Política de Privacidade, seção 8) e processado manualmente pela equipe.
+### 12.2 Suspensão ou encerramento pelo Tryv
+O Tryv pode suspender ou encerrar sua conta em caso de violação destes Termos, mediante notificação, exceto em casos de violação grave, quando o encerramento pode ser imediato.
 
 ---
 
@@ -145,7 +166,7 @@ Podemos atualizar estes Termos periodicamente. Alterações significativas serã
 
 Para dúvidas sobre estes Termos de Uso, entre em contato:
 
-**E-mail:** [A DEFINIR]
+**E-mail:** contato@tryv.com.br
 
 ---
 

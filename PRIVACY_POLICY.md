@@ -1,6 +1,6 @@
 # Política de Privacidade — Tryv
 
-**Última atualização:** [DATA A DEFINIR]
+**Última atualização:** 14/10/2026
 
 > ⚠️ **AVISO IMPORTANTE:** Este documento é um rascunho inicial, criado como ponto de partida. Não constitui aconselhamento jurídico. Antes de publicar este documento ou submeter o app à App Store, recomenda-se revisão por um advogado especializado em proteção de dados (LGPD) e, idealmente, com conhecimento das exigências da Apple para apps que utilizam HealthKit.
 
@@ -15,7 +15,7 @@ Ao criar uma conta ou usar o Tryv, você concorda com as práticas descritas nes
 **Responsável pelo tratamento de dados (Controlador):**
 [NOME COMPLETO OU RAZÃO SOCIAL A DEFINIR]
 [CPF/CNPJ A DEFINIR]
-[E-MAIL DE CONTATO A DEFINIR]
+contato@tryv.com.br
 
 ---
 
@@ -49,6 +49,7 @@ Para usuários que se cadastram como professores de educação física, coletamo
 ### 2.5 Dados de Uso da Rede Social
 - Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo
 - Fotos e mídias enviadas para publicações
+- Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação
 
 ---
 
@@ -115,15 +116,27 @@ Em conformidade com as diretrizes da Apple para uso do HealthKit:
 - Você pode revogar essa autorização a qualquer momento em **Ajustes do iPhone → Privacidade e Segurança → Saúde → Tryv**
 - **Nunca utilizamos dados de saúde para fins de publicidade**
 - Dados de saúde não são compartilhados com terceiros para fins de marketing ou venda de dados
-- Você pode solicitar a exclusão dos dados de saúde sincronizados com o Tryv a qualquer momento, entrando em contato conforme a seção 8 — essa exclusão é processada manualmente mediante solicitação, e não há hoje uma ferramenta de autoatendimento no aplicativo para isso
+- Os dados de saúde são apagados junto com sua conta, no aplicativo, em **Perfil > Excluir conta** (ver seção 7). Você também pode solicitar por e-mail, conforme a seção 8, a exclusão apenas dos dados de saúde sincronizados com o Tryv, sem excluir a conta
 
 ---
 
 ## 7. Retenção de Dados
 
-Mantemos seus dados pessoais enquanto sua conta estiver ativa. Após a exclusão da conta, seus dados serão removidos ou anonimizados dentro de [PRAZO A DEFINIR — recomenda-se consultar um advogado sobre prazos legais aplicáveis, especialmente para dados fiscais/financeiros que podem exigir retenção mínima por lei].
+Mantemos seus dados pessoais enquanto sua conta estiver ativa.
 
-O aplicativo não possui hoje uma função de autoexclusão de conta; a exclusão de conta e de dados é feita mediante solicitação por e-mail (ver seção 8) e processada manualmente.
+### 7.1 Exclusão da conta
+Você pode excluir sua conta no próprio aplicativo, em **Perfil > Excluir conta** (o aplicativo pede sua senha e a palavra EXCLUIR). A exclusão é **imediata e irreversível**:
+- Seus dados — perfil, treinos, corridas e atividades, refeições, dados de saúde, posts, comentários, curtidas, seguidores, bloqueios e demais dados da conta — são apagados do nosso banco de dados na hora.
+- Suas imagens (foto de perfil, fotos de refeições, de posts e de desafios) são removidas do nosso armazenamento de mídia.
+- Assinaturas ativas (Pro e de professor) são canceladas na hora, sem reembolso do período já pago.
+
+### 7.2 O que pode permanecer
+- **Cópias de segurança:** as cópias de segurança do banco de dados podem permanecer por até 90 dias depois da exclusão, até serem substituídas pela rotação normal, e não são usadas para outro fim.
+- **Denúncias de moderação:** o registro de uma denúncia (motivo, estado da análise e datas) é mantido como registro de segurança, sem vínculo com a conta excluída: quem denunciou e o autor denunciado deixam de ser identificáveis, e o trecho do conteúdo do autor excluído que estava guardado na denúncia é descartado.
+- **Pagamentos (Stripe):** o Stripe, como processador de pagamentos, mantém registros financeiros por obrigação própria. Ao excluir sua conta, apagamos o seu cadastro de cliente no Stripe quando possível.
+
+### 7.3 Pendências que impedem a exclusão
+Profissionais do marketplace precisam antes encerrar seus alunos e desafios ativos, e a conta de recebimentos (Stripe) não pode estar vinculada; o aplicativo informa o que estiver pendente, e você pode falar com o suporte em contato@tryv.com.br. O único administrador precisa transferir a administração antes de excluir a conta.
 
 ---
 
@@ -140,7 +153,7 @@ Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), vo
 - Revogar o consentimento a qualquer momento
 - Obter informações sobre entidades com as quais compartilhamos seus dados
 
-Para exercer esses direitos, entre em contato através de: [E-MAIL DE CONTATO A DEFINIR]. Essas solicitações são atendidas manualmente pela nossa equipe.
+O acesso, a correção e a exclusão dos seus dados podem ser feitos diretamente no aplicativo (editando seu perfil e seus registros e, para excluir tudo, em **Perfil > Excluir conta** — ver seção 7). Para os demais pedidos relacionados a esses direitos, ou se não conseguir usar o aplicativo, entre em contato através de: contato@tryv.com.br.
 
 ---
 
@@ -161,7 +174,7 @@ Apesar dos esforços, nenhum sistema é 100% seguro, e não podemos garantir seg
 
 O Tryv não é destinado a menores de 16 anos. Não coletamos intencionalmente dados de menores sem o consentimento apropriado dos responsáveis legais.
 
-O cadastro no aplicativo não coleta data de nascimento nem realiza verificação de idade — a definição de uma idade mínima nesta política deve vir acompanhada, se exigido pela orientação jurídica, de um mecanismo de verificação correspondente no cadastro.
+O cadastro no aplicativo coleta a data de nascimento, mas não realiza verificação de idade — a definição de uma idade mínima nesta política deve vir acompanhada, se exigido pela orientação jurídica, de um mecanismo de verificação correspondente no cadastro.
 
 ---
 
@@ -175,7 +188,7 @@ Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos so
 
 Para dúvidas sobre esta Política de Privacidade ou sobre o tratamento de seus dados pessoais, entre em contato:
 
-**E-mail:** [A DEFINIR]
+**E-mail:** contato@tryv.com.br
 **Endereço:** [A DEFINIR, SE APLICÁVEL]
 
 ---
