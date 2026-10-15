@@ -13,6 +13,7 @@ import { TextField2 } from '@/components/TextField2';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
 import { BiologicalSex, useRegisterDraft } from '@/context/RegisterDraftContext';
 import { toDateString } from '@/services/weightLogs';
+import { isUnderRegistrationAge, UNDERAGE_MESSAGE } from '@/utils/age';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 const SEX_OPTIONS: { value: BiologicalSex; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
@@ -69,6 +70,14 @@ export default function RegisterBodyScreen() {
     }
     if (!dateOfBirth) {
       setError('Informe sua data de nascimento.');
+      return;
+    }
+    if (dateOfBirth.getTime() > Date.now()) {
+      setError('Data de nascimento inválida.');
+      return;
+    }
+    if (isUnderRegistrationAge(dateOfBirth)) {
+      setError(UNDERAGE_MESSAGE);
       return;
     }
     if (!biologicalSex) {

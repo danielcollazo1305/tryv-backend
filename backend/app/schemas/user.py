@@ -14,6 +14,9 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    # Obrigatoria (idade minima 18, core/age_policy.py). Fica "| None" no schema so para a rota devolver a mensagem em
+    # portugues ("Informe sua data de nascimento.") em vez do erro generico do Pydantic.
+    date_of_birth: date | None = None
 
 
 class UserLogin(BaseModel):

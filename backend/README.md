@@ -55,7 +55,7 @@ alembic current
 `alembic/env.py` já esta configurado pra puxar a `DATABASE_URL` de `app/core/config.py` (mesma configuração usada pelo resto do app, lida do `.env`) e o `target_metadata` de `app.models` (todos os models já importados ali) — não precisa editar `alembic.ini` nem `env.py` para rodar os comandos acima em outro ambiente, só apontar o `.env` daquele ambiente pro banco certo.
 
 ## O que já funciona
-- `POST /auth/register` — criar conta
+- `POST /auth/register` — criar conta (exige `date_of_birth`; so maiores de 18 anos, 422 caso contrario)
 - `POST /auth/login` — login, retorna JWT
 - `GET /users/me` — perfil do usuário logado (rota protegida)
 

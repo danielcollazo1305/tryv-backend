@@ -43,7 +43,7 @@ DEMO_PASSWORD = ""
 
 
 def register_and_login(name: str, email: str, password: str) -> str:
-    r = requests.post(f"{BASE_URL}/auth/register", json={"name": name, "email": email, "password": password})
+    r = requests.post(f"{BASE_URL}/auth/register", json={"name": name, "email": email, "password": password, "date_of_birth": "1990-01-01"})
     if r.status_code == 201:
         print(f"  [criada] {email}")
     elif r.status_code == 400:

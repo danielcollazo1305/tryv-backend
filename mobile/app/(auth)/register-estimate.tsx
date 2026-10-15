@@ -80,7 +80,7 @@ export default function RegisterEstimateScreen() {
       router.replace('/(auth)/register-avatar');
     } catch (err) {
       setOnboardingInProgress(false);
-      setError(getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
+      setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
       setLoading(false);
     }
   };

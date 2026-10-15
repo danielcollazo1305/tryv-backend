@@ -3,7 +3,7 @@ import { UserUpdatePayload, updateProfile } from '@/services/user';
 import { createWeightLog, toDateString } from '@/services/weightLogs';
 
 interface FinishRegistrationParams {
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, dateOfBirth: string) => Promise<void>;
   draft: RegisterDraft;
 }
 
@@ -17,7 +17,8 @@ interface FinishRegistrationParams {
  * ha) — sem isso, a logica de finalizacao ficaria duplicada nos dois.
  */
 export async function finishRegistration({ register, draft }: FinishRegistrationParams): Promise<void> {
-  await register(draft.name, draft.email, draft.password);
+  // A data de nascimento vai JUNTO do cadastro: o servidor exige (idade minima 18) e recusa com 422 sem criar a conta.
+  await register(draft.name, draft.email, draft.password, draft.dateOfBirth);
 
   // Tudo abaixo e best-effort: a conta ja foi criada com sucesso, entao
   // uma falha aqui (raro) nao deve travar o usuario — mesmo padrao que ja
@@ -35,6 +36,8 @@ export async function finishRegistration({ register, draft }: FinishRegistration
   const heightValue = Number(draft.height);
   if (heightValue > 0) profilePatch.height = heightValue;
   if (draft.goal) profilePatch.goal = draft.goal;
+  // A data ja vai no cadastro (acima). Reenviar aqui e inofensivo com o backend novo (mesmo valor, nao e revalidado) e
+  // garante que ela seja salva se o app novo falar com um backend ainda sem o campo no cadastro.
   if (draft.dateOfBirth) profilePatch.date_of_birth = draft.dateOfBirth;
   if (draft.biologicalSex) profilePatch.biological_sex = draft.biologicalSex;
   const bodyFatValue = Number(draft.bodyFatPercentage);

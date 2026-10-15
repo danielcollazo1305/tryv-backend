@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Res
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.age_policy import require_valid_birth_date
 from app.core.avatar_visibility import avatar_fields, can_show_stats
 from app.core.config import settings
 from app.core.database import get_db
@@ -70,7 +71,12 @@ def update_current_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    # Idade minima 18 (core/age_policy.py): trocar a data de nascimento passa pela MESMA regra do cadastro (nao da para virar
+    # menor de 18, nem apagar a data). Reenviar o valor que ja esta salvo nao e revalidado (conta antiga continua editavel).
+    if "date_of_birth" in data and data["date_of_birth"] != current_user.date_of_birth:
+        require_valid_birth_date(data["date_of_birth"])
+    for field, value in data.items():
         setattr(current_user, field, value)
     db.commit()
     db.refresh(current_user)

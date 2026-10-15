@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.age_policy import require_valid_birth_date
 from app.core.database import get_db
 from app.core.login_throttle import client_ip, login_throttle
 from app.core.security import create_access_token, hash_password, verify_password
@@ -35,6 +36,9 @@ _RESET_RATE_LIMIT_SECONDS = 60
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # Idade minima 18 (core/age_policy.py): 422 antes de qualquer outra coisa; nada e criado.
+    date_of_birth = require_valid_birth_date(user_data.date_of_birth)
+
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
@@ -43,6 +47,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         name=user_data.name,
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
+        date_of_birth=date_of_birth,
     )
     db.add(user)
     db.commit()

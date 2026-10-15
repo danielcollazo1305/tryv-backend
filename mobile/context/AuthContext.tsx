@@ -41,7 +41,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, dateOfBirth: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /**
@@ -161,9 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, dateOfBirth: string) => {
       try {
-        await api.post('/auth/register', { name, email, password });
+        await api.post('/auth/register', { name, email, password, date_of_birth: dateOfBirth });
       } catch (error) {
         throw new Error(getApiErrorMessage(error, 'Nao foi possivel criar a conta.'));
       }
