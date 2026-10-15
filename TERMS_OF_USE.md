@@ -14,7 +14,7 @@ Ao criar uma conta ou utilizar o aplicativo **Tryv** ("aplicativo", "nós", "nos
 
 ## 2. Elegibilidade
 
-Você deve ter no mínimo **16 (dezesseis) anos** para criar uma conta e utilizar o Tryv. Ao se cadastrar, você declara que possui a idade mínima exigida.
+Você deve ter no mínimo **18 (dezoito) anos** para criar uma conta e utilizar o Tryv. O cadastro exige a data de nascimento e não permite a criação de conta por menores de 18 anos. Ao se cadastrar, você declara que possui a idade mínima exigida.
 
 ---
 

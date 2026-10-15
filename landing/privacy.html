@@ -49,6 +49,11 @@
         <li>Nome</li>
         <li>E-mail</li>
         <li>Senha (armazenada de forma criptografada via bcrypt, nunca em texto plano)</li>
+        <li>Data de nascimento (obrigatória no cadastro; usada para confirmar a idade mínima de 18 anos e para calcular a meta calórica sugerida)</li>
+        <li>Sexo biológico (obrigatório no cadastro, com a opção "prefiro não informar"; usado no cálculo da meta calórica sugerida)</li>
+        <li>Percentual de gordura corporal (opcional; usado na estimativa do tempo até a sua meta)</li>
+        <li>Nível de treino e equipamentos disponíveis (informados por você; usados para preencher o pedido de treino gerado por inteligência artificial)</li>
+        <li>Cidade e código do município (IBGE) (opcionais; usados no ranking por cidade)</li>
         <li>Peso (opcional, fornecido no cadastro ou posteriormente)</li>
         <li>Altura, objetivo (ex: emagrecimento, hipertrofia, resistência) e meta calórica diária (opcionais, fornecidos no perfil)</li>
         <li>Foto de perfil (opcional)</li>
@@ -81,6 +86,12 @@
         <li>Fotos e mídias enviadas para publicações</li>
         <li>Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação</li>
       </ul>
+
+      <h3>2.6 Contatos do Aparelho (Opcional)</h3>
+      <p>Se você autorizar o acesso aos contatos, para encontrar amigos que já usam o Tryv Fit, o aplicativo lê os nomes e os números de telefone da sua agenda. Os nomes permanecem no aparelho. Os números de telefone (normalizados) são enviados ao nosso servidor apenas para verificar se algum contato já usa o Tryv Fit, e não são armazenados por nós. Você pode revogar essa autorização a qualquer momento nos Ajustes do iPhone.</p>
+
+      <h3>2.7 Lista de Espera (Site)</h3>
+      <p>Se você se inscrever na lista de espera no nosso site, guardamos o endereço de e-mail informado para avisá-lo do lançamento. Se você criar e depois excluir uma conta com o mesmo e-mail, esse registro da lista de espera também é apagado.</p>
 
       <hr class="doc-hr">
 
@@ -120,6 +131,8 @@
           <tr><td><strong>Anthropic (Claude API)</strong></td><td>Análise de fotos de refeições, geração de treinos personalizados, geração de insights</td></tr>
           <tr><td><strong>Amazon Web Services (S3)</strong></td><td>Armazenamento de mídias (fotos de refeições, posts, perfis)</td></tr>
           <tr><td><strong>Stripe / Stripe Connect</strong></td><td>Processamento de pagamentos e repasses a professores</td></tr>
+          <tr><td><strong>OpenAI</strong></td><td>Geração do avatar estilizado a partir de uma selfie enviada por você. A selfie é processada em memória e enviada à OpenAI; não é guardada por nós (guardamos apenas o avatar gerado)</td></tr>
+          <tr><td><strong>Resend</strong></td><td>Envio do e-mail de recuperação de senha (o e-mail contém seu nome e o código de verificação)</td></tr>
           <tr><td><strong>Apple (HealthKit)</strong></td><td>Leitura de dados de saúde, mediante sua autorização</td></tr>
         </tbody>
       </table>
@@ -206,8 +219,7 @@
       <hr class="doc-hr">
 
       <h2>10. Privacidade de Menores</h2>
-      <p>O Tryv Fit não é destinado a menores de 16 anos. Não coletamos intencionalmente dados de menores sem o consentimento apropriado dos responsáveis legais.</p>
-      <p>O cadastro no aplicativo coleta a data de nascimento, mas não realiza verificação de idade — a definição de uma idade mínima nesta política deve vir acompanhada, se exigido pela orientação jurídica, de um mecanismo de verificação correspondente no cadastro.</p>
+      <p>O Tryv Fit não é destinado a menores de 18 anos. O cadastro no aplicativo coleta a data de nascimento e não permite a criação de conta por menores de 18 anos. Não há verificação de documento: a idade é calculada a partir da data de nascimento informada. Não coletamos intencionalmente dados de menores de 18 anos.</p>
 
       <hr class="doc-hr">
 

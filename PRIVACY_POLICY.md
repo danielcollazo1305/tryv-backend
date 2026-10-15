@@ -25,6 +25,11 @@ contato@tryv.com.br
 - Nome
 - E-mail
 - Senha (armazenada de forma criptografada via bcrypt, nunca em texto plano)
+- Data de nascimento (obrigatória no cadastro; usada para confirmar a idade mínima de 18 anos e para calcular a meta calórica sugerida)
+- Sexo biológico (obrigatório no cadastro, com a opção "prefiro não informar"; usado no cálculo da meta calórica sugerida)
+- Percentual de gordura corporal (opcional; usado na estimativa do tempo até a sua meta)
+- Nível de treino e equipamentos disponíveis (informados por você; usados para preencher o pedido de treino gerado por inteligência artificial)
+- Cidade e código do município (IBGE) (opcionais; usados no ranking por cidade)
 - Peso (opcional, fornecido no cadastro ou posteriormente)
 - Altura, objetivo (ex: emagrecimento, hipertrofia, resistência) e meta calórica diária (opcionais, fornecidos no perfil)
 - Foto de perfil (opcional)
@@ -50,6 +55,12 @@ Para usuários que se cadastram como professores de educação física, coletamo
 - Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo
 - Fotos e mídias enviadas para publicações
 - Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação
+
+### 2.6 Contatos do Aparelho (Opcional)
+Se você autorizar o acesso aos contatos, para encontrar amigos que já usam o Tryv, o aplicativo lê os nomes e os números de telefone da sua agenda. Os nomes permanecem no aparelho. Os números de telefone (normalizados) são enviados ao nosso servidor apenas para verificar se algum contato já usa o Tryv, e não são armazenados por nós. Você pode revogar essa autorização a qualquer momento nos Ajustes do iPhone.
+
+### 2.7 Lista de Espera (Site)
+Se você se inscrever na lista de espera no nosso site, guardamos o endereço de e-mail informado para avisá-lo do lançamento. Se você criar e depois excluir uma conta com o mesmo e-mail, esse registro da lista de espera também é apagado.
 
 ---
 
@@ -88,6 +99,8 @@ Utilizamos os seguintes serviços de terceiros para operar o Tryv:
 | **Anthropic (Claude API)** | Análise de fotos de refeições, geração de treinos personalizados, geração de insights |
 | **Amazon Web Services (S3)** | Armazenamento de mídias (fotos de refeições, posts, perfis) |
 | **Stripe / Stripe Connect** | Processamento de pagamentos e repasses a professores |
+| **OpenAI** | Geração do avatar estilizado a partir de uma selfie enviada por você. A selfie é processada em memória e enviada à OpenAI; não é guardada por nós (guardamos apenas o avatar gerado) |
+| **Resend** | Envio do e-mail de recuperação de senha (o e-mail contém seu nome e o código de verificação) |
 | **Apple (HealthKit)** | Leitura de dados de saúde, mediante sua autorização |
 
 Esses serviços processam dados em nosso nome, sob suas próprias políticas de privacidade e segurança.
@@ -172,9 +185,7 @@ Apesar dos esforços, nenhum sistema é 100% seguro, e não podemos garantir seg
 
 ## 10. Privacidade de Menores
 
-O Tryv não é destinado a menores de 16 anos. Não coletamos intencionalmente dados de menores sem o consentimento apropriado dos responsáveis legais.
-
-O cadastro no aplicativo coleta a data de nascimento, mas não realiza verificação de idade — a definição de uma idade mínima nesta política deve vir acompanhada, se exigido pela orientação jurídica, de um mecanismo de verificação correspondente no cadastro.
+O Tryv não é destinado a menores de 18 anos. O cadastro no aplicativo coleta a data de nascimento e não permite a criação de conta por menores de 18 anos. Não há verificação de documento: a idade é calculada a partir da data de nascimento informada. Não coletamos intencionalmente dados de menores de 18 anos.
 
 ---
 
