@@ -25,6 +25,13 @@ from app.schemas.challenge import (
     ChallengeProgressDayOut,
 )
 from app.schemas.social import UserBrief
+from app.services.content_filter_guard import (
+    CHALLENGE_DESCRIPTION_MAX,
+    CHALLENGE_TITLE_MAX,
+    CHALLENGE_UNIT_MAX,
+    enforce_text_filter,
+    ensure_max_length,
+)
 
 router = APIRouter(tags=["challenges"])
 
@@ -297,6 +304,20 @@ def create_challenge(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="end_date deve ser posterior a start_date",
         )
+
+    # Filtro de conteudo (E3e): tamanho e linguagem de titulo, descricao e unidade da meta (so conteudo novo).
+    ensure_max_length(payload.title, CHALLENGE_TITLE_MAX, "challenge_title")
+    ensure_max_length(payload.description, CHALLENGE_DESCRIPTION_MAX, "challenge_description")
+    ensure_max_length(payload.target_unit, CHALLENGE_UNIT_MAX, "challenge_target_unit")
+    enforce_text_filter(
+        db,
+        user_id=current_user.id,
+        fields=[
+            ("challenge_title", payload.title),
+            ("challenge_description", payload.description),
+            ("challenge_target_unit", payload.target_unit),
+        ],
+    )
 
     if payload.is_official:
         # Desafio oficial ("App") — restrito a administradores, mesmo

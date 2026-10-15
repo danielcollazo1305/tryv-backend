@@ -20,6 +20,7 @@ from app.schemas.user import (
     UserLogin,
     UserOut,
 )
+from app.services.content_filter_guard import NAME_MAX, enforce_text_filter, ensure_max_length
 from app.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,9 +36,13 @@ _RESET_RATE_LIMIT_SECONDS = 60
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
     # Idade minima 18 (core/age_policy.py): 422 antes de qualquer outra coisa; nada e criado.
     date_of_birth = require_valid_birth_date(user_data.date_of_birth)
+
+    # Filtro de conteudo (E3e): tamanho e linguagem do nome. Sem usuario ainda -> limite por IP em memoria.
+    ensure_max_length(user_data.name, NAME_MAX, "name")
+    enforce_text_filter(db, user_id=None, fields=[("name", user_data.name)], ip=client_ip(request))
 
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:

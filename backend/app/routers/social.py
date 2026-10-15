@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.social import Comment, Follow, Like, Post
 from app.models.user import User
+from app.services.content_filter_guard import CAPTION_MAX, COMMENT_MAX, enforce_text_filter, ensure_max_length
 from app.services.moderation import is_blocked_between, not_blocked, not_reported_comment, not_reported_post
 from app.services.post_removal import delete_media_after_commit, purge_post
 from app.schemas.social import (
@@ -145,6 +146,10 @@ def create_post(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Filtro de conteudo (E3e): tamanho e linguagem da legenda (so conteudo novo).
+    ensure_max_length(payload.caption, CAPTION_MAX, "post_caption")
+    enforce_text_filter(db, user_id=current_user.id, fields=[("post_caption", payload.caption)])
+
     post = Post(
         user_id=current_user.id,
         type=payload.type,
@@ -415,6 +420,10 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Filtro de conteudo (E3e): tamanho e linguagem do comentario (so conteudo novo).
+    ensure_max_length(payload.content, COMMENT_MAX, "comment")
+    enforce_text_filter(db, user_id=current_user.id, fields=[("comment", payload.content)])
+
     post = _get_viewable_post(db, current_user, post_id)
 
     comment = Comment(post_id=post.id, user_id=current_user.id, content=payload.content)

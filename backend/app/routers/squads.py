@@ -19,6 +19,7 @@ from app.schemas.squad import (
     SquadMeOut,
     SquadOut,
 )
+from app.services.content_filter_guard import enforce_text_filter
 from app.services.leveling import compute_level_info
 from app.services.squad_invite import generate_unique_invite_code
 
@@ -69,6 +70,9 @@ def create_squad(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Filtro de conteudo (E3e): linguagem do nome do clube (o tamanho, 1 a 60, ja e validado no schema).
+    enforce_text_filter(db, user_id=current_user.id, fields=[("squad_name", payload.name)])
+
     if _get_membership(db, current_user.id) is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

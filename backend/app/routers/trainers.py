@@ -25,6 +25,7 @@ from app.schemas.trainer import (
     TrainerUpdate,
 )
 from app.schemas.workout import WorkoutPlanGenerated, WorkoutPlanOut
+from app.services.content_filter_guard import BIO_MAX, CERTIFICATIONS_MAX, enforce_text_filter, ensure_max_length
 from app.services.stripe_client import get_client
 
 router = APIRouter(prefix="/trainers", tags=["trainers"])
@@ -133,6 +134,15 @@ def register(
     # existentes nao sao revisados (a checagem acima vem primeiro e eles nao chegam aqui).
     require_professional_birth_date(current_user.date_of_birth)
 
+    # Filtro de conteudo (E3e): tamanho e linguagem da bio e das certificacoes (so conteudo novo).
+    ensure_max_length(payload.bio, BIO_MAX, "trainer_bio")
+    ensure_max_length(payload.certifications, CERTIFICATIONS_MAX, "trainer_certifications")
+    enforce_text_filter(
+        db,
+        user_id=current_user.id,
+        fields=[("trainer_bio", payload.bio), ("trainer_certifications", payload.certifications)],
+    )
+
     trainer = Trainer(
         user_id=current_user.id,
         professional_type=payload.professional_type,
@@ -167,6 +177,18 @@ def update_my_profile(
     trainer = _get_my_trainer(db, current_user)
 
     update_data = payload.model_dump(exclude_unset=True)
+
+    # Filtro de conteudo (E3e): so os campos de texto ENVIADOS (campo ausente nao e verificado).
+    ensure_max_length(update_data.get("bio"), BIO_MAX, "trainer_bio")
+    ensure_max_length(update_data.get("certifications"), CERTIFICATIONS_MAX, "trainer_certifications")
+    sent_texts = [
+        (surface, update_data[key])
+        for key, surface in (("bio", "trainer_bio"), ("certifications", "trainer_certifications"))
+        if key in update_data
+    ]
+    if sent_texts:
+        enforce_text_filter(db, user_id=current_user.id, fields=sent_texts)
+
     if update_data.get("specialties") is not None:
         try:
             validate_specialties(trainer.professional_type, update_data["specialties"])
