@@ -28,11 +28,13 @@ contato@tryv.com.br
 - Data de nascimento (obrigatória no cadastro; usada para confirmar a idade mínima de 18 anos e para calcular a meta calórica sugerida)
 - Sexo biológico (obrigatório no cadastro, com a opção "prefiro não informar"; usado no cálculo da meta calórica sugerida)
 - Percentual de gordura corporal (opcional; usado na estimativa do tempo até a sua meta)
-- Nível de treino e equipamentos disponíveis (informados por você; usados para preencher o pedido de treino gerado por inteligência artificial)
+- Nível de treino e equipamentos disponíveis (obrigatórios no cadastro; usados para preencher o pedido de treino gerado por inteligência artificial)
 - Cidade e código do município (IBGE) (opcionais; usados no ranking por cidade)
-- Peso (opcional, fornecido no cadastro ou posteriormente)
-- Altura, objetivo (ex: emagrecimento, hipertrofia, resistência) e meta calórica diária (opcionais, fornecidos no perfil)
-- Foto de perfil (opcional)
+- Peso (obrigatório no cadastro)
+- Altura (obrigatória no cadastro)
+- Objetivo (ex: emagrecimento, hipertrofia, resistência; obrigatório no cadastro)
+- Meta calórica diária (o cadastro sugere um valor, que você pode editar; é preciso informar um valor válido no cadastro)
+- Foto de perfil (opcional): um avatar gerado por inteligência artificial a partir de uma selfie (ver seção 5)
 
 ### 2.2 Dados de Saúde e Atividade Física
 - **Refeições:** fotos de alimentos (quando você opta pelo registro por foto) e/ou dados nutricionais inseridos manualmente (calorias, proteínas, carboidratos, gorduras)
@@ -56,10 +58,7 @@ Para usuários que se cadastram como professores de educação física, coletamo
 - Fotos e mídias enviadas para publicações
 - Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação
 
-### 2.6 Contatos do Aparelho (Opcional)
-Se você autorizar o acesso aos contatos, para encontrar amigos que já usam o Tryv, o aplicativo lê os nomes e os números de telefone da sua agenda. Os nomes permanecem no aparelho. Os números de telefone (normalizados) são enviados ao nosso servidor apenas para verificar se algum contato já usa o Tryv, e não são armazenados por nós. Você pode revogar essa autorização a qualquer momento nos Ajustes do iPhone.
-
-### 2.7 Lista de Espera (Site)
+### 2.6 Lista de Espera (Site)
 Se você se inscrever na lista de espera no nosso site, guardamos o endereço de e-mail informado para avisá-lo do lançamento. Se você criar e depois excluir uma conta com o mesmo e-mail, esse registro da lista de espera também é apagado.
 
 ---
@@ -118,6 +117,8 @@ O Tryv utiliza a API da Anthropic (Claude) para:
 - Gerar insights motivacionais/informativos com base no seu histórico de atividade
 
 Os dados enviados para esse processamento incluem as imagens de refeições (quando aplicável) e um resumo do seu histórico recente de atividades, treinos e alimentação. Consulte a Política de Privacidade da Anthropic para mais informações sobre como esses dados são tratados por esse fornecedor.
+
+Para gerar o avatar estilizado a partir de uma selfie, o Tryv utiliza a API de imagens da OpenAI. A selfie é enviada à OpenAI somente para esse processamento; no nosso servidor ela fica apenas em memória e não é guardada por nós (guardamos somente o avatar gerado). Consulte a Política de Privacidade da OpenAI para mais informações sobre como esses dados são tratados por esse fornecedor.
 
 ---
 
