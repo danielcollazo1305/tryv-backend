@@ -1,0 +1,60 @@
+# CATEGORIA: sexual explícito e venda de conteúdo adulto  (código interno: sexual)
+# Vocabulário de corpo e treino NUNCA entra (bunda, bumbum, glúteo, peito, peitoral, coxa, virilha, abdômen...).
+# Palavras com duplo sentido (pau, pinto, rola, pica, cacete, gozar, transar...) ficam de fora.
+# Formato: um termo ou frase por linha. "#" começa comentário. Na dúvida, NÃO entra.
+
+# --- venda e troca de conteúdo adulto
+nudes
+pack de nudes
+pack nudes
+vendo nudes
+mando nudes
+manda nudes
+troco nudes
+onlyfans
+only fans
+faco programa
+conteudo adulto
+conteudo erotico
+video porno
+videos porno
+filme porno
+filmes porno
+
+# --- sites adultos (spam)
+xvideos
+pornhub
+redtube
+xnxx
+xhamster
+brazzers
+
+# --- partes íntimas e atos, em linguagem explícita
+buceta
+bucetas
+bucetinha
+xereca
+xerecas
+xoxota
+xoxotas
+piroca
+pirocas
+pirocao
+punheta
+punhetas
+punheteiro
+siririca
+siriricas
+boquete
+boquetes
+putaria
+putarias
+sexo anal
+sexo oral
+sexo grupal
+chupar rola
+chupa rola
+mamar rola
+dar o cu
+da o cu
+pau duro

@@ -1,0 +1,602 @@
+# Nomes de exercicios do app (RepDB em portugues + curados)
+# Estas palavras NUNCA podem ser bloqueadas pelo filtro (usadas so pelos testes). Uma por linha.
+Abdominal Bicicleta
+Abdominal Canivete (Jackknife)
+Abdominal Cruzado
+Abdominal Declinado
+Abdominal em V (V-Up)
+Abdominal na Parede com Peso
+Abdominal no Cabo
+Abdominal Reverso
+Abdominal Sentado na Máquina
+Abdominal Supra (Sit-Up)
+Abdução de Quadril Deitado de Lado
+Abdução de Quadril Deitado de Lado, Isométrica
+Abdução de Quadril em Pé com Elástico
+Abdução de Quadril Sentado com Elástico
+Adução de Quadril Deitado de Lado
+Adução de Quadril Deitado de Lado, Isométrica
+Adução de Quadril em Pé com Elástico
+Afundo Baixo
+Afundo Baixo para Meio Splits
+Afundo Caminhando
+Afundo com Barra
+Afundo com Desenvolvimento no Kettlebell
+Afundo com Halteres
+Afundo com TRX
+Afundo Crescente
+Afundo Crescente Revolvido
+Afundo Goblet com Kettlebell
+Afundo Lateral
+Afundo Pliométrico
+Afundo Reverso
+Afundo Reverso com Kettlebell
+Afundo Reverso com Peso Corporal
+Afundo Reverso no Smith
+Afundo Reverso Offset com Desenvolvimento no Kettlebell
+Afundo Rotacional com Kettlebell
+Agachamento Búlgaro
+Agachamento Búlgaro com Kettlebell
+Agachamento Búlgaro Estático (Split Squat)
+Agachamento Búlgaro Estático com Halteres
+Agachamento Búlgaro Estático no Smith
+Agachamento Búlgaro no Smith
+Agachamento com Calço no Calcanhar
+Agachamento com Elástico
+Agachamento com Halteres
+Agachamento com Kettlebell
+Agachamento com Salto
+Agachamento com TRX
+Agachamento Cossaco
+Agachamento Frontal
+Agachamento Frontal com Halteres
+Agachamento Frontal no Smith
+Agachamento Frontal Unilateral com Kettlebell
+Agachamento Goblet
+Agachamento Hack
+Agachamento Livre (Peso Corporal)
+Agachamento na Caixa
+Agachamento na Parede com Bola Suíça
+Agachamento no Smith
+Agachamento Overhead
+Agachamento Pausado
+Agachamento Pistol
+Agachamento Pistol com Halteres
+Agachamento Pistol com Kettlebell
+Agachamento Pistol com TRX
+Agachamento Somersault com Halteres
+Agachamento Sumô
+Agachamento Sumô com Halteres
+Alongamento Borboleta
+Alongamento Búlgaro no Banco
+Alongamento de Adutor com Elástico
+Alongamento de Adutor no Banco
+Alongamento de Banda IT com Elástico
+Alongamento de Deltoide Posterior com Elástico
+Alongamento de Dorsal com Elástico
+Alongamento de Dorsal no Banco
+Alongamento de Flexor de Quadril Ajoelhado
+Alongamento de Glúteo Figura 4 no Banco
+Alongamento de Ombro com Elástico
+Alongamento de Ombro Cruzado
+Alongamento de Panturrilha com Elástico
+Alongamento de Panturrilha em Pé
+Alongamento de Panturrilha no Banco
+Alongamento de Peito com Elástico
+Alongamento de Peito no Banco
+Alongamento de Peito no Vão da Porta
+Alongamento de Posterior com Elástico
+Alongamento de Posterior no Banco
+Alongamento de Punho Ajoelhado
+Alongamento de Quadríceps em Pé
+Alongamento de Quadríceps no Banco (Couch Stretch)
+Alongamento de Tornozelo com Elástico
+Alongamento de Tornozelo no Banco
+Alongamento de Tríceps Acima da Cabeça
+Alongamento de Tríceps com Elástico
+Alongamento do Gato
+Alongamento do Lagarto
+Alongamento do Pombo
+Alongamento em Afastamento Sentado
+Alongamento Figura 4 com Elástico
+Alongamento Joelho ao Peito
+Alongamento Lateral de Pescoço
+Arranco com Halteres
+Arremesso de Bola Medicinal (Slam Ball)
+Back Lever
+Balanço de Flexor de Quadril Meio Ajoelhado
+Barra Fixa (Pegada Supinada)
+Barra Fixa Archer
+Barra Fixa Assistida
+Barra Fixa Assistida com Elástico
+Barra Fixa Atrás da Nuca
+Barra Fixa com Peso
+Barra Fixa Escapular
+Barra Fixa Negativa
+Barra Fixa Pausada
+Barra Fixa Pegada Aberta
+Barra Fixa Pegada Fechada
+Barra Fixa Pegada Neutra
+Battle Rope (Corda Naval)
+Battle Rope, Golpe Duplo
+Bicicleta Ergométrica
+Bicicleta Ergométrica (Air Bike)
+Bird-Dog (Cão de Aponte)
+Bird-Dog Isométrico
+Bom Dia (Good Morning)
+Bom Dia com Elástico
+Bom Dia com Peso Corporal
+Bom Dia no Smith
+Burpee
+Cachorro Olhando para Baixo
+Cachorro Olhando para Baixo com Elevação de Joelho
+Cachorro Olhando para Baixo com Joelho ao Peito
+Cachorro Olhando para Baixo com Três Apoios
+Cachorro Olhando para Baixo para Afundo Baixo
+Cachorro Olhando para Baixo para Cachorro Olhando para Cima
+Cachorro Olhando para Baixo para Prancha
+Cachorro Olhando para Baixo, Pedalada
+Cachorro Olhando para Cima
+Cadeira Extensora Unilateral
+Cadeira Flexora
+Cadeira na Parede (Wall Sit)
+Caminhada
+Caminhada Calcanhar-Ponta do Pé
+Caminhada com 2 Halteres Acima da Cabeça
+Caminhada com 2 Kettlebells Acima da Cabeça
+Caminhada com Halteres Acima da Cabeça
+Caminhada com Kettlebell Acima da Cabeça
+Caminhada com Mala (Suitcase Carry)
+Caminhada do Fazendeiro com Halteres
+Caminhada do Fazendeiro com Kettlebell
+Caminhada Inclinada na Esteira
+Caminhada Lateral com Elástico
+Caminhada Sumô com Elástico
+Clamshell (Concha)
+Clamshell com Elástico
+Clamshell Isométrico (Concha)
+Clean (Levantamento Olímpico)
+Clean and Jerk
+Clean and Press com 2 Kettlebells
+Clean com 2 Kettlebells
+Cocoon (Abdominal em C)
+Coice de Glúteo (Kickback)
+Coice de Glúteo Isométrico
+Coice de Glúteo no Cabo
+Corrida
+Corrida Estacionária (High Knees)
+Corrida na Esteira
+Crucifixo Declinado com Halteres
+Crucifixo em Y no TRX
+Crucifixo Inclinado com Halteres
+Crucifixo Inverso
+Crucifixo Inverso com Halteres
+Crucifixo na Máquina
+Crucifixo no Cabo
+Dead Bug
+Dead Bug Isométrico
+Dead Clean com 2 Kettlebells
+Dead Hang (Pendurado na Barra)
+Dead Hang nas Argolas
+Desenvolvimento Arnold
+Desenvolvimento Atrás da Nuca
+Desenvolvimento Bottoms-Up Unilateral com Kettlebell
+Desenvolvimento com 2 Kettlebells
+Desenvolvimento com Peso Corporal
+Desenvolvimento Militar com Barra
+Desenvolvimento Militar com Barra, Pausado
+Desenvolvimento Militar Sentado com Barra
+Desenvolvimento na Máquina
+Desenvolvimento no Landmine
+Desenvolvimento no Smith
+Desenvolvimento Sentado com Halteres
+Desenvolvimento Sentado no Smith
+Desenvolvimento Unilateral com Kettlebell
+Desenvolvimento Unilateral na Máquina
+Desenvolvimento Unilateral no Landmine
+Dragon Flag
+Elevação de Joelhos na Barra
+Elevação de Joelhos na Cadeira Romana
+Elevação de Panturrilha com Barra
+Elevação de Panturrilha com Halteres
+Elevação de Panturrilha com Peso Corporal
+Elevação de Panturrilha Donkey
+Elevação de Panturrilha Donkey com Anilha
+Elevação de Panturrilha em Pé
+Elevação de Panturrilha no Hack
+Elevação de Panturrilha no Smith
+Elevação de Panturrilha Sentado
+Elevação de Panturrilha Unilateral
+Elevação de Pernas na Barra
+Elevação de Pernas na Cadeira Romana
+Elevação de Quadril Ajoelhado com Elástico
+Elevação de Quadril com Elástico
+Elevação de Quadril com Halteres
+Elevação de Quadril com Kettlebell
+Elevação de Quadril no Smith
+Elevação Frontal com Barra
+Elevação Frontal com Barra W
+Elevação Frontal na Barra Reta (Cabo)
+Elevação Frontal no Cabo
+Elevação Lateral com Anilha
+Elevação Lateral com Peso Corporal
+Elevação Lateral Deitado de Lado
+Elevação Lateral no Cabo
+Elevação Lateral Sentado com Halteres
+Elevação Lateral Unilateral com Anilha
+Elíptico
+Encolhimento com Anilha
+Encolhimento com Barra por Trás das Costas
+Encolhimento com Barra W
+Encolhimento com Halteres
+Encolhimento com Halteres Apoiado no Banco
+Encolhimento com Kettlebell
+Encolhimento no Smith
+Enfiar a Agulha
+Enfiar a Agulha (Fluxo)
+Escada Ergométrica (Stair Climber)
+Escalada de Corda
+Escalador (Mountain Climber)
+Extensão de Tríceps Acima da Cabeça com Kettlebell
+Extensão de Tríceps com Halteres
+Extensão de Tríceps na Máquina
+Extensão de Tríceps no TRX
+Extensão de Tríceps Sentado com Halteres
+Extensão Lombar (Banco Romano)
+Extensão Lombar na Máquina
+Extensão Terminal de Joelho com Elástico
+Face Pull com Halteres
+Face Pull nas Argolas
+Face Pull no TRX
+Fire Hydrant com Elástico
+Flexão de Braço Archer
+Flexão de Braço com Bola Suíça
+Flexão de Braço com Joelhos Apoiados
+Flexão de Braço com Mãos na Bola Suíça
+Flexão de Braço com Palma
+Flexão de Braço Declinada
+Flexão de Braço Diamante
+Flexão de Braço em Déficit
+Flexão de Braço em Parada de Mãos
+Flexão de Braço Inclinada
+Flexão de Braço na Parede
+Flexão de Braço nas Argolas
+Flexão de Braço Pegada Aberta
+Flexão de Braço Pegada Fechada
+Flexão de Braço Pike
+Flexão de Braço Pliométrica
+Flexão de Braço Pseudo Planche
+Flexão Lateral em Pé
+Flexão Lateral em Pé (Fluxo)
+Flexão Lateral Isométrica de Pescoço
+Flexão para Frente com Pernas Afastadas
+Flexão para Frente em Pé
+Flexão para Frente em Pé para Meia Elevação
+Flexão para Frente Sentado
+Flexora com Bola Suíça
+Flexora com TRX
+Flexora em Pé com Elástico
+Front Lever
+Gato-Vaca
+Glute Drive com Anilha
+Guerreiro I
+Guerreiro II
+Guerreiro III
+Halo com Kettlebell
+Hang Clean
+Hang Power Clean
+Hollow Body Hold
+Human Flag (Bandeira Humana)
+Jefferson Curl
+Jerk com 2 Kettlebells
+Joelho ao Peito com Bola Suíça
+Kickback de Tríceps com Halteres
+Kickback de Tríceps no Cabo
+Kickback de Tríceps Unilateral com Kettlebell
+L-Sit
+Leg Press Horizontal
+Leg Press Pés Afastados
+Leg Press Pés Altos
+Leg Press Pés Fechados
+Leg Press Unilateral
+Leg Pull-In no Banco
+Levantamento Terra com Barra Hexagonal
+Levantamento Terra com Halteres
+Levantamento Terra com Kettlebell
+Levantamento Terra em Déficit
+Levantamento Terra Kickstand com 2 Halteres
+Levantamento Terra Kickstand com Halteres
+Levantamento Terra Kickstand com Kettlebell
+Levantamento Terra Pausado
+Levantamento Terra Romeno (RDL)
+Levantamento Terra Romeno com Barra W
+Levantamento Terra Romeno com Elástico
+Levantamento Terra Romeno com Halteres
+Levantamento Terra Romeno no Smith
+Levantamento Terra Romeno Unilateral
+Levantamento Terra Romeno Unilateral com 1 Halteres
+Levantamento Terra Romeno Unilateral com 1 Kettlebell
+Levantamento Terra Sumô
+Levantamento Terra Sumô com Kettlebell
+Levantamento Terra Unilateral com Kettlebell
+Limpador de Para-brisa Deitado
+Mergulho Assistido na Máquina
+Mergulho Caranguejo (Crab Dips)
+Mergulho com Peso
+Mergulho na Barra Reta
+Mergulho na Prancha Reversa
+Mergulho nas Argolas
+Mergulho no Banco
+Mergulho para Peito (Dips)
+Mesa Flexora Unilateral
+Muscle Snatch
+Muscle-Up
+Muscle-Up nas Argolas
+Pallof Press no Cabo
+Pike na Barra
+Pike na Bola Suíça
+Pilates: Alongamento de Coluna para Frente
+Pilates: Chute Lateral Ajoelhado
+Pilates: Flexão Lateral
+Pilates: Leg Pull Back
+Pilates: Leg Pull Front
+Pilates: Roll Down
+Pilates: Roll Over
+Pilates: Serra
+Pilates: Torção de Coluna
+Pinça de Anilha (Plate Pinch)
+Planche
+Polichinelo
+Ponte de Glúteo
+Ponte de Glúteo com Barra
+Ponte de Glúteo com Bola Suíça
+Ponte de Glúteo com Elástico
+Ponte de Glúteo com Supino Unilateral no Kettlebell
+Ponte de Glúteo Isométrica
+Ponte de Glúteo Unilateral
+Ponte de Glúteo Unilateral, Isométrico
+Ponte Torácica
+Postura Cabeça no Joelho
+Postura da Águia
+Postura da Árvore
+Postura da Cadeira
+Postura da Cadeira Revolvida
+Postura da Cobra
+Postura da Criança
+Postura da Criança no Banco
+Postura da Esfinge
+Postura da Guirlanda
+Postura da Meia-Lua
+Postura da Montanha
+Postura da Pirâmide
+Postura das Pernas na Parede
+Postura do Ângulo Lateral Estendido
+Postura do Arado
+Postura do Arco
+Postura do Barco
+Postura do Bebê Feliz
+Postura do Cadáver (Savasana)
+Postura do Camelo
+Postura do Corvo
+Postura do Dançarino
+Postura do Filhote
+Postura do Gafanhoto
+Postura do Golfinho
+Postura do Herói
+Postura do Peixe
+Postura do Rosto de Vaca
+Postura do Triângulo
+Postura Fácil
+Prancha
+Prancha Alta
+Prancha Lateral
+Prancha Lateral com Elevação de Perna
+Prancha Lateral com Elevação de Perna, Isométrico
+Prancha Lateral no TRX
+Prancha no TRX
+Prancha Reversa
+Pular Corda
+Pull-Apart com Elástico
+Pull-down com Braços Estendidos
+Pullover com Anilha
+Pullover com Barra
+Pullover com Barra W
+Pullover com Barra W, Braços Flexionados
+Pullover com Barra, Braços Flexionados
+Pullover com Kettlebell
+Pullover no Chão com Kettlebell
+Push Jerk
+Push Press
+Push Press com 2 Kettlebells
+Push Press com Halteres
+Push Press Unilateral com Halteres
+Push Press Unilateral com Kettlebell
+Puxada Atrás da Nuca
+Puxada com Barra V
+Puxada Pegada Fechada
+Puxada Pegada Invertida
+Puxada Unilateral
+Rack Pull
+Remada Alta com Barra
+Remada Alta com Barra W
+Remada Alta com Halteres
+Remada Alta no Cabo
+Remada Alta no Smith
+Remada Cavalinho (T-Bar)
+Remada com 2 Kettlebells
+Remada com Halteres Apoiado no Banco
+Remada com Kettlebell Apoiado no Banco
+Remada Curvada com Barra W
+Remada Curvada com Halteres
+Remada Curvada no Cabo
+Remada Curvada no Smith
+Remada Curvada Pegada Invertida
+Remada Curvada Pegada Invertida no Smith
+Remada Invertida
+Remada Invertida nas Argolas
+Remada nas Argolas
+Remada no Banco
+Remada no Banco com Halteres
+Remada no Cabo Ajoelhado
+Remada no Smith Apoiado no Banco
+Remada no Trenó
+Remada no TRX
+Remada para Deltoide Posterior com 2 Kettlebells
+Remada para Deltoide Posterior com Barra
+Remada Pegada Invertida com Barra W
+Remada Pendlay
+Remada Sentada no Cabo
+Remada Sentada Pegada Aberta
+Remada Unilateral com Halteres
+Remada Unilateral com Halteres Apoiado no Banco
+Remada Unilateral com Kettlebell
+Remo Ergométrico
+Retração de Queixo (Chin Tuck)
+Reverse Tabletop com Pulsos de Quadril
+Reverse Tabletop Isométrico
+Rolamento com Roda Abdominal
+Rolamento com Roda Abdominal (Barra)
+Rosca Bíceps com 2 Kettlebells
+Rosca Bíceps no TRX
+Rosca Bíceps Unilateral com Kettlebell
+Rosca Cheat (Rosca Trapaça)
+Rosca com Barra W Pegada Fechada
+Rosca Concentrada
+Rosca Concentrada com Kettlebell
+Rosca de Punho Bilateral com Halteres
+Rosca de Punho com Barra
+Rosca de Punho com Barra W
+Rosca de Punho com Halteres
+Rosca de Punho com Kettlebell
+Rosca de Punho Invertida com Halteres
+Rosca de Punho Invertida com Kettlebell
+Rosca de Punho no Cabo
+Rosca Direta com Barra W
+Rosca Direta com Halteres
+Rosca Direta na Máquina
+Rosca Direta no Cabo
+Rosca Direta Pegada Fechada
+Rosca Drag
+Rosca Estrita
+Rosca Inclinada com Halteres
+Rosca Invertida
+Rosca Invertida com Barra W
+Rosca Invertida com Halteres
+Rosca Martelo com Halteres
+Rosca Martelo com Kettlebell
+Rosca Martelo Cruzada
+Rosca Martelo Inclinada
+Rosca Martelo no Banco Scott
+Rosca Martelo no Cabo
+Rosca Martelo Unilateral
+Rosca Nórdica (Nordic Curl)
+Rosca Nórdica Invertida
+Rosca Scott
+Rosca Scott com Barra
+Rosca Scott na Máquina
+Rosca Sentado com Halteres
+Rosca Spider (Rosca Aranha)
+Rosca Spider com Barra W
+Rosca Zottman
+Rotação Externa no Cabo
+Russian Twist (Torção Russa)
+Russian Twist com Kettlebell
+Salto na Caixa (Box Jump)
+Snatch (Arranco)
+Split Jerk
+Split Jerk com 2 Kettlebells
+Split Snatch Parado com 2 Kettlebells
+Splits em Pé
+Spoto Press
+Subida no Step (Step-Up)
+Sumo High Pull com Kettlebell
+Superman
+Supino com Barra W
+Supino Declinado
+Supino Declinado com Barra
+Supino Declinado com Barra W
+Supino Declinado no Smith
+Supino Fechado
+Supino Fechado com Barra W
+Supino Fechado com Halteres
+Supino Inclinado com Barra
+Supino Inclinado com Barra W
+Supino Inclinado com Halteres
+Supino Inclinado Fechado
+Supino Inclinado no Smith
+Supino Inclinado Pausado
+Supino na Máquina
+Supino no Cabo
+Supino no Chão
+Supino no Chão com Barra W
+Supino no Chão com Halteres
+Supino no Chão com Kettlebell
+Supino no Chão Pegada Fechada com Kettlebell
+Supino no Chão Unilateral com Kettlebell
+Supino no Smith
+Supino no TRX
+Supino Reto com Halteres
+Supino Reto Pausado
+Supino Reto Pegada Aberta
+Svend Press
+Svend Press com 1 Halteres
+Svend Press com Halteres
+Svend Press com Kettlebell
+Swing Clean com Kettlebell
+Swing com Kettlebell
+Swing Snatch com 2 Kettlebells
+Swing Unilateral com Halteres
+Swing Unilateral com Kettlebell
+Tesoura (Scissor Kicks)
+Tesourinha (Flutter Kicks)
+Thruster
+Toes to Bar
+Torção Espinhal Deitado
+Torção Espinhal Sentado
+Tríceps Corda Unilateral (Cabo)
+Tríceps Francês (Acima da Cabeça)
+Tríceps Francês com Barra
+Tríceps Francês com Barra W
+Tríceps Francês Unilateral com Halteres
+Tríceps Pulley com Barra V
+Tríceps Testa
+Tríceps Testa (Deitado)
+Tríceps Testa com Barra W
+Tríceps Testa com Halteres
+Tríceps Testa com Kettlebell
+Turkish Get-Up com Kettlebell
+Urso (Bear Crawl)
+V-Sit
+Vela com Apoio
+Windmill com Halteres
+Windmill com Kettlebell
+Wrist Roller (Rolo de Punho)
+Supino Reto
+Crucifixo
+Flexão de Braço
+Desenvolvimento de Ombro
+Elevação Lateral
+Elevação Frontal
+Remada
+Puxada
+Barra Fixa
+Face Pull
+Encolhimento
+Levantamento Terra
+Agachamento
+Leg Press
+Cadeira Extensora
+Mesa Flexora
+Stiff
+Afundo
+Panturrilha
+Rosca Direta
+Tríceps Corda
+Abdominal
+Oblíquo
+Hip Thrust
+Adutor
+Abdutor
+Elevação de Pernas
+Voador (Peck Deck)
+Pullover

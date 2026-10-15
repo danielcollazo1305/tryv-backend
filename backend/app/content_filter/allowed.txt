@@ -1,0 +1,52 @@
+# EXCEÇÕES: palavras e frases que SEMPRE passam, mesmo que contenham (ou se pareçam com) um termo bloqueado.
+# Quando uma frase daqui aparece no texto, as palavras dela são ignoradas pelo filtro.
+# Formato igual ao das listas bloqueadas. Use frases curtas e específicas; frases genéricas demais abrem brecha.
+
+# --- "arrombado/a" como adjetivo de coisa
+porta arrombada
+portas arrombadas
+janela arrombada
+casa arrombada
+loja arrombada
+carro arrombado
+cofre arrombado
+cadeado arrombado
+
+# --- "morrer de ..." e "matar de ..." (exagero de dia a dia, não ameaça)
+morrer de rir
+morrer de tanto rir
+morrer de cansaco
+morrer de saudade
+morrer de fome
+morrer de sede
+morrer de frio
+morrer de calor
+morrer de medo
+morrer de vergonha
+morrer de sono
+morrer de dor
+morrer de inveja
+morrer de preguica
+morrer de ciume
+morrer de amores
+morrer de tanto
+matar de rir
+matar de tanto rir
+matar de cansaco
+matar de saudade
+matar de fome
+matar de sede
+matar de vergonha
+matar de susto
+matar de inveja
+matar de treinar
+matar de treino
+matar de tanto treinar
+matar de estudar
+matar de tanto estudar
+matar de trabalhar
+matar de tanto trabalhar
+matar de correr
+matar de tanto correr
+matar na academia
+matar no treino

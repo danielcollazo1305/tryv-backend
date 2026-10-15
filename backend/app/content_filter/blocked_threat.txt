@@ -1,0 +1,28 @@
+# CATEGORIA: ameaça  (código interno: threat)
+# SÓ frases de ameaça direta. "matar a fome", "matei o treino", "morri de cansaço", "morrer de rir" passam.
+# Brincadeiras comuns ("matar de rir", "morrer de cansaço") estão liberadas em allowed.txt.
+# Formato: uma frase por linha. "#" começa comentário. Na dúvida, NÃO entra.
+# Dica: "vc", "voce" e "tu" são escritos de formas diferentes; liste as variações que importam.
+
+vou te matar
+vou matar voce
+vou matar voces
+vou matar vc
+vou matar vcs
+vou matar todos
+vou matar todo mundo
+vou te esfaquear
+vou te dar um tiro
+vou te encher de porrada
+vou te estuprar
+vou estuprar voce
+vou estuprar vc
+vou atirar em voce
+vou atirar em vc
+voce vai morrer
+vc vai morrer
+tu vai morrer
+vou te fazer morrer
+vou acabar com a sua vida
+vou acabar com sua vida
+vou fazer um massacre

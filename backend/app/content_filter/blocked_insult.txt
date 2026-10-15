@@ -1,0 +1,58 @@
+# CATEGORIA: ofensas diretas e xingamentos graves  (código interno: insult)
+# Palavrões leves (merda, porra, droga, caramba...) NÃO entram aqui: são permitidos de propósito.
+# Formato: um termo ou frase por linha. Maiúsculas e acentos não importam. "#" começa comentário.
+# Um "*" no fim de uma palavra aceita qualquer continuação ("abc*" casa "abc", "abcd", "abcxyz"): use só em radicais seguros.
+# Na dúvida, a palavra NÃO entra. Veja o README.md desta pasta.
+
+# --- "puta" e variações (a palavra solta; "computador", "disputa" etc. NÃO casam: só palavra inteira)
+puta
+putas
+putinha
+putinhas
+filho da puta
+filhos da puta
+filha da puta
+filhas da puta
+filhodaputa
+fdp
+fdps
+
+# --- "caralho" e variações
+caralho
+caralhos
+caralhao
+karalho
+karalhos
+
+# --- "arrombado/a" (frases como "porta arrombada" estão liberadas em allowed.txt)
+arrombado
+arrombada
+arrombados
+arrombadas
+arrombadinho
+
+# --- "cuzão"
+cuzao
+cuzoes
+cuzona
+
+# --- mandar alguém para algum lugar (frases)
+vai tomar no cu
+vai toma no cu
+tomar no cu
+toma no cu
+tomar no seu cu
+vtnc
+vsf
+vai se foder
+vai se fuder
+vai te foder
+vai te fuder
+se foder
+se fuder
+
+# --- ofensas sexistas
+vagabunda
+vagabundas
+vadia
+vadias

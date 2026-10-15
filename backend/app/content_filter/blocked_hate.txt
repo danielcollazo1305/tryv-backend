@@ -1,0 +1,62 @@
+# CATEGORIA: ódio e discriminação  (código interno: hate)
+# SÓ formas ofensivas. Termos neutros (negro, gay, judeu, cadeirante, gordo, magro...) NÃO entram nunca.
+# Palavras com duplo sentido (macaco, bicha, neguinho, cigano...) ficam de fora: a denúncia cobre.
+# Formato: um termo ou frase por linha. "#" começa comentário. Na dúvida, NÃO entra.
+
+# --- ofensas homofóbicas e transfóbicas
+viado
+viada
+viados
+viadas
+viadinho
+viadinhos
+viadao
+viadagem
+sapatao
+sapatona
+sapatoes
+traveco
+travecos
+faggot
+faggots
+fagot
+
+# --- ofensas racistas
+crioulo
+crioula
+crioulos
+crioulas
+nigger
+niggers
+macaco imundo
+seu macaco
+negro imundo
+preto imundo
+volta pra africa
+volta para a africa
+
+# --- ofensas capacitistas
+retardado
+retardada
+retardados
+retardadas
+mongoloide
+mongoloides
+
+# --- apologia ao nazismo e à supremacia
+heil hitler
+sieg heil
+white power
+supremacia branca
+hitler tinha razao
+
+# --- incitação contra grupos
+morte aos negros
+morte aos pretos
+morte aos gays
+morte aos viados
+morte aos judeus
+morte aos homossexuais
+morte aos nordestinos
+morte aos imigrantes
+morte aos gordos

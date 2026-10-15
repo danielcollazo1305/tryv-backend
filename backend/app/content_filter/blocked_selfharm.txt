@@ -1,0 +1,59 @@
+# CATEGORIA: incentivo a autolesão, suicídio e transtornos alimentares  (código interno: selfharm)
+# SÓ frases de intenção, instrução ou incentivo. O TEMA em geral NÃO é bloqueado:
+# "dieta", "jejum", "emagrecer", "déficit calórico", "cutting", "secar", "reeducação alimentar" passam sempre.
+# Quando esta categoria bloqueia, a pessoa vê a mensagem acolhedora com o CVV (188), não a mensagem padrão.
+# Hipérboles de treino ("vou me matar de treinar") estão liberadas em allowed.txt.
+# Formato: uma frase por linha. "#" começa comentário. Na dúvida, NÃO entra.
+
+# --- comunidades que incentivam transtornos alimentares
+pro ana
+proana
+pro mia
+promia
+thinspo
+thinspiration
+bonespo
+dieta da ana
+
+# --- purgação e abuso de laxantes
+provocar vomito
+provocar vomitos
+induzir vomito
+induzir o vomito
+forcar vomito
+forcar o vomito
+vomitar depois de comer
+vomitar apos comer
+vomitar para emagrecer
+vomitar pra emagrecer
+laxante para emagrecer
+laxantes para emagrecer
+laxante pra emagrecer
+laxantes pra emagrecer
+nao comer por dias
+ficar dias sem comer
+passar dias sem comer
+
+# --- suicídio e autolesão (intenção e instrução)
+quero me matar
+vou me matar
+quero me suicidar
+vou me suicidar
+quero me cortar
+vou me cortar
+quero acabar com a minha vida
+quero acabar com minha vida
+vou acabar com a minha vida
+vou acabar com minha vida
+quero tirar minha vida
+vou tirar minha vida
+nao quero mais viver
+como se matar
+como me matar
+como se suicidar
+como cometer suicidio
+metodos de suicidio
+formas de se matar
+melhor forma de se matar
+me automutilar
+vou me automutilar

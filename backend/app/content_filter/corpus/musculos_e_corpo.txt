@@ -1,0 +1,124 @@
+# Musculos, partes do corpo e vocabulario de treino/saude
+# Estas palavras NUNCA podem ser bloqueadas pelo filtro (usadas so pelos testes). Uma por linha.
+bunda
+bumbum
+glúteo
+glúteos
+gluteo
+gluteo máximo
+gluteo médio
+peito
+peitoral
+peitoral maior
+coxa
+coxas
+virilha
+abdômen
+abdomen
+abdominal
+barriga
+cintura
+quadril
+panturrilha
+posterior de coxa
+quadríceps
+quadriceps
+isquiotibiais
+adutores
+abdutores
+bíceps
+biceps
+tríceps
+triceps
+antebraço
+ombro
+ombros
+deltoide
+trapézio
+dorsal
+dorsais
+lombar
+costas
+braço
+braços
+perna
+pernas
+pé
+pés
+mão
+mãos
+pescoço
+cabeça
+coração
+pulmão
+pau de selfie
+pau de arara
+pau brasil
+pau-brasil
+pau a pique
+pau para toda obra
+pinto
+pintinho
+rola
+rolar
+peru
+cu
+cuscuz
+cuzcuz
+gordo
+gorda
+gordura
+gordurinha
+magro
+magra
+obeso
+obesidade
+sobrepeso
+emagrecer
+emagrecimento
+secar
+barriga tanquinho
+tanquinho
+jejum
+jejum intermitente
+dieta
+dietas
+déficit calórico
+superávit calórico
+bulking
+cutting
+hipertrofia
+definição
+recomposição corporal
+queimar gordura
+perder peso
+ganhar massa
+massa magra
+massa muscular
+anorexia
+bulimia
+compulsão alimentar
+sexo biológico
+sexo
+sexualidade
+anal
+analista
+analise
+puberdade
+nu
+nua
+pelado
+pelada
+transar
+gozar
+tesão
+cacete
+cacetada
+caramba
+droga
+merda
+porra
+porrada
+bosta
+diabo
+inferno
