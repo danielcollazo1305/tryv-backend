@@ -5,6 +5,7 @@ import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.age_policy import require_professional_birth_date
 from app.core.avatar_visibility import avatar_fields, visible_avatar
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -127,6 +128,10 @@ def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Usuario ja esta cadastrado como professor",
         )
+
+    # Idade minima 18 (core/age_policy.py): novo perfil de profissional exige data de nascimento e 18+. Perfis ja
+    # existentes nao sao revisados (a checagem acima vem primeiro e eles nao chegam aqui).
+    require_professional_birth_date(current_user.date_of_birth)
 
     trainer = Trainer(
         user_id=current_user.id,

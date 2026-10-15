@@ -15,6 +15,7 @@ import {
 } from '@/services/contacts';
 import { MatchedContact, UserSearchResult, followUser, matchContacts, searchUsers, unfollowUser } from '@/services/social';
 import { shareInvite } from '@/utils/invite';
+import { CONTACTS_DISCOVERY_ENABLED } from '@/constants/features';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 type Tab = 'search' | 'contacts';
@@ -99,6 +100,7 @@ export default function DiscoverScreen() {
   const [matchedBusy, setMatchedBusy] = useState<Record<string, boolean>>({});
 
   const loadContacts = useCallback(async () => {
+    if (!CONTACTS_DISCOVERY_ENABLED) return; // nunca le a agenda com a funcao desligada
     setContactsState('loading');
     try {
       const deviceContacts = await fetchDeviceContacts();
@@ -116,7 +118,7 @@ export default function DiscoverScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (activeTab !== 'contacts') return;
+      if (!CONTACTS_DISCOVERY_ENABLED || activeTab !== 'contacts') return;
       let active = true;
       (async () => {
         const status = await getContactsPermissionStatus();
@@ -139,6 +141,7 @@ export default function DiscoverScreen() {
   );
 
   const handleRequestPermission = async () => {
+    if (!CONTACTS_DISCOVERY_ENABLED) return; // nunca pede a permissao da agenda com a funcao desligada
     const granted = await requestContactsPermission();
     if (granted) loadContacts();
     else setContactsState('denied');
@@ -185,6 +188,7 @@ export default function DiscoverScreen() {
           <Ionicons name="chevron-forward" size={16} color={colors3.onSurfaceVariant} />
         </Pressable>
 
+        {CONTACTS_DISCOVERY_ENABLED && (
         <View style={styles.tabRow}>
           <Pressable
             style={[styles.tabPill, activeTab === 'search' && styles.tabPillSelected]}
@@ -203,6 +207,7 @@ export default function DiscoverScreen() {
             </Text>
           </Pressable>
         </View>
+        )}
 
         {activeTab === 'search' ? (
           <FlatList

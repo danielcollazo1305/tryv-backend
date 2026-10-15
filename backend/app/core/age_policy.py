@@ -19,6 +19,7 @@ MAX_PLAUSIBLE_AGE = 120
 MISSING_BIRTH_DATE_MESSAGE = "Informe sua data de nascimento."
 INVALID_BIRTH_DATE_MESSAGE = "Data de nascimento inválida."
 UNDERAGE_MESSAGE = "O Tryv é para maiores de 18 anos."
+MISSING_BIRTH_DATE_FOR_PROFESSIONAL_MESSAGE = "Informe sua data de nascimento no perfil para se cadastrar como profissional."
 
 
 def birth_date_error(date_of_birth: date | None, today: date | None = None) -> str | None:
@@ -42,3 +43,14 @@ def require_valid_birth_date(date_of_birth: date | None) -> date:
     if message is not None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message)
     return date_of_birth  # type: ignore[return-value]
+
+
+def require_professional_birth_date(date_of_birth: date | None) -> date:
+    """Cadastro de profissional (POST /trainers/register): o usuario logado precisa ter data de nascimento e 18+ (mesma regra
+    do cadastro). Sem data -> 422 com mensagem propria; menor/data invalida -> a mesma mensagem do cadastro. So vale para
+    NOVOS perfis: perfis de profissional ja existentes nao sao revisados."""
+    if date_of_birth is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=MISSING_BIRTH_DATE_FOR_PROFESSIONAL_MESSAGE
+        )
+    return require_valid_birth_date(date_of_birth)
