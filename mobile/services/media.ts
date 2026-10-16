@@ -47,7 +47,8 @@ export async function uploadMediaWithThumb(fileUri: string, folder: MediaFolder)
 
   // Video pode ser bem maior que uma foto — folga maior de timeout so
   // pra essa pasta, sem penalizar os uploads de imagem existentes.
-  const timeout = folder === 'workouts' ? 90000 : 30000;
+  // Fotos de post passam pela analise automatica no servidor (~2,4 s, ate ~20 s no pior caso): folga maior de timeout.
+  const timeout = folder === 'workouts' ? 90000 : folder === 'posts' ? 60000 : 30000;
   const response = await api.post<{ url: string; thumb_url?: string | null }>('/media/upload', formData, { timeout });
   return { url: response.data.url, thumb_url: response.data.thumb_url ?? null };
 }

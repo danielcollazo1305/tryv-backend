@@ -17,7 +17,7 @@ import { HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey } from '@/compo
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { getContentFilterMessage } from '@/services/contentFilter';
+import { getShareFailureMessage } from '@/services/contentFilter';
 import {
   Challenge,
   buildAutomaticChallengeHeatmapDays,
@@ -212,14 +212,20 @@ export default function ChallengeDetailScreen() {
       // salvo com sucesso, uma falha so ao publicar no Feed nao deve
       // travar nem desfazer o check-in.
       if (checkinVisibility !== 'none') {
-        createPost({
-          type: photoUrl ? 'photo' : 'achievement',
-          caption: `Check-in do desafio: ${challenge.title}`,
-          media_url: photoUrl,
-          visibility: checkinVisibility,
-        }).catch((err) => {
-          // Check-in ja salvo. Se o filtro barrou a legenda (ou ha pausa), avisa -- antes isto falhava em silencio.
-          const message = getContentFilterMessage(err);
+        const shareUri = checkinPhotoUri;
+        (async () => {
+          // A foto do feed PRECISA passar pela analise automatica de fotos de post: reenvia pela pasta 'posts' (o servidor
+          // recusa em POST /posts a URL da pasta 'challenges', que nao foi analisada).
+          const mediaUrl = shareUri ? await uploadMedia(shareUri, 'posts') : null;
+          await createPost({
+            type: mediaUrl ? 'photo' : 'achievement',
+            caption: `Check-in do desafio: ${challenge.title}`,
+            media_url: mediaUrl,
+            visibility: checkinVisibility,
+          });
+        })().catch((err) => {
+          // Check-in ja salvo. Avisa so quando o servidor explicou (filtro de texto, foto reprovada/indisponivel, limite).
+          const message = getShareFailureMessage(err);
           if (message) Alert.alert('Check-in registrado', `Mas não foi possível compartilhá-lo no feed.\n\n${message}`);
         });
       }

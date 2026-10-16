@@ -20,7 +20,7 @@ import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { CAPTION_MAX_LENGTH } from '@/constants/textLimits';
-import { getContentFilterMessage } from '@/services/contentFilter';
+import { classifyImageUploadError, getContentFilterMessage, getHttpStatus } from '@/services/contentFilter';
 import { uploadMedia } from '@/services/media';
 import { PostVisibility, createPost } from '@/services/social';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
@@ -82,6 +82,7 @@ export default function NewPostScreen() {
   };
 
   const handleRetry = () => {
+    uploadedRef.current = null;
     setStage('picking');
     setImageUri(null);
     setError(null);
@@ -101,8 +102,20 @@ export default function NewPostScreen() {
         uploadedRef.current = { uri: imageUri, url: mediaUrl };
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
+      const upload = classifyImageUploadError(err);
+      if (upload?.kind === 'rejected' || upload?.kind === 'unreadable') {
+        // Foto reprovada (422 image) ou ilegivel (400): DESCARTA a foto e o cache de upload e volta a escolher outra; a legenda continua.
+        uploadedRef.current = null;
+        setImageUri(null);
+        setStage('picking');
+        setError(upload.message);
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+        return;
+      }
+      // 503 (analise indisponivel) e 429 (limite/pausa): MANTEM foto e legenda, mostra a mensagem do servidor e deixa tentar de novo.
+      setError(upload?.message ?? getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
       setStage('compose');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
 
@@ -117,6 +130,8 @@ export default function NewPostScreen() {
       router.back();
     } catch (err) {
       // Texto barrado pelo filtro (422) ou pausa (429): mostra a mensagem do servidor, MANTEM a legenda e a foto e leva ao topo, onde ela aparece.
+      // 422 sem o cabecalho do filtro (ex.: "foto nao verificada"): a foto em cache nao vale mais; a proxima tentativa reenvia e reverifica.
+      if (getHttpStatus(err) === 422 && !getContentFilterMessage(err)) uploadedRef.current = null;
       setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel publicar o post.'));
       setStage('compose');
       scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -202,10 +217,13 @@ export default function NewPostScreen() {
             />
 
             <Button2
-              label={stage === 'uploading' ? 'Enviando foto...' : 'Publicar'}
+              label={stage === 'uploading' ? 'Verificando a foto...' : 'Publicar'}
               onPress={handlePublish}
               loading={stage === 'uploading' || stage === 'saving'}
             />
+            {stage === 'uploading' && (
+              <Text style={styles.verifyHint}>Estamos verificando a foto. Isso pode levar alguns segundos.</Text>
+            )}
             <Button2
               label="Trocar foto"
               variant="secondary"
@@ -230,6 +248,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing2.md,
   },
   headerTitle: { ...typography2.headlineMd, fontSize: 18 },
+  verifyHint: { color: colors2.onSurfaceVariant, textAlign: 'center', fontSize: 13 },
   publishText: { ...typography2.labelCaps, color: colors2.primary },
   content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.md },
   error: { color: colors2.danger, textAlign: 'center', marginBottom: spacing2.sm },

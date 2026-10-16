@@ -23,9 +23,9 @@ import { ProGate } from '@/components/ProGate';
 import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { getContentFilterMessage } from '@/services/contentFilter';
+import { getShareFailureMessage } from '@/services/contentFilter';
 import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
-import { uploadMediaWithThumb } from '@/services/media';
+import { uploadMedia, uploadMediaWithThumb } from '@/services/media';
 import { SavedMealCreate, createSavedMeal } from '@/services/savedMeals';
 import { PostVisibility, SHARE_VISIBILITY_OPTIONS, ShareVisibility, createPost } from '@/services/social';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -158,15 +158,21 @@ export default function AddMealScreen() {
   // refeicao, que ja foi salvo com sucesso antes disso rodar — mesmo
   // padrao de acao secundaria "fire and forget" ja usado em outros lugares
   // do app (ex: syncRecentHeartRate em HealthSummaryCard).
-  const shareMealToFeed = (visibility: PostVisibility, caption: string, mediaUrl?: string) => {
-    createPost({
-      type: mediaUrl ? 'photo' : 'progress',
-      caption: caption || undefined,
-      media_url: mediaUrl ?? null,
-      visibility,
-    }).catch((err) => {
-      // Refeicao ja salva. Se o filtro barrou a legenda (ou ha pausa), avisa -- antes isto falhava em silencio.
-      const message = getContentFilterMessage(err);
+  const shareMealToFeed = (visibility: PostVisibility, caption: string, photoUri?: string | null) => {
+    (async () => {
+      // A foto que vai ao feed PRECISA passar pela analise automatica de fotos de post: reenvia pela pasta 'posts' (o servidor
+      // recusa em POST /posts a URL da pasta 'meals', que nao foi analisada).
+      const mediaUrl = photoUri ? await uploadMedia(photoUri, 'posts') : undefined;
+      await createPost({
+        type: mediaUrl ? 'photo' : 'progress',
+        caption: caption || undefined,
+        media_url: mediaUrl ?? null,
+        visibility,
+      });
+    })().catch((err) => {
+      // Refeicao ja salva. Avisa so quando o servidor explicou (filtro de texto, foto reprovada/indisponivel, limite);
+      // qualquer outro erro segue silencioso como antes.
+      const message = getShareFailureMessage(err);
       if (message) Alert.alert('Refeição registrada', `Mas não foi possível compartilhá-la no feed.\n\n${message}`);
     });
   };
@@ -297,7 +303,7 @@ export default function AddMealScreen() {
       // A miniatura so vai na refeicao (a refeicao salva/favorita nao a usa).
       await createMeal(photoThumbUrl ? { ...mealPayload, photo_thumb_url: photoThumbUrl } : mealPayload);
       await saveFavoriteIfRequested(mealPayload);
-      if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, photoUrl);
+      if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, imageUri);
       router.back();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
