@@ -57,6 +57,8 @@ Para usuários que se cadastram como professores de educação física, coletamo
 - Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo
 - Fotos e mídias enviadas para publicações
 - Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação
+- Fotos enviadas para posts: antes de publicar, uma cópia reduzida da foto é enviada para análise automatizada de segurança (ver seções 4.2 e 5). Das fotos aprovadas guardamos um registro técnico (quem enviou, pasta, endereço da foto e data), usado para permitir a publicação e limitar a quantidade de envios; as fotos recusadas não são guardadas
+- Registro técnico dos bloqueios do filtro automático de conteúdo: quando um texto ou uma foto seus são barrados, guardamos o usuário (quando há conta), o tipo de lugar (por exemplo, comentário ou foto de post), uma categoria geral do motivo e a data. **Não guardamos o texto, nem o termo barrado, nem a foto, nem o endereço IP nesse registro.** Ele serve para pausar temporariamente quem tenta muitas vezes e para acompanhar abusos
 
 ### 2.6 Lista de Espera (Site)
 Se você se inscrever na lista de espera no nosso site, guardamos o endereço de e-mail informado para avisá-lo do lançamento. Se você criar e depois excluir uma conta com o mesmo e-mail, esse registro da lista de espera também é apagado.
@@ -75,6 +77,7 @@ Utilizamos os dados coletados para:
 - Permitir que professores autorizados (mediante assinatura ativa) vejam quando um aluno está treinando no momento e acompanhem, em tempo real, a localização e as métricas (distância, ritmo, tempo e frequência cardíaca quando disponível) de uma atividade com GPS enquanto ela estiver em andamento
 - Viabilizar a rede social do aplicativo (feed, seguir, curtir, comentar)
 - Melhorar e manter a segurança do aplicativo
+- Verificar automaticamente textos e fotos antes de publicar, para reduzir conteúdo impróprio na rede social (ver seção 5)
 
 **Não vendemos seus dados pessoais a terceiros.**
 
@@ -95,7 +98,7 @@ Utilizamos os seguintes serviços de terceiros para operar o Tryv:
 
 | Serviço | Finalidade |
 |---|---|
-| **Anthropic (Claude API)** | Análise de fotos de refeições, geração de treinos personalizados, geração de insights |
+| **Anthropic (Claude API)** | Análise de fotos de refeições, geração de treinos personalizados, geração de insights e análise automatizada de segurança das fotos enviadas para posts, antes da publicação |
 | **Amazon Web Services (S3)** | Armazenamento de mídias (fotos de refeições, posts, perfis) |
 | **Stripe / Stripe Connect** | Processamento de pagamentos e repasses a professores |
 | **OpenAI** | Geração do avatar estilizado a partir de uma selfie enviada por você. A selfie é processada em memória e enviada à OpenAI; não é guardada por nós (guardamos apenas o avatar gerado) |
@@ -115,8 +118,13 @@ O Tryv utiliza a API da Anthropic (Claude) para:
 - Analisar fotos de refeições e estimar valores nutricionais
 - Gerar treinos personalizados
 - Gerar insights motivacionais/informativos com base no seu histórico de atividade
+- Analisar, antes da publicação, as fotos enviadas para posts, para identificar conteúdo impróprio (verificação automatizada de segurança)
 
 Os dados enviados para esse processamento incluem as imagens de refeições (quando aplicável) e um resumo do seu histórico recente de atividades, treinos e alimentação. Consulte a Política de Privacidade da Anthropic para mais informações sobre como esses dados são tratados por esse fornecedor.
+
+**Fotos de posts.** Quando você envia uma foto para um post, o Tryv reduz o tamanho da foto, grava uma cópia em formato JPEG sem os metadados do arquivo original e envia essa cópia à Anthropic para uma análise automatizada de segurança (por exemplo, nudez, violência explícita, autolesão, símbolos de ódio, drogas e menores em contexto sexual). A decisão de aprovar ou recusar é automática. Se a foto for aprovada, ela é gravada no nosso armazenamento e pode ser publicada; se for recusada, não é gravada e você é avisado para escolher outra. Se a análise estiver indisponível no momento, a foto não é publicada. [CONFIRMAR COM ADVOGADO: como a Anthropic trata as imagens recebidas (retenção, uso para treinamento de modelos, localização dos servidores), a base legal e a transferência internacional desse envio]
+
+**Textos.** Os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios, bio e certificações de profissionais) são comparados, antes de publicar, com uma lista de termos mantida pelo Tryv, nos nossos próprios sistemas, sem enviar o texto a terceiros para essa verificação. Textos barrados não são gravados. A verificação é automática e pode errar; escreva para contato@tryv.com.br para pedir revisão. [CONFIRMAR COM ADVOGADO: direito de revisão de decisões automatizadas e prazo de resposta aos pedidos de revisão]
 
 Para gerar o avatar estilizado a partir de uma selfie, o Tryv utiliza a API de imagens da OpenAI. A selfie é enviada à OpenAI somente para esse processamento; no nosso servidor ela fica apenas em memória e não é guardada por nós (guardamos somente o avatar gerado). Consulte a Política de Privacidade da OpenAI para mais informações sobre como esses dados são tratados por esse fornecedor.
 
@@ -142,11 +150,13 @@ Mantemos seus dados pessoais enquanto sua conta estiver ativa.
 Você pode excluir sua conta no próprio aplicativo, em **Perfil > Excluir conta** (o aplicativo pede sua senha e a palavra EXCLUIR). A exclusão é **imediata e irreversível**:
 - Seus dados — perfil, treinos, corridas e atividades, refeições, dados de saúde, posts, comentários, curtidas, seguidores, bloqueios e demais dados da conta — são apagados do nosso banco de dados na hora.
 - Suas imagens (foto de perfil, fotos de refeições, de posts e de desafios) são removidas do nosso armazenamento de mídia.
+- Os registros técnicos do filtro automático ligados à sua conta (bloqueios e fotos aprovadas) são apagados junto com a conta.
 - Assinaturas ativas (Pro e de professor) são canceladas na hora, sem reembolso do período já pago.
 
 ### 7.2 O que pode permanecer
 - **Cópias de segurança:** as cópias de segurança do banco de dados podem permanecer por até 90 dias depois da exclusão, até serem substituídas pela rotação normal, e não são usadas para outro fim.
 - **Denúncias de moderação:** o registro de uma denúncia (motivo, estado da análise e datas) é mantido como registro de segurança, sem vínculo com a conta excluída: quem denunciou e o autor denunciado deixam de ser identificáveis, e o trecho do conteúdo do autor excluído que estava guardado na denúncia é descartado.
+- **Tentativas de cadastro barradas pelo filtro de nomes:** quando um nome é barrado no cadastro ainda não existe conta; o registro técnico (tipo de lugar, categoria geral e data) não tem o texto nem identifica uma pessoa e, por isso, não é apagado junto com nenhuma conta. [CONFIRMAR COM ADVOGADO: prazo de guarda desses registros]
 - **Pagamentos (Stripe):** o Stripe, como processador de pagamentos, mantém registros financeiros por obrigação própria. Ao excluir sua conta, apagamos o seu cadastro de cliente no Stripe quando possível.
 
 ### 7.3 Pendências que impedem a exclusão

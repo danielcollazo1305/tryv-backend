@@ -102,6 +102,9 @@ Ao usar o Tryv, você concorda em não:
 - Publicar conteúdo ilegal, ofensivo, discriminatório ou que viole direitos de terceiros
 - Assediar, ameaçar, intimidar ou humilhar outras pessoas
 - Publicar nudez, conteúdo sexual explícito ou conteúdo violento
+- Publicar ou incentivar autolesão, suicídio ou transtornos alimentares
+- Publicar símbolos ou mensagens de ódio contra pessoas ou grupos
+- Publicar conteúdo que mostre uso ou venda de drogas ilícitas
 - Publicar conteúdo que envolva menores de idade de forma indevida
 - Enviar spam ou conteúdo repetitivo, promocional ou enganoso
 - Utilizar o aplicativo para fins fraudulentos ou enganosos
@@ -118,6 +121,15 @@ No menu "⋯" de um post ou comentário, ou no perfil da pessoa, escolha **Bloqu
 
 ### 9.4 Análise das denúncias e medidas
 O Tryv analisa as denúncias em até 24 horas. O conteúdo que violar estes Termos é removido, e o autor pode ter a conta suspensa ou excluída. Para dúvidas ou denúncias fora do aplicativo, escreva para contato@tryv.com.br.
+
+### 9.5 Verificação automática de textos e fotos
+Antes de publicar, o Tryv verifica automaticamente os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios, e bio e certificações de profissionais) e as fotos enviadas para posts. A verificação é automática e **pode errar**, tanto barrando algo permitido quanto deixando passar algo que não deveria.
+- Texto ou foto barrados não são publicados; o aplicativo mostra uma mensagem pedindo para você reescrever o texto ou escolher outra foto.
+- Se a verificação das fotos estiver indisponível, a foto não é publicada; tente de novo mais tarde.
+- Muitas tentativas barradas em pouco tempo causam uma pausa temporária nos envios.
+- Se você acha que algo foi barrado por engano, escreva para contato@tryv.com.br. [CONFIRMAR COM ADVOGADO: procedimento e prazo para analisar contestações de bloqueios automáticos]
+- Quem tenta publicar conteúdo proibido repetidamente pode, conforme as seções 9.4 e 12.2, ter a conta suspensa ou encerrada.
+- A verificação não substitui as denúncias: conteúdo que passou pela verificação ainda pode ser denunciado e removido (seções 9.2 e 9.4).
 
 ---
 
