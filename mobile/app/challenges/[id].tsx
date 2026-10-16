@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +17,7 @@ import { HeatmapDay, HeatmapGrid, computeCurrentStreak, todayKey } from '@/compo
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import {
   Challenge,
   buildAutomaticChallengeHeatmapDays,
@@ -216,7 +217,11 @@ export default function ChallengeDetailScreen() {
           caption: `Check-in do desafio: ${challenge.title}`,
           media_url: photoUrl,
           visibility: checkinVisibility,
-        }).catch(() => {});
+        }).catch((err) => {
+          // Check-in ja salvo. Se o filtro barrou a legenda (ou ha pausa), avisa -- antes isto falhava em silencio.
+          const message = getContentFilterMessage(err);
+          if (message) Alert.alert('Check-in registrado', `Mas não foi possível compartilhá-lo no feed.\n\n${message}`);
+        });
       }
 
       setCheckinPhotoUri(null);

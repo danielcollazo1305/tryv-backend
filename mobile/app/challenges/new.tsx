@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -7,6 +7,8 @@ import { router } from 'expo-router';
 import { Button2 } from '@/components/Button2';
 import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
+import { CHALLENGE_DESCRIPTION_MAX_LENGTH, CHALLENGE_TITLE_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { createChallenge } from '@/services/challenges';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
@@ -27,6 +29,7 @@ export default function NewChallengeScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const canSubmit = title.trim().length > 0 && endDate > startDate;
 
@@ -56,8 +59,10 @@ export default function NewChallengeScreen() {
       });
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel criar o desafio.'));
+      // Texto barrado (422) ou pausa (429): mensagem do servidor, campos mantidos, tela aberta, e rola ao topo onde ela aparece.
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel criar o desafio.'));
       setSubmitting(false);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
@@ -70,15 +75,22 @@ export default function NewChallengeScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <TextField2 label="Titulo" placeholder="Ex: Desafio 30 dias" value={title} onChangeText={setTitle} />
+        <TextField2
+          label="Titulo"
+          placeholder="Ex: Desafio 30 dias"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={CHALLENGE_TITLE_MAX_LENGTH}
+        />
         <TextField2
           label="Descricao (opcional)"
           placeholder="Explique as regras e o objetivo do desafio..."
           value={description}
           onChangeText={setDescription}
+          maxLength={CHALLENGE_DESCRIPTION_MAX_LENGTH}
           multiline
           numberOfLines={4}
           style={styles.descriptionInput}

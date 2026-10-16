@@ -23,6 +23,7 @@ import { ProGate } from '@/components/ProGate';
 import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { MealAnalysis, analyzeMealPhoto, analyzeMealText, createMeal } from '@/services/meals';
 import { uploadMediaWithThumb } from '@/services/media';
 import { SavedMealCreate, createSavedMeal } from '@/services/savedMeals';
@@ -163,7 +164,11 @@ export default function AddMealScreen() {
       caption: caption || undefined,
       media_url: mediaUrl ?? null,
       visibility,
-    }).catch(() => {});
+    }).catch((err) => {
+      // Refeicao ja salva. Se o filtro barrou a legenda (ou ha pausa), avisa -- antes isto falhava em silencio.
+      const message = getContentFilterMessage(err);
+      if (message) Alert.alert('Refeição registrada', `Mas não foi possível compartilhá-la no feed.\n\n${message}`);
+    });
   };
 
   // Roda DEPOIS da refeicao ja ter sido salva com sucesso, com os mesmos campos

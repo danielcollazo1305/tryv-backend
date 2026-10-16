@@ -7,6 +7,7 @@ import { ProgressSteps2 } from '@/components/ProgressSteps2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TextField2 } from '@/components/TextField2';
 import { getOnboardingTotalSteps } from '@/constants/onboardingSteps';
+import { NAME_MAX_LENGTH } from '@/constants/textLimits';
 import { useRegisterDraft } from '@/context/RegisterDraftContext';
 import { colors3, spacing3, typography3 } from '@/constants/theme';
 
@@ -37,6 +38,12 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [weight, setWeight] = useState(draft.weight);
   const [error, setError] = useState<string | null>(null);
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    // Mensagem do filtro de conteudo (nome barrado no ultimo passo): some assim que a pessoa edita o nome.
+    if (draft.nameError) updateDraft({ nameError: null });
+  };
 
   const handleContinue = () => {
     setError(null);
@@ -78,7 +85,15 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          <TextField2 variant="light" label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
+          <TextField2
+            variant="light"
+            label="Nome"
+            value={name}
+            onChangeText={handleNameChange}
+            placeholder="Seu nome"
+            maxLength={NAME_MAX_LENGTH}
+            error={draft.nameError ?? undefined}
+          />
           <TextField2
             variant="light"
             label="E-mail"

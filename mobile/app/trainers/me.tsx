@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -9,6 +9,8 @@ import { Card } from '@/components/Card';
 import { ChallengeCard } from '@/components/ChallengeCard';
 import { TextField } from '@/components/TextField';
 import { getApiErrorMessage } from '@/services/api';
+import { TRAINER_BIO_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { Challenge, listTrainerChallenges } from '@/services/challenges';
 import {
   StripeStatus,
@@ -28,6 +30,7 @@ export default function TrainerDashboardScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState('');
@@ -70,7 +73,9 @@ export default function TrainerDashboardScreen() {
       setTrainer(updated);
       setEditing(false);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar as alteracoes.'));
+      // Bio barrada (422) ou pausa (429): mensagem do servidor, a edicao continua aberta com o texto digitado, e rola ao topo.
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel salvar as alteracoes.'));
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
       setSaving(false);
     }
@@ -107,7 +112,7 @@ export default function TrainerDashboardScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         {loading && (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.accent} />
@@ -197,6 +202,7 @@ export default function TrainerDashboardScreen() {
                     label="Bio"
                     value={bio}
                     onChangeText={setBio}
+                    maxLength={TRAINER_BIO_MAX_LENGTH}
                     multiline
                     numberOfLines={5}
                     style={styles.bioInput}

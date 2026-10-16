@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -10,6 +10,8 @@ import { MultiChoiceGroup2 } from '@/components/MultiChoiceGroup2';
 import { ScreenBackground2 } from '@/components/ScreenBackground2';
 import { TextField2 } from '@/components/TextField2';
 import { getApiErrorMessage } from '@/services/api';
+import { TRAINER_BIO_MAX_LENGTH, TRAINER_CERTIFICATIONS_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { ProfessionalType, SPECIALTIES_BY_PROFESSIONAL_TYPE, licenseLabel, registerTrainer } from '@/services/trainers';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
@@ -19,6 +21,7 @@ const TYPE_OPTIONS: { value: ProfessionalType; label: string }[] = [
 ];
 
 export default function TrainerRegisterScreen() {
+  const scrollRef = useRef<ScrollView>(null);
   const [professionalType, setProfessionalType] = useState<ProfessionalType | null>(null);
   const [licenseNumber, setLicenseNumber] = useState('');
   const [bio, setBio] = useState('');
@@ -59,8 +62,10 @@ export default function TrainerRegisterScreen() {
       });
       router.replace('/trainers/me');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro.'));
+      // Texto barrado (422) ou pausa (429): mensagem do servidor, campos mantidos, tela aberta, e rola ao topo onde ela aparece.
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro.'));
       setSubmitting(false);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
@@ -75,7 +80,7 @@ export default function TrainerRegisterScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.intro}>
           <Text style={styles.title}>Registro Profissional</Text>
           <Text style={styles.subtitle}>Configure seu perfil para oferecer servicos na plataforma.</Text>
@@ -118,6 +123,7 @@ export default function TrainerRegisterScreen() {
             placeholder="Descreva sua especialidade, metodologia e experiencia..."
             value={bio}
             onChangeText={setBio}
+            maxLength={TRAINER_BIO_MAX_LENGTH}
             multiline
             numberOfLines={5}
             style={styles.bioInput}
@@ -127,6 +133,7 @@ export default function TrainerRegisterScreen() {
             placeholder="Ex: Graduado em Educacao Fisica pela USP, Pos em Fisiologia do Exercicio"
             value={certifications}
             onChangeText={setCertifications}
+            maxLength={TRAINER_CERTIFICATIONS_MAX_LENGTH}
             multiline
             numberOfLines={4}
             style={styles.certificationsInput}

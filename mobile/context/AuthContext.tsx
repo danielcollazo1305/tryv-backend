@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
+import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
 import { getUserBadges } from '@/services/user';
 
 // Reexportado de services/api.ts — a chave mora la porque a importacao
@@ -165,7 +166,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await api.post('/auth/register', { name, email, password, date_of_birth: dateOfBirth });
       } catch (error) {
-        throw new Error(getApiErrorMessage(error, 'Nao foi possivel criar a conta.'));
+        // Preserva o que veio do filtro de conteudo (cabecalho X-Content-Filter) para o fim do cadastro decidir para onde levar a
+        // pessoa; os demais erros (idade, e-mail repetido...) continuam sendo so a mensagem, como antes.
+        throw new ApiMessageError(getContentFilterMessage(error) ?? getApiErrorMessage(error, 'Nao foi possivel criar a conta.'), {
+          contentFilter: isContentFilterError(error),
+          pause: isContentFilterPause(error),
+        });
       }
       await login(email, password);
     },

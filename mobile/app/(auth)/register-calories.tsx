@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRegisterDraft } from '@/context/RegisterDraftContext';
 import { finishRegistration } from '@/services/onboarding';
 import { getApiErrorMessage } from '@/services/api';
+import { ApiMessageError } from '@/services/contentFilter';
 import { colors3, spacing3, typography3 } from '@/constants/theme';
 import { OnboardingGoal, calculateSuggestedCalorieInfo } from '@/utils/healthCalculations';
 
@@ -86,6 +87,14 @@ export default function RegisterCaloriesScreen() {
       router.replace('/(auth)/register-avatar');
     } catch (err) {
       setOnboardingInProgress(false);
+      if (err instanceof ApiMessageError && err.contentFilter) {
+        // Nome barrado pelo filtro de conteudo: volta ao passo do nome com a mensagem do servidor. O rascunho (e a senha, que
+        // fica na tela do nome) continuam como estao; a pessoa so edita o nome e refaz os passos.
+        updateDraft({ nameError: err.message });
+        setLoading(false);
+        router.dismissTo('/(auth)/register');
+        return;
+      }
       setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
       setLoading(false);
     }

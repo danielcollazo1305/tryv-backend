@@ -9,6 +9,8 @@ import { Button3 } from '@/components/Button3';
 import { GlassCard } from '@/components/GlassCard';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { SQUAD_NAME_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { SquadMe, createSquad, deleteSquad, getMySquad, joinSquad, leaveSquad } from '@/services/squads';
 import { shareSquadInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
@@ -186,7 +188,8 @@ export function ClubsView({ active = true, onSquadChanged }: ClubsViewProps) {
       await fetchMySquad(true);
       onSquadChanged?.();
     } catch (err) {
-      setModalError(getApiErrorMessage(err, 'Não foi possível criar o squad.'));
+      // Nome barrado (422) ou pausa (429): mensagem do servidor no proprio modal; o nome digitado fica para editar.
+      setModalError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Não foi possível criar o squad.'));
     } finally {
       setSubmitting(false);
     }
@@ -384,7 +387,7 @@ export function ClubsView({ active = true, onSquadChanged }: ClubsViewProps) {
               placeholderTextColor={colors3.onSurfaceVariant}
               value={squadNameInput}
               onChangeText={setSquadNameInput}
-              maxLength={60}
+              maxLength={SQUAD_NAME_MAX_LENGTH}
               autoFocus
             />
             {!!modalError && <Text style={styles.modalError}>{modalError}</Text>}

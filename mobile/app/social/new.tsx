@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -19,6 +19,8 @@ import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
 import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { CAPTION_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { uploadMedia } from '@/services/media';
 import { PostVisibility, createPost } from '@/services/social';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
@@ -38,6 +40,9 @@ const VISIBILITY_OPTIONS: { value: PostVisibility; label: string }[] = [
 export default function NewPostScreen() {
   const { user } = useAuth();
   const [stage, setStage] = useState<Stage>('picking');
+  const scrollRef = useRef<ScrollView>(null);
+  // Foto ja enviada ao servidor: se o texto for barrado pelo filtro e a pessoa tentar de novo, reaproveita (nao sobe de novo).
+  const uploadedRef = useRef<{ uri: string; url: string } | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [visibility, setVisibility] = useState<PostVisibility>('public');
@@ -89,7 +94,12 @@ export default function NewPostScreen() {
     setStage('uploading');
     let mediaUrl: string;
     try {
-      mediaUrl = await uploadMedia(imageUri, 'posts');
+      if (uploadedRef.current?.uri === imageUri) {
+        mediaUrl = uploadedRef.current.url;
+      } else {
+        mediaUrl = await uploadMedia(imageUri, 'posts');
+        uploadedRef.current = { uri: imageUri, url: mediaUrl };
+      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
       setStage('compose');
@@ -106,8 +116,10 @@ export default function NewPostScreen() {
       });
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel publicar o post.'));
+      // Texto barrado pelo filtro (422) ou pausa (429): mostra a mensagem do servidor, MANTEM a legenda e a foto e leva ao topo, onde ela aparece.
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel publicar o post.'));
       setStage('compose');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
@@ -127,7 +139,7 @@ export default function NewPostScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         {stage === 'picking' && (
@@ -166,6 +178,7 @@ export default function NewPostScreen() {
               placeholder="O que voce esta treinando hoje?"
               value={caption}
               onChangeText={setCaption}
+              maxLength={CAPTION_MAX_LENGTH}
               multiline
               numberOfLines={3}
               style={styles.captionInput}

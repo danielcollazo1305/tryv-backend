@@ -43,6 +43,9 @@ export interface RegisterDraft {
   // backend usa pra agrupar GET /territory.
   city: string;
   cityIbgeCode: number | null;
+  // Mensagem do servidor quando o filtro de conteudo barra o NOME no ultimo passo do cadastro (E3e fase 3): a tela do nome
+  // a mostra e limpa quando a pessoa edita o nome. Nunca enviada ao servidor.
+  nameError: string | null;
 }
 
 const EMPTY_DRAFT: RegisterDraft = {
@@ -64,6 +67,7 @@ const EMPTY_DRAFT: RegisterDraft = {
   dailyCalorieGoal: '',
   city: '',
   cityIbgeCode: null,
+  nameError: null,
 };
 
 interface RegisterDraftContextValue {

@@ -16,6 +16,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ModerationTarget, useModeration } from '@/components/moderation/useModeration';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
+import { COMMENT_MAX_LENGTH } from '@/constants/textLimits';
+import { getContentFilterMessage } from '@/services/contentFilter';
 import { Comment, createComment, deleteComment, formatPostDate, listComments } from '@/services/social';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -101,7 +103,8 @@ export default function CommentsScreen() {
       setComments((prev) => [...prev, comment]);
       setContent('');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel enviar o comentario.'));
+      // Texto barrado (422) ou pausa (429): mensagem do servidor; o comentario digitado FICA no campo para editar.
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel enviar o comentario.'));
     } finally {
       setSending(false);
     }
@@ -180,6 +183,7 @@ export default function CommentsScreen() {
           placeholderTextColor={colors.textMuted}
           value={content}
           onChangeText={setContent}
+          maxLength={COMMENT_MAX_LENGTH}
           multiline
         />
         <Pressable
