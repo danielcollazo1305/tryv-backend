@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     # Claude API
     anthropic_api_key: str = ""
 
+    # Analise automatica de FOTOS de post (E3e fase 4, services/image_moderation.py). Envs:
+    # IMAGE_MODERATION_MODEL (vazio = o modelo leve que o projeto ja usa, ai_client.LIGHT_MODEL; troque aqui sem mexer no codigo);
+    # IMAGE_MODERATION_SIMULATED (true = aprova tudo SEM chamar a IA; so para desenvolvimento local, desligado por padrao;
+    # sem chave e sem este modo a analise FALHA FECHADA: nada e publicado);
+    # POST_MEDIA_REQUIRES_APPROVAL (true = POST /posts so aceita media_url de foto aprovada no upload; false volta ao
+    # comportamento antigo -- valvula de emergencia, ver o review do E3e fase 4).
+    image_moderation_model: str = ""
+    image_moderation_simulated: bool = False
+    post_media_requires_approval: bool = True
+
     # OpenAI API — usada so pelas chamadas de baixo risco (insights curtos a
     # partir de dados ja agregados); analise de foto e geracao de treino
     # continuam no Claude. Mesmo padrao de seguranca da chave acima: nunca

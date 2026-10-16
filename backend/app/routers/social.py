@@ -5,8 +5,10 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.avatar_visibility import avatar_fields, visible_avatar
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.media_upload import MediaUpload
 from app.models.social import Comment, Follow, Like, Post
 from app.models.user import User
 from app.services.content_filter_guard import CAPTION_MAX, COMMENT_MAX, enforce_text_filter, ensure_max_length
@@ -149,6 +151,20 @@ def create_post(
     # Filtro de conteudo (E3e): tamanho e linguagem da legenda (so conteudo novo).
     ensure_max_length(payload.caption, CAPTION_MAX, "post_caption")
     enforce_text_filter(db, user_id=current_user.id, fields=[("post_caption", payload.caption)])
+
+    # Foto do post (E3e fase 4): so vale a que foi APROVADA no upload (POST /media/upload, pasta posts) pelo proprio usuario.
+    # Fecha o buraco de apontar o post para qualquer endereco (de outro site, de outra pasta ou de outra pessoa).
+    if payload.media_url and settings.post_media_requires_approval:
+        approved = (
+            db.query(MediaUpload.id)
+            .filter(MediaUpload.user_id == current_user.id, MediaUpload.folder == "posts", MediaUpload.url == payload.media_url)
+            .first()
+        )
+        if approved is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Esta imagem não foi verificada. Envie a foto novamente para publicar.",
+            )
 
     post = Post(
         user_id=current_user.id,

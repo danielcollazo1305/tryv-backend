@@ -29,6 +29,7 @@ from app.models.equipment import Equipment
 from app.models.heart_rate import HeartRateSample
 from app.models.live_activity import LiveActivity
 from app.models.manual_activity import ManualActivity
+from app.models.media_upload import MediaUpload
 from app.models.meal import Meal
 from app.models.moderation import PostReport, UserBlock
 from app.models.password_reset import PasswordResetToken
@@ -79,6 +80,7 @@ USER_OWNED_TABLES = frozenset(
         "smartwatch_data", "readiness_scores", "daily_insights", "runs", "manual_activities", "live_activities",
         "equipment", "points_events", "avatar_generations", "password_reset_tokens", "subscriptions",
         "squad_memberships", "squads", "trainers", "content_filter_events",
+        "media_uploads",
     }
 )
 # Tratadas pelo ON DELETE do proprio banco (so CASCADE/SET NULL sao aceitos), com a justificativa:
@@ -111,6 +113,7 @@ _SIMPLE_DELETIONS = [
     (PasswordResetToken, PasswordResetToken.user_id),
     (Subscription, Subscription.user_id),
     (ContentFilterEvent, ContentFilterEvent.user_id),
+    (MediaUpload, MediaUpload.user_id),
 ]
 
 
@@ -184,6 +187,8 @@ def _collect_media_urls(db: Session, user: User) -> list[str]:
     uid = user.id
     urls: set[str] = {u for u in (user.avatar_url, user.avatar_thumb_url) if u}
     urls.update(u for (u,) in db.query(Post.media_url).filter(Post.user_id == uid, Post.media_url.isnot(None)))
+    # fotos de post aprovadas no upload (mesmo as nunca publicadas): saem do S3 junto com a conta
+    urls.update(u for (u,) in db.query(MediaUpload.url).filter(MediaUpload.user_id == uid))
     for column in (Meal.photo_url, Meal.photo_thumb_url):
         urls.update(u for (u,) in db.query(column).filter(Meal.user_id == uid, column.isnot(None)))
     urls.update(u for (u,) in db.query(SavedMeal.photo_url).filter(SavedMeal.user_id == uid, SavedMeal.photo_url.isnot(None)))

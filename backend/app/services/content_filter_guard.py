@@ -110,13 +110,30 @@ def _user_pause_seconds(db: Session, user_id: uuid.UUID) -> int:
     return max(1, int((end - now).total_seconds() + 0.999))
 
 
-def _raise_paused(surface_hint: str, user_id, seconds: int) -> None:
-    logger.warning("content_filter_paused kind=text user_id=%s retry_after=%s", user_id or "-", seconds)
+def _raise_paused(kind: str, user_id, seconds: int) -> None:
+    logger.warning("content_filter_paused kind=%s user_id=%s retry_after=%s", kind, user_id or "-", seconds)
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         detail=f"Muitas tentativas bloqueadas. Tente novamente em {_pause_text(seconds)}.",
-        headers={"Retry-After": str(seconds), FILTER_HEADER: FILTER_HEADER_VALUE},
+        headers={"Retry-After": str(seconds), FILTER_HEADER: kind},
     )
+
+
+def ensure_not_paused(db: Session, user_id: uuid.UUID, kind: str = FILTER_HEADER_VALUE) -> None:
+    """429 se o usuario esta em pausa por excesso de bloqueios (texto OU imagem: a contagem e uma so). `kind` = valor do cabecalho."""
+    seconds = _user_pause_seconds(db, user_id)
+    if seconds:
+        _raise_paused(kind, user_id, seconds)
+
+
+def record_block_event(db: Session, *, user_id: uuid.UUID | None, surface: str, category: str) -> None:
+    """Grava o evento de bloqueio (sem texto, sem imagem, sem IP). Falhar ao gravar nunca impede a resposta ao usuario."""
+    try:
+        db.add(ContentFilterEvent(user_id=user_id, surface=surface, category=category, created_at=tz.utc_now()))
+        db.commit()
+    except Exception as error:  # noqa: BLE001
+        db.rollback()
+        logger.error("content_filter_event_failed user_id=%s (%s)", user_id or "-", type(error).__name__)
 
 
 def enforce_text_filter(
@@ -135,7 +152,7 @@ def enforce_text_filter(
     fields = list(fields)
     seconds = _user_pause_seconds(db, user_id) if user_id is not None else (ip_throttle.pause_remaining_seconds(ip) if ip else 0)
     if seconds:
-        _raise_paused("", user_id, seconds)
+        _raise_paused(FILTER_HEADER_VALUE, user_id, seconds)
 
     hit_surface = hit_category = None
     for surface, text in fields:
@@ -147,12 +164,7 @@ def enforce_text_filter(
 
     if user_id is None and ip:
         ip_throttle.record(ip)
-    try:
-        db.add(ContentFilterEvent(user_id=user_id, surface=hit_surface, category=hit_category, created_at=tz.utc_now()))
-        db.commit()
-    except Exception as error:  # noqa: BLE001 -- registrar o evento nunca pode impedir a resposta ao usuario
-        db.rollback()
-        logger.error("content_filter_event_failed user_id=%s (%s)", user_id or "-", type(error).__name__)
+    record_block_event(db, user_id=user_id, surface=hit_surface, category=hit_category)
     logger.warning(
         "content_filter_blocked kind=text surface=%s user_id=%s category=%s", hit_surface, user_id or "-", hit_category
     )
