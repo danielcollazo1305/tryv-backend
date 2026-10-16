@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     image_moderation_model: str = ""
     image_moderation_simulated: bool = False
     post_media_requires_approval: bool = True
+    # Teto GLOBAL diario de chamadas a IA na analise de fotos (services/image_moderation_usage.py). Envs:
+    # IMAGE_MODERATION_DAILY_CAP (texto de proposito: vazio/invalido/negativo = padrao seguro, nunca "sem teto"; 0 = analise
+    # desligada, nunca "sem teto") e IMAGE_MODERATION_ALERT_RATIO (fracao do teto que dispara o aviso no log; padrao 0.8).
+    image_moderation_daily_cap: str = ""
+    image_moderation_alert_ratio: str = ""
 
     # OpenAI API — usada so pelas chamadas de baixo risco (insights curtos a
     # partir de dados ja agregados); analise de foto e geracao de treino

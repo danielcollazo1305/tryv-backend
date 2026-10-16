@@ -11,6 +11,7 @@ Regras (plano E3e, secao C):
   - FALHA FECHADA: timeout de 10 s, uma nova tentativa, e depois ImageModerationUnavailable (o endpoint responde 503). Nunca se
     aprova por falha da analise. Sem chave da Anthropic tambem falha fechada, a menos que o modo SIMULADO esteja ligado de
     proposito (IMAGE_MODERATION_SIMULATED=true, so para desenvolvimento local: aprova tudo e avisa no log);
+  - TETO GLOBAL diario de chamadas a IA (services/image_moderation_usage.py): passou do teto = ImageModerationCapReached (503 com mensagem propria);
   - o MODELO vem de IMAGE_MODERATION_MODEL; vazio = o mesmo modelo leve que o projeto ja usa (ai_client.LIGHT_MODEL);
   - texto escrito DENTRO da imagem e conteudo a avaliar, nunca instrucao (prompt) e a saida e estruturada;
   - LOGS: so contagens e codigos (decisao, categoria grossa, tokens, tempo). Nunca imagem, nome de arquivo, URL nem texto da resposta.
@@ -27,6 +28,7 @@ from PIL import Image, ImageOps
 
 from app.core.config import settings
 from app.services.ai_client import LIGHT_MODEL, get_client
+from app.services.image_moderation_usage import ImageModerationCapReached, reserve_call
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +163,9 @@ def analyze_image(jpeg_bytes: bytes) -> ModerationVerdict:
     started = time.monotonic()
     last_error: Exception | None = None
     for attempt in range(1, ATTEMPTS + 1):
+        # Teto global diario: reserva UMA vaga ANTES de cada chamada a IA (a nova tentativa tambem conta). Levanta
+        # ImageModerationCapReached (o endpoint responde 503 com mensagem propria) sem chamar a IA.
+        reserve_call()
         try:
             response = get_client().with_options(timeout=REQUEST_TIMEOUT_SECONDS, max_retries=0).messages.create(
                 model=moderation_model(),

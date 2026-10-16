@@ -73,6 +73,8 @@ class AccountAlreadyGone(Exception):
 # em try_exclusao_conta.py). Ao criar uma tabela nova que aponte para users, inclua-a na exclusao e neste conjunto.
 # ---------------------------------------------------------------------------------------------------------------
 # Apagadas, transferidas ou anonimizadas EXPLICITAMENTE por _delete_database_rows (linhas da pessoa).
+# (Tabelas SEM usuario, como image_moderation_usage -- contador global diario --, nao tem FK para users, nao aparecem na
+# introspeccao e por isso nao entram aqui.)
 USER_OWNED_TABLES = frozenset(
     {
         "posts", "likes", "comments", "follows", "user_blocks", "challenge_checkins", "workout_sessions", "workout_plans",

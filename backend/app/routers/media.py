@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.media import MediaUploadOut
 from app.services.content_filter_guard import FILTER_HEADER, ensure_not_paused, record_block_event
 from app.services.image_moderation import ImageModerationUnavailable, InvalidImage, analyze_image, prepare_for_analysis
+from app.services.image_moderation_usage import ImageModerationCapReached
 from app.services.storage import StorageError, delete_post_media_by_url, upload_image, upload_meal_photo
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -31,6 +32,7 @@ MAX_VIDEO_FILE_SIZE_BYTES = 50 * 1024 * 1024
 # Fotos de POST passam por analise automatica antes de ir ao S3 (services/image_moderation.py). Mensagens revisaveis:
 IMAGE_BLOCKED_MESSAGE = "Esta imagem não pode ser publicada no Tryv. Escolha outra."
 IMAGE_UNAVAILABLE_MESSAGE = "Não foi possível verificar a imagem agora. Tente de novo em instantes."
+IMAGE_CAP_MESSAGE = "O envio de fotos está temporariamente indisponível. Tente novamente mais tarde."  # teto global diario atingido
 IMAGE_UNREADABLE_MESSAGE = "Não foi possível ler a imagem. Envie uma foto em JPEG, PNG ou WebP."
 IMAGE_FILTER_HEADER_VALUE = "image"
 # Teto de seguranca de custo: envios de foto de post por usuario por hora (aprovados + reprovados), contados do banco.
@@ -136,6 +138,9 @@ async def _moderate_post_image(db: Session, user: User, file_bytes: bytes) -> No
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=IMAGE_UNREADABLE_MESSAGE)
     try:
         verdict = await run_in_threadpool(analyze_image, jpeg)
+    except ImageModerationCapReached:
+        # Teto global diario de gasto atingido: falha fechada, sem IA, sem S3, sem media_uploads e SEM evento contra a pessoa.
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=IMAGE_CAP_MESSAGE)
     except ImageModerationUnavailable:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=IMAGE_UNAVAILABLE_MESSAGE)
     if verdict.allowed:
