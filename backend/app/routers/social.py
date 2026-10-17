@@ -624,7 +624,7 @@ def get_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """SEM scope (app instalado antigo, nao muda): posts publicos de qualquer usuario + posts (publicos ou privados) de
+    """SEM scope (app instalado antigo): posts publicos de qualquer ADULTO com data de nascimento conhecida (menores e contas sem data so aparecem para quem os segue) + posts (publicos ou privados) de
     quem o usuario logado segue + todos os posts (publicos e privados) do proprio usuario logado, mais recentes primeiro.
     scope=following (app novo, pedido EXPLICITO): SO quem o usuario segue (posts publicos e so-seguidores) + os proprios posts;
     nenhum post de desconhecido. Mesmas regras de bloqueio e denuncia; offset/limit como sempre.
@@ -647,6 +647,12 @@ def get_feed(
                 Post.visibility == "public",
                 Post.user_id.in_(following_ids),
                 Post.user_id == current_user.id,
+            ),
+            # Menores de 18 (ou sem data de nascimento) so aparecem para quem os segue (e para eles mesmos): regra unica de maioridade.
+            or_(
+                Post.user_id == current_user.id,
+                Post.user_id.in_(following_ids),
+                and_(User.date_of_birth.is_not(None), User.date_of_birth <= adult_birth_cutoff()),
             ),
             # Bloqueados (nos dois sentidos) e posts que EU denunciei somem do meu feed.
             not_blocked(Post.user_id, current_user.id),
