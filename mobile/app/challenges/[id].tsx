@@ -222,6 +222,7 @@ export default function ChallengeDetailScreen() {
             caption: `Check-in do desafio: ${challenge.title}`,
             media_url: mediaUrl,
             visibility: checkinVisibility,
+            origin: 'auto',
           });
         })().catch((err) => {
           // Check-in ja salvo. Avisa so quando o servidor explicou (filtro de texto, foto reprovada/indisponivel, limite).

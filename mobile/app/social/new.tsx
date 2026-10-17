@@ -126,6 +126,7 @@ export default function NewPostScreen() {
         caption: caption.trim() || undefined,
         media_url: mediaUrl,
         visibility,
+        origin: 'manual',
       });
       router.back();
     } catch (err) {

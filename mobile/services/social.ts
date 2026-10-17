@@ -10,6 +10,10 @@ export type PostVisibility = 'public' | 'followers';
 
 export type ShareVisibility = 'none' | PostVisibility;
 
+// Origem do post (o servidor so mostra no Explorar os 'manual'): 'manual' = a pessoa escreveu na tela de novo post;
+// 'auto' = o app gerou o post ao compartilhar refeicao ou check-in. Sem origem = nao envia o campo (servidor trata como antigo).
+export type PostOrigin = 'manual' | 'auto';
+
 /**
  * Reaproveitado pelos 3 lugares que hoje tem um toggle "Compartilhar no
  * Feed" — Refeicoes (meal/add.tsx) e check-in de Desafio
@@ -46,6 +50,7 @@ export interface PostCreatePayload {
   caption?: string | null;
   media_url?: string | null;
   visibility?: PostVisibility;
+  origin?: PostOrigin;
 }
 
 export interface Comment {

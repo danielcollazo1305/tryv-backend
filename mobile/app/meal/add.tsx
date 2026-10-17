@@ -168,6 +168,7 @@ export default function AddMealScreen() {
         caption: caption || undefined,
         media_url: mediaUrl ?? null,
         visibility,
+        origin: 'auto',
       });
     })().catch((err) => {
       // Refeicao ja salva. Avisa so quando o servidor explicou (filtro de texto, foto reprovada/indisponivel, limite);
