@@ -7,6 +7,8 @@ from pydantic import BaseModel
 PostType = Literal["photo", "video", "progress", "achievement", "workout", "run"]
 # 'private' renomeado pra 'followers' — ver comentario em models/social.py.
 PostVisibility = Literal["public", "followers"]
+# 'manual' = escrito na tela de novo post; 'auto' = gerado pelo app (refeicao/check-in); 'legacy' = antigo/sem origem.
+PostOrigin = Literal["manual", "auto", "legacy"]
 
 
 class PostCreate(BaseModel):
@@ -15,6 +17,7 @@ class PostCreate(BaseModel):
     media_url: str | None = None
     visibility: PostVisibility = "public"
     reference_id: uuid.UUID | None = None
+    origin: PostOrigin | None = None  # ausente = legacy
 
 
 class PostOut(BaseModel):

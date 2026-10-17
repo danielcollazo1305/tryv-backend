@@ -13,6 +13,12 @@ class Post(Base):
         # Feed e posts por usuario (migration f2a6c93b1d58); o parcial serve o escopo publico (Explorar).
         Index("ix_posts_user_created", "user_id", text("created_at DESC")),
         Index("ix_posts_public_created", text("created_at DESC"), text("id DESC"), postgresql_where=text("visibility = 'public'")),
+        # Explorar (migration a7c3e19f5d02): so posts publicos feitos a mao, mais recentes primeiro (cursor por created_at+id).
+        Index(
+            "ix_posts_explore_created", text("created_at DESC"), text("id DESC"),
+            postgresql_where=text("visibility = 'public' AND origin = 'manual'"),
+        ),
+        CheckConstraint("origin IN ('manual','auto','legacy')", name="ck_posts_origin"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -31,6 +37,10 @@ class Post(Base):
 
     # Vincula a um workout_session, run ou challenge quando o post e automatico
     reference_id = Column(UUID(as_uuid=True), nullable=True)
+
+    # Origem do post: 'manual' (tela de novo post), 'auto' (o app gerou ao compartilhar refeicao/check-in) ou 'legacy' (posts que ja
+    # existiam e de apps antigos que nao enviam origin). So 'manual' entra no Explorar.
+    origin = Column(String(10), nullable=False, default="legacy", server_default="legacy")
 
     created_at = Column(DateTime, default=datetime.utcnow)
 

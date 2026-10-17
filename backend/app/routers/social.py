@@ -1,10 +1,13 @@
+import base64
 import uuid
+from datetime import datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import and_, exists, func, or_
 from sqlalchemy.orm import Session
 
-from app.core.avatar_visibility import avatar_fields, visible_avatar
+from app.core.avatar_visibility import adult_birth_cutoff, avatar_fields, visible_avatar
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -173,6 +176,7 @@ def create_post(
         media_url=payload.media_url,
         visibility=payload.visibility,
         reference_id=payload.reference_id,
+        origin=payload.origin or "legacy",
     )
     db.add(post)
     db.commit()
@@ -498,16 +502,99 @@ def delete_comment(
     db.commit()
 
 
+EXPLORE_MAX_LIMIT = 50
+EXPLORE_DISABLED_MESSAGE = "O Explorar ainda não está disponível."
+NEXT_CURSOR_HEADER = "X-Next-Cursor"
+
+
+def _encode_cursor(created_at: datetime, post_id: uuid.UUID) -> str:
+    raw = f"{created_at.isoformat()}|{post_id}"
+    return base64.urlsafe_b64encode(raw.encode("ascii")).decode("ascii").rstrip("=")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        stamp, post_id = base64.urlsafe_b64decode(padded.encode("ascii")).decode("ascii").split("|")
+        return datetime.fromisoformat(stamp), uuid.UUID(post_id)
+    except (ValueError, UnicodeError):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Cursor invalido")
+
+
+def _explore_feed(db: Session, current_user: User, limit: int, cursor: str | None, response: Response) -> list[PostOut]:
+    """Explorar: posts PUBLICOS e feitos a mao (origin='manual') de adultos que o usuario NAO segue. Cursor estavel por
+    (created_at, id). Reaproveita not_blocked/not_reported_post (mesmas regras do Seguindo) e a regra unica de maioridade."""
+    if not settings.explore_feed_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=EXPLORE_DISABLED_MESSAGE)
+    limit = min(limit, EXPLORE_MAX_LIMIT)
+
+    conditions = [
+        Post.visibility == "public",
+        Post.origin == "manual",
+        Post.created_at.is_not(None),
+        Post.user_id != current_user.id,
+        User.is_active.is_(True),
+        User.date_of_birth.is_not(None),
+        User.date_of_birth <= adult_birth_cutoff(),
+        ~exists().where(Follow.follower_id == current_user.id, Follow.following_id == Post.user_id),
+        not_blocked(Post.user_id, current_user.id),
+        not_reported_post(Post.id, current_user.id),
+        # Defesa extra: foto so se foi aprovada no upload do PROPRIO autor (mesmo com a valvula do POST /posts desligada).
+        or_(
+            Post.media_url.is_(None),
+            exists().where(
+                MediaUpload.user_id == Post.user_id, MediaUpload.folder == "posts", MediaUpload.url == Post.media_url
+            ),
+        ),
+    ]
+    if cursor:
+        c_created, c_id = _decode_cursor(cursor)
+        conditions.append(or_(Post.created_at < c_created, and_(Post.created_at == c_created, Post.id < c_id)))
+
+    rows = (
+        db.query(Post, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
+        .join(User, Post.user_id == User.id)
+        .filter(*conditions)
+        .order_by(Post.created_at.desc(), Post.id.desc())
+        .limit(limit + 1)
+        .all()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    if has_more and rows:
+        last = rows[-1][0]
+        response.headers[NEXT_CURSOR_HEADER] = _encode_cursor(last.created_at, last.id)
+
+    counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
+    return [
+        _post_out(
+            row[0],
+            row[1],
+            counts[row[0].id]["likes"],
+            counts[row[0].id]["comments"],
+            counts[row[0].id]["liked"],
+            avatar=_author_avatar(row, row[0].user_id, current_user.id),
+        )
+        for row in rows
+    ]
+
+
 @router.get("/feed", response_model=list[PostOut])
 def get_feed(
+    response: Response,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    scope: Literal["following", "explore"] = Query("following"),
+    cursor: str | None = Query(None, max_length=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Posts publicos de qualquer usuario + posts (publicos ou privados) de
+    """scope=following (padrao): posts publicos de qualquer usuario + posts (publicos ou privados) de
     quem o usuario logado segue + todos os posts (publicos e privados) do
-    proprio usuario logado, mais recentes primeiro."""
+    proprio usuario logado, mais recentes primeiro (offset/limit, como sempre).
+    scope=explore: ver _explore_feed (chave EXPLORE_FEED_ENABLED; paginacao por cursor no cabecalho X-Next-Cursor)."""
+    if scope == "explore":
+        return _explore_feed(db, current_user, limit, cursor, response)
     following_ids = (
         db.query(Follow.following_id)
         .filter(Follow.follower_id == current_user.id)

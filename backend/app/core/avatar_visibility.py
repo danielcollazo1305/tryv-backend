@@ -19,6 +19,14 @@ def age_in_years(date_of_birth: date, today: date | None = None) -> int:
     return today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
 
 
+def adult_birth_cutoff(today: date | None = None) -> date:
+    """Data de nascimento mais recente que ainda e de MAIOR de idade hoje (para filtrar na SQL: date_of_birth <= cutoff).
+    Mesma conta de age_in_years/is_adult; em 29/02 usa 28/02 (um dia a mais de cautela, nunca a menos)."""
+    today = today or local_today()
+    day = 28 if (today.month, today.day) == (2, 29) else today.day
+    return date(today.year - MIN_AGE_TO_SHOW_AVATAR, today.month, day)
+
+
 def is_adult(date_of_birth: date | None) -> bool:
     """Maior de idade pela regra unica (>= MIN_AGE_TO_SHOW_AVATAR). Sem data de nascimento = nao (nao ha como saber)."""
     return date_of_birth is not None and age_in_years(date_of_birth) >= MIN_AGE_TO_SHOW_AVATAR

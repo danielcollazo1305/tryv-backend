@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     image_moderation_model: str = ""
     image_moderation_simulated: bool = False
     post_media_requires_approval: bool = True
+    # Chave do feed Explorar (GET /feed?scope=explore). DESLIGADA por padrao: desligada, o Explorar responde 404 e nunca devolve posts.
+    explore_feed_enabled: bool = False
     # Teto GLOBAL diario de chamadas a IA na analise de fotos (services/image_moderation_usage.py). Envs:
     # IMAGE_MODERATION_DAILY_CAP (texto de proposito: vazio/invalido/negativo = padrao seguro, nunca "sem teto"; 0 = analise
     # desligada, nunca "sem teto") e IMAGE_MODERATION_ALERT_RATIO (fracao do teto que dispara o aviso no log; padrao 0.8).
