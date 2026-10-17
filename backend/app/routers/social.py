@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import and_, exists, func, or_
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.avatar_visibility import adult_birth_cutoff, avatar_fields, visible_avatar
@@ -579,22 +579,60 @@ def _explore_feed(db: Session, current_user: User, limit: int, cursor: str | Non
     ]
 
 
+def _feed_rows_to_posts(db: Session, current_user: User, rows) -> list[PostOut]:
+    counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
+    return [
+        _post_out(
+            row[0],
+            row[1],
+            counts[row[0].id]["likes"],
+            counts[row[0].id]["comments"],
+            counts[row[0].id]["liked"],
+            avatar=_author_avatar(row, row[0].user_id, current_user.id),
+        )
+        for row in rows
+    ]
+
+
+def _following_feed(db: Session, current_user: User, limit: int, offset: int) -> list[PostOut]:
+    """Seguindo estrito: so posts de quem eu sigo (publicos e so-seguidores: sigo, entao posso ver) e os meus. Nada de desconhecidos.
+    Bloqueio nos dois sentidos e posts que EU denunciei somem (mesmos filtros do Explorar e do feed antigo)."""
+    following_ids = select(Follow.following_id).where(Follow.follower_id == current_user.id)
+    rows = (
+        db.query(Post, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
+        .join(User, Post.user_id == User.id)
+        .filter(
+            or_(Post.user_id.in_(following_ids), Post.user_id == current_user.id),
+            not_blocked(Post.user_id, current_user.id),
+            not_reported_post(Post.id, current_user.id),
+        )
+        .order_by(Post.created_at.desc(), Post.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return _feed_rows_to_posts(db, current_user, rows)
+
+
 @router.get("/feed", response_model=list[PostOut])
 def get_feed(
     response: Response,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    scope: Literal["following", "explore"] = Query("following"),
+    scope: Literal["following", "explore"] | None = Query(None),
     cursor: str | None = Query(None, max_length=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """scope=following (padrao): posts publicos de qualquer usuario + posts (publicos ou privados) de
-    quem o usuario logado segue + todos os posts (publicos e privados) do
-    proprio usuario logado, mais recentes primeiro (offset/limit, como sempre).
+    """SEM scope (app instalado antigo, nao muda): posts publicos de qualquer usuario + posts (publicos ou privados) de
+    quem o usuario logado segue + todos os posts (publicos e privados) do proprio usuario logado, mais recentes primeiro.
+    scope=following (app novo, pedido EXPLICITO): SO quem o usuario segue (posts publicos e so-seguidores) + os proprios posts;
+    nenhum post de desconhecido. Mesmas regras de bloqueio e denuncia; offset/limit como sempre.
     scope=explore: ver _explore_feed (chave EXPLORE_FEED_ENABLED; paginacao por cursor no cabecalho X-Next-Cursor)."""
     if scope == "explore":
         return _explore_feed(db, current_user, limit, cursor, response)
+    if scope == "following":
+        return _following_feed(db, current_user, limit, offset)
     following_ids = (
         db.query(Follow.following_id)
         .filter(Follow.follower_id == current_user.id)
