@@ -1,4 +1,6 @@
 import { api } from '@/services/api';
+import { getHttpStatus } from '@/services/contentFilter';
+import { ExploreProbeResult, FeedScope, createExploreAvailability } from '@/services/feedScopes';
 
 export type PostType = 'photo' | 'video' | 'progress' | 'achievement' | 'workout' | 'run';
 // 'private' renomeado pra 'followers' — sempre se comportou como "so
@@ -93,10 +95,37 @@ export interface ContactEntry {
   phone_numbers: string[];
 }
 
-export async function getFeed(limit: number, offset: number): Promise<Post[]> {
-  const response = await api.get<Post[]>('/feed', { params: { limit, offset } });
+// scope: 'following' (so quem sigo + meus) ou 'explore' (use getExploreFeed). Sem scope = feed antigo (nao envia o parametro).
+export async function getFeed(limit: number, offset: number, scope?: FeedScope): Promise<Post[]> {
+  const response = await api.get<Post[]>('/feed', { params: scope ? { limit, offset, scope } : { limit, offset } });
   return response.data;
 }
+
+export interface ExplorePage {
+  posts: Post[];
+  /** Cursor opaco da proxima pagina (cabecalho X-Next-Cursor); null = acabaram os posts. Nunca montar nem interpretar. */
+  nextCursor: string | null;
+}
+
+// Explorar: GET /feed?scope=explore. Recarregar do topo = sem cursor. O axios entrega os cabecalhos em minusculas.
+export async function getExploreFeed(limit: number, cursor?: string | null): Promise<ExplorePage> {
+  const response = await api.get<Post[]>('/feed', { params: cursor ? { scope: 'explore', limit, cursor } : { scope: 'explore', limit } });
+  const header = response.headers?.['x-next-cursor'];
+  return { posts: response.data, nextCursor: typeof header === 'string' && header.length > 0 ? header : null };
+}
+
+// O Explorar so aparece se o servidor o liberou (chave desligada = 404). Uma consulta pequena por sessao; ver createExploreAvailability.
+async function probeExplore(): Promise<ExploreProbeResult> {
+  try {
+    await getExploreFeed(1);
+    return 'available';
+  } catch (err) {
+    return getHttpStatus(err) === 404 ? 'unavailable' : 'error';
+  }
+}
+
+export const exploreAvailability = createExploreAvailability(probeExplore);
+export const checkExploreAvailable = exploreAvailability.check;
 
 export async function createPost(payload: PostCreatePayload): Promise<Post> {
   const response = await api.post<Post>('/posts', payload);
