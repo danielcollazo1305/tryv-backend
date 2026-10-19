@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { PostCard } from '@/components/PostCard';
-import { confirmDeletePost, useModeration } from '@/components/moderation/useModeration';
+import { useModeration } from '@/components/moderation/useModeration';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Post, deletePost, getPost, likePost, unlikePost } from '@/services/social';
@@ -61,23 +61,23 @@ export default function PostDetailScreen() {
     }
   };
 
-  const handleDelete = () => {
-    if (!postId) return;
-    // Mesma confirmacao usada pelo menu do Feed (components/moderation/useModeration).
-    confirmDeletePost(async () => {
-      setDeleting(true);
-      try {
-        await deletePost(postId);
-        router.back();
-      } catch (err) {
-        setError(getApiErrorMessage(err, 'Nao foi possivel excluir o post.'));
-        setDeleting(false);
-      }
-    });
+  // A confirmacao de exclusao e a do menu "..." (components/moderation/useModeration, confirmDeletePost).
+  const performDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deletePost(id);
+      router.back();
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Nao foi possivel excluir o post.'));
+      setDeleting(false);
+    }
   };
 
-  // Post de OUTRA pessoa: "⋯" com Denunciar / Bloquear. Bloqueou ou denunciou: fecha o post (o Social recarrega ao focar).
+  // "⋯": post de OUTRA pessoa = Denunciar / Bloquear (bloqueou ou denunciou: fecha o post, o Social recarrega ao focar);
+  // post MEU = Editar legenda / Mudar privacidade / Excluir (o post mostrado e trocado pelo devolvido pelo servidor).
   const { openMenu, sheet } = useModeration({
+    onPostUpdated: (updated) => setPost(updated),
+    onDeletePost: performDelete,
     onBlocked: () => router.back(),
     onContentRemoved: () => router.back(),
   });
@@ -89,25 +89,29 @@ export default function PostDetailScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Post</Text>
         <View style={styles.headerActions}>
-          {!!post && !isOwnPost && (
+          {!!post && (
             <Pressable
               onPress={() =>
-                openMenu({ kind: 'post', id: post.id, authorId: post.user_id, authorName: post.author, isOwn: false })
+                openMenu({
+                  kind: 'post',
+                  id: post.id,
+                  authorId: post.user_id,
+                  authorName: post.author,
+                  isOwn: isOwnPost,
+                  caption: post.caption,
+                  visibility: post.visibility,
+                })
               }
+              disabled={deleting}
               hitSlop={12}
               style={styles.moreButton}
               accessibilityRole="button"
               accessibilityLabel="Mais opções"
             >
-              <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
-            </Pressable>
-          )}
-          {isOwnPost && (
-            <Pressable onPress={handleDelete} hitSlop={12} disabled={deleting}>
               {deleting ? (
                 <ActivityIndicator size="small" color={colors.danger} />
               ) : (
-                <Ionicons name="trash-outline" size={22} color={colors.danger} />
+                <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
               )}
             </Pressable>
           )}

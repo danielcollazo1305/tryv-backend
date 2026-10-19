@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { ModerationTarget, useModeration } from '@/components/moderation/useModeration';
 import { getHttpStatus } from '@/services/contentFilter';
+import { replacePostInList } from '@/services/postEdit';
 import {
   EXPLORE_EMPTY_MESSAGE,
   EXPLORE_ERROR_MESSAGE,
@@ -262,7 +263,12 @@ export function FeedView({ active = true, onUserBlocked }: FeedViewProps) {
     },
     [mapAllPosts]
   );
+  const handlePostUpdated = useCallback(
+    (updated: Post) => mapAllPosts((list) => replacePostInList(list, updated)),
+    [mapAllPosts]
+  );
   const { openMenu, sheet } = useModeration({
+    onPostUpdated: handlePostUpdated,
     onBlocked: handleBlocked,
     onContentRemoved: handleContentRemoved,
     onDeletePost: handleDeleteOwnPost,
@@ -347,6 +353,8 @@ export function FeedView({ active = true, onUserBlocked }: FeedViewProps) {
                 authorId: item.user_id,
                 authorName: item.author,
                 isOwn: item.user_id === user?.id,
+                caption: item.caption,
+                visibility: item.visibility,
               })
             }
           />

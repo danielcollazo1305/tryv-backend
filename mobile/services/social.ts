@@ -55,6 +55,12 @@ export interface PostCreatePayload {
   origin?: PostOrigin;
 }
 
+export interface PostUpdatePayload {
+  /** "" limpa a legenda; ausente = nao mexe. */
+  caption?: string;
+  visibility?: PostVisibility;
+}
+
 export interface Comment {
   id: string;
   post_id: string;
@@ -134,6 +140,12 @@ export async function createPost(payload: PostCreatePayload): Promise<Post> {
 
 export async function getPost(postId: string): Promise<Post> {
   const response = await api.get<Post>(`/posts/${postId}`);
+  return response.data;
+}
+
+// Editar o PROPRIO post (servidor: PATCH /posts/{id}): so legenda e/ou privacidade; devolve o post atualizado.
+export async function updatePost(postId: string, payload: PostUpdatePayload): Promise<Post> {
+  const response = await api.patch<Post>(`/posts/${postId}`, payload);
   return response.data;
 }
 
