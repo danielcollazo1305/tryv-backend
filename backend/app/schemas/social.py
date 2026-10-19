@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 PostType = Literal["photo", "video", "progress", "achievement", "workout", "run"]
 # 'private' renomeado pra 'followers' — ver comentario em models/social.py.
@@ -18,6 +18,16 @@ class PostCreate(BaseModel):
     visibility: PostVisibility = "public"
     reference_id: uuid.UUID | None = None
     origin: PostOrigin | None = None  # ausente = legacy
+
+
+class PostUpdate(BaseModel):
+    """Edicao de post pelo dono (PATCH /posts/{id}): SO legenda e privacidade. Qualquer outro campo (media_url, origin, user_id,
+    created_at...) e recusado com 422, para nunca alterar o resto do post."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    caption: str | None = None  # "" limpa a legenda; ausente (ou null) = nao mexe
+    visibility: PostVisibility | None = None
 
 
 class PostOut(BaseModel):

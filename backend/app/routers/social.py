@@ -24,6 +24,7 @@ from app.schemas.social import (
     LikeOut,
     PostCreate,
     PostOut,
+    PostUpdate,
     UserBrief,
 )
 
@@ -214,6 +215,73 @@ def get_post(
     return _post_out(
         post,
         author_name,
+        counts["likes"],
+        counts["comments"],
+        counts["liked"],
+        avatar=_author_avatar(row, post.user_id, current_user.id),
+    )
+
+
+@router.patch("/posts/{post_id}", response_model=PostOut)
+def update_post(
+    post_id: str,
+    payload: PostUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """O dono edita a legenda e/ou a privacidade do proprio post. Nada mais muda (foto, origem, autor, data, curtidas, comentarios)."""
+    try:
+        parsed_id = uuid.UUID(post_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
+
+    post = db.query(Post).filter(Post.id == parsed_id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
+
+    if post.user_id != current_user.id:
+        # Post que a pessoa nem poderia ver (so-seguidores de quem nao segue, ou bloqueio): 404, sem revelar que existe.
+        if not _can_view_post(db, current_user, post):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post nao encontrado")
+        # Post visivel de outra pessoa: mesmo padrao do DELETE (403).
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Voce nao tem permissao para editar este post",
+        )
+
+    if payload.caption is None and payload.visibility is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Informe a legenda e/ou a privacidade para editar o post.",
+        )
+
+    # Legenda nova: mesmo tamanho maximo e MESMO filtro de texto do POST /posts, ANTES de gravar (texto barrado nao e gravado e o
+    # post fica como estava). Legenda igual a atual ou so a privacidade mudando: o filtro nao roda (nao pune conteudo antigo).
+    new_caption = post.caption
+    if payload.caption is not None:
+        candidate = payload.caption.strip() or None
+        if candidate != post.caption:
+            if candidate is not None:
+                ensure_max_length(candidate, CAPTION_MAX, "post_caption")
+                enforce_text_filter(db, user_id=current_user.id, fields=[("post_caption", candidate)])
+            new_caption = candidate
+
+    post.caption = new_caption
+    if payload.visibility is not None:
+        post.visibility = payload.visibility
+    db.commit()
+    db.refresh(post)
+
+    row = (
+        db.query(Post, User.name, User.avatar_url, User.avatar_thumb_url, User.date_of_birth)
+        .join(User, Post.user_id == User.id)
+        .filter(Post.id == post.id)
+        .first()
+    )
+    counts = _post_counts(db, [post.id], current_user.id).get(post.id, {"likes": 0, "comments": 0, "liked": False})
+    return _post_out(
+        row[0],
+        row[1],
         counts["likes"],
         counts["comments"],
         counts["liked"],
