@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,12 +6,13 @@ import { router } from 'expo-router';
 import { GlassCard } from '@/components/GlassCard';
 import { WeightChart } from '@/components/WeightChart';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
-import { listWeightLogs } from '@/services/weightLogs';
 import type { WeightPoint } from '@/services/dashboard';
 
 interface ProgressTabProps {
-  /** Aba aberta: o peso so e buscado na 1a vez que abre (depois fica guardado). */
-  active: boolean;
+  /** Peso dos ultimos 30 dias (null = carregando), erro e nova tentativa: vem de useWeightPoints, na tela de perfil. */
+  points: WeightPoint[] | null;
+  error: boolean;
+  onRetry: () => void;
   weightKg?: number | null;
   heightCm?: number | null;
   bodyFatPercentage?: number | null;
@@ -26,37 +27,7 @@ const fmt = (n: number, digits = 1) => n.toFixed(digits).replace('.', ',');
  * (o que o usuario ja informou: altura, peso e % de gordura), consistencia (os 4 cards que ja existiam no perfil) e um atalho "Musculos".
  * A tela de musculos NAO existe no app ainda (so o componente MuscleDiagram dentro do treino), entao o atalho fica desabilitado, "em breve".
  */
-export function ProgressTab({ active, weightKg, heightCm, bodyFatPercentage, consistency }: ProgressTabProps) {
-  const [points, setPoints] = useState<WeightPoint[] | null>(null);
-  const [error, setError] = useState(false);
-  const startedRef = useRef(false);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const load = useCallback(() => {
-    setError(false);
-    listWeightLogs('30d')
-      .then((logs) => {
-        if (mountedRef.current) setPoints(logs.map((log) => ({ date: log.logged_at, weight_kg: log.weight_kg })));
-      })
-      .catch(() => {
-        if (mountedRef.current) setError(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (active && !startedRef.current) {
-      startedRef.current = true;
-      load();
-    }
-  }, [active, load]);
-
+export function ProgressTab({ points, error, onRetry, weightKg, heightCm, bodyFatPercentage, consistency }: ProgressTabProps) {
   const latest = points && points.length > 0 ? points[points.length - 1].weight_kg : weightKg ?? null;
   const change = points && points.length >= 2 ? points[points.length - 1].weight_kg - points[0].weight_kg : null;
   const measures: { label: string; value: string }[] = [];
@@ -73,7 +44,7 @@ export function ProgressTab({ active, weightKg, heightCm, bodyFatPercentage, con
             <Text style={styles.error} accessibilityLiveRegion="polite" accessibilityRole="alert">
               Não foi possível carregar seu peso.
             </Text>
-            <Pressable onPress={() => load()} style={styles.retry} accessibilityRole="button" accessibilityLabel="Tentar de novo">
+            <Pressable onPress={onRetry} style={styles.retry} accessibilityRole="button" accessibilityLabel="Tentar de novo">
               <Text style={styles.retryText}>Tentar de novo</Text>
             </Pressable>
           </View>

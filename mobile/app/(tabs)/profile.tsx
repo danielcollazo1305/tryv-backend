@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -12,6 +12,15 @@ import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
 import { OverallCard } from '@/components/OverallCard';
+import { PillTabs } from '@/components/PillTabs';
+import { FeedEmpty, FeedError, FeedFooterLoading, FeedLoading } from '@/components/profile/FeedStateViews';
+import { GALLERY_COLUMNS, GalleryCell } from '@/components/profile/GalleryCell';
+import { HistoryFilterChips, HistoryRow } from '@/components/profile/HistoryParts';
+import { AchievementsTab } from '@/components/profile/AchievementsTab';
+import { ProfileIdentity } from '@/components/profile/ProfileIdentity';
+import { ProgressTab } from '@/components/profile/ProgressTab';
+import { usePagedFeed } from '@/components/profile/usePagedFeed';
+import { useWeightPoints } from '@/components/profile/useWeightPoints';
 import { openSupportEmail } from '@/components/moderation/ReportSheet';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
@@ -35,6 +44,16 @@ import {
   listMyChallengeCheckins,
 } from '@/services/challenges';
 import { getTrainingFrequency, getTrainingStreaks, getWorkoutProgress } from '@/services/dashboard';
+import { getGallery, getMyActivities } from '@/services/profileFeed';
+import {
+  GalleryItem,
+  HISTORY_FILTERS,
+  HistoryItem,
+  INITIAL_VISITED,
+  PROFILE_TABS,
+  ProfileTab,
+  markVisited,
+} from '@/services/profileFeedState';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
@@ -93,8 +112,32 @@ interface PersonalChallengeProgress {
  * Home/Feed/Refeicoes/Login (typography3.displayLg, fontSize 36, weight
  * 800, cor primary).
  */
+const historyKey = (item: HistoryItem) => item.id;
+const galleryKey = (item: GalleryItem) => item.post_id;
+
 export default function ProfileScreen() {
   const { user, refreshUser } = useAuth();
+  // Abas (E4): cada uma busca so quando aberta pela 1a vez e guarda o resultado; trocar de aba nao refaz a chamada.
+  const [tab, setTab] = useState<ProfileTab>('history');
+  const [visited, setVisited] = useState(INITIAL_VISITED);
+  const [historyFilterKey, setHistoryFilterKey] = useState('all');
+  const historyType = HISTORY_FILTERS.find((f) => f.key === historyFilterKey)?.type;
+  const history = usePagedFeed<HistoryItem>({
+    fetchPage: (request) => getMyActivities({ ...request, type: historyType }),
+    keyOf: historyKey,
+    enabled: tab === 'history',
+    resetKey: historyFilterKey,
+  });
+  const gallery = usePagedFeed<GalleryItem>({
+    fetchPage: (request) => getGallery('me', request),
+    keyOf: galleryKey,
+    enabled: tab === 'gallery',
+  });
+  const weight = useWeightPoints(tab === 'progress');
+  const selectTab = (next: ProfileTab) => {
+    setTab(next);
+    setVisited((prev) => markVisited(prev, next));
+  };
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [badges, setBadges] = useState<UserBadges | null>(null);
   const [followersCount, setFollowersCount] = useState(0);
@@ -536,102 +579,9 @@ export default function ProfileScreen() {
    * );
    */
 
-  return (
-    <ScreenBackground3>
-      <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-        <Text style={styles.logo}>Tryv Fit</Text>
-
-        {/*
-          Overall (carta de jogador): o card agora carrega a identidade (avatar + nome), entao
-          o bloco avatar/nome que ficava aqui saiu. O avatar abaixo e o MESMO elemento de antes
-          (Pressable que abre a troca/geracao de avatar, com o badge de camera), so em 64 px e
-          passado pro card por prop. Avatar e nome aparecem mesmo se o overall falhar.
-        */}
-        <View style={styles.overallWrap}>
-          <OverallCard
-            name={user?.name ?? ''}
-            avatar={
-              <Pressable onPress={() => setAvatarPickerVisible(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Trocar avatar">
-                <Avatar
-                  initials={user ? getInitials(user.name) : '?'}
-                  imageUrl={user?.avatar_url}
-                  thumbUrl={user?.avatar_thumb_url}
-                  size={64}
-                  style={styles.avatarRing}
-                />
-                <View style={styles.avatarEditBadge}>
-                  <Ionicons name="camera" size={12} color={colors3.onPrimary} />
-                </View>
-              </Pressable>
-            }
-          />
-        </View>
-
-        <Text style={styles.email}>{user?.email}</Text>
-
-        <Pressable style={styles.followStatsRow} onPress={() => router.push('/social/follows')}>
-          <View style={styles.followStat}>
-            <Text style={styles.followStatNumber}>{followersCount}</Text>
-            <Text style={styles.followStatLabel}>Seguidores</Text>
-          </View>
-          <View style={styles.followStatDivider} />
-          <View style={styles.followStat}>
-            <Text style={styles.followStatNumber}>{followingCount}</Text>
-            <Text style={styles.followStatLabel}>Seguindo</Text>
-          </View>
-        </Pressable>
-
-        <View style={styles.badgesWrap}>
-          {/*
-            Marketplace desativado pre-lancamento — badge "TEAM {profissional}"
-            escondida aqui (so no Perfil, sem tocar em ProfileBadges2.tsx, que
-            e compartilhado com social/[userId].tsx e settings/badges.tsx e
-            continua mostrando TEAM normalmente nesses 2 lugares). PRO
-            continua visivel normalmente. Nao apagar: so tirar o `teams: []`
-            no relancamento.
-
-            variant="light" — ProfileBadges2 ainda e escuro por padrao (os 2
-            outros usos acima seguem sem migrar), mesmo padrao de prop
-            variant ja usado em EmptyFollowingState/ObscuredCard/TextField2
-            nesta sessao pra nao afetar quem ainda nao migrou.
-          */}
-          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
-        </View>
-
-        {/*
-          Grid unificado premium (2 colunas) — substitui o grid de
-          consistencia (6 tiles) + os 3 itens de lista que duplicavam Meta
-          calorica/Tryv Pro. 7 cards no total, 1 estilo so: icone em chip
-          com gradiente sutil, label pequeno, valor grande em mono. Cards de
-          metrica (Sequencia atual/Melhor sequencia/Total de treinos/Dias
-          ativos no mes) nao navegam, sem chevron. Cards de navegacao (Meta
-          calorica diaria/Tryv Pro/Meus selos) navegam pra tela real —
-          mesmos onPress de antes, nenhuma logica mudou. Impar (7): "Meus
-          selos e conquistas" ocupa a linha inteira sozinho, em layout
-          horizontal, em vez de deixar buraco vazio.
-
-          Cada tile fica dentro de um wrapper (styles.gridCell/
-          gridCellFull) que e o pai DIRETO do GlassCard — e nesse wrapper
-          (nao no `style` do GlassCard, que so alcanca o `content` interno,
-          2 niveis abaixo do `shadowWrapper` que de fato controla a largura
-          na row) que a largura de 50%/100% e a sombra sao aplicadas. Bug
-          antigo (statTile com flexBasis:'47%'+flexGrow:1 direto no `style`
-          do GlassCard) causava ambiguidade de largura exatamente por isso:
-          a porcentagem resolvia contra o `wrapper` interno do GlassCard,
-          que por sua vez so tem largura definida se algo acima dele
-          definir — cadeia circular sem ancora, dependendo da ordem de
-          resolucao do Yoga. Com flex:1 no wrapper OUTER dentro de uma row,
-          nao ha ambiguidade: o Yoga resolve a row primeiro (2 filhos
-          flex:1 dividem o espaco restante apos o gap), e o GlassCard por
-          dentro so preenche (alignItems:'stretch' e o padrao de todo View
-          coluna) a largura que o wrapper ja decidiu.
-
-          Sequencia atual/Melhor sequencia vem de GET
-          /dashboard/training-streaks (endpoint real, sobre todo o
-          historico do usuario). Se bestStreak falhar, fica null e mostra
-          "--" (nao 0, pra nao confundir "sem dado" com "sequencia zero").
-        */}
-        <View style={styles.grid}>
+  // ---- Perfil com abas (E4): cabecalho + abas (Historico, Galeria, Progresso, Conquistas) numa FlatList so; "Configuracoes" e "Meus posts" no rodape.
+  const consistencyTiles = (
+    <View style={styles.grid}>
           <View style={styles.gridRow}>
             <View style={styles.gridCell}>
               <GlassCard variant="card" style={styles.tile}>
@@ -676,6 +626,49 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+    </View>
+  );
+
+  const settingsSection = (
+    <View style={styles.settingsSection}>
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        Configurações
+      </Text>
+      <Text style={styles.email}>{user?.email}</Text>
+        {/*
+          Grid unificado premium (2 colunas) — substitui o grid de
+          consistencia (6 tiles) + os 3 itens de lista que duplicavam Meta
+          calorica/Tryv Pro. 7 cards no total, 1 estilo so: icone em chip
+          com gradiente sutil, label pequeno, valor grande em mono. Cards de
+          metrica (Sequencia atual/Melhor sequencia/Total de treinos/Dias
+          ativos no mes) nao navegam, sem chevron. Cards de navegacao (Meta
+          calorica diaria/Tryv Pro/Meus selos) navegam pra tela real —
+          mesmos onPress de antes, nenhuma logica mudou. Impar (7): "Meus
+          selos e conquistas" ocupa a linha inteira sozinho, em layout
+          horizontal, em vez de deixar buraco vazio.
+
+          Cada tile fica dentro de um wrapper (styles.gridCell/
+          gridCellFull) que e o pai DIRETO do GlassCard — e nesse wrapper
+          (nao no `style` do GlassCard, que so alcanca o `content` interno,
+          2 niveis abaixo do `shadowWrapper` que de fato controla a largura
+          na row) que a largura de 50%/100% e a sombra sao aplicadas. Bug
+          antigo (statTile com flexBasis:'47%'+flexGrow:1 direto no `style`
+          do GlassCard) causava ambiguidade de largura exatamente por isso:
+          a porcentagem resolvia contra o `wrapper` interno do GlassCard,
+          que por sua vez so tem largura definida se algo acima dele
+          definir — cadeia circular sem ancora, dependendo da ordem de
+          resolucao do Yoga. Com flex:1 no wrapper OUTER dentro de uma row,
+          nao ha ambiguidade: o Yoga resolve a row primeiro (2 filhos
+          flex:1 dividem o espaco restante apos o gap), e o GlassCard por
+          dentro so preenche (alignItems:'stretch' e o padrao de todo View
+          coluna) a largura que o wrapper ja decidiu.
+
+          Sequencia atual/Melhor sequencia vem de GET
+          /dashboard/training-streaks (endpoint real, sobre todo o
+          historico do usuario). Se bestStreak falhar, fica null e mostra
+          "--" (nao 0, pra nao confundir "sem dado" com "sequencia zero").
+        */}
+      <View style={styles.grid}>
           <View style={styles.gridRow}>
             <View style={styles.gridCell}>
               <Pressable onPress={() => router.push('/settings/calorie-goal')}>
@@ -789,7 +782,7 @@ export default function ProfileScreen() {
               </GlassCard>
             </Pressable>
           </View>
-        </View>
+      </View>
 
         {/*
           Marketplace desativado pre-lancamento — secao "Desafios de
@@ -982,6 +975,10 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
+    </View>
+  );
+
+  const postsSection = (
         <View style={styles.postsSection}>
           <Text style={styles.sectionTitle}>Meus posts</Text>
           {myPosts.length > 0 ? (
@@ -990,7 +987,142 @@ export default function ProfileScreen() {
             <Text style={styles.emptyText}>Você ainda não publicou nada.</Text>
           )}
         </View>
-      </ScrollView>
+  );
+
+  const listHeader = (
+    <View style={styles.listHeader}>
+        <Text style={styles.logo}>Tryv Fit</Text>
+
+        {/*
+          Overall (carta de jogador): o card agora carrega a identidade (avatar + nome), entao
+          o bloco avatar/nome que ficava aqui saiu. O avatar abaixo e o MESMO elemento de antes
+          (Pressable que abre a troca/geracao de avatar, com o badge de camera), so em 64 px e
+          passado pro card por prop. Avatar e nome aparecem mesmo se o overall falhar.
+        */}
+        <View style={styles.overallWrap}>
+          <OverallCard
+            name={user?.name ?? ''}
+            avatar={
+              <Pressable onPress={() => setAvatarPickerVisible(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Trocar avatar">
+                <Avatar
+                  initials={user ? getInitials(user.name) : '?'}
+                  imageUrl={user?.avatar_url}
+                  thumbUrl={user?.avatar_thumb_url}
+                  size={64}
+                  style={styles.avatarRing}
+                />
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera" size={12} color={colors3.onPrimary} />
+                </View>
+              </Pressable>
+            }
+          />
+        </View>
+
+
+        <Pressable style={styles.followStatsRow} onPress={() => router.push('/social/follows')}>
+          <View style={styles.followStat}>
+            <Text style={styles.followStatNumber}>{followersCount}</Text>
+            <Text style={styles.followStatLabel}>Seguidores</Text>
+          </View>
+          <View style={styles.followStatDivider} />
+          <View style={styles.followStat}>
+            <Text style={styles.followStatNumber}>{followingCount}</Text>
+            <Text style={styles.followStatLabel}>Seguindo</Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.badgesWrap}>
+          {/*
+            Marketplace desativado pre-lancamento — badge "TEAM {profissional}"
+            escondida aqui (so no Perfil, sem tocar em ProfileBadges2.tsx, que
+            e compartilhado com social/[userId].tsx e settings/badges.tsx e
+            continua mostrando TEAM normalmente nesses 2 lugares). PRO
+            continua visivel normalmente. Nao apagar: so tirar o `teams: []`
+            no relancamento.
+
+            variant="light" — ProfileBadges2 ainda e escuro por padrao (os 2
+            outros usos acima seguem sem migrar), mesmo padrao de prop
+            variant ja usado em EmptyFollowingState/ObscuredCard/TextField2
+            nesta sessao pra nao afetar quem ainda nao migrou.
+          */}
+          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
+        </View>
+
+        <ProfileIdentity
+          username={user?.username}
+          bio={user?.bio}
+          link={user?.link}
+          onEdit={() => router.push('/settings/edit-profile')}
+        />
+        <PillTabs tabs={PROFILE_TABS} selected={tab} onSelect={selectTab} />
+        {tab === 'history' && <HistoryFilterChips selectedKey={historyFilterKey} onSelect={setHistoryFilterKey} />}
+        {visited.progress && (
+          <View style={tab === 'progress' ? styles.tabBody : styles.hidden}>
+            <ProgressTab
+              points={weight.points}
+              error={weight.error}
+              onRetry={weight.retry}
+              weightKg={user?.weight}
+              heightCm={user?.height}
+              bodyFatPercentage={user?.body_fat_percentage}
+              consistency={consistencyTiles}
+            />
+          </View>
+        )}
+        {visited.achievements && (
+          <View style={tab === 'achievements' ? styles.tabBody : styles.hidden}>
+            <AchievementsTab badges={badges} currentStreak={currentStreak} bestStreak={bestStreak} />
+          </View>
+        )}
+    </View>
+  );
+
+  const activeFeed = tab === 'history' ? history : tab === 'gallery' ? gallery : null;
+  const listData: unknown[] = tab === 'history' ? history.state.items : tab === 'gallery' ? gallery.state.items : [];
+  const listEmpty =
+    activeFeed === null ? null : activeFeed.state.loading || (!activeFeed.state.loaded && !activeFeed.state.error) ? (
+      <FeedLoading />
+    ) : activeFeed.state.error ? (
+      <FeedError
+        message={tab === 'history' ? 'Não foi possível carregar o histórico.' : 'Não foi possível carregar a galeria.'}
+        onRetry={activeFeed.retry}
+      />
+    ) : tab === 'history' ? (
+      <FeedEmpty icon="barbell-outline" title="Nenhuma atividade ainda" text="Seus treinos, corridas e outras atividades aparecem aqui." />
+    ) : (
+      <FeedEmpty icon="images-outline" title="Nenhuma foto ainda" text="As fotos dos posts que você publica aparecem aqui. Fotos de refeição não entram na galeria." />
+    );
+  const listFooter = (
+    <View style={styles.listFooter}>
+      <FeedFooterLoading visible={!!activeFeed?.state.loadingMore} />
+      {settingsSection}
+      {postsSection}
+    </View>
+  );
+
+  return (
+    <ScreenBackground3>
+      <FlatList
+        key={tab === 'gallery' ? 'gallery' : 'list'}
+        style={styles.flex}
+        contentContainerStyle={styles.listContent}
+        data={listData}
+        numColumns={tab === 'gallery' ? GALLERY_COLUMNS : 1}
+        keyExtractor={(item) => (tab === 'gallery' ? (item as GalleryItem).post_id : (item as HistoryItem).id)}
+        renderItem={({ item }) => (tab === 'gallery' ? <GalleryCell item={item as GalleryItem} /> : <HistoryRow item={item as HistoryItem} />)}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        ListFooterComponent={listFooter}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => activeFeed?.loadMore()}
+        refreshControl={
+          activeFeed ? (
+            <RefreshControl refreshing={activeFeed.state.refreshing} onRefresh={activeFeed.refresh} tintColor={colors3.primary} />
+          ) : undefined
+        }
+      />
+
 
       <Modal visible={avatarPickerVisible} animationType="slide" transparent onRequestClose={handleCloseAvatarPicker}>
         <View style={styles.avatarModalBackdrop}>
@@ -1204,6 +1336,13 @@ const styles = StyleSheet.create({
   optionSubtitle: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
 
   postsSection: { width: '100%', marginTop: spacing3.lg, gap: spacing3.sm },
+  // Perfil com abas (E4)
+  listContent: { paddingTop: spacing3.xl, padding: spacing3.containerMargin, paddingBottom: spacing3.xl },
+  listHeader: { alignItems: 'center', width: '100%', gap: spacing3.sm },
+  tabBody: { alignSelf: 'stretch', marginTop: spacing3.sm },
+  hidden: { display: 'none' },
+  listFooter: { width: '100%' },
+  settingsSection: { width: '100%', marginTop: spacing3.xl, alignItems: 'center', gap: spacing3.sm },
   sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
 });

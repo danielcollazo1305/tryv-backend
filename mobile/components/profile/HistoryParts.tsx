@@ -21,7 +21,7 @@ const ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
 /** Chips de filtro por modalidade (valores = tipos que o servidor aceita). */
 export function HistoryFilterChips({ selectedKey, onSelect }: { selectedKey: string; onSelect: (key: string) => void }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityRole="tablist">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chips} accessibilityRole="tablist">
       {HISTORY_FILTERS.map((filter) => {
         const selected = filter.key === selectedKey;
         return (
@@ -80,6 +80,7 @@ export function HistoryRow({ item }: { item: HistoryItem }) {
 }
 
 const styles = StyleSheet.create({
+  chipsScroll: { alignSelf: 'stretch' },
   chips: { gap: spacing3.sm, paddingVertical: spacing3.sm },
   chip: {
     paddingHorizontal: spacing3.md,
