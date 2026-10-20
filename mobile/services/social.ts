@@ -166,6 +166,10 @@ export interface PublicProfile {
   avatar_thumb_url: string | null;
   /** Eu bloqueei esta pessoa (aditivo; ausente em API antiga = false). */
   is_blocked_by_me?: boolean;
+  /** Perfil (E7), aditivos: ausentes em API antiga. username sempre vem se a pessoa tem; bio e link vem null quando o servidor os oculta. */
+  username?: string | null;
+  bio?: string | null;
+  link?: string | null;
 }
 
 export async function getPublicProfile(userId: string): Promise<PublicProfile> {
