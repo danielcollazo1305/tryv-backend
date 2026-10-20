@@ -739,6 +739,19 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.gridCellFull}>
+            <Pressable onPress={() => router.push('/settings/edit-profile')} accessibilityRole="button" accessibilityLabel="Editar perfil">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="create-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Editar perfil</Text>
+                  <Text style={styles.tileFullSubtitle}>@usuário, bio e link</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
             <Pressable onPress={() => router.push('/settings/blocked')} accessibilityRole="button">
               <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
                 <GridIcon name="ban-outline" />

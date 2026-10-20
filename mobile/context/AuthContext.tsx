@@ -35,6 +35,13 @@ export interface User {
   avatar_url: string | null;
   /** Miniatura 256x256 (null em avatares antigos: usar avatar_url). */
   avatar_thumb_url?: string | null;
+  /** Perfil (E7/E8). Opcionais: servidor antigo nao devolve; null = ainda nao definido. */
+  username?: string | null;
+  bio?: string | null;
+  link?: string | null;
+  /** So no perfil PROPRIO (GET /users/me): quando o @usuario pode ser trocado de novo e quantos dias faltam; null = troca livre. */
+  username_next_change_at?: string | null;
+  username_change_wait_days?: number | null;
 }
 
 interface AuthContextValue {

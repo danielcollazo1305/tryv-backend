@@ -1,5 +1,6 @@
 import type { User } from '@/context/AuthContext';
 import { api } from '@/services/api';
+import type { ProfilePayload } from '@/services/profileEdit';
 
 export interface UserUpdatePayload {
   weight?: number;
@@ -28,6 +29,18 @@ export interface UserBadges {
 
 export async function updateProfile(payload: UserUpdatePayload): Promise<User> {
   const response = await api.patch<User>('/users/me', payload);
+  return response.data;
+}
+
+// E8: editar @usuario, bio e link (PATCH /users/me/profile). So os campos que mudaram; "" em bio/link apaga; o @usuario nao pode ser apagado.
+export async function updateMyProfile(payload: ProfilePayload): Promise<User> {
+  const response = await api.patch<User>('/users/me/profile', payload);
+  return response.data;
+}
+
+// GET /users/username-available?u=... -> { available } (login obrigatorio; 429 com Retry-After se consultar demais).
+export async function checkUsernameAvailable(username: string): Promise<{ available: boolean }> {
+  const response = await api.get<{ available: boolean }>('/users/username-available', { params: { u: username } });
   return response.data;
 }
 
