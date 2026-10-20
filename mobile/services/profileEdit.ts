@@ -16,6 +16,9 @@ export const USERNAME_RULES_TEXT =
 export const MINOR_NOTICE = 'Bio e link só ficam visíveis para outras pessoas a partir dos 18 anos.';
 export const USERNAME_CHANGE_CONFIRM_TITLE = 'Trocar @usuário?';
 export const USERNAME_CHANGE_CONFIRM_MESSAGE = 'Você só poderá trocar de novo daqui a 30 dias.';
+// Primeira definicao: tambem inicia o intervalo de 30 dias (o servidor grava a data ao definir), entao tambem pede confirmacao.
+export const USERNAME_FIRST_CONFIRM_TITLE = 'Definir @usuário?';
+export const USERNAME_FIRST_CONFIRM_MESSAGE = 'Depois de salvar, você só poderá trocar o @ de novo daqui a 30 dias.';
 
 // ----------------------------------------------------------------------------------------------------------- @usuario
 /** Texto digitado -> valor do campo: minusculas, sem espacos e sem o "@" (o prefixo e fixo na tela). Limite de 20. */
@@ -93,6 +96,16 @@ export function usernameLockDays(waitDays: number | null | undefined): number {
 /** Troca = ja existe @usuario e o novo e outro (pede confirmacao). A PRIMEIRA definicao nao e troca. */
 export function isUsernameChange(current: string | null | undefined, draft: string): boolean {
   return !!current && draft !== '' && draft !== current;
+}
+
+/**
+ * Que confirmacao pedir antes de salvar o @usuario: 'first' (ainda nao tem @ e esta definindo um agora), 'change' (ja tem e o novo e outro) ou
+ * null (nao mudou, esta vazio ou o campo esta travado: nada a confirmar).
+ */
+export type UsernameConfirmKind = 'first' | 'change';
+export function usernameConfirmKind(current: string | null | undefined, draft: string, locked = false): UsernameConfirmKind | null {
+  if (locked || draft === '' || draft === (current ?? '')) return null;
+  return current ? 'change' : 'first';
 }
 
 // ---------------------------------------------------------------------------------------------------------------- link

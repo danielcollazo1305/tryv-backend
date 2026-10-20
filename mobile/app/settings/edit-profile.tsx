@@ -26,6 +26,8 @@ import {
   MINOR_NOTICE,
   USERNAME_CHANGE_CONFIRM_MESSAGE,
   USERNAME_CHANGE_CONFIRM_TITLE,
+  USERNAME_FIRST_CONFIRM_MESSAGE,
+  USERNAME_FIRST_CONFIRM_TITLE,
   USERNAME_MAX,
   USERNAME_RULES_TEXT,
   USERNAME_STATUS_TEXT,
@@ -35,7 +37,7 @@ import {
   buildProfilePayload,
   classifyProfileUpdateError,
   computeSaveState,
-  isUsernameChange,
+  usernameConfirmKind,
   normalizeUsernameInput,
   pausedMessage,
   shouldShowMinorNotice,
@@ -142,11 +144,18 @@ export default function EditProfileScreen() {
 
   const handleSave = () => {
     if (!saveState.canSave) return;
-    if (isUsernameChange(current.username, username)) {
-      Alert.alert(USERNAME_CHANGE_CONFIRM_TITLE, USERNAME_CHANGE_CONFIRM_MESSAGE, [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Trocar e salvar', onPress: () => void performSave() },
-      ]);
+    // Confirma ANTES de salvar o @usuario: tanto a troca quanto a PRIMEIRA definicao iniciam o intervalo de 30 dias.
+    const confirmKind = usernameConfirmKind(current.username, username, usernameLocked);
+    if (confirmKind) {
+      const first = confirmKind === 'first';
+      Alert.alert(
+        first ? USERNAME_FIRST_CONFIRM_TITLE : USERNAME_CHANGE_CONFIRM_TITLE,
+        first ? USERNAME_FIRST_CONFIRM_MESSAGE : USERNAME_CHANGE_CONFIRM_MESSAGE,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: first ? 'Definir e salvar' : 'Trocar e salvar', onPress: () => void performSave() },
+        ]
+      );
       return;
     }
     void performSave();
