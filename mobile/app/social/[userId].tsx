@@ -1,23 +1,38 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/Avatar';
-import { Button2 } from '@/components/Button2';
-import { LiquiglassCard } from '@/components/LiquiglassCard';
+import { Button3 } from '@/components/Button3';
+import { PillTabs } from '@/components/PillTabs';
 import { PostGrid2 } from '@/components/PostGrid2';
 import { ProfileBadges2 } from '@/components/ProfileBadges2';
-import { ScreenBackground2 } from '@/components/ScreenBackground2';
+import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { WeeklyActivityChart } from '@/components/WeeklyActivityChart';
+import { FeedEmpty, FeedError, FeedFooterLoading, FeedLoading } from '@/components/profile/FeedStateViews';
+import { GALLERY_COLUMNS, GalleryCell } from '@/components/profile/GalleryCell';
+import { IdentityLines } from '@/components/profile/IdentityLines';
+import { usePagedFeed } from '@/components/profile/usePagedFeed';
 import { useAuth } from '@/context/AuthContext';
 import { blockUser, classifyModerationError, unblockUser } from '@/services/moderation';
 import { getApiErrorMessage } from '@/services/api';
+import { getGallery } from '@/services/profileFeed';
+import type { GalleryItem } from '@/services/profileFeedState';
+import {
+  GALLERY_EMPTY_NEUTRAL,
+  PUBLIC_TABS,
+  PublicIdentity,
+  PublicTab,
+  hasIdentityLines,
+  isGalleryUnavailable,
+  normalizePublicProfile,
+  pickDisplayName,
+  profileLoadOutcome,
+} from '@/services/publicProfileState';
 import {
   Post,
-  PublicProfile,
   UserBrief,
   followUser,
   getPublicProfile,
@@ -27,8 +42,11 @@ import {
   unfollowUser,
 } from '@/services/social';
 import { UserBadges, getUserBadges } from '@/services/user';
-import { colors2, spacing2, typography2 } from '@/constants/theme';
+import { colors2, colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
+
+const galleryKey = (item: GalleryItem) => item.post_id;
+const CONTENT_ROW = [{ post_id: 'content' }] as unknown as GalleryItem[];
 
 export default function UserProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -39,17 +57,21 @@ export default function UserProfileScreen() {
   const [following, setFollowing] = useState<UserBrief[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [badges, setBadges] = useState<UserBadges | null>(null);
-  // Nome e avatar vem de GET /users/{id}/profile; se a chamada falhar, o nome cai no autor dos posts ou, se ja
-  // seguimos essa pessoa, na entrada correspondente da nossa lista de "following" (sem avatar: iniciais).
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  // Nome, @usuario, bio, link e avatar vem de GET /users/{id}/profile (so o que o servidor devolver preenchido); se a chamada falhar, o nome
+  // cai no autor dos posts ou, se ja seguimos essa pessoa, na entrada correspondente da nossa lista de "following" (sem avatar: iniciais).
+  const [identity, setIdentity] = useState<PublicIdentity | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
-  // 404 no perfil = "Perfil indisponivel" (inclui quem me bloqueou, sem revelar o motivo). blockedByMe = eu bloqueei esta pessoa.
+  // 404/403 no perfil = "Perfil indisponivel" (inclui quem me bloqueou, sem revelar o motivo). blockedByMe = eu bloqueei esta pessoa.
   const [unavailable, setUnavailable] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [tab, setTab] = useState<PublicTab>('gallery');
+  const requestRef = useRef(0);
 
   // Se por algum motivo o proprio usuario cair aqui, manda pro tab de Perfil.
   useEffect(() => {
@@ -60,33 +82,35 @@ export default function UserProfileScreen() {
 
   const fetchAll = useCallback(async () => {
     if (!userId || !currentUser) return;
+    const request = ++requestRef.current;
+    const stale = () => request !== requestRef.current;
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     setUnavailable(false);
     try {
-      // Perfil primeiro: 404 do backend (usuario inexistente ou que me bloqueou) = tela "Perfil indisponivel"; se EU
-      // bloqueei, so o cabecalho com Desbloquear (posts/seguidores dessa pessoa dao 404 para mim). Outros erros mantem o
-      // comportamento antigo (a tela carrega sem o perfil).
-      let profileData: PublicProfile | null = null;
+      // Perfil primeiro: 404/403 do backend (usuario inexistente ou que me bloqueou) = tela "Perfil indisponivel"; se EU bloqueei, so o
+      // cabecalho com Desbloquear (posts/seguidores dessa pessoa dao 404 para mim). Outros erros mantem o comportamento antigo (a tela carrega
+      // sem o perfil).
+      let profileData: PublicIdentity | null = null;
       try {
-        profileData = await getPublicProfile(userId);
+        profileData = normalizePublicProfile(await getPublicProfile(userId));
       } catch (profileErr) {
-        const detail = axios.isAxiosError(profileErr) ? (profileErr.response?.data as { detail?: unknown } | undefined)?.detail : undefined;
-        // So 404 com `detail` PROPRIO do backend (string diferente de "Not Found") = indisponivel; 404 sem detail ou com o
-        // "Not Found" padrao (rota inexistente numa API antiga) mantem o comportamento antigo (a tela carrega).
-        if (axios.isAxiosError(profileErr) && profileErr.response?.status === 404 && typeof detail === 'string' && detail !== 'Not Found') {
+        if (profileLoadOutcome(profileErr) === 'unavailable') {
+          if (stale()) return;
           setUnavailable(true);
           return;
         }
       }
-      if (profileData?.is_blocked_by_me) {
+      if (stale()) return;
+      if (profileData?.blockedByMe) {
         setBlockedByMe(true);
-        setProfile(profileData);
+        setIdentity(profileData);
         setDisplayName(profileData.name);
         setPosts([]);
         setFollowers([]);
         setFollowing([]);
         setBadges(null);
+        setLoaded(true);
         return;
       }
       setBlockedByMe(false);
@@ -97,19 +121,20 @@ export default function UserProfileScreen() {
         listFollowing(currentUser.id),
         getUserBadges(userId).catch(() => null),
       ]);
+      if (stale()) return;
       setPosts(postsData);
       setFollowers(followersData);
       setFollowing(followingData);
       setIsFollowing(myFollowingData.some((u) => u.id === userId));
-      setProfile(profileData);
-      setDisplayName(
-        profileData?.name ?? postsData[0]?.author ?? myFollowingData.find((u) => u.id === userId)?.name ?? null
-      );
+      setIdentity(profileData);
+      setDisplayName(pickDisplayName(profileData?.name, postsData[0]?.author, myFollowingData.find((u) => u.id === userId)?.name));
       setBadges(badgesData);
+      setLoaded(true);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar este perfil.'));
+      if (stale()) return;
+      setLoadError(getApiErrorMessage(err, 'Não foi possível carregar este perfil.'));
     } finally {
-      setLoading(false);
+      if (!stale()) setLoading(false);
     }
   }, [userId, currentUser]);
 
@@ -119,16 +144,29 @@ export default function UserProfileScreen() {
     }, [fetchAll])
   );
 
+  // Galeria: a mesma grade e paginacao da E4, com o userId desta pessoa. 404/403 (ex.: bloqueio entre uma chamada e outra) vira lista vazia
+  // neutra; so busca quando o perfil carregou, esta disponivel e nao esta bloqueado por mim, e so uma vez (trocar de aba nao refaz).
+  const gallery = usePagedFeed<GalleryItem>({
+    fetchPage: (request) =>
+      getGallery(String(userId), request).catch((err) => {
+        if (isGalleryUnavailable(err)) return { items: [], next_cursor: null };
+        throw err;
+      }),
+    keyOf: galleryKey,
+    enabled: tab === 'gallery' && !!userId && loaded && !loading && !unavailable && !blockedByMe && !loadError,
+    resetKey: String(userId),
+  });
+
   const handleToggleFollow = async () => {
     if (!userId) return;
     setFollowBusy(true);
-    setError(null);
+    setActionError(null);
     try {
       if (isFollowing) await unfollowUser(userId);
       else await followUser(userId);
       await fetchAll();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel atualizar o status de seguir.'));
+      setActionError(getApiErrorMessage(err, 'Não foi possível atualizar o status de seguir.'));
     } finally {
       setFollowBusy(false);
     }
@@ -139,7 +177,7 @@ export default function UserProfileScreen() {
   const doBlock = async () => {
     setModerationBusy(true);
     try {
-      await blockUser(userId);
+      await blockUser(String(userId));
       router.back();
     } catch (err) {
       Alert.alert('Não foi possível bloquear', classifyModerationError(err, 'Tente novamente.').message);
@@ -151,7 +189,7 @@ export default function UserProfileScreen() {
   const doUnblock = async () => {
     setModerationBusy(true);
     try {
-      await unblockUser(userId);
+      await unblockUser(String(userId));
       setBlockedByMe(false);
       await fetchAll();
     } catch (err) {
@@ -187,127 +225,179 @@ export default function UserProfileScreen() {
     ]);
   };
 
-  return (
-    <ScreenBackground2 style={styles.flex}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Ionicons name="arrow-back" size={22} color={colors2.onSurface} />
+  const topBar = (
+    <View style={styles.header}>
+      <Pressable onPress={() => router.back()} hitSlop={12} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Voltar">
+        <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
+      </Pressable>
+      <Text style={styles.headerTitle}>Tryv Fit</Text>
+      {!loading && !unavailable && !loadError ? (
+        <Pressable
+          onPress={handleOpenMenu}
+          disabled={moderationBusy}
+          hitSlop={8}
+          style={styles.headerButton}
+          accessibilityRole="button"
+          accessibilityLabel="Mais opções"
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Tryv Fit</Text>
-        {!loading && !unavailable ? (
-          <Pressable
-            onPress={handleOpenMenu}
-            disabled={moderationBusy}
-            hitSlop={8}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel="Mais opções"
-          >
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors2.onSurface} />
-          </Pressable>
-        ) : (
-          <View style={styles.headerButton} />
-        )}
+      ) : (
+        <View style={styles.headerButton} />
+      )}
+    </View>
+  );
+
+  const avatar = (
+    <Avatar
+      initials={displayName ? getInitials(displayName) : '?'}
+      imageUrl={identity?.avatarUrl}
+      thumbUrl={identity?.avatarThumbUrl}
+      size={100}
+    />
+  );
+
+  if (loading && !loaded) {
+    return (
+      <ScreenBackground3>
+        {topBar}
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors3.primary} accessibilityLabel="Carregando" />
+        </View>
+      </ScreenBackground3>
+    );
+  }
+
+  if (unavailable) {
+    return (
+      <ScreenBackground3>
+        {topBar}
+        <View style={styles.centered}>
+          <Ionicons name="person-remove-outline" size={36} color={colors3.onSurfaceVariant} />
+          <Text style={styles.unavailableTitle}>Perfil indisponível</Text>
+          <Text style={styles.mutedText}>Este perfil não está disponível no momento.</Text>
+          <Button3 label="Voltar" variant="secondary" onPress={() => router.back()} />
+        </View>
+      </ScreenBackground3>
+    );
+  }
+
+  if (loadError && !loaded) {
+    return (
+      <ScreenBackground3>
+        {topBar}
+        <View style={styles.centered}>
+          <FeedError message={loadError} onRetry={fetchAll} />
+          <Button3 label="Voltar" variant="secondary" onPress={() => router.back()} />
+        </View>
+      </ScreenBackground3>
+    );
+  }
+
+  if (blockedByMe) {
+    return (
+      <ScreenBackground3>
+        {topBar}
+        <View style={styles.blockedBox}>
+          {avatar}
+          <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
+          <Text style={styles.mutedText}>Você bloqueou esta pessoa.</Text>
+          <Button3 label="Desbloquear" onPress={doUnblock} loading={moderationBusy} />
+        </View>
+      </ScreenBackground3>
+    );
+  }
+
+  const listHeader = (
+    <View style={styles.headerBox}>
+      {!!loadError && <Text style={styles.error}>{loadError}</Text>}
+      {!!actionError && <Text style={styles.error}>{actionError}</Text>}
+      <View style={styles.profileCard}>
+        {avatar}
+        <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
+        {identity && hasIdentityLines(identity) ? <IdentityLines username={identity.username} bio={identity.bio} link={identity.link} /> : null}
+
+        <ProfileBadges2 badges={badges} variant="light" />
+
+        <View style={styles.statsRow}>
+          <View style={styles.stat} accessible accessibilityLabel={`${followers.length} seguidores`}>
+            <Text style={styles.statNumber}>{followers.length}</Text>
+            <Text style={styles.statLabel}>Seguidores</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat} accessible accessibilityLabel={`${following.length} seguindo`}>
+            <Text style={styles.statNumber}>{following.length}</Text>
+            <Text style={styles.statLabel}>Seguindo</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat} accessible accessibilityLabel={`${posts.length} posts`}>
+            <Text style={styles.statNumber}>{posts.length}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+        </View>
+
+        <Button3
+          label={isFollowing ? 'Seguindo' : 'Seguir'}
+          variant={isFollowing ? 'secondary' : 'primary'}
+          onPress={handleToggleFollow}
+          loading={followBusy}
+          accessibilityLabel={isFollowing ? 'Deixar de seguir' : 'Seguir'}
+        />
       </View>
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors2.violet} />
-        </View>
-      ) : unavailable ? (
-        <View style={styles.centered}>
-          <Ionicons name="person-remove-outline" size={36} color={colors2.onSurfaceVariant} />
-          <Text style={styles.unavailableTitle}>Perfil indisponível</Text>
-          <Text style={styles.emptyText}>Este perfil não está disponível no momento.</Text>
-          <Button2 label="Voltar" variant="secondary" onPress={() => router.back()} />
-        </View>
-      ) : blockedByMe ? (
-        <ScrollView contentContainerStyle={styles.content}>
-          <LiquiglassCard style={styles.profileCard}>
-            <Avatar
-              initials={displayName ? getInitials(displayName) : '?'}
-              imageUrl={profile?.avatar_url}
-              thumbUrl={profile?.avatar_thumb_url}
-              size={100}
-            />
-            <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
-            <Text style={styles.emptyText}>Você bloqueou esta pessoa.</Text>
-            <Button2 label="Desbloquear" onPress={doUnblock} loading={moderationBusy} />
-          </LiquiglassCard>
-        </ScrollView>
-      ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          {!!error && <Text style={styles.error}>{error}</Text>}
+      <PillTabs tabs={PUBLIC_TABS} selected={tab} onSelect={setTab} />
+    </View>
+  );
 
-          <LiquiglassCard style={styles.profileCard}>
-            <Avatar
-              initials={displayName ? getInitials(displayName) : '?'}
-              imageUrl={profile?.avatar_url}
-              thumbUrl={profile?.avatar_thumb_url}
-              size={100}
-            />
-            <Text style={styles.name}>{displayName ?? 'Perfil'}</Text>
+  const galleryState = gallery.state;
+  let listEmpty: React.ReactElement | null = null;
+  if (tab === 'gallery') {
+    if (galleryState.error && galleryState.items.length === 0) {
+      listEmpty = <FeedError message="Não foi possível carregar as fotos." onRetry={gallery.retry} />;
+    } else if (galleryState.loaded && galleryState.items.length === 0) {
+      listEmpty = <FeedEmpty icon="images-outline" title={GALLERY_EMPTY_NEUTRAL.title} text={GALLERY_EMPTY_NEUTRAL.text} />;
+    } else {
+      listEmpty = <FeedLoading />;
+    }
+  }
 
-            <ProfileBadges2 badges={badges} />
+  // Posts e Atividade sao uma unica linha da lista (nada de ScrollView aninhado); a Galeria e a grade paginada.
+  const contentRow = tab === 'posts' ? (
+    posts.length > 0 ? (
+      <PostGrid2 posts={posts} variant="light" />
+    ) : (
+      <FeedEmpty icon="images-outline" title="Nenhum post visível ainda" text="Quando houver posts, eles aparecem aqui." />
+    )
+  ) : (
+    !!userId && (
+      <View style={styles.activityBox}>
+        <Text style={styles.activityTitle}>Km rodados</Text>
+        <WeeklyActivityChart userId={userId} />
+        <TrainingFrequencyCard userId={userId} />
+      </View>
+    )
+  );
 
-            <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{followers.length}</Text>
-                <Text style={styles.statLabel}>Seguidores</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{following.length}</Text>
-                <Text style={styles.statLabel}>Seguindo</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{posts.length}</Text>
-                <Text style={styles.statLabel}>Posts</Text>
-              </View>
-            </View>
-
-            <Button2
-              label={isFollowing ? 'Seguindo' : 'Seguir'}
-              variant={isFollowing ? 'secondary' : 'primary'}
-              onPress={handleToggleFollow}
-              loading={followBusy}
-            />
-          </LiquiglassCard>
-
-          <View style={styles.postsSection}>
-            <Text style={styles.sectionTitle}>Posts</Text>
-            {posts.length > 0 ? (
-              <PostGrid2 posts={posts} />
-            ) : (
-              <View style={styles.empty}>
-                <Ionicons name="images-outline" size={28} color={colors2.onSurfaceVariant} />
-                <Text style={styles.emptyText}>Nenhum post visivel ainda.</Text>
-              </View>
-            )}
-          </View>
-
-          {/*
-            Km semanal + frequencia de treino (item 2) — mesmos componentes
-            da Home, agora buscando o dado do usuario visitado (userId) em
-            vez do proprio. Visivel por padrao pra qualquer um, sem gate de
-            seguidor (decisao ja tomada, diferente da regra de posts do
-            item 1) — os proprios componentes ja tratam o estado vazio em
-            3a pessoa quando recebem userId.
-          */}
-          {!!userId && (
-            <View style={styles.activitySection}>
-              <Text style={styles.sectionTitle}>Atividade</Text>
-              <LiquiglassCard style={styles.activityCard}>
-                <Text style={styles.activityCardTitle}>Km rodados</Text>
-                <WeeklyActivityChart userId={userId} />
-              </LiquiglassCard>
-              <TrainingFrequencyCard userId={userId} />
-            </View>
-          )}
-        </ScrollView>
-      )}
-    </ScreenBackground2>
+  return (
+    <ScreenBackground3>
+      {topBar}
+      <FlatList
+        key={tab === 'gallery' ? 'gallery' : 'content'}
+        style={styles.flex}
+        contentContainerStyle={styles.listContent}
+        data={tab === 'gallery' ? galleryState.items : CONTENT_ROW}
+        numColumns={tab === 'gallery' ? GALLERY_COLUMNS : 1}
+        keyExtractor={(item) => galleryKey(item)}
+        renderItem={({ item }) => (tab === 'gallery' ? <GalleryCell item={item} /> : <View>{contentRow}</View>)}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        ListFooterComponent={<FeedFooterLoading visible={tab === 'gallery' && !!galleryState.loadingMore} />}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (tab === 'gallery') gallery.loadMore();
+        }}
+      />
+    </ScreenBackground3>
   );
 }
 
@@ -317,31 +407,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing2.containerMargin,
-    paddingTop: spacing2.xl,
-    paddingBottom: spacing2.md,
+    paddingHorizontal: spacing3.containerMargin,
+    paddingTop: spacing3.xl,
+    paddingBottom: spacing3.md,
   },
-  headerTitle: { ...typography2.headlineMd, fontSize: 18 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing2.md, padding: spacing2.containerMargin },
+  headerTitle: { ...typography3.headlineMd, fontSize: 18 },
   headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  unavailableTitle: { ...typography2.headlineMd, fontSize: 18 },
-  content: { padding: spacing2.containerMargin, paddingTop: 0, gap: spacing2.lg },
-  error: { color: colors2.danger, textAlign: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing3.md, padding: spacing3.containerMargin },
+  blockedBox: { alignItems: 'center', gap: spacing3.md, padding: spacing3.containerMargin },
+  unavailableTitle: { ...typography3.headlineMd, fontSize: 18 },
+  mutedText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center' },
+  listContent: { paddingHorizontal: spacing3.containerMargin, paddingBottom: spacing3.xl },
+  headerBox: { gap: spacing3.md, marginBottom: spacing3.md },
+  error: { ...typography3.bodyMd, color: colors3.error, textAlign: 'center' },
 
-  profileCard: { alignItems: 'center', gap: spacing2.md },
-  name: { ...typography2.headlineLgMobile, fontSize: 22 },
-  statsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.lg, marginTop: spacing2.xs },
+  profileCard: { alignItems: 'center', gap: spacing3.md },
+  name: { ...typography3.headlineMd, fontSize: 22, textAlign: 'center' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.lg },
   stat: { alignItems: 'center', minWidth: 64 },
-  statDivider: { width: 1, height: 32, backgroundColor: colors2.outlineVariant },
-  statNumber: { ...typography2.metricMono, fontSize: 18, color: colors2.primary },
-  statLabel: { ...typography2.labelCaps, fontSize: 10, marginTop: 2 },
+  statDivider: { width: 1, height: 32, backgroundColor: colors3.outlineVariant },
+  statNumber: { ...typography3.headlineMd, fontSize: 18, color: colors3.primary },
+  statLabel: { ...typography3.labelSm, fontSize: 10, marginTop: 2 },
 
-  postsSection: { gap: spacing2.md },
-  sectionTitle: { ...typography2.headlineMd, fontSize: 18 },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing2.xl, gap: spacing2.sm },
-  emptyText: { ...typography2.bodyMd, color: colors2.onSurfaceVariant, textAlign: 'center' },
-
-  activitySection: { gap: spacing2.md },
-  activityCard: { gap: spacing2.sm },
-  activityCardTitle: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
+  // Os graficos de atividade foram feitos para fundo escuro (colors2): ficam num bloco escuro para manter o contraste no tema claro.
+  activityBox: { gap: spacing3.sm, padding: spacing3.md, borderRadius: radius3.xl, backgroundColor: colors2.surfaceContainer },
+  activityTitle: { ...typography3.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
 });
