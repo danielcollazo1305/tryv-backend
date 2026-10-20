@@ -14,12 +14,14 @@ from app.core.logging_config import configure_app_logging
 from app.routers import (
     admin,
     activities,
+    activity_history,
     auth,
     challenges,
     creatine_logs,
     dashboard,
     diet_plans,
     equipment,
+    gallery,
     foods,
     heart_rate,
     insights,
@@ -114,6 +116,8 @@ app.add_middleware(
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(activity_history.router)
+app.include_router(gallery.router)
 app.include_router(meals.router)
 app.include_router(workout_plans.router)
 app.include_router(workout_sessions.router)
