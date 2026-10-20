@@ -1,9 +1,11 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
 
+from app.core import timezone as tz
+from app.core.profile_rules import USERNAME_CHANGE_INTERVAL_DAYS, username_change_wait_days
 from app.schemas.subscription import TeamBadge
 
 BiologicalSex = Literal["masculino", "feminino", "prefiro_nao_informar"]
@@ -55,9 +57,36 @@ class UserOut(BaseModel):
     username: str | None = None
     bio: str | None = None
     link: str | None = None
+    # Quando o @usuario foi definido/trocado pela ultima vez. Lido do banco SO para calcular os dois campos abaixo; `exclude=True`:
+    # NUNCA aparece na resposta (o valor cru nao e exposto).
+    username_changed_at: datetime | None = Field(default=None, exclude=True)
 
     class Config:
         from_attributes = True
+
+    def _username_wait_days(self) -> int:
+        """Dias que faltam para poder trocar o @usuario (0 = livre). MESMA funcao do PATCH /users/me/profile (core/profile_rules.py),
+        entao o numero mostrado pelo app nunca diverge do 422 do servidor. Sem @usuario definido nao ha o que trocar (0)."""
+        if self.username is None:
+            return 0
+        return username_change_wait_days(self.username_changed_at, tz.utc_now())
+
+    # Troca do @usuario so a cada 30 dias (a PRIMEIRA definicao e livre, mas ela inicia o intervalo). Somente leitura, so no perfil
+    # PROPRIO (este schema so e usado em /auth/register, GET e PATCH /users/me e PATCH /users/me/profile); null = troca livre.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def username_next_change_at(self) -> datetime | None:
+        """Quando o @usuario pode ser trocado de novo (UTC, como o resto da API); null = ja pode (ou nunca definiu)."""
+        if self._username_wait_days() <= 0 or self.username_changed_at is None:
+            return None
+        return self.username_changed_at + timedelta(days=USERNAME_CHANGE_INTERVAL_DAYS)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def username_change_wait_days(self) -> int | None:
+        """Dias inteiros que faltam (arredondando para cima), o mesmo N da mensagem do 422; null = troca livre."""
+        days = self._username_wait_days()
+        return days if days > 0 else None
 
 
 class AvatarOut(BaseModel):
