@@ -422,10 +422,16 @@ export default function ChallengeDetailScreen() {
                   <Text style={styles.emptyText}>Ninguem entrou ainda.</Text>
                 ) : (
                   participants.map((p) => (
-                    <View key={p.id} style={styles.participantRow}>
+                    <Pressable
+                      key={p.id}
+                      style={styles.participantRow}
+                      onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: p.id } })}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Abrir o perfil de ${p.name}`}
+                    >
                       <Avatar initials={getInitials(p.name)} imageUrl={p.avatar_url} thumbUrl={p.avatar_thumb_url} size={28} />
                       <Text style={styles.participantName}>{p.name}</Text>
-                    </View>
+                    </Pressable>
                   ))
                 )}
               </View>

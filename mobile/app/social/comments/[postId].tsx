@@ -26,21 +26,26 @@ function CommentRow({
   canDelete,
   onDelete,
   onPressMore,
+  onPressAuthor,
 }: {
   comment: Comment;
   canDelete: boolean;
   onDelete: () => void;
   /** Menu "⋯" so em comentario de OUTRA pessoa (denunciar/bloquear). */
   onPressMore?: () => void;
+  /** Abre o perfil de quem comentou (/social/[userId]). */
+  onPressAuthor?: () => void;
 }) {
   return (
     <View style={styles.commentRow}>
-      <View style={styles.avatar}>
+      <Pressable onPress={onPressAuthor} disabled={!onPressAuthor} style={styles.avatar} accessibilityRole="button" accessibilityLabel={`Abrir o perfil de ${comment.author}`}>
         <Ionicons name="person" size={14} color={colors.accent} />
-      </View>
+      </Pressable>
       <View style={styles.commentInfo}>
         <Text style={styles.commentText}>
-          <Text style={styles.commentAuthor}>{comment.author} </Text>
+          <Text style={styles.commentAuthor} onPress={onPressAuthor} accessibilityRole="link">
+            {comment.author}{' '}
+          </Text>
           {comment.content}
         </Text>
         <Text style={styles.commentDate}>{formatPostDate(comment.created_at)}</Text>
@@ -154,6 +159,7 @@ export default function CommentsScreen() {
               comment={item}
               canDelete={item.user_id === user?.id}
               onDelete={() => handleDelete(item)}
+              onPressAuthor={() => router.push({ pathname: '/social/[userId]', params: { userId: item.user_id } })}
               onPressMore={
                 item.user_id === user?.id
                   ? undefined

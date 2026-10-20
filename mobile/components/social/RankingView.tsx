@@ -362,8 +362,14 @@ export function RankingView({ active = true, refreshKey = 0, onGoToClubs }: Rank
                 {individualRanking.map((person) => {
                   const isMe = person.user_id === user?.id;
                   return (
-                  <GlassCard
+                  <Pressable
                     key={person.user_id}
+                    onPress={() => router.push({ pathname: '/social/[userId]', params: { userId: person.user_id } })}
+                    disabled={isMe}
+                    accessibilityRole="button"
+                    accessibilityLabel={isMe ? undefined : `Abrir o perfil de ${person.name}`}
+                  >
+                  <GlassCard
                     variant="card"
                     style={isMe ? [styles.listRow, styles.listRowMe] : styles.listRow}
                   >
@@ -393,6 +399,7 @@ export function RankingView({ active = true, refreshKey = 0, onGoToClubs }: Rank
                     </View>
                     <Text style={styles.listXp}>{formatXp(person.total_xp)} XP</Text>
                   </GlassCard>
+                  </Pressable>
                   );
                 })}
               </View>
