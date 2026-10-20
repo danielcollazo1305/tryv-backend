@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------------------------------------------
 TEXT_BLOCKED_MESSAGE = "Seu texto contém linguagem que não é permitida no Tryv. Reescreva para publicar."
 NAME_BLOCKED_MESSAGE = "Escolha outro nome."
+USERNAME_BLOCKED_MESSAGE = "Escolha outro @usuário."
 SELFHARM_MESSAGE = (
     "Seu texto não foi publicado. Se você está passando por um momento difícil, o CVV atende 24 horas, de graça, "
     "pelo 188. Você não precisa passar por isso sozinho."
@@ -61,6 +62,8 @@ _SURFACE_LABELS = {
     "challenge_description": "A descrição do desafio",
     "challenge_target_unit": "A unidade da meta",
     "trainer_bio": "A bio",
+    "profile_bio": "A bio",
+    "username": "O @usuário",
     "trainer_certifications": "O campo de certificações",
 }
 
@@ -84,6 +87,8 @@ def _message_for(surface: str, category: str) -> str:
         return SELFHARM_MESSAGE
     if surface == "name":
         return NAME_BLOCKED_MESSAGE
+    if surface == "username":
+        return USERNAME_BLOCKED_MESSAGE
     return TEXT_BLOCKED_MESSAGE
 
 

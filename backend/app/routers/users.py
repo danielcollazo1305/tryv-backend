@@ -5,13 +5,35 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core import timezone as tz
 from app.core.age_policy import require_valid_birth_date
 from app.core.avatar_visibility import avatar_fields, can_show_stats
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.login_throttle import client_ip, login_throttle
+from app.core.content_filter import check_texts
+from app.core.profile_rules import (
+    BIO_MAX,
+    LINK_MAX,
+    PROFILE_EMPTY_MESSAGE,
+    USERNAME_CANNOT_CLEAR_MESSAGE,
+    USERNAME_INVALID_MESSAGE,
+    USERNAME_MAX,
+    USERNAME_RESERVED_MESSAGE,
+    USERNAME_TAKEN_MESSAGE,
+    LINK_INVALID_MESSAGE,
+    clean_link,
+    username_change_wait_days,
+    username_cooldown_message,
+    is_reserved_username,
+    is_valid_username_format,
+    normalize_username,
+    username_filter_texts,
+)
+from app.core.rate_limit import SlidingWindowLimiter, enforce
 from app.core.deps import get_current_user
 from app.core.security import verify_password
 from app.models.avatar_generation import AvatarGeneration
@@ -30,14 +52,17 @@ from app.services.account_deletion import (
     AccountDeletionStripeError,
     delete_user_account,
 )
+from app.services.content_filter_guard import enforce_text_filter, ensure_max_length
 from app.services.moderation import has_blocked, is_blocked_between, not_blocked
 from app.schemas.user import (
     AccountDeleteRequest,
     AvatarOut,
     ContactsMatchRequest,
     MatchedContact,
+    ProfileUpdate,
     PublicProfileOut,
     UserOut,
+    UsernameAvailableOut,
     UserSearchResult,
     UserUpdate,
 )
@@ -46,6 +71,11 @@ from app.services.storage import StorageError, delete_object_by_url, upload_avat
 
 router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
+
+# GET /users/username-available: consulta barata que poderia virar enumeracao em massa. Limite por usuario (20/min) e por IP
+# (60/min), em memoria (core/rate_limit.py).
+username_check_user_limiter = SlidingWindowLimiter(limit=20, window_seconds=60)
+username_check_ip_limiter = SlidingWindowLimiter(limit=60, window_seconds=60)
 
 
 def _parse_user_id(user_id: str, db: Session) -> uuid.UUID:
@@ -81,6 +111,103 @@ def update_current_user(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+def _unprocessable(detail: str) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
+
+
+@router.patch("/me/profile", response_model=UserOut)
+def update_my_profile(
+    payload: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """@usuario, bio e link do proprio perfil. Ausente/null = nao mexe; "" limpa bio e link (o @usuario nao pode ser limpo
+    depois de definido). Formato invalido = 422; @usuario em uso = 409. Bio e @usuario passam pelo MESMO filtro de texto e
+    limites da legenda (so quando o valor muda)."""
+    data = payload.model_dump(exclude_none=True)
+    if not data:
+        raise _unprocessable(PROFILE_EMPTY_MESSAGE)
+
+    changes: dict[str, object] = {}
+
+    if "username" in data:
+        username = normalize_username(data["username"])
+        if username == "":
+            raise _unprocessable(USERNAME_CANNOT_CLEAR_MESSAGE if current_user.username else USERNAME_INVALID_MESSAGE)
+        if username != current_user.username:
+            ensure_max_length(username, USERNAME_MAX, "username")
+            if not is_valid_username_format(username):
+                raise _unprocessable(USERNAME_INVALID_MESSAGE)
+            if is_reserved_username(username):
+                raise _unprocessable(USERNAME_RESERVED_MESSAGE)
+            # Limite de 1 troca a cada 30 dias (a PRIMEIRA definicao e livre). Vem ANTES do filtro e da checagem de duplicado: quem esta
+            # no intervalo recebe sempre a mesma resposta e nao consegue usar o PATCH para descobrir se um @usuario esta em uso.
+            now = tz.utc_now()
+            if current_user.username is not None:
+                wait_days = username_change_wait_days(current_user.username_changed_at, now)
+                if wait_days > 0:
+                    raise _unprocessable(username_cooldown_message(wait_days))
+            enforce_text_filter(db, user_id=current_user.id, fields=[("username", t) for t in username_filter_texts(username)])
+            taken = (
+                db.query(User.id).filter(func.lower(User.username) == username, User.id != current_user.id).first() is not None
+            )
+            if taken:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=USERNAME_TAKEN_MESSAGE)
+            changes["username"] = username
+            changes["username_changed_at"] = now
+
+    if "bio" in data:
+        bio = data["bio"].strip()
+        new_bio = bio or None
+        if new_bio != current_user.bio:
+            if new_bio is not None:
+                ensure_max_length(new_bio, BIO_MAX, "profile_bio")
+                enforce_text_filter(db, user_id=current_user.id, fields=[("profile_bio", new_bio)])
+            changes["bio"] = new_bio
+
+    if "link" in data:
+        raw_link = data["link"].strip()
+        if raw_link == "":
+            new_link = None
+        else:
+            new_link = clean_link(raw_link)
+            if new_link is None:
+                raise _unprocessable(LINK_INVALID_MESSAGE)
+        if new_link != current_user.link:
+            changes["link"] = new_link
+
+    for field, value in changes.items():
+        setattr(current_user, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        # Corrida: outra pessoa pegou o mesmo @usuario entre a checagem e a gravacao (indice unico lower(username)).
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=USERNAME_TAKEN_MESSAGE)
+    db.refresh(current_user)
+    return current_user
+
+
+@router.get("/username-available", response_model=UsernameAvailableOut)
+def username_available(
+    request: Request,
+    u: str = Query("", max_length=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """So true/false: o @usuario pode ser usado por mim? Falso para formato invalido, reservado, palavra do filtro ou em uso por
+    OUTRA pessoa (nao revela o motivo). O meu proprio @usuario atual conta como disponivel. Limite de requisicoes por usuario e por IP."""
+    enforce(username_check_user_limiter, f"user:{current_user.id}")
+    enforce(username_check_ip_limiter, f"ip:{client_ip(request)}")
+    username = normalize_username(u)
+    if username == current_user.username:
+        return UsernameAvailableOut(available=True)
+    if not is_valid_username_format(username) or is_reserved_username(username) or check_texts(*username_filter_texts(username)):
+        return UsernameAvailableOut(available=False)
+    taken = db.query(User.id).filter(func.lower(User.username) == username, User.id != current_user.id).first() is not None
+    return UsernameAvailableOut(available=not taken)
 
 
 def remove_user_avatar(db: Session, user: User) -> int:
@@ -423,6 +550,10 @@ def get_public_profile(
         followers_count=followers_count,
         following_count=following_count,
         is_blocked_by_me=is_blocked_by_me,
+        username=user.username,
+        # Bio e link: o dono sempre ve; para outras pessoas, so de maiores de 18 com data de nascimento (mesma regra das estatisticas).
+        bio=user.bio if can_show_stats(user, current_user.id) else None,
+        link=user.link if can_show_stats(user, current_user.id) else None,
     )
 
 

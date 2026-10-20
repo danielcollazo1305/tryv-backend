@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.schemas.subscription import TeamBadge
 
@@ -51,6 +51,10 @@ class UserOut(BaseModel):
     avatar_url: str | None = None
     # Miniatura 256x256 WebP (null em avatares antigos: use a imagem grande).
     avatar_thumb_url: str | None = None
+    # Perfil (E7), so leitura aqui: gravados por PATCH /users/me/profile. null = nao definido.
+    username: str | None = None
+    bio: str | None = None
+    link: str | None = None
 
     class Config:
         from_attributes = True
@@ -86,6 +90,11 @@ class PublicProfileOut(BaseModel):
     following_count: int | None = None
     # Aditivo: eu bloqueei esta pessoa (para o app mostrar "Desbloquear").
     is_blocked_by_me: bool = False
+    # Perfil (E7). username sempre visivel; bio e link ficam null para OUTRAS pessoas quando o dono e menor de 18 ou nao
+    # informou a data de nascimento (core/avatar_visibility.can_show_stats). O dono sempre ve os proprios.
+    username: str | None = None
+    bio: str | None = None
+    link: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -101,6 +110,21 @@ class UserUpdate(BaseModel):
     available_equipment: str | None = None
     city: str | None = None
     city_ibge_code: int | None = None
+
+
+class ProfileUpdate(BaseModel):
+    """PATCH /users/me/profile: so @usuario, bio e link, todos opcionais (ausente ou null = nao mexe; "" limpa bio e link; o
+    @usuario nao pode ser limpo). Campos extras = 422."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str | None = None
+    bio: str | None = None
+    link: str | None = None
+
+
+class UsernameAvailableOut(BaseModel):
+    available: bool
 
 
 class UserSearchResult(BaseModel):

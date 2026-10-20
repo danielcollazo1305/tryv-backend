@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Float, Date, DateTime, Boolean, Integer
+from sqlalchemy import Column, String, Float, Date, DateTime, Boolean, Index, Integer, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -9,6 +9,8 @@ from app.core.database import Base
 
 class User(Base):
     __tablename__ = "users"
+    # @usuario unico SEM diferenciar maiusculas (migration c8e2a47f1b95); o endpoint ja salva em minusculas.
+    __table_args__ = (Index("uq_users_username_lower", text("lower(username)"), unique=True),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
@@ -76,5 +78,15 @@ class User(Base):
     # Miniatura 256x256 WebP do mesmo avatar (profiles/{uuid}_256.webp), usada em listas. Nullable: avatares
     # anteriores nao tem (o app cai na imagem grande) e a geracao da miniatura pode falhar sem falhar o avatar.
     avatar_thumb_url = Column(String, nullable=True)
+
+    # Perfil (E7): @usuario (3-20, a-z 0-9 . _, salvo em minusculas), bio (ate 150) e link https (ate 200). Todos nullable
+    # (contas antigas ficam com NULL). Gravados SO por PATCH /users/me/profile (regras em core/profile_rules.py), nunca pelo
+    # PATCH /users/me generico. Bio e link ficam ocultos para outras pessoas quando o dono e menor de 18 ou sem data de nascimento.
+    username = Column(String(20), nullable=True)
+    bio = Column(String(150), nullable=True)
+    link = Column(String(200), nullable=True)
+    # Quando o @usuario foi definido/trocado pela ultima vez (UTC naive). So o servidor usa (limite de 1 troca a cada 30 dias, ver
+    # core/profile_rules.py); NUNCA aparece em resposta nenhuma da API. NULL = nunca definido (ou conta antiga).
+    username_changed_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
