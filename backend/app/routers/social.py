@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.avatar_visibility import adult_birth_cutoff, avatar_fields, visible_avatar
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.post_media import post_media_urls, urls_in_carousels
 from app.core.deps import get_current_user
 from app.models.media_upload import MediaUpload
 from app.models.social import Comment, Follow, Like, Post
@@ -56,6 +57,7 @@ def _post_out(
         type=post.type,
         caption=post.caption,
         media_url=post.media_url,
+        media_urls=post_media_urls(post),
         visibility=post.visibility,
         reference_id=post.reference_id,
         created_at=post.created_at,
@@ -158,13 +160,34 @@ def create_post(
 
     # Foto do post (E3e fase 4): so vale a que foi APROVADA no upload (POST /media/upload, pasta posts) pelo proprio usuario.
     # Fecha o buraco de apontar o post para qualquer endereco (de outro site, de outra pasta ou de outra pessoa).
-    if payload.media_url and settings.post_media_requires_approval:
-        approved = (
+    # Carrossel (ate 10): CADA foto passa pela mesma validacao (upload do proprio usuario, pasta posts, ja aprovado) e nenhuma pode estar em
+    # outro post; qualquer uma invalida = 422 e nada e criado. A capa (media_url) e sempre a primeira.
+    media_url = payload.media_url
+    media_urls = payload.media_urls
+    if media_urls is not None:
+        media_url = media_urls[0]
+        if settings.post_media_requires_approval:
+            approved = {u for (u,) in db.query(MediaUpload.url).filter(
+                MediaUpload.user_id == current_user.id, MediaUpload.folder == "posts", MediaUpload.url.in_(media_urls)
+            )}
+            if approved != set(media_urls):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Uma das imagens não foi verificada. Envie as fotos novamente para publicar.",
+                )
+        in_use = {u for (u,) in db.query(Post.media_url).filter(Post.media_url.in_(media_urls))} | urls_in_carousels(db, media_urls)
+        if in_use:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Uma das imagens já foi usada em outro post. Envie as fotos novamente para publicar.",
+            )
+    elif payload.media_url and settings.post_media_requires_approval:
+        approved_one = (
             db.query(MediaUpload.id)
             .filter(MediaUpload.user_id == current_user.id, MediaUpload.folder == "posts", MediaUpload.url == payload.media_url)
             .first()
         )
-        if approved is None:
+        if approved_one is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Esta imagem não foi verificada. Envie a foto novamente para publicar.",
@@ -174,7 +197,8 @@ def create_post(
         user_id=current_user.id,
         type=payload.type,
         caption=payload.caption,
-        media_url=payload.media_url,
+        media_url=media_url,
+        media_urls=media_urls,
         visibility=payload.visibility,
         reference_id=payload.reference_id,
         origin=payload.origin or "legacy",

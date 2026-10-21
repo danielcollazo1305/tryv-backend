@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.avatar_visibility import avatar_fields
 from app.core.database import get_db
 from app.core.deps import require_admin
+from app.core.post_media import post_media_urls
 from app.models.moderation import PostReport
 from app.models.social import Comment, Post
 from app.models.user import User
@@ -90,10 +91,13 @@ def admin_list_reports(
         comment = comments.get(r.comment_id) if r.comment_id is not None else None
         if post is not None:
             author_id, text, media = post.user_id, post.caption, post.media_url
+            media_all = post_media_urls(post)
         elif comment is not None:
             author_id, text, media = comment.user_id, comment.content, None
+            media_all = []
         else:
             author_id, text, media = r.target_author_id, r.target_excerpt, None
+            media_all = []
         out.append(
             AdminReportOut(
                 id=r.id,
@@ -108,6 +112,7 @@ def admin_list_reports(
                 content_removed=post is None and comment is None,
                 target_text=text,
                 target_media_url=media,
+                target_media_urls=media_all,
                 target_author=_brief(users.get(author_id), admin.id) if author_id is not None else None,
                 reporter=(
                     None

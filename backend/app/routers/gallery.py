@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.avatar_visibility import can_show_stats
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.post_media import photo_count
 from app.models.social import Post
 from app.models.user import User
 from app.routers.social import _is_following
@@ -89,7 +90,7 @@ def user_gallery(
         conditions.append(or_(Post.created_at < c_at, and_(Post.created_at == c_at, Post.id < c_id)))
 
     rows = (
-        db.query(Post.id, Post.media_url, Post.created_at)
+        db.query(Post.id, Post.media_url, Post.media_urls, Post.created_at)
         .filter(*conditions)
         .order_by(Post.created_at.desc(), Post.id.desc())
         .limit(limit + 1)
@@ -97,6 +98,10 @@ def user_gallery(
     )
     has_more = len(rows) > limit
     rows = rows[:limit]
-    items = [GalleryItem(post_id=r.id, url=r.media_url, created_at=r.created_at) for r in rows]
+    # So a capa de cada post na grade; photo_count (>= 1) deixa o app mostrar o icone de varias fotos.
+    items = [
+        GalleryItem(post_id=r.id, url=r.media_url, created_at=r.created_at, photo_count=photo_count(r.media_url, r.media_urls))
+        for r in rows
+    ]
     next_cursor = _encode_cursor(rows[-1].created_at, rows[-1].id) if has_more and rows else None
     return GalleryPage(items=items, next_cursor=next_cursor)

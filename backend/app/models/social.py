@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Index, UniqueConstraint, CheckConstraint, text
+from sqlalchemy import JSON, Column, String, Text, DateTime, ForeignKey, Index, UniqueConstraint, CheckConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
@@ -26,7 +26,10 @@ class Post(Base):
 
     type = Column(String, nullable=False)  # 'photo' | 'video' | 'progress' | 'achievement' | 'workout' | 'run'
     caption = Column(Text, nullable=True)
-    media_url = Column(String, nullable=True)
+    media_url = Column(String, nullable=True)  # capa (1a foto); o app antigo le so este
+    # Carrossel (migration d4b7e1c9a2f6): lista completa de fotos em ordem, com a capa na posicao 0; NULL = post de uma foto/antigo.
+    # Ler SEMPRE por core/post_media.post_media_urls.
+    media_urls = Column(JSON, nullable=True)
     # 'public' | 'followers' — renomeado de 'private' (privacidade em 3
     # niveis): o valor sempre se comportou como "so seguidores + o proprio
     # autor" (ver _can_view_post em routers/social.py), nunca foi de fato

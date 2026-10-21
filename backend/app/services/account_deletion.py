@@ -47,6 +47,7 @@ from app.models.waitlist_email import WaitlistEmail
 from app.models.water_log import WaterLog
 from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutPlan, WorkoutSession
+from app.core.post_media import media_urls_of, urls_used_by_other_posts
 from app.services.post_removal import purge_post
 from app.services.storage import delete_user_media_by_url
 from app.services.stripe_client import get_client
@@ -188,7 +189,11 @@ def _collect_media_urls(db: Session, user: User) -> list[str]:
     alguem pode apontar para a imagem de outro; essa NAO pode ser apagada)."""
     uid = user.id
     urls: set[str] = {u for u in (user.avatar_url, user.avatar_thumb_url) if u}
-    urls.update(u for (u,) in db.query(Post.media_url).filter(Post.user_id == uid, Post.media_url.isnot(None)))
+    # TODAS as fotos de cada post (capa + carrossel), nao so a capa
+    post_urls: set[str] = set()
+    for cover, extra in db.query(Post.media_url, Post.media_urls).filter(Post.user_id == uid):
+        post_urls.update(media_urls_of(cover, extra))
+    urls.update(post_urls)
     # fotos de post aprovadas no upload (mesmo as nunca publicadas): saem do S3 junto com a conta
     urls.update(u for (u,) in db.query(MediaUpload.url).filter(MediaUpload.user_id == uid))
     for column in (Meal.photo_url, Meal.photo_thumb_url):
@@ -200,7 +205,7 @@ def _collect_media_urls(db: Session, user: User) -> list[str]:
         return []
 
     shared: set[str] = set()
-    shared.update(u for (u,) in db.query(Post.media_url).filter(Post.media_url.in_(urls), Post.user_id != uid))
+    shared.update(urls_used_by_other_posts(db, urls, exclude_user_id=uid))
     for column in (Meal.photo_url, Meal.photo_thumb_url):
         shared.update(u for (u,) in db.query(column).filter(column.in_(urls), Meal.user_id != uid))
     shared.update(u for (u,) in db.query(SavedMeal.photo_url).filter(SavedMeal.photo_url.in_(urls), SavedMeal.user_id != uid))

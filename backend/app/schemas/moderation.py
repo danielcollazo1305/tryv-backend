@@ -47,6 +47,7 @@ class AdminReportOut(BaseModel):
     content_removed: bool
     target_text: str | None = None
     target_media_url: str | None = None
+    target_media_urls: list[str] = []
     target_author: UserBrief | None = None
     # None + reporter_deleted=true: denunciante com a conta excluida (aparece como "Conta excluida"; nada e revelado).
     reporter: UserBrief | None = None

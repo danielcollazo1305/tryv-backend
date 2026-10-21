@@ -2,7 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from app.core.post_media import MAX_POST_PHOTOS
 
 PostType = Literal["photo", "video", "progress", "achievement", "workout", "run"]
 # 'private' renomeado pra 'followers' — ver comentario em models/social.py.
@@ -15,9 +17,30 @@ class PostCreate(BaseModel):
     type: PostType
     caption: str | None = None
     media_url: str | None = None
+    # Carrossel: de 1 a 10 fotos, sem repeticao, so em post photo. Se vier, media_url passa a ser media_urls[0] (capa).
+    media_urls: list[str] | None = None
     visibility: PostVisibility = "public"
     reference_id: uuid.UUID | None = None
     origin: PostOrigin | None = None  # ausente = legacy
+
+    @field_validator("media_urls")
+    @classmethod
+    def _check_media_urls(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        if not 1 <= len(value) <= MAX_POST_PHOTOS:
+            raise ValueError("Um post aceita de 1 a %d fotos." % MAX_POST_PHOTOS)
+        if any(not isinstance(u, str) or not u.strip() for u in value):
+            raise ValueError("Foto invalida.")
+        if len(set(value)) != len(value):
+            raise ValueError("Foto repetida no mesmo post.")
+        return value
+
+    @model_validator(mode="after")
+    def _media_urls_only_for_photo(self):
+        if self.media_urls is not None and self.type != "photo":
+            raise ValueError("Varias fotos so em post do tipo photo.")
+        return self
 
 
 class PostUpdate(BaseModel):
@@ -40,6 +63,8 @@ class PostOut(BaseModel):
     type: str
     caption: str | None = None
     media_url: str | None = None
+    # Todas as fotos em ordem (posts antigos: [media_url]; sem foto: []). media_url continua sendo a capa.
+    media_urls: list[str] = []
     visibility: str
     reference_id: uuid.UUID | None = None
     created_at: datetime

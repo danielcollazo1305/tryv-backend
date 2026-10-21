@@ -9,6 +9,8 @@ class GalleryItem(BaseModel):
     # Foto do post (o post nao tem miniatura propria). Nunca devolve legenda, autor nem contagens: so o minimo da grade.
     url: str
     created_at: datetime
+    # Quantas fotos o post tem (>= 1); a grade mostra so a capa e usa isto para o icone de varias fotos.
+    photo_count: int = 1
 
 
 class GalleryPage(BaseModel):
