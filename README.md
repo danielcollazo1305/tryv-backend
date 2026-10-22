@@ -24,7 +24,7 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 - Metas diárias de calorias e proteína, resumo de macros, controle de água e de creatina.
 
 **Treino e atividades**
-- **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) e plano montado por professor.
+- **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) .
 - **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa, parciais por km e recordes pessoais **(Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
 - Importação de treinos pelo **Health Connect (Android)**. O Apple Health (iPhone) está **em breve**.
 - Live Activity no iOS para o treino livre em andamento (extensão de widget nativa).
