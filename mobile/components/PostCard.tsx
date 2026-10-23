@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Card } from '@/components/Card';
 import { PostPhotoCarousel } from '@/components/PostPhotoCarousel';
+import { RunSummaryStrip } from '@/components/RunSummaryStrip';
 import { photosOfPost } from '@/services/postPhotosState';
+import { activityTypeLabel, normalizeActivity } from '@/services/runPostState';
 import { Post, formatPostDate } from '@/services/social';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -15,8 +17,17 @@ interface PostCardProps {
   onPressComments: () => void;
 }
 
+const STRIP_COLORS = {
+  text: colors.text,
+  muted: colors.textSecondary,
+  background: colors.surfaceElevated,
+  border: colors.border,
+};
+
 export function PostCard({ post, onPressAuthor, onToggleLike, onPressComments }: PostCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
+  // Post de corrida (servidor novo): tipo sob o nome e faixa de resumo. Sem activity o card e o de sempre.
+  const activity = normalizeActivity(post.activity);
 
   const handleLikePress = () => {
     Animated.sequence([
@@ -32,12 +43,25 @@ export function PostCard({ post, onPressAuthor, onToggleLike, onPressComments }:
         <View style={styles.avatar}>
           <Ionicons name="person" size={16} color={colors.accent} />
         </View>
-        <Text style={styles.authorName}>{post.author}</Text>
+        {activity ? (
+          <View style={styles.authorInfo}>
+            <Text style={styles.authorName}>{post.author}</Text>
+            <Text style={styles.activityType}>{activityTypeLabel(activity.activity_type)}</Text>
+          </View>
+        ) : (
+          <Text style={styles.authorName}>{post.author}</Text>
+        )}
         {post.visibility === 'followers' && (
           <Ionicons name="lock-closed" size={12} color={colors.textMuted} />
         )}
         <Text style={styles.date}>{formatPostDate(post.created_at)}</Text>
       </Pressable>
+
+      {!!activity && (
+        <View style={styles.stripWrap}>
+          <RunSummaryStrip activity={activity} colors={STRIP_COLORS} />
+        </View>
+      )}
 
       <PostPhotoCarousel urls={photosOfPost(post)} style={styles.media} />
 
@@ -82,6 +106,9 @@ const styles = StyleSheet.create({
   },
   authorName: { ...typography.bodySecondary, color: colors.text, fontWeight: '600', flex: 1 },
   date: { ...typography.caption },
+  authorInfo: { flex: 1, gap: 2 },
+  activityType: { ...typography.caption, color: colors.accent, fontWeight: '700' },
+  stripWrap: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   media: { width: '100%', aspectRatio: 1, backgroundColor: colors.surfaceElevated },
   caption: { ...typography.bodySecondary, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   actionsRow: { flexDirection: 'row', gap: spacing.lg, padding: spacing.md },

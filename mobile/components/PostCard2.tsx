@@ -6,7 +6,9 @@ import { Avatar } from '@/components/Avatar';
 import { GlassCard } from '@/components/GlassCard';
 import { ObscuredCard } from '@/components/ObscuredCard';
 import { PostPhotoCarousel } from '@/components/PostPhotoCarousel';
+import { RunSummaryStrip } from '@/components/RunSummaryStrip';
 import { photosOfPost } from '@/services/postPhotosState';
+import { activityTypeLabel, normalizeActivity } from '@/services/runPostState';
 import { Post, formatPostDate } from '@/services/social';
 import { UserBadges } from '@/services/user';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -54,8 +56,17 @@ interface PostCard2Props {
  * ("nao inventar dado") — mantida a estrutura real (caption + imagem
  * opcional), so recolorida.
  */
+const STRIP_COLORS = {
+  text: colors3.onSurface,
+  muted: colors3.onSurfaceVariant,
+  background: colors3.surfaceContainerHigh,
+  border: colors3.outlineVariant,
+};
+
 export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressComments, onPressMore }: PostCard2Props) {
   const scale = useRef(new Animated.Value(1)).current;
+  // Post de corrida (servidor novo): tipo sob o nome e faixa de resumo. Sem activity (post normal ou servidor antigo) o card e o de sempre.
+  const activity = normalizeActivity(post.activity);
 
   const handleLikePress = () => {
     Animated.sequence([
@@ -85,6 +96,7 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
               <Ionicons name="checkmark-circle" size={14} color={colors3.primary} />
             </ObscuredCard>
           </View>
+          {!!activity && <Text style={styles.activityType}>{activityTypeLabel(activity.activity_type)}</Text>}
           <View style={styles.metaRow}>
             {badges?.is_pro && (
               <View style={[styles.badgePill, styles.badgePillPrimary]}>
@@ -116,6 +128,8 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
       </View>
 
       {!!post.caption && <Text style={styles.caption}>{post.caption}</Text>}
+
+      {!!activity && <RunSummaryStrip activity={activity} colors={STRIP_COLORS} />}
 
       <PostPhotoCarousel urls={photosOfPost(post)} style={styles.media} />
 
@@ -170,6 +184,7 @@ const styles = StyleSheet.create({
   badgeTextPrimary: { color: '#4c1fa8' },
 
   date: { ...typography3.labelSm, fontSize: 10, color: colors3.onSurfaceVariant, opacity: 0.8 },
+  activityType: { ...typography3.labelSm, fontSize: 12, color: colors3.primary, fontWeight: '700' },
   caption: { ...typography3.bodyMd },
   media: { width: '100%', aspectRatio: 1, borderRadius: 8, backgroundColor: colors3.surfaceVariant },
   actionsRow: {
