@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { MealCoverArt } from '@/components/MealCoverArt';
 import { MealDay } from '@/services/meals';
 import { dayAccessibilityLabel, dayShortLabel, dayTabLabel, formatKcal } from '@/utils/mealDays';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -22,10 +23,10 @@ interface DayCardProps {
 }
 
 /**
- * Cartao "de pasta" de um dia: aba pequena no topo (rotulo), corpo claro com borda, icone de garfo e faca (sem
- * foto; as fotos ficam na lista do dia e em "Ver todas as fotos"), calorias do dia e "dia da semana + numero ·
- * N ref.". Hoje ganha borda de 2 pt e aba na cor primaria. Dia com refeicao: icone cheio roxo; dia sem refeicao:
- * icone vazado cinza e cartao apagado, mas continua tocavel.
+ * Cartao "de pasta" de um dia: aba pequena no topo (rotulo), corpo claro com borda, capa ilustrada (prato roxo, MealCoverArt;
+ * sem foto: as fotos ficam na lista do dia e em "Ver todas as fotos"), calorias do dia e "dia da semana + numero ·
+ * N ref.". Hoje ganha borda de 2 pt e aba na cor primaria. Dia com refeicao: capa inteira; dia sem refeicao: capa esmaecida
+ * e cartao apagado, mas continua tocavel.
  */
 export function DayCard({ day, index, onPress }: DayCardProps) {
   const isToday = index === 0;
@@ -47,11 +48,8 @@ export function DayCard({ day, index, onPress }: DayCardProps) {
 
       <View style={[styles.body, isToday && styles.bodyToday]}>
         <View style={[styles.iconBox, isEmpty ? styles.iconBoxEmpty : styles.iconBoxFilled]}>
-          <Ionicons
-            name={isEmpty ? 'restaurant-outline' : 'restaurant'}
-            size={28}
-            color={isEmpty ? colors3.outline : colors3.primary}
-          />
+          {/* capa ilustrada (prato roxo): o cartao do dia nunca mostra foto; dia sem refeicao usa a versao esmaecida */}
+          <MealCoverArt size={ICON_BOX_HEIGHT - 4} faded={isEmpty} />
         </View>
         <Text style={styles.kcal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {formatKcal(day.total_calories)}

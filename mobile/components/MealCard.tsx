@@ -1,8 +1,8 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { GlassCard } from '@/components/GlassCard';
+import { MealCoverArt } from '@/components/MealCoverArt';
 import { Meal, formatMealTime } from '@/services/meals';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -44,8 +44,9 @@ export function MealCard({ meal }: { meal: Meal }) {
 
   return (
     <GlassCard variant="card" style={styles.card}>
+      {/* refeicao SEM foto: capa ilustrada (prato roxo); com foto, a foto continua sendo mostrada (acima) */}
       <View style={styles.photoPlaceholder}>
-        <Ionicons name="restaurant" size={20} color={colors3.primary} />
+        <MealCoverArt size={44} />
       </View>
       {info}
     </GlassCard>
@@ -71,7 +72,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius3.md,
-    backgroundColor: 'rgba(107, 56, 212, 0.12)',
+    overflow: 'hidden',
+    backgroundColor: colors3.primaryFixed,
     alignItems: 'center',
     justifyContent: 'center',
   },
