@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import type { MonthHeaderRow } from '@/services/activityGroupsState';
 import { HISTORY_FILTERS, HistoryItem, historyNavTarget, historyRowLabels } from '@/services/profileFeedState';
 
 const ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -38,6 +39,29 @@ export function HistoryFilterChips({ selectedKey, onSelect }: { selectedKey: str
         );
       })}
     </ScrollView>
+  );
+}
+
+/**
+ * Cabecalho de um mes do historico: toque abre/fecha as atividades do mes (so esconde as linhas; nada e apagado). Mostra o mes, a contagem
+ * (respeitando o filtro) e, so com dado real, a distancia total (Corrida/Pedalada).
+ */
+export function MonthHeader({ row, onToggle }: { row: MonthHeaderRow; onToggle: () => void }) {
+  const detail = [row.countText, row.summary].filter(Boolean).join(' • ');
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: row.open }}
+      accessibilityLabel={`${row.label}, ${detail}. ${row.open ? 'Recolher' : 'Expandir'}`}
+      style={styles.monthHeader}
+    >
+      <View style={styles.monthTexts}>
+        <Text style={styles.monthLabel}>{row.label}</Text>
+        <Text style={styles.monthDetail}>{detail}</Text>
+      </View>
+      <Ionicons name={row.open ? 'chevron-up' : 'chevron-down'} size={20} color={colors3.onSurfaceVariant} />
+    </Pressable>
   );
 }
 
@@ -94,6 +118,20 @@ const styles = StyleSheet.create({
   chipText: { ...typography3.labelSm, fontSize: 12, textTransform: 'none' },
   chipTextSelected: { color: colors3.white, fontFamily: 'Inter_700Bold' },
   row: { marginBottom: spacing3.sm },
+  monthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingVertical: spacing3.sm,
+    marginTop: spacing3.xs,
+    marginBottom: spacing3.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors3.outlineVariant,
+  },
+  monthTexts: { flex: 1, gap: 2 },
+  monthLabel: { ...typography3.headlineMd, fontSize: 16 },
+  monthDetail: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
   iconWrap: {
     width: 40,

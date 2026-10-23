@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +15,7 @@ import { OverallCard } from '@/components/OverallCard';
 import { PillTabs } from '@/components/PillTabs';
 import { FeedEmpty, FeedError, FeedFooterLoading, FeedLoading } from '@/components/profile/FeedStateViews';
 import { GALLERY_COLUMNS, GalleryCell } from '@/components/profile/GalleryCell';
-import { HistoryFilterChips, HistoryRow } from '@/components/profile/HistoryParts';
+import { HistoryFilterChips, HistoryRow, MonthHeader } from '@/components/profile/HistoryParts';
 import { AchievementsTab } from '@/components/profile/AchievementsTab';
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity';
 import { ProgressTab } from '@/components/profile/ProgressTab';
@@ -44,6 +44,15 @@ import {
   listMyChallengeCheckins,
 } from '@/services/challenges';
 import { getTrainingFrequency, getTrainingStreaks, getWorkoutProgress } from '@/services/dashboard';
+import {
+  HistoryListRow,
+  OpenOverrides,
+  buildHistoryRows,
+  groupHistoryByMonth,
+  historyTotalText,
+  shouldAutoLoadMore,
+  toggleMonth,
+} from '@/services/activityGroupsState';
 import { getGallery, getMyActivities } from '@/services/profileFeed';
 import {
   GalleryItem,
@@ -135,6 +144,32 @@ export default function ProfileScreen() {
     enabled: tab === 'gallery',
   });
   const weight = useWeightPoints(tab === 'progress');
+  // Historico por mes (so apresentacao: todos os itens continuam carregados; mes recolhido so esconde as linhas). O mes atual e o anterior comecam
+  // abertos; a escolha da pessoa vale ate trocar o filtro.
+  const [openMonths, setOpenMonths] = useState<OpenOverrides>({});
+  const selectHistoryFilter = (key: string) => {
+    setOpenMonths({});
+    setHistoryFilterKey(key);
+  };
+  const historyGroups = useMemo(() => groupHistoryByMonth(history.state.items), [history.state.items]);
+  const historyRows = useMemo(
+    () => buildHistoryRows(historyGroups, openMonths, historyFilterKey, history.state.hasMore),
+    [historyGroups, openMonths, historyFilterKey, history.state.hasMore]
+  );
+  // Carrega mais paginas SOZINHO so enquanto o mes atual e o anterior (abertos) ainda podem estar incompletos; uma tentativa por tamanho da lista
+  // (se uma pagina falhar nao fica tentando em laco: o botao no fim da lista continua disponivel).
+  const autoLoadedAtRef = useRef(-1);
+  useEffect(() => {
+    const s = history.state;
+    if (tab !== 'history' || !s.loaded || s.loading || s.loadingMore || s.refreshing || s.error) return;
+    if (!shouldAutoLoadMore(s.items, s.hasMore)) return;
+    if (autoLoadedAtRef.current === s.items.length) return;
+    autoLoadedAtRef.current = s.items.length;
+    history.loadMore();
+  }, [tab, history.state, history.loadMore]);
+  useEffect(() => {
+    autoLoadedAtRef.current = -1; // trocou o filtro: recomeca
+  }, [historyFilterKey]);
   // Convidar amigos para o app: cancelar a folha de compartilhar nao e erro (nada aparece); falha inesperada vira um aviso e a tela segue normal.
   const invitingRef = useRef(false);
   const handleInvite = async () => {
@@ -1071,7 +1106,12 @@ export default function ProfileScreen() {
           onInvite={handleInvite}
         />
         <PillTabs tabs={PROFILE_TABS} selected={tab} onSelect={selectTab} />
-        {tab === 'history' && <HistoryFilterChips selectedKey={historyFilterKey} onSelect={setHistoryFilterKey} />}
+        {tab === 'history' && <HistoryFilterChips selectedKey={historyFilterKey} onSelect={selectHistoryFilter} />}
+        {tab === 'history' && !!historyTotalText(history.state.items.length, history.state.hasMore, historyFilterKey) && (
+          <Text style={styles.historyTotal} accessibilityLiveRegion="polite">
+            {historyTotalText(history.state.items.length, history.state.hasMore, historyFilterKey)}
+          </Text>
+        )}
         {visited.progress && (
           <View style={tab === 'progress' ? styles.tabBody : styles.hidden}>
             <ProgressTab
@@ -1094,7 +1134,7 @@ export default function ProfileScreen() {
   );
 
   const activeFeed = tab === 'history' ? history : tab === 'gallery' ? gallery : null;
-  const listData: unknown[] = tab === 'history' ? history.state.items : tab === 'gallery' ? gallery.state.items : [];
+  const listData: unknown[] = tab === 'history' ? historyRows : tab === 'gallery' ? gallery.state.items : [];
   const listEmpty =
     activeFeed === null ? null : activeFeed.state.loading || (!activeFeed.state.loaded && !activeFeed.state.error) ? (
       <FeedLoading />
@@ -1104,13 +1144,27 @@ export default function ProfileScreen() {
         onRetry={activeFeed.retry}
       />
     ) : tab === 'history' ? (
-      <FeedEmpty icon="barbell-outline" title="Nenhuma atividade ainda" text="Seus treinos, corridas e outras atividades aparecem aqui." />
+      historyFilterKey !== 'all' ? (
+        <FeedEmpty icon="barbell-outline" title="Nenhuma atividade neste filtro" text="Tente outro filtro ou escolha Tudo para ver todas as atividades." />
+      ) : (
+        <FeedEmpty icon="barbell-outline" title="Nenhuma atividade ainda" text="Seus treinos, corridas e outras atividades aparecem aqui." />
+      )
     ) : (
       <FeedEmpty icon="images-outline" title="Nenhuma foto ainda" text="As fotos dos posts que você publica aparecem aqui. Fotos de refeição não entram na galeria." />
     );
   const listFooter = (
     <View style={styles.listFooter}>
       <FeedFooterLoading visible={!!activeFeed?.state.loadingMore} />
+      {tab === 'history' && history.state.hasMore && !history.state.loadingMore && history.state.loaded && (
+        <Pressable
+          onPress={() => history.loadMore()}
+          style={styles.loadOlder}
+          accessibilityRole="button"
+          accessibilityLabel="Carregar atividades mais antigas"
+        >
+          <Text style={styles.loadOlderText}>Carregar atividades mais antigas</Text>
+        </Pressable>
+      )}
       {settingsSection}
       {postsSection}
     </View>
@@ -1124,8 +1178,16 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.listContent}
         data={listData}
         numColumns={tab === 'gallery' ? GALLERY_COLUMNS : 1}
-        keyExtractor={(item) => (tab === 'gallery' ? (item as GalleryItem).post_id : (item as HistoryItem).id)}
-        renderItem={({ item }) => (tab === 'gallery' ? <GalleryCell item={item as GalleryItem} /> : <HistoryRow item={item as HistoryItem} />)}
+        keyExtractor={(item) => (tab === 'gallery' ? (item as GalleryItem).post_id : (item as HistoryListRow).key)}
+        renderItem={({ item }) => {
+          if (tab === 'gallery') return <GalleryCell item={item as GalleryItem} />;
+          const row = item as HistoryListRow;
+          return row.kind === 'header' ? (
+            <MonthHeader row={row} onToggle={() => setOpenMonths((prev) => toggleMonth(prev, { key: row.monthKey, defaultOpen: row.open }))} />
+          ) : (
+            <HistoryRow item={row.item} />
+          );
+        }}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         ListFooterComponent={listFooter}
@@ -1357,6 +1419,17 @@ const styles = StyleSheet.create({
   tabBody: { alignSelf: 'stretch', marginTop: spacing3.sm },
   hidden: { display: 'none' },
   listFooter: { width: '100%' },
+  historyTotal: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, textAlign: 'center' },
+  loadOlder: {
+    minHeight: 48,
+    marginVertical: spacing3.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius3.pill,
+    borderWidth: 1,
+    borderColor: colors3.primary,
+  },
+  loadOlderText: { ...typography3.labelMd, color: colors3.primary, textTransform: 'none' },
   settingsSection: { width: '100%', marginTop: spacing3.xl, alignItems: 'center', gap: spacing3.sm },
   sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
