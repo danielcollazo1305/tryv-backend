@@ -25,6 +25,8 @@ export interface GalleryItem {
   post_id: string;
   url: string;
   created_at: string;
+  /** Fotos do post (carrossel); ausente = 1 (servidor antigo). Ver galleryPhotoCount em services/postPhotosState.ts. */
+  photo_count?: number;
 }
 
 export interface CursorPage<T> {

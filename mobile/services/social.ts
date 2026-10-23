@@ -38,7 +38,10 @@ export interface Post {
   avatar_thumb_url?: string | null;
   type: string;
   caption: string | null;
+  /** Capa (1a foto). */
   media_url: string | null;
+  /** Todas as fotos em ordem (carrossel). Ausente em servidor antigo: ler por photosOfPost (services/postPhotosState.ts). */
+  media_urls?: string[] | null;
   visibility: string;
   reference_id: string | null;
   created_at: string;
@@ -51,6 +54,8 @@ export interface PostCreatePayload {
   type: PostType;
   caption?: string | null;
   media_url?: string | null;
+  /** Carrossel (2 a 10 fotos): sempre junto com media_url = a primeira. */
+  media_urls?: string[];
   visibility?: PostVisibility;
   origin?: PostOrigin;
 }
