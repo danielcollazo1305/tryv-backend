@@ -66,6 +66,20 @@ class RunOut(BaseModel):
         from_attributes = True
 
 
+class PublicRoutePoint(BaseModel):
+    lat: float
+    lng: float
+
+
+class PublicRouteOut(BaseModel):
+    """Trajeto para o MAPA de um post de corrida: so o trecho do meio (sem os primeiros e ultimos ~200 m), sem horario nem altitude,
+    no maximo ~300 pontos. available=false (points vazio) = percurso curto demais: o post sai so com o resumo."""
+
+    available: bool
+    points: list[PublicRoutePoint]
+    trimmed_meters_each_end: int
+
+
 class SplitOut(BaseModel):
     km: int
     distance_meters: float

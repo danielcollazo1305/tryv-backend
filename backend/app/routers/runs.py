@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.avatar_visibility import is_adult
 from app.core.database import get_db
+from app.core.route_privacy import MAX_PUBLIC_POINTS, TRIM_METERS, public_route
 from app.core.deps import get_current_user, has_active_pro_subscription, require_pro_subscription
 from app.models.heart_rate import HeartRateSample
 from app.models.run import Run
@@ -20,6 +22,7 @@ from app.schemas.run import (
     DurationRecordOut,
     PaceRecordOut,
     PersonalRecordsOut,
+    PublicRouteOut,
     RunCreate,
     RunCreateOut,
     RunDetailOut,
@@ -303,6 +306,25 @@ def get_run(
         elevation_gain_meters=elevation_gain_meters(run.route_points),
         splits=calculate_km_splits(run.route_points),
     )
+
+
+@router.get("/{run_id}/route-public", response_model=PublicRouteOut)
+def get_run_route_public(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Trajeto para desenhar o MAPA de um post de corrida: SOMENTE o dono (corrida de outra pessoa = 404) e so maior de 18 anos (menor ou
+    sem data de nascimento = 403). Devolve so o trecho do meio, sem os primeiros e ultimos ~200 m, sem horario e com no maximo ~300 pontos.
+    Percurso curto demais (< ~600 m) = available=false e points vazio (post so com o resumo). A rota completa nunca sai por aqui."""
+    run = _get_run_or_404(db, current_user, run_id)
+    if not is_adult(current_user.date_of_birth):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="O mapa da corrida so fica disponivel para maiores de 18 anos.",
+        )
+    points = public_route(run.route_points)
+    return PublicRouteOut(available=len(points) >= 2, points=points, trimmed_meters_each_end=int(TRIM_METERS))
 
 
 @router.get("/{run_id}/insight", response_model=ActivityInsightOut)
