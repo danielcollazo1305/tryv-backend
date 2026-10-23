@@ -25,7 +25,7 @@ const fmt = (n: number, digits = 1) => n.toFixed(digits).replace('.', ',');
 /**
  * Aba Progresso do SEU perfil: peso (grafico dos ultimos 30 dias, que o app ja tem, e atalhos para registrar e ver o historico), medidas
  * (o que o usuario ja informou: altura, peso e % de gordura), consistencia (os 4 cards que ja existiam no perfil) e um atalho "Musculos".
- * A tela de musculos NAO existe no app ainda (so o componente MuscleDiagram dentro do treino), entao o atalho fica desabilitado, "em breve".
+ * O atalho "Musculos" abre a tela app/muscles.tsx (series concluidas por grupo muscular). Esta aba so existe no SEU perfil (o endpoint e so do proprio usuario).
  */
 export function ProgressTab({ points, error, onRetry, weightKg, heightCm, bodyFatPercentage, consistency }: ProgressTabProps) {
   const latest = points && points.length > 0 ? points[points.length - 1].weight_kg : weightKg ?? null;
@@ -93,11 +93,16 @@ export function ProgressTab({ points, error, onRetry, weightKg, heightCm, bodyFa
 
       {consistency}
 
-      <View style={[styles.muscles, styles.mutedBox]} accessible accessibilityRole="button" accessibilityState={{ disabled: true }} accessibilityLabel="Músculos, em breve">
-        <Ionicons name="body-outline" size={20} color={colors3.onSurfaceVariant} />
+      <Pressable
+        style={[styles.muscles, styles.musclesBox]}
+        onPress={() => router.push('/muscles')}
+        accessibilityRole="button"
+        accessibilityLabel="Músculos: séries concluídas por grupo muscular"
+      >
+        <Ionicons name="body-outline" size={20} color={colors3.primary} />
         <Text style={styles.musclesTitle}>Músculos</Text>
-        <Text style={styles.soon}>Em breve</Text>
-      </View>
+        <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
+      </Pressable>
     </View>
   );
 }
@@ -121,7 +126,6 @@ const styles = StyleSheet.create({
   measureLabel: { ...typography3.bodyMd, color: colors3.onSurfaceVariant },
   measureValue: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold' },
   muscles: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, padding: spacing3.md, borderRadius: radius3.xl },
-  mutedBox: { backgroundColor: colors3.surfaceContainerHigh, opacity: 0.7 },
+  musclesBox: { backgroundColor: colors3.surfaceContainerHigh },
   musclesTitle: { ...typography3.bodyMd, fontFamily: 'Inter_700Bold', flex: 1 },
-  soon: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
 });
