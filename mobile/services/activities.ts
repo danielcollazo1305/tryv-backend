@@ -158,6 +158,16 @@ export async function listRuns(): Promise<Run[]> {
   return response.data;
 }
 
+/**
+ * Trajeto PUBLICO para o mapa de um post de corrida (GET /runs/{id}/route-public): so dono maior de 18; pontos {lat,lng} sem os 200 m do inicio
+ * e do fim; `available: false` quando o percurso e curto. 404 = servidor antigo (sem a rota); 403 = menor. Ler por normalizePublicRoute
+ * (services/runPostState.ts). NUNCA use route_points de getRun para montar o mapa de um post.
+ */
+export async function getRoutePublic(id: string): Promise<unknown> {
+  const response = await api.get<unknown>(`/runs/${id}/route-public`);
+  return response.data;
+}
+
 export async function getRun(id: string): Promise<RunDetail> {
   const response = await api.get<RunDetail>(`/runs/${id}`);
   return response.data;

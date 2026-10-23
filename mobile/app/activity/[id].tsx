@@ -180,6 +180,26 @@ export default function ActivityDetailScreen() {
           </LiquiglassCard>
         )}
 
+        {!loading && isRun && run && (
+          <Button2
+            label="Publicar no feed"
+            variant="secondary"
+            onPress={() =>
+              router.push({
+                pathname: '/activity/publish',
+                params: {
+                  runId: id,
+                  type: run.activity_type,
+                  distance: String(run.distance_meters),
+                  duration: String(run.duration_seconds),
+                  pace: run.avg_pace_seconds_per_km == null ? '' : String(run.avg_pace_seconds_per_km),
+                },
+              })
+            }
+            accessibilityLabel="Publicar esta atividade no feed"
+          />
+        )}
+
         {!loading && run && run.splits.length > 0 && (
           <LiquiglassCard style={styles.splitsCard}>
             <Text style={styles.splitsTitle}>Splits por km</Text>
