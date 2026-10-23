@@ -53,6 +53,16 @@ class PostUpdate(BaseModel):
     visibility: PostVisibility | None = None
 
 
+class ActivitySummary(BaseModel):
+    """Resumo da corrida de um post type=run: SO isto. Nunca route_points, coordenadas nem local."""
+
+    activity_type: str
+    distance_meters: float
+    duration_seconds: int
+    avg_pace_seconds_per_km: float | None = None
+    started_at: datetime
+
+
 class PostOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
@@ -66,6 +76,8 @@ class PostOut(BaseModel):
     # Todas as fotos em ordem (posts antigos: [media_url]; sem foto: []). media_url continua sendo a capa.
     media_urls: list[str] = []
     visibility: str
+    # Post de corrida (type=run): resumo da corrida ligada (reference_id). Null nos demais posts e quando a corrida nao existe mais.
+    activity: ActivitySummary | None = None
     reference_id: uuid.UUID | None = None
     created_at: datetime
     likes_count: int

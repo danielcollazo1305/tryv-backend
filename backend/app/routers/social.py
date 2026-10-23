@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 from app.core.avatar_visibility import adult_birth_cutoff, avatar_fields, visible_avatar
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.avatar_visibility import is_adult
+from app.core.post_activity import RUN_POST_TYPE, activity_summaries
 from app.core.post_media import post_media_urls, urls_in_carousels
+from app.models.run import Run
 from app.core.deps import get_current_user
 from app.models.media_upload import MediaUpload
 from app.models.social import Comment, Follow, Like, Post
@@ -48,6 +51,7 @@ def _post_out(
     comments_count: int = 0,
     is_liked_by_me: bool = False,
     avatar: dict | None = None,
+    activity=None,
 ) -> PostOut:
     return PostOut(
         **(avatar or {}),
@@ -58,6 +62,7 @@ def _post_out(
         caption=post.caption,
         media_url=post.media_url,
         media_urls=post_media_urls(post),
+        activity=activity,
         visibility=post.visibility,
         reference_id=post.reference_id,
         created_at=post.created_at,
@@ -158,6 +163,23 @@ def create_post(
     ensure_max_length(payload.caption, CAPTION_MAX, "post_caption")
     enforce_text_filter(db, user_id=current_user.id, fields=[("post_caption", payload.caption)])
 
+    # Post de corrida (type=run): precisa de reference_id = uma corrida DO PROPRIO usuario, ainda sem post. Menor de 18 anos (ou sem data de
+    # nascimento) publica so o resumo: nada de imagem (o mapa e uma imagem enviada pelo app).
+    if payload.type == RUN_POST_TYPE:
+        if payload.reference_id is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Escolha a corrida que voce quer publicar.")
+        if payload.media_url and not is_adult(current_user.date_of_birth):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="O mapa da corrida so pode ser publicado por maiores de 18 anos. Publique apenas o resumo.",
+            )
+        # trava a linha da corrida: dois pedidos ao mesmo tempo nao criam dois posts da mesma corrida
+        run = db.query(Run).filter(Run.id == payload.reference_id, Run.user_id == current_user.id).with_for_update().first()
+        if run is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Corrida nao encontrada.")
+        if db.query(Post.id).filter(Post.type == RUN_POST_TYPE, Post.reference_id == run.id).first() is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta corrida ja foi publicada.")
+
     # Foto do post (E3e fase 4): so vale a que foi APROVADA no upload (POST /media/upload, pasta posts) pelo proprio usuario.
     # Fecha o buraco de apontar o post para qualquer endereco (de outro site, de outra pasta ou de outra pessoa).
     # Carrossel (ate 10): CADA foto passa pela mesma validacao (upload do proprio usuario, pasta posts, ja aprovado) e nenhuma pode estar em
@@ -207,7 +229,12 @@ def create_post(
     db.commit()
     db.refresh(post)
     # post recem-criado: 0 curtidas, 0 comentarios; o autor e o proprio usuario (sempre ve o seu avatar)
-    return _post_out(post, current_user.name, avatar=avatar_fields(current_user, current_user.id))
+    return _post_out(
+        post,
+        current_user.name,
+        avatar=avatar_fields(current_user, current_user.id),
+        activity=activity_summaries(db, [post]).get(post.id),
+    )
 
 
 @router.get("/posts/{post_id}", response_model=PostOut)
@@ -243,6 +270,7 @@ def get_post(
         counts["comments"],
         counts["liked"],
         avatar=_author_avatar(row, post.user_id, current_user.id),
+        activity=activity_summaries(db, [post]).get(post.id),
     )
 
 
@@ -310,6 +338,7 @@ def update_post(
         counts["comments"],
         counts["liked"],
         avatar=_author_avatar(row, post.user_id, current_user.id),
+        activity=activity_summaries(db, [post]).get(post.id),
     )
 
 
@@ -361,6 +390,7 @@ def list_user_posts(
 
     posts = query.order_by(Post.created_at.desc()).all()
     counts = _post_counts(db, [post.id for post in posts], current_user.id)
+    activities = activity_summaries(db, posts)
     return [
         _post_out(
             post,
@@ -369,6 +399,7 @@ def list_user_posts(
             counts[post.id]["comments"],
             counts[post.id]["liked"],
             avatar=avatar_fields(target_user, current_user.id),
+            activity=activities.get(post.id),
         )
         for post in posts
     ]
@@ -658,6 +689,7 @@ def _explore_feed(db: Session, current_user: User, limit: int, cursor: str | Non
         response.headers[NEXT_CURSOR_HEADER] = _encode_cursor(last.created_at, last.id)
 
     counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
+    activities = activity_summaries(db, [row[0] for row in rows])
     return [
         _post_out(
             row[0],
@@ -666,6 +698,7 @@ def _explore_feed(db: Session, current_user: User, limit: int, cursor: str | Non
             counts[row[0].id]["comments"],
             counts[row[0].id]["liked"],
             avatar=_author_avatar(row, row[0].user_id, current_user.id),
+            activity=activities.get(row[0].id),
         )
         for row in rows
     ]
@@ -673,6 +706,7 @@ def _explore_feed(db: Session, current_user: User, limit: int, cursor: str | Non
 
 def _feed_rows_to_posts(db: Session, current_user: User, rows) -> list[PostOut]:
     counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
+    activities = activity_summaries(db, [row[0] for row in rows])
     return [
         _post_out(
             row[0],
@@ -681,6 +715,7 @@ def _feed_rows_to_posts(db: Session, current_user: User, rows) -> list[PostOut]:
             counts[row[0].id]["comments"],
             counts[row[0].id]["liked"],
             avatar=_author_avatar(row, row[0].user_id, current_user.id),
+            activity=activities.get(row[0].id),
         )
         for row in rows
     ]
@@ -757,6 +792,7 @@ def get_feed(
     )
 
     counts = _post_counts(db, [row[0].id for row in rows], current_user.id)
+    activities = activity_summaries(db, [row[0] for row in rows])
     return [
         _post_out(
             row[0],
@@ -765,6 +801,7 @@ def get_feed(
             counts[row[0].id]["comments"],
             counts[row[0].id]["liked"],
             avatar=_author_avatar(row, row[0].user_id, current_user.id),
+            activity=activities.get(row[0].id),
         )
         for row in rows
     ]
