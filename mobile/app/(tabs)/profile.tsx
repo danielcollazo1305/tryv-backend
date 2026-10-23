@@ -57,6 +57,7 @@ import {
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
+import { shareInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
 import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
@@ -134,6 +135,19 @@ export default function ProfileScreen() {
     enabled: tab === 'gallery',
   });
   const weight = useWeightPoints(tab === 'progress');
+  // Convidar amigos para o app: cancelar a folha de compartilhar nao e erro (nada aparece); falha inesperada vira um aviso e a tela segue normal.
+  const invitingRef = useRef(false);
+  const handleInvite = async () => {
+    if (invitingRef.current) return;
+    invitingRef.current = true;
+    try {
+      if ((await shareInvite()) === 'failed') {
+        Alert.alert('Nao foi possivel convidar', 'Nao foi possivel abrir o compartilhamento agora. Tente de novo em instantes.');
+      }
+    } finally {
+      invitingRef.current = false;
+    }
+  };
   const selectTab = (next: ProfileTab) => {
     setTab(next);
     setVisited((prev) => markVisited(prev, next));
@@ -1054,6 +1068,7 @@ export default function ProfileScreen() {
           bio={user?.bio}
           link={user?.link}
           onEdit={() => router.push('/settings/edit-profile')}
+          onInvite={handleInvite}
         />
         <PillTabs tabs={PROFILE_TABS} selected={tab} onSelect={selectTab} />
         {tab === 'history' && <HistoryFilterChips selectedKey={historyFilterKey} onSelect={setHistoryFilterKey} />}

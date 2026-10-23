@@ -11,13 +11,15 @@ interface ProfileIdentityProps {
   bio?: string | null;
   link?: string | null;
   onEdit: () => void;
+  /** Convidar amigos para usar o app (folha de compartilhar do sistema). Omitido = sem o botao. */
+  onInvite?: () => void;
 }
 
 /**
  * Identidade do SEU perfil (abaixo do cartao com avatar e nome): @usuario (ou um convite discreto para definir), bio, link e o botao
  * "Editar perfil". Para o dono, bio e link aparecem sempre (a regra de 18+ vale para OUTRAS pessoas). O link so vira botao se for https.
  */
-export function ProfileIdentity({ username, bio, link, onEdit }: ProfileIdentityProps) {
+export function ProfileIdentity({ username, bio, link, onEdit, onInvite }: ProfileIdentityProps) {
   const safeLink = openableLink(link);
   return (
     <View style={styles.box}>
@@ -46,6 +48,9 @@ export function ProfileIdentity({ username, bio, link, onEdit }: ProfileIdentity
         </Pressable>
       )}
       <Button3 label="Editar perfil" variant="secondary" onPress={onEdit} accessibilityLabel="Editar perfil" />
+      {!!onInvite && (
+        <Button3 label="Convidar amigos" variant="secondary" onPress={onInvite} accessibilityLabel="Convidar amigos para usar o Tryv Fit" />
+      )}
     </View>
   );
 }

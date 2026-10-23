@@ -1,16 +1,24 @@
 import { Share } from 'react-native';
 
+import { InviteOutcome, buildInviteMessage, inviteOutcomeFromShareResult } from '@/services/inviteMessage';
+
 /**
- * Nenhum link de loja (App Store/Play Store) nem site foi encontrado em
- * lugar nenhum do projeto (.env, app.json, eas.json) -- o app
- * provavelmente ainda nao foi publicado nas lojas. Mensagem generica so
- * com o nome do app, sem inventar uma URL falsa. Quando houver um link
- * real, adicionar aqui.
+ * Link de loja (App Store/Play Store) do app. VAZIO enquanto o app nao for publicado: a mensagem de convite sai sem link (nada de inventar
+ * uma URL). Quando houver o link real, preencher aqui e o convite passa a levar o link no fim.
  */
-export async function shareInvite(): Promise<void> {
-  await Share.share({
-    message: 'Estou usando o Tryv para treinar e cuidar da alimentacao. Vem comigo!',
-  });
+export const APP_STORE_URL = '';
+
+/**
+ * Abre a folha de compartilhar do sistema com o convite para usar o app. NUNCA lanca: fechar a folha e 'dismissed' (nao e erro) e uma
+ * falha inesperada vira 'failed' para a tela decidir o aviso.
+ */
+export async function shareInvite(): Promise<InviteOutcome> {
+  try {
+    const result = await Share.share({ message: buildInviteMessage(APP_STORE_URL) });
+    return inviteOutcomeFromShareResult(result);
+  } catch {
+    return 'failed';
+  }
 }
 
 export async function shareProfile(userName: string): Promise<void> {
