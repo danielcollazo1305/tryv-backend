@@ -1,10 +1,12 @@
 import React, { useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Avatar } from '@/components/Avatar';
 import { GlassCard } from '@/components/GlassCard';
 import { ObscuredCard } from '@/components/ObscuredCard';
+import { PostPhotoCarousel } from '@/components/PostPhotoCarousel';
+import { photosOfPost } from '@/services/postPhotosState';
 import { Post, formatPostDate } from '@/services/social';
 import { UserBadges } from '@/services/user';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -115,7 +117,7 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
 
       {!!post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
-      {!!post.media_url && <Image source={{ uri: post.media_url }} style={styles.media} />}
+      <PostPhotoCarousel urls={photosOfPost(post)} style={styles.media} />
 
       <View style={styles.actionsRow}>
         <Pressable style={styles.actionBtn} onPress={handleLikePress} hitSlop={8}>

@@ -1,8 +1,10 @@
 import React, { useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Card } from '@/components/Card';
+import { PostPhotoCarousel } from '@/components/PostPhotoCarousel';
+import { photosOfPost } from '@/services/postPhotosState';
 import { Post, formatPostDate } from '@/services/social';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
@@ -37,7 +39,7 @@ export function PostCard({ post, onPressAuthor, onToggleLike, onPressComments }:
         <Text style={styles.date}>{formatPostDate(post.created_at)}</Text>
       </Pressable>
 
-      {!!post.media_url && <Image source={{ uri: post.media_url }} style={styles.media} />}
+      <PostPhotoCarousel urls={photosOfPost(post)} style={styles.media} />
 
       {!!post.caption && <Text style={styles.caption}>{post.caption}</Text>}
 
