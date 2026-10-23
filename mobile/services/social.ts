@@ -29,6 +29,15 @@ export const SHARE_VISIBILITY_OPTIONS: { value: ShareVisibility; label: string }
   { value: 'public', label: 'Publico' },
 ];
 
+/** Resumo da corrida de um post type=run (so isto; nunca rota). Mesmo formato de RunActivity em services/runPostState.ts. */
+export interface PostActivity {
+  activity_type: string;
+  distance_meters: number;
+  duration_seconds: number;
+  avg_pace_seconds_per_km: number | null;
+  started_at: string | null;
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -43,6 +52,8 @@ export interface Post {
   /** Todas as fotos em ordem (carrossel). Ausente em servidor antigo: ler por photosOfPost (services/postPhotosState.ts). */
   media_urls?: string[] | null;
   visibility: string;
+  /** Post de corrida (type=run): resumo da atividade (nunca rota). Ausente/null = post normal ou servidor antigo; ler por normalizeActivity (services/runPostState.ts). */
+  activity?: PostActivity | null;
   reference_id: string | null;
   created_at: string;
   likes_count: number;
@@ -56,6 +67,8 @@ export interface PostCreatePayload {
   media_url?: string | null;
   /** Carrossel (2 a 10 fotos): sempre junto com media_url = a primeira. */
   media_urls?: string[];
+  /** Post de corrida (type=run): id de uma corrida do proprio usuario. */
+  reference_id?: string;
   visibility?: PostVisibility;
   origin?: PostOrigin;
 }
