@@ -80,6 +80,15 @@
       "expo-video",
       "react-native-health-connect",
       [
+        "@appeeky/expo-healthkit",
+        {
+          "healthSharePermission": "O Tryv Fit lê do Apple Saúde seu sono, frequência cardíaca, respiração, passos, distância, calorias ativas e treinos para mostrar seu progresso, calcular sua prontidão para treinar e importar seus treinos. Parte desses dados é enviada à sua conta no Tryv Fit. Não usamos esses dados para publicidade e o app não grava nada no Apple Saúde.",
+          "healthUpdatePermission": false,
+          "isBackgroundDeliveryEnabled": true,
+          "healthConnectPermissions": []
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
