@@ -165,7 +165,8 @@ export function fetchWorkoutsSinceAnchor(
  * Devolve uma funcao de limpeza; quem chama deve guarda-la e chamar no
  * cleanup do efeito que registrou isso.
  */
-export function setupBackgroundWorkoutDelivery(onUpdate: () => void): Promise<() => void> {
+// onUpdate pode devolver uma Promise: no iOS o sistema so recebe o "terminei" quando ela acaba (o app nao e suspenso no meio da importacao).
+export function setupBackgroundWorkoutDelivery(onUpdate: () => void | Promise<void>): Promise<() => void> {
   return isIOS ? healthkit.setupBackgroundWorkoutDelivery(onUpdate) : Promise.resolve(() => {});
 }
 

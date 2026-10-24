@@ -233,8 +233,9 @@ export async function startBackgroundImportTrigger(): Promise<() => void> {
   if (!(await isHealthAuthorizedWithoutPrompting())) return () => {};
 
   try {
-    return await setupBackgroundWorkoutDelivery(() => {
-      void runAutoImport('background');
+    // devolve a Promise da importacao: o iOS so e avisado de que acabou quando ela termina (nao suspende o app no meio)
+    return await setupBackgroundWorkoutDelivery(async () => {
+      await runAutoImport('background');
     });
   } catch (error) {
     console.error('[autoImport] background: falha ao configurar entrega em segundo plano', error);
