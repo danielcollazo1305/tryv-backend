@@ -44,7 +44,7 @@ function monthLabel(year: number, month: number): string {
 }
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, isPro } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
   const insets = useSafeAreaInsets();
 
@@ -284,7 +284,8 @@ export default function HomeScreen() {
       */}
       <MonthComparisonCard />
 
-      <ReadinessCard />
+      {/* Prontidao e so para Pro na Home (o endpoint e livre por causa da Vitalidade, na aba Treino): decide pelo plano, nao pelo 402. */}
+      {isPro === true && <ReadinessCard />}
 
       {insightLoading && (
         <View style={styles.insightLoading}>

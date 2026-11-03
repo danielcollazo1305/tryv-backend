@@ -9,6 +9,7 @@ import { ProGate } from '@/components/ProGate';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
+import { VitalityMonitor } from '@/components/VitalityMonitor';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
 import { UserBadges, getUserBadges } from '@/services/user';
@@ -122,6 +123,10 @@ export default function WorkoutScreen() {
           </Pressable>
           <ProfileAvatarButton isPro={isPro ?? undefined} size={36} />
         </View>
+        {/* Vitalidade e gratuita: fica FORA do ProGate (que nao e alterado) e acima dele. */}
+        <View style={styles.gateVitality}>
+          <VitalityMonitor />
+        </View>
         <ProGate
           variant="fullscreen"
           title="Acesso a treinos"
@@ -160,6 +165,9 @@ export default function WorkoutScreen() {
           </View>
         </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
+
+        {/* Vitalidade (gratuita): logo abaixo do cabecalho, antes das secoes de Personal Trainer e de IA; o botao de iniciar e o FAB flutuante. */}
+        <VitalityMonitor />
 
         {/* Casos B/D — secao do Personal Trainer, so quando ha assinatura ativa. */}
         {hasPersonalTrainer && (
@@ -212,6 +220,7 @@ const styles = StyleSheet.create({
   },
   content: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl, gap: spacing3.lg },
   headerWrap: { gap: spacing3.xs },
+  gateVitality: { paddingHorizontal: spacing3.containerMargin, paddingTop: spacing3.md },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
