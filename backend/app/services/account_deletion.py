@@ -49,7 +49,7 @@ from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutPlan, WorkoutSession
 from app.core.post_media import media_urls_of, urls_used_by_other_posts
 from app.services.post_removal import purge_post
-from app.services.storage import delete_user_media_by_url
+from app.services.storage import delete_private_key, delete_user_media_by_url
 from app.services.stripe_client import get_client
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ USER_OWNED_TABLES = frozenset(
         "posts", "likes", "comments", "follows", "user_blocks", "challenge_checkins", "workout_sessions", "workout_plans",
         "diet_plans", "meals", "saved_meals", "water_logs", "creatine_logs", "weight_logs", "heart_rate_samples",
         "smartwatch_data", "readiness_scores", "daily_insights", "runs", "manual_activities", "live_activities",
-        "equipment", "points_events", "avatar_generations", "password_reset_tokens", "subscriptions",
+        "equipment", "points_events", "avatar_generations", "avatar_attempts", "password_reset_tokens", "subscriptions",
         "squad_memberships", "squads", "trainers", "content_filter_events",
         "media_uploads",
     }
@@ -319,6 +319,16 @@ def delete_user_account(db: Session, user: User) -> None:
 
     _cancel_stripe_subscriptions(db, uid)
     media_urls = _collect_media_urls(db, locked)
+    private_keys = [
+        k
+        for k in (
+            locked.profile_photo_key,
+            locked.profile_photo_thumb_key,
+            locked.generated_avatar_key,
+            locked.generated_avatar_thumb_key,
+        )
+        if k
+    ]
 
     try:
         _delete_database_rows(db, locked)
@@ -331,4 +341,7 @@ def delete_user_account(db: Session, user: User) -> None:
     # Daqui para baixo a conta JA foi apagada: tudo e best-effort e so loga o id do usuario.
     _delete_stripe_customer(customer_id, uid)
     _delete_media(media_urls, uid)
+    # foto original e avatar guardados em prefixo PRIVADO (nao sao URLs publicas, por isso fora de _collect_media_urls)
+    for key in private_keys:
+        delete_private_key(key)
     logger.info("account_deleted user_id=%s", uid)

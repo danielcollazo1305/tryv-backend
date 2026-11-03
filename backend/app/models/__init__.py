@@ -4,6 +4,7 @@ keys entre eles resolvam corretamente) independente de quais routers/
 servicos estejam sendo carregados no momento.
 """
 from app.models.avatar_generation import AvatarGeneration  # noqa: F401
+from app.models.avatar_attempt import AvatarAttempt  # noqa: F401
 from app.models.challenge import Challenge, ChallengeCheckin  # noqa: F401
 from app.models.content_filter_event import ContentFilterEvent  # noqa: F401
 from app.models.creatine_log import CreatineLog  # noqa: F401

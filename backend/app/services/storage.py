@@ -11,6 +11,7 @@ import mimetypes
 import uuid
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 import re
 
@@ -37,6 +38,8 @@ def _get_client():
             region_name=settings.aws_s3_region,
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
+            # SigV4 explicito: as URLs assinadas das imagens privadas do perfil (presigned_private_url) saem com X-Amz-Signature em qualquer regiao.
+            config=Config(signature_version="s3v4"),
         )
     return _client
 
@@ -98,6 +101,118 @@ def upload_avatar_images(png_bytes: bytes) -> tuple[str, str | None]:
     except Exception as e:  # noqa: BLE001 -- qualquer falha da miniatura e tolerada
         logger.warning("Miniatura do avatar nao gerada/enviada (avatar_id=%s): %s", avatar_id, e)
         return url, None
+    return url, thumb_url
+
+
+# ---- imagens PRIVADAS do perfil (foto original e avatar guardados): prefixo private/profile/ ----------------------------
+# Nunca viram URL publica: so o dono as ve, por URL assinada com prazo (presigned_private_url). A copia PUBLICA (profiles/) so e criada quando a pessoa
+# escolhe usar aquela imagem (publish_private_image) e e essa que vai para users.avatar_url. ATENCAO: o bucket tem uma policy de leitura publica; o
+# prefixo private/ so fica de fato privado se essa policy NAO cobrir private/* (confirmar no console da AWS; o codigo nao consegue verificar isso).
+PRIVATE_PROFILE_PREFIX = "private/profile/"
+PROFILE_PHOTO_MAX_SIDE = 1024
+PROFILE_PHOTO_JPEG_QUALITY = 85
+_PRIVATE_KEY_RE = re.compile(r"^private/profile/[A-Za-z0-9_-]+\.(jpg|png|webp)$")
+
+
+def is_private_profile_key(key: str | None) -> bool:
+    return bool(key) and isinstance(key, str) and _PRIVATE_KEY_RE.match(key) is not None
+
+
+def make_profile_photo_copy(image_bytes: bytes) -> bytes:
+    """Copia da foto de perfil: corrige a rotacao do EXIF, reduz para no maximo 1024 px no lado maior e regrava em JPEG RGB (sem EXIF/GPS).
+    Levanta excecao se o arquivo nao for uma imagem que o Pillow abra (ex: HEIC, corrompido)."""
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        img.load()
+        oriented = ImageOps.exif_transpose(img).convert("RGB")
+        oriented.thumbnail((PROFILE_PHOTO_MAX_SIDE, PROFILE_PHOTO_MAX_SIDE), Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    oriented.save(out, format="JPEG", quality=PROFILE_PHOTO_JPEG_QUALITY)
+    return out.getvalue()
+
+
+def make_square_thumbnail(image_bytes: bytes) -> bytes:
+    """Miniatura 256x256 WebP recortada ao centro (cover): serve para foto retangular e para avatar quadrado."""
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        img.load()
+        thumb = ImageOps.fit(ImageOps.exif_transpose(img).convert("RGB"), (AVATAR_THUMB_SIZE, AVATAR_THUMB_SIZE), method=Image.Resampling.LANCZOS)
+    out = io.BytesIO()
+    thumb.save(out, format="WEBP", quality=AVATAR_THUMB_QUALITY)
+    return out.getvalue()
+
+
+def _put_private(key: str, data: bytes, content_type: str) -> str:
+    try:
+        _get_client().put_object(Bucket=settings.aws_s3_bucket, Key=key, Body=data, ContentType=content_type, CacheControl="private, no-store")
+    except (BotoCoreError, ClientError) as e:
+        logger.error("Falha ao enviar imagem privada ao S3 (key=%s): %s", key, e)
+        raise StorageError("Nao foi possivel enviar o arquivo, tente novamente") from e
+    return key
+
+
+def upload_private_profile_images(full_bytes: bytes, extension: str) -> tuple[str, str | None]:
+    """Sobe imagem grande (private/profile/{uuid}.{jpg|png}) e miniatura WebP (private/profile/{uuid}_256.webp). Retorna as CHAVES (nao URLs).
+    Falha na grande levanta StorageError; falha so na miniatura devolve None no lugar dela."""
+    image_id = uuid.uuid4()
+    content_type = "image/png" if extension == "png" else "image/jpeg"
+    key = _put_private(f"{PRIVATE_PROFILE_PREFIX}{image_id}.{extension}", full_bytes, content_type)
+    try:
+        thumb_key = _put_private(f"{PRIVATE_PROFILE_PREFIX}{image_id}_{AVATAR_THUMB_SIZE}.webp", make_square_thumbnail(full_bytes), "image/webp")
+    except Exception as e:  # noqa: BLE001 -- miniatura e best-effort
+        logger.warning("Miniatura privada nao gerada/enviada (id=%s): %s", image_id, e)
+        return key, None
+    return key, thumb_key
+
+
+def presigned_private_url(key: str | None, expires_seconds: int) -> str | None:
+    """URL assinada (GET) com prazo para uma chave privada do perfil. Chave fora do prefixo/formato esperado devolve None."""
+    if not is_private_profile_key(key):
+        return None
+    try:
+        return _get_client().generate_presigned_url(
+            "get_object", Params={"Bucket": settings.aws_s3_bucket, "Key": key}, ExpiresIn=max(60, expires_seconds)
+        )
+    except (BotoCoreError, ClientError) as e:
+        logger.warning("Falha ao assinar URL privada (key=%s): %s", key, e)
+        return None
+
+
+def read_private_object(key: str) -> bytes:
+    if not is_private_profile_key(key):
+        raise StorageError("Imagem nao encontrada")
+    try:
+        return _get_client().get_object(Bucket=settings.aws_s3_bucket, Key=key)["Body"].read()
+    except (BotoCoreError, ClientError) as e:
+        logger.error("Falha ao ler imagem privada (key=%s): %s", key, e)
+        raise StorageError("Nao foi possivel ler a imagem, tente novamente") from e
+
+
+def delete_private_key(key: str | None) -> bool:
+    """Apaga uma chave privada do perfil. TRAVA: so private/profile/ no formato esperado. Best-effort (erros so logados)."""
+    if not is_private_profile_key(key):
+        if key:
+            logger.warning("delete_private_key recusado: chave fora de '%s'", PRIVATE_PROFILE_PREFIX)
+        return False
+    try:
+        _get_client().delete_object(Bucket=settings.aws_s3_bucket, Key=key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Falha ao apagar imagem privada (key=%s): %s", key, e)
+        return False
+    return True
+
+
+def publish_private_image(key: str, thumb_key: str | None) -> tuple[str, str | None]:
+    """Cria a copia PUBLICA (profiles/{uuid}.{ext} + miniatura) de uma imagem privada. Retorna (url, url_miniatura). So e chamada quando a pessoa
+    escolhe usar aquela imagem."""
+    data = read_private_object(key)
+    extension = "png" if key.endswith(".png") else "jpg"
+    avatar_id = uuid.uuid4()
+    url = _put(f"{PROFILES_PREFIX}{avatar_id}.{extension}", data, "image/png" if extension == "png" else "image/jpeg", IMMUTABLE_CACHE_CONTROL)
+    thumb_url = None
+    try:
+        thumb = read_private_object(thumb_key) if thumb_key else make_square_thumbnail(data)
+        thumb_url = _put(f"{PROFILES_PREFIX}{avatar_id}_{AVATAR_THUMB_SIZE}.webp", thumb, "image/webp", IMMUTABLE_CACHE_CONTROL)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Miniatura publica nao gerada/enviada (avatar_id=%s): %s", avatar_id, e)
     return url, thumb_url
 
 

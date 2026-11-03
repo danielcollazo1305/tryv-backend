@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # Cada geracao custa dinheiro real; pra testar, suba o valor no Railway e volte depois.
     avatar_generation_limit: int = 3
     avatar_limit_window_days: int = 30
+    # Teto de TENTATIVAS de avatar por usuario por dia (env AVATAR_DAILY_ATTEMPT_LIMIT), com ou sem sucesso: falha que nao consome a cota de
+    # geracoes (moderacao, recusa da OpenAI) nao pode virar gasto ilimitado de IA. Janela de 24 h.
+    avatar_daily_attempt_limit: int = 10
+    # Validade (segundos) da URL assinada das imagens PRIVADAS do perfil (foto original e avatar guardados), so para o dono.
+    private_image_url_expires_seconds: int = 600
 
     # Equipamentos (env DEFAULT_SHOE_LIFESPAN_KM / DEFAULT_BIKE_MAINTENANCE_KM): padroes quando o item nao
     # informa vida util (tenis) ou intervalo de revisao (bike) -- ver routers/equipment.py.

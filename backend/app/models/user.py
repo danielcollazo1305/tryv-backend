@@ -79,6 +79,19 @@ class User(Base):
     # anteriores nao tem (o app cai na imagem grande) e a geracao da miniatura pode falhar sem falhar o avatar.
     avatar_thumb_url = Column(String, nullable=True)
 
+    # Fluxo foto/avatar. avatar_url/avatar_thumb_url acima sao SEMPRE a imagem EXIBIDA (a que a pessoa escolheu), publica; por isso a regra de
+    # visibilidade para menores (core/avatar_visibility.py) cobre foto E avatar sem mudar nenhuma consulta. As alternativas ficam em chaves
+    # PRIVADAS do S3 (prefixo private/profile/, nunca URL publica) e so o dono as ve, por URL assinada (GET /users/me/avatar-options).
+    profile_photo_key = Column(String, nullable=True)
+    profile_photo_thumb_key = Column(String, nullable=True)
+    generated_avatar_key = Column(String, nullable=True)
+    generated_avatar_thumb_key = Column(String, nullable=True)
+    # 'photo' | 'avatar': qual das duas esta em avatar_url. NULL = sem foto/avatar.
+    avatar_source = Column(String, nullable=True)
+    # Consentimento para enviar a foto a OpenAI e exibir a imagem escolhida a outros usuarios: quando e qual versao do texto.
+    avatar_consent_at = Column(DateTime, nullable=True)
+    avatar_consent_version = Column(String, nullable=True)
+
     # Perfil (E7): @usuario (3-20, a-z 0-9 . _, salvo em minusculas), bio (ate 150) e link https (ate 200). Todos nullable
     # (contas antigas ficam com NULL). Gravados SO por PATCH /users/me/profile (regras em core/profile_rules.py), nunca pelo
     # PATCH /users/me generico. Bio e link ficam ocultos para outras pessoas quando o dono e menor de 18 ou sem data de nascimento.
