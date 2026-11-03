@@ -8,6 +8,8 @@ import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
+import { AvatarConsentModal } from '@/components/AvatarConsentModal';
+import { AvatarSourceToggle } from '@/components/AvatarSourceToggle';
 import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
@@ -65,6 +67,7 @@ import {
 } from '@/services/profileFeedState';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
 import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
+import { AVATAR_CONSENT_VERSION, AVATAR_LOADING_TEXT, AVATAR_MINOR_MESSAGE, isAvatarRestricted } from '@/services/avatarFlow';
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { shareInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
@@ -200,6 +203,12 @@ export default function ProfileScreen() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarRemoving, setAvatarRemoving] = useState(false);
+  // Consentimento ANTES de enviar a foto (OpenAI + imagem escolhida visivel a outros); menores/sem data de nascimento nao enviam foto.
+  const [consentVisible, setConsentVisible] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [pendingPick, setPendingPick] = useState<'camera' | 'library' | null>(null);
+  const [avatarToggleKey, setAvatarToggleKey] = useState(0);
+  const avatarRestricted = isAvatarRestricted(user?.date_of_birth);
 
   // Grid de consistencia (6 cards) — dados reais:
   // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
@@ -336,8 +345,9 @@ export default function ProfileScreen() {
     setAvatarUploading(true);
     setAvatarError(null);
     try {
-      await uploadAvatarSelfie(uri);
+      await uploadAvatarSelfie(uri, AVATAR_CONSENT_VERSION);
       await refreshUser();
+      setAvatarToggleKey((key) => key + 1);
       setAvatarPickerVisible(false);
     } catch (err) {
       setAvatarError(getApiErrorMessage(err, 'Nao foi possivel gerar seu avatar, tente novamente.'));
@@ -349,7 +359,7 @@ export default function ProfileScreen() {
   // "Remover avatar": so aparece com avatar. Confirma, chama DELETE /users/me/avatar e atualiza o usuario (as
   // iniciais voltam em todo o app). Um novo avatar pode ser gerado depois, como antes.
   const handleRemoveAvatar = () => {
-    Alert.alert('Remover avatar', 'Seu avatar será removido e suas iniciais aparecerão no lugar. Você pode gerar outro depois.', [
+    Alert.alert('Remover foto e avatar', 'Sua foto e seu avatar serão apagados e suas iniciais aparecerão no lugar. Você pode enviar outra foto depois.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Remover',
@@ -369,6 +379,32 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  // Nada e enviado antes do aceite: o toque em "Tirar foto"/"Escolher da galeria" abre o aviso primeiro (uma vez por abertura da tela).
+  const requestAvatarPick = (kind: 'camera' | 'library') => {
+    setAvatarError(null);
+    if (consentAccepted) {
+      if (kind === 'camera') handleTakeAvatarPhoto();
+      else handlePickAvatarFromLibrary();
+      return;
+    }
+    setPendingPick(kind);
+    setConsentVisible(true);
+  };
+
+  const handleConsentAccept = () => {
+    const kind = pendingPick;
+    setConsentAccepted(true);
+    setConsentVisible(false);
+    setPendingPick(null);
+    if (kind === 'camera') handleTakeAvatarPhoto();
+    else if (kind === 'library') handlePickAvatarFromLibrary();
+  };
+
+  const handleConsentDecline = () => {
+    setConsentVisible(false);
+    setPendingPick(null);
   };
 
   const handleTakeAvatarPhoto = async () => {
@@ -1205,7 +1241,7 @@ export default function ProfileScreen() {
         <View style={styles.avatarModalBackdrop}>
           <View style={styles.avatarModalSheet}>
             <View style={styles.avatarModalHeader}>
-              <Text style={styles.avatarModalTitle}>Avatar por IA</Text>
+              <Text style={styles.avatarModalTitle}>Foto e avatar</Text>
               <Pressable onPress={handleCloseAvatarPicker} hitSlop={12} disabled={avatarUploading || avatarRemoving}>
                 <Ionicons name="close" size={24} color={colors3.onSurface} />
               </Pressable>
@@ -1216,27 +1252,37 @@ export default function ProfileScreen() {
             {avatarUploading || avatarRemoving ? (
               <View style={styles.avatarModalLoading}>
                 <ActivityIndicator size="large" color={colors3.primary} />
-                <Text style={styles.avatarModalLoadingText}>{avatarRemoving ? 'Removendo seu avatar...' : 'Gerando seu avatar...'}</Text>
+                <Text style={styles.avatarModalLoadingText}>{avatarRemoving ? 'Removendo sua foto e seu avatar...' : AVATAR_LOADING_TEXT}</Text>
               </View>
             ) : (
               <View style={styles.avatarPickButtons}>
-                <Pressable style={styles.avatarPickButton} onPress={handleTakeAvatarPhoto}>
-                  <Ionicons name="camera" size={28} color={colors3.primary} />
-                  <Text style={styles.avatarPickButtonText}>Tirar foto</Text>
-                </Pressable>
-                <Pressable style={styles.avatarPickButton} onPress={handlePickAvatarFromLibrary}>
-                  <Ionicons name="images" size={28} color={colors3.primary} />
-                  <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
-                </Pressable>
+                {!avatarRestricted && <AvatarSourceToggle onChanged={refreshUser} refreshKey={avatarToggleKey} />}
+                {avatarRestricted && (
+                  <Text style={styles.avatarModalError} accessibilityRole="alert">
+                    {AVATAR_MINOR_MESSAGE}
+                  </Text>
+                )}
+                {!avatarRestricted && (
+                  <>
+                    <Pressable style={styles.avatarPickButton} onPress={() => requestAvatarPick('camera')}>
+                      <Ionicons name="camera" size={28} color={colors3.primary} />
+                      <Text style={styles.avatarPickButtonText}>Tirar foto</Text>
+                    </Pressable>
+                    <Pressable style={styles.avatarPickButton} onPress={() => requestAvatarPick('library')}>
+                      <Ionicons name="images" size={28} color={colors3.primary} />
+                      <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
+                    </Pressable>
+                  </>
+                )}
                 {!!user?.avatar_url && (
                   <Pressable
                     style={styles.avatarPickButton}
                     onPress={handleRemoveAvatar}
                     accessibilityRole="button"
-                    accessibilityLabel="Remover avatar"
+                    accessibilityLabel="Remover foto e avatar"
                   >
                     <Ionicons name="trash-outline" size={28} color={colors3.error} />
-                    <Text style={[styles.avatarPickButtonText, { color: colors3.error }]}>Remover avatar</Text>
+                    <Text style={[styles.avatarPickButtonText, { color: colors3.error }]}>Remover foto e avatar</Text>
                   </Pressable>
                 )}
               </View>
@@ -1244,6 +1290,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <AvatarConsentModal visible={consentVisible} onAccept={handleConsentAccept} onDecline={handleConsentDecline} />
     </ScreenBackground3>
   );
 }

@@ -62,10 +62,10 @@ const AVATAR_MIME_TYPES_BY_EXTENSION: Record<string, string> = {
 };
 
 /**
- * Envia a selfie do usuario pro endpoint dedicado de geracao de avatar por
- * IA (POST /users/me/avatar, ver backend/app/routers/users.py) e retorna a
- * URL do resultado estilizado ja salvo no S3 -- a selfie original nunca e
- * persistida no backend (ver docstring do endpoint). Timeout bem maior que
+ * Envia a foto de perfil (depois do aviso de consentimento) pro endpoint de
+ * geracao de avatar por IA (POST /users/me/avatar, ver backend/app/routers/users.py).
+ * O servidor guarda a foto em local PRIVADO e o avatar anime; a imagem em uso
+ * (foto ou avatar) e a que os outros veem. Timeout bem maior que
  * o upload comum (uploadMedia usa 30s) porque a geracao por IA em si leva
  * alguns segundos, alem do tempo de upload/download.
  *
@@ -75,7 +75,40 @@ const AVATAR_MIME_TYPES_BY_EXTENSION: Record<string, string> = {
  * mostrar erro de conexao enquanto o servidor seguia gerando, cobrando e
  * consumindo a cota de geracoes do usuario.
  */
-export async function uploadAvatarSelfie(fileUri: string): Promise<string> {
+export interface AvatarResult {
+  avatar_url: string;
+  avatar_thumb_url: string | null;
+  avatar_source: 'photo' | 'avatar' | null;
+}
+
+/** So para o DONO (GET /users/me/avatar-options): URLs de pre-visualizacao ASSINADAS (expiram em minutos), cota restante e consentimento. */
+export interface AvatarOptions {
+  avatar_source: 'photo' | 'avatar' | null;
+  has_photo: boolean;
+  has_avatar: boolean;
+  photo_preview_url: string | null;
+  avatar_preview_url: string | null;
+  generations_limit: number;
+  generations_remaining: number;
+  window_days: number;
+  can_manage: boolean;
+  restriction_message: string | null;
+  consent_version: string;
+  consented: boolean;
+}
+
+export async function getAvatarOptions(): Promise<AvatarOptions> {
+  const response = await api.get<AvatarOptions>('/users/me/avatar-options');
+  return response.data;
+}
+
+/** Alterna entre usar a foto ou o avatar (PUT /users/me/avatar-source): nao gera nada e nao gasta cota. Depois, chame refreshUser(). */
+export async function setAvatarSource(source: 'photo' | 'avatar'): Promise<AvatarResult> {
+  const response = await api.put<AvatarResult>('/users/me/avatar-source', { source });
+  return response.data;
+}
+
+export async function uploadAvatarSelfie(fileUri: string, consentVersion: string): Promise<AvatarResult> {
   const filename = fileUri.split('/').pop() ?? 'selfie.jpg';
   const extensionMatch = /\.(\w+)$/.exec(filename);
   const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'jpg';
@@ -87,9 +120,11 @@ export async function uploadAvatarSelfie(fileUri: string): Promise<string> {
     name: filename,
     type: mimeType,
   } as unknown as Blob);
+  // versao do aviso de consentimento aceito (o servidor recusa se nao for a atual)
+  formData.append('consent_version', consentVersion);
 
-  const response = await api.post<{ avatar_url: string }>('/users/me/avatar', formData, { timeout: 130000 });
-  return response.data.avatar_url;
+  const response = await api.post<AvatarResult>('/users/me/avatar', formData, { timeout: 130000 });
+  return response.data;
 }
 
 /** Remove o proprio avatar (DELETE /users/me/avatar, 204, idempotente). Depois, chame refreshUser(). */

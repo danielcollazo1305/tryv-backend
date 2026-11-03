@@ -35,6 +35,8 @@ export interface User {
   avatar_url: string | null;
   /** Miniatura 256x256 (null em avatares antigos: usar avatar_url). */
   avatar_thumb_url?: string | null;
+  /** Qual imagem esta em avatar_url: a foto ou o avatar (so no perfil proprio). */
+  avatar_source?: 'photo' | 'avatar' | null;
   /** Perfil (E7/E8). Opcionais: servidor antigo nao devolve; null = ainda nao definido. */
   username?: string | null;
   bio?: string | null;
