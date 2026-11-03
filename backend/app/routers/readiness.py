@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_pro_subscription
+from app.core.deps import get_current_user
 from app.core.timezone import local_date, local_day_bounds, local_range_bounds, local_today
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
@@ -140,9 +140,12 @@ def get_today_readiness(
         None, ge=0, le=24, description="Horas de sono da ultima noite, vindas do HealthKit (mobile) — o backend nao tem acesso direto a isso."
     ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_pro_subscription),
+    current_user: User = Depends(get_current_user),
 ):
     """
+    Gratuito (qualquer usuario logado): devolve so o resumo basico (final_score, sub-scores e texto). Insights de IA e comparativos
+    seguem exclusivos do Pro, em outros endpoints (/insights/*).
+
     Calcula (e re-calcula a cada chamada, sobrescrevendo o registro do dia)
     o score de prontidao de hoje. Diferente de /insights/daily, aqui nao ha
     cache "congelado" — o calculo e barato (so agregacao no banco) e o dado
