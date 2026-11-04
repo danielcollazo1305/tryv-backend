@@ -2,7 +2,8 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/components/GlassCard';
-import { MealCoverArt } from '@/components/MealCoverArt';
+import { MealCover } from '@/components/MealCover';
+import { pickMealCover } from '@/utils/mealCoverPick';
 import { Meal, formatMealTime } from '@/services/meals';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -44,9 +45,9 @@ export function MealCard({ meal }: { meal: Meal }) {
 
   return (
     <GlassCard variant="card" style={styles.card}>
-      {/* refeicao SEM foto: capa ilustrada (prato roxo); com foto, a foto continua sendo mostrada (acima) */}
+      {/* refeicao SEM foto: capa anime escolhida pela descricao (recorte no prato); sem capa para o prato, o prato roxo. Com foto, a foto (acima) */}
       <View style={styles.photoPlaceholder}>
-        <MealCoverArt size={44} />
+        <MealCover cover={pickMealCover(meal.description)} size={44} />
       </View>
       {info}
     </GlassCard>

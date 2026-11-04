@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { MealCoverArt } from '@/components/MealCoverArt';
+import { MealCover } from '@/components/MealCover';
+import { dayCoverFor } from '@/utils/mealCoverPick';
 import { MealDay } from '@/services/meals';
 import { dayAccessibilityLabel, dayShortLabel, dayTabLabel, formatKcal } from '@/utils/mealDays';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -48,8 +49,8 @@ export function DayCard({ day, index, onPress }: DayCardProps) {
 
       <View style={[styles.body, isToday && styles.bodyToday]}>
         <View style={[styles.iconBox, isEmpty ? styles.iconBoxEmpty : styles.iconBoxFilled]}>
-          {/* capa ilustrada (prato roxo): o cartao do dia nunca mostra foto; dia sem refeicao usa a versao esmaecida */}
-          <MealCoverArt size={ICON_BOX_HEIGHT - 4} faded={isEmpty} />
+          {/* capa anime escolhida pela DATA (o cartao do dia nao tem descricao): sempre a mesma para o mesmo dia; nunca mostra foto; dia sem refeicao usa a versao esmaecida */}
+          <MealCover cover={dayCoverFor(day.date)} size={ICON_BOX_HEIGHT - 4} faded={isEmpty} borderRadius={radius3.sm} />
         </View>
         <Text style={styles.kcal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {formatKcal(day.total_calories)}
