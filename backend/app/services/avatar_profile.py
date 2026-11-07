@@ -28,6 +28,9 @@ MINOR_RESTRICTION_MESSAGE = (
     "ou para quem nao informou a data de nascimento."
 )
 
+# POST /users/me/avatar sem consent_version = app antigo, anterior a tela de consentimento (400, nao o 422 padrao em ingles).
+APP_UPDATE_REQUIRED_MESSAGE = "Atualize o app para criar seu avatar"
+
 
 def keys_for(user: User, source: str) -> tuple[str | None, str | None]:
     if source == SOURCE_PHOTO:

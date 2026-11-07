@@ -49,7 +49,8 @@ from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutPlan, WorkoutSession
 from app.core.post_media import media_urls_of, urls_used_by_other_posts
 from app.services.post_removal import purge_post
-from app.services.storage import delete_private_key, delete_user_media_by_url
+from app.services.avatar_profile import delete_stored_key
+from app.services.storage import delete_user_media_by_url
 from app.services.stripe_client import get_client
 
 logger = logging.getLogger(__name__)
@@ -319,7 +320,7 @@ def delete_user_account(db: Session, user: User) -> None:
 
     _cancel_stripe_subscriptions(db, uid)
     media_urls = _collect_media_urls(db, locked)
-    private_keys = [
+    stored_keys = [
         k
         for k in (
             locked.profile_photo_key,
@@ -341,7 +342,8 @@ def delete_user_account(db: Session, user: User) -> None:
     # Daqui para baixo a conta JA foi apagada: tudo e best-effort e so loga o id do usuario.
     _delete_stripe_customer(customer_id, uid)
     _delete_media(media_urls, uid)
-    # foto original e avatar guardados em prefixo PRIVADO (nao sao URLs publicas, por isso fora de _collect_media_urls)
-    for key in private_keys:
-        delete_private_key(key)
+    # foto original e avatar guardados (nao sao URLs publicas, por isso fora de _collect_media_urls). delete_stored_key trata as duas formas: chave
+    # privada (private/profile/) e a chave publica dos avatares ANTIGOS (profiles/...), que o backfill da migracao guarda como alternativa "avatar".
+    for key in stored_keys:
+        delete_stored_key(key)
     logger.info("account_deleted user_id=%s", uid)

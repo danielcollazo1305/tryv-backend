@@ -270,7 +270,9 @@ def get_my_avatar_options(
 @router.post("/me/avatar", response_model=AvatarOut, status_code=status.HTTP_201_CREATED)
 async def generate_avatar(
     file: UploadFile = File(...),
-    consent_version: str = Form(...),
+    # Opcional so na assinatura: app antigo (sem a tela de consentimento) nao manda o campo e receberia o 422 padrao do FastAPI ("Field required",
+    # em ingles). O consentimento continua OBRIGATORIO: sem o campo -> 400 com a mensagem abaixo; com versao diferente da atual -> 400.
+    consent_version: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -282,6 +284,8 @@ async def generate_avatar(
     que esta em uso (a pessoa escolhe; na primeira vez, o avatar).
     """
     _require_adult_for_avatar(current_user)
+    if consent_version is None or not consent_version.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=avatar_profile.APP_UPDATE_REQUIRED_MESSAGE)
     if consent_version != avatar_profile.AVATAR_CONSENT_VERSION:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
