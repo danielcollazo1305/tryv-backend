@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Linking, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -29,6 +29,8 @@ import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { requestHealthPermissions } from '@/services/health';
+import { PurchaseError, isPurchasesAvailable, restorePurchases, syncProAfterPurchase } from '@/services/purchases';
+import { MANAGE_SUBSCRIPTIONS_URL } from '@/constants/legal';
 import {
   getGrantedHealthConnectPermissions,
   initializeHealthConnect,
@@ -129,7 +131,32 @@ const historyKey = (item: HistoryItem) => item.id;
 const galleryKey = (item: GalleryItem) => item.post_id;
 
 export default function ProfileScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, refreshIsPro } = useAuth();
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+  // "Restaurar compras" (exigencia da Apple): restaura no SDK e pergunta ao servidor; so o servidor diz se e Pro.
+  const handleRestorePurchases = async () => {
+    if (!user || restoringPurchases) return;
+    if (!isPurchasesAvailable()) {
+      Alert.alert('Compras indisponíveis', 'Não foi possível acessar as compras neste momento. Tente novamente mais tarde.');
+      return;
+    }
+    setRestoringPurchases(true);
+    try {
+      await restorePurchases(user.id);
+      const result = await syncProAfterPurchase(refreshIsPro);
+      if (result.isPro) Alert.alert('Compras restauradas', 'Sua assinatura Tryv Fit Pro está ativa.');
+      else if (result.pending) Alert.alert('Ainda confirmando', 'Estamos confirmando sua assinatura. Tente novamente em instantes.');
+      else Alert.alert('Nada para restaurar', 'Não encontramos uma assinatura ativa nesta conta Apple.');
+    } catch (error) {
+      Alert.alert(
+        'Não foi possível restaurar',
+        error instanceof PurchaseError ? error.message : 'Verifique sua conexão e tente novamente.'
+      );
+    } finally {
+      setRestoringPurchases(false);
+    }
+  };
   // Abas (E4): cada uma busca so quando aberta pela 1a vez e guarda o resultado; trocar de aba nao refaz a chamada.
   const [tab, setTab] = useState<ProfileTab>('history');
   const [visited, setVisited] = useState(INITIAL_VISITED);
@@ -838,6 +865,36 @@ export default function ProfileScreen() {
                   <Text style={styles.tileFullSubtitle}>Quem você bloqueou no Social</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => void handleRestorePurchases()} disabled={restoringPurchases} accessibilityRole="button" accessibilityLabel="Restaurar compras">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="refresh-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Restaurar compras</Text>
+                  <Text style={styles.tileFullSubtitle}>Recupere o Tryv Fit Pro neste aparelho</Text>
+                </View>
+                {restoringPurchases ? (
+                  <ActivityIndicator color={colors3.primary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+                )}
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL).catch(() => {})} accessibilityRole="link" accessibilityLabel="Gerenciar assinatura">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="card-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Gerenciar assinatura</Text>
+                  <Text style={styles.tileFullSubtitle}>Cancele ou altere em Ajustes da Apple</Text>
+                </View>
+                <Ionicons name="open-outline" size={18} color={colors3.outline} />
               </GlassCard>
             </Pressable>
           </View>
