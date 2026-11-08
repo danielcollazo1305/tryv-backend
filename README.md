@@ -25,13 +25,13 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 
 **Treino e atividades**
 - **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) .
-- **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa, parciais por km e recordes pessoais **(Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
+- **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa e parciais por km, e **recordes pessoais (Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
 - Importação de treinos pelo **Health Connect (Android)**. O Apple Health (iPhone) está **em breve**.
 - Live Activity no iOS para o treino livre em andamento (extensão de widget nativa).
 
 **Painel e saúde**
-- Progresso semanal e mensal, mapa de frequência de treinos, sequências, comparativos entre períodos e pontuação geral ("Overall").
-- Prontidão para treinar, insights diários por IA e comparativos entre períodos **(Pro)**; exportação de relatório em PDF.
+- Progresso semanal e mensal, mapa de frequência de treinos, sequências, pontuação geral ("Overall") e Vitalidade (indicador de prontidão na aba Treino).
+- **(Pro)**: resumo do período e comparativos (mês a mês e entre períodos) na tela inicial, card de prontidão da tela inicial, insight diário por IA, relatório de frequência cardíaca e exportação de relatório em PDF.
 
 **Equipamentos**
 - Cadastro de tênis (com busca em catálogo), bike, relógio e fita cardíaca; barra de vida útil do tênis, barra de manutenção da bike, equipamento padrão e aposentadoria de itens.
