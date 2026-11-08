@@ -57,7 +57,8 @@
         "expo-image-picker",
         {
           "photosPermission": "O Tryv Fit precisa acessar suas fotos para voce anexar uma foto da refeicao.",
-          "cameraPermission": "O Tryv Fit precisa acessar a camera para voce fotografar sua refeicao."
+          "cameraPermission": "O Tryv Fit precisa acessar a camera para voce fotografar sua refeicao.",
+          "microphonePermission": false
         }
       ],
       [
@@ -65,6 +66,7 @@
         {
           "locationWhenInUsePermission": "O Tryv Fit usa sua localizacao para rastrear a rota das suas corridas e pedaladas e para mostrar o mapa de territorio da sua cidade.",
           "locationAlwaysAndWhenInUsePermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
+          "locationAlwaysPermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
         }
