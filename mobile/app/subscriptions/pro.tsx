@@ -21,40 +21,38 @@ import { UserBadges, getUserBadges } from '@/services/user';
 import { MANAGE_SUBSCRIPTIONS_URL, PRIVACY_URL, TERMS_URL } from '@/constants/legal';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
-// Mesmos 7 recursos do mockup assinatura-planos.html — todos com gating real
-// de Pro ja implementado no backend hoje (confirmado direto no codigo via
-// require_pro_subscription em dashboard.py, workout_plans.py, meals.py,
-// heart_rate.py, runs.py, insights.py, readiness.py -- revalidado nesta
-// investigacao, nao so por memoria da sessao). Frequencia de treino e km
-// semanal (dashboard.py) e o resumo de Saude (smartwatch.py) NAO entram
-// aqui de proposito -- viraram gratis nesta sessao, ver linha "free: true"
-// abaixo na tabela de comparacao.
+// Os 8 recursos Pro abaixo batem com o que o codigo realmente bloqueia hoje (backend: require_pro_subscription / has_active_pro_subscription;
+// mobile: isPro): meals.py (/analyze e /analyze-text), workout_plans.py (/generate), insights.py (/daily e /generate), dashboard.py
+// (/home-summary, /month-comparison, /period-comparison), card de prontidao da Home (index.tsx), runs.py (/personal-records e new_prs),
+// heart_rate.py (/report) e a exportacao em PDF (que usa os endpoints Pro). NAO entram aqui: rastreamento por GPS, mapa e parciais por km,
+// treino livre, Vitalidade (a prontidao da aba Treino), frequencia de treino e km semanal, resumo de saude, avatar e a interpretacao por IA
+// de uma atividade ja registrada -- sao gratuitos (ver as linhas "free: true" da tabela de comparacao).
 const BENEFITS: { icon: React.ComponentProps<typeof Ionicons>['name']; title: string; subtitle: string }[] = [
-  { icon: 'sparkles', title: 'Inteligencia Artificial', subtitle: 'Analise de refeicao por foto e geracao de treino' },
-  { icon: 'bulb', title: 'Insights proativos', subtitle: 'Recomendacoes personalizadas com base no seu progresso' },
-  { icon: 'speedometer', title: 'Score de Prontidao', subtitle: 'Saiba quando treinar forte e quando recuperar' },
-  { icon: 'bar-chart', title: 'Comparacao mes a mes', subtitle: 'Veja sua evolucao ao longo do tempo' },
-  { icon: 'ribbon', title: 'Recordes pessoais (PRs)', subtitle: 'Identificacao automatica dos seus melhores resultados' },
-  { icon: 'heart', title: 'Relatorio de frequencia cardiaca', subtitle: 'Analise detalhada da sua FC ao longo dos treinos' },
-  { icon: 'document-text', title: 'Exportacao de relatorios em PDF', subtitle: 'Compartilhe seu progresso com quem quiser' },
+  { icon: 'camera', title: 'Análise de refeições por IA', subtitle: 'Por foto e por texto' },
+  { icon: 'barbell', title: 'Plano de treino por IA', subtitle: 'Gerado para o seu objetivo, nível e equipamento' },
+  { icon: 'bulb', title: 'Insight diário por IA', subtitle: 'Uma recomendação por dia com base no seu progresso' },
+  { icon: 'bar-chart', title: 'Resumo e comparativos na tela inicial', subtitle: 'Resumo do período e comparação mês a mês e entre períodos' },
+  { icon: 'speedometer', title: 'Prontidão na tela inicial', subtitle: 'Card de prontidão para treinar na tela inicial' },
+  { icon: 'ribbon', title: 'Recordes pessoais', subtitle: 'Seus melhores resultados em corrida, pedalada e caminhada' },
+  { icon: 'heart', title: 'Relatório de frequência cardíaca', subtitle: 'Análise da sua FC ao longo do período' },
+  { icon: 'document-text', title: 'Exportação de relatórios em PDF', subtitle: 'Compartilhe seu progresso com quem quiser' },
 ];
 
-// Inclui os 7 recursos Pro acima (PRs e Relatorio de FC estavam ausentes
-// daqui antes -- a tabela ficou desatualizada em relacao a lista de
-// beneficios ao longo da sessao) + os recursos que ja sao gratis hoje, pra
-// deixar claro que nao foram tirados nem exigem Pro.
+// Gratis x Pro: as linhas Pro repetem os 8 recursos acima; as gratuitas sao o que continua livre (confirmado no codigo).
 const COMPARISON_ROWS: { label: string; free: boolean }[] = [
-  { label: 'Registro de treinos e refeicoes', free: true },
-  { label: 'Frequencia de treino e km semanal', free: true },
-  { label: 'Resumo de saude (passos, sono, FC)', free: true },
-  { label: 'Analise de refeicao por foto (IA)', free: false },
-  { label: 'Geracao de treino por IA', free: false },
-  { label: 'Insights proativos', free: false },
-  { label: 'Score de Prontidao', free: false },
-  { label: 'Comparacao mes a mes', free: false },
-  { label: 'Recordes pessoais (PRs)', free: false },
-  { label: 'Relatorio de frequencia cardiaca', free: false },
-  { label: 'Exportacao de relatorios em PDF', free: false },
+  { label: 'Registro de treinos (treino livre) e de refeições', free: true },
+  { label: 'Rastreamento por GPS, com mapa e parciais por km', free: true },
+  { label: 'Frequência de treino e km semanal', free: true },
+  { label: 'Vitalidade (prontidão na aba Treino)', free: true },
+  { label: 'Resumo de saúde (passos, sono, FC)', free: true },
+  { label: 'Análise de refeições por IA (foto e texto)', free: false },
+  { label: 'Plano de treino por IA', free: false },
+  { label: 'Insight diário por IA', free: false },
+  { label: 'Resumo e comparativos na tela inicial', free: false },
+  { label: 'Card de prontidão na tela inicial', free: false },
+  { label: 'Recordes pessoais', free: false },
+  { label: 'Relatório de frequência cardíaca', free: false },
+  { label: 'Exportação de relatórios em PDF', free: false },
 ];
 
 type OfferState = 'loading' | 'ready' | 'unavailable' | 'error';
