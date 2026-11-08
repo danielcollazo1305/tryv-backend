@@ -61,21 +61,13 @@
         <li><strong>Atividades físicas:</strong> dados de GPS durante corridas e pedaladas (localização, rota, distância, velocidade, tempo), além de atividades registradas manualmente (natação, lutas, outras modalidades)</li>
         <li><strong>Peso corporal:</strong> registros de peso ao longo do tempo, quando fornecidos por você</li>
         <li><strong>Dados do Apple Health (HealthKit):</strong> mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.</li>
-        <li><strong>Frequência cardíaca:</strong> quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e, durante uma atividade com GPS em andamento, para exibição a um professor autorizado (ver seção 4.1). Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.</li>
+        <li><strong>Frequência cardíaca:</strong> quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e. Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.</li>
       </ul>
 
       <h3>2.3 Dados de Pagamento</h3>
       <p>Processamos pagamentos de assinaturas através do <strong>Stripe</strong>, um processador de pagamentos terceirizado. O Tryv Fit <strong>não armazena</strong> números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.</p>
 
-      <h3>2.4 Dados de Professores (Marketplace)</h3>
-      <p>Para usuários que se cadastram como professores de educação física, coletamos adicionalmente:</p>
-      <ul>
-        <li>Número de registro profissional (CREF) para fins de verificação</li>
-        <li>Dados de conta bancária/Stripe Connect para processamento de repasses</li>
-        <li>Informações de perfil profissional exibidas publicamente no marketplace</li>
-      </ul>
-
-      <h3>2.5 Dados de Uso da Rede Social</h3>
+      <h3>2.4 Dados de Uso da Rede Social</h3>
       <ul>
         <li>Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo</li>
         <li>Fotos e mídias enviadas para publicações</li>
@@ -86,12 +78,11 @@
       <h2>3. Como Usamos Seus Dados</h2>
       <p>Utilizamos os dados coletados para:</p>
       <ul>
-        <li>Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social, marketplace)</li>
+        <li>Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social)</li>
         <li>Gerar análises nutricionais automatizadas a partir de fotos de refeições, utilizando serviços de inteligência artificial (ver seção 5)</li>
         <li>Gerar treinos personalizados através de inteligência artificial</li>
         <li>Calcular métricas de saúde e desempenho, como o Dashboard de Evolução, Score de Prontidão para Treino e Insights personalizados</li>
-        <li>Processar pagamentos de assinaturas e repasses a professores</li>
-        <li>Permitir que professores autorizados (mediante assinatura ativa) vejam quando um aluno está treinando no momento e acompanhem, em tempo real, a localização e as métricas (distância, ritmo, tempo e frequência cardíaca quando disponível) de uma atividade com GPS enquanto ela estiver em andamento</li>
+        <li>Processar pagamentos de assinaturas</li>
         <li>Viabilizar a rede social do aplicativo (feed, seguir, curtir, comentar)</li>
         <li>Melhorar e manter a segurança do aplicativo</li>
       </ul>
@@ -101,15 +92,7 @@
 
       <h2>4. Compartilhamento de Dados</h2>
 
-      <h3>4.1 Com Professores</h3>
-      <p>Se você contratar um professor através do marketplace do Tryv Fit, dois tipos de informação passam a ficar visíveis para esse professor, exclusivamente enquanto sua assinatura estiver ativa:</p>
-      <ul>
-        <li>Se você está com uma atividade (corrida ou pedalada com GPS) em andamento neste exato momento;</li>
-        <li>Enquanto essa atividade estiver em andamento, sua localização, distância percorrida, ritmo, tempo decorrido e frequência cardíaca (quando disponível).</li>
-      </ul>
-      <p>Essa visibilidade é limitada à atividade acontecendo ao vivo. O professor <strong>não</strong> tem acesso ao seu histórico de treinos, refeições, peso ou outros dados além do que está descrito acima.</p>
-
-      <h3>4.2 Com Prestadores de Serviço (Subprocessadores)</h3>
+      <h3>4.1 Com Prestadores de Serviço (Subprocessadores)</h3>
       <p>Utilizamos os seguintes serviços de terceiros para operar o Tryv Fit:</p>
       <table>
         <thead>
@@ -118,13 +101,13 @@
         <tbody>
           <tr><td><strong>Anthropic (Claude API)</strong></td><td>Análise de fotos de refeições, geração de treinos personalizados, geração de insights</td></tr>
           <tr><td><strong>Amazon Web Services (S3)</strong></td><td>Armazenamento de mídias (fotos de refeições, posts, perfis)</td></tr>
-          <tr><td><strong>Stripe / Stripe Connect</strong></td><td>Processamento de pagamentos e repasses a professores</td></tr>
+          <tr><td><strong>Stripe</strong></td><td>Processamento de pagamentos de assinaturas</td></tr>
           <tr><td><strong>Apple (HealthKit)</strong></td><td>Leitura de dados de saúde, mediante sua autorização</td></tr>
         </tbody>
       </table>
       <p>Esses serviços processam dados em nosso nome, sob suas próprias políticas de privacidade e segurança.</p>
 
-      <h3>4.3 Por Obrigação Legal</h3>
+      <h3>4.2 Por Obrigação Legal</h3>
       <p>Poderemos divulgar dados se exigido por lei, ordem judicial ou para proteger direitos, segurança ou propriedade do Tryv Fit ou de terceiros.</p>
 
       <hr class="doc-hr">

@@ -40,9 +40,8 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 - XP e níveis, **squads**, ranking individual e de squads, **mapa de território** por cidade e desafios com check-in.
 - Feed social com posts, curtidas, comentários e seguidores.
 
-**Assinatura e professores**
+**Assinatura**
 - Assinatura **Tryv Pro** via Stripe Checkout, ativada por webhook.
-- Cadastro de professores, onboarding de conta Stripe Connect (Express) e assinatura do professor com cobrança por *destination charge*. *(No app, este marketplace está desativado durante o pré-lançamento.)*
 
 **Landing page**
 - Página estática com lista de espera, política de privacidade e termos de uso.
@@ -184,8 +183,8 @@ Projeto em desenvolvimento ativo, em fase de pré-lançamento.
 - Integração com IA (Claude e OpenAI) e armazenamento de imagens no S3.
 
 **Em desenvolvimento ou com limitações:**
-- **Apple Health (iPhone): em breve.** A integração está desativada enquanto o build iOS é corrigido (a biblioteca causava falha no build e foi substituída por um módulo vazio). O **Health Connect (Android) já está disponível**.
-- **Marketplace de professores**: o backend está pronto (cadastro, onboarding no Stripe Connect e assinatura), mas a área está desativada no app até o lançamento.
+- **Apple Health (iPhone): em breve.** A integração foi reimplementada com `@appeeky/expo-healthkit` (versão fixa 0.4.1, Expo Modules, sem Nitro, somente leitura) e já está commitada, mas **ainda não foi compilada nem testada em iPhone**; segue como "em breve" até o primeiro build validado. O **Health Connect (Android) já está disponível**.
+- **Modo professor / marketplace de professores**: removido do produto.
 - **Catálogo de tênis**: a tabela e a busca existem, mas ainda sem dados carregados; por enquanto o cadastro usa o modelo digitado à mão.
 - **Tela "Treinar"** (menu de modalidades): o endpoint de estatísticas já existe no backend (`GET /dashboard/modalities`); a tela no app ainda não foi construída.
 - **Testes automatizados**: o repositório ainda não tem suíte de testes versionada nem integração contínua.

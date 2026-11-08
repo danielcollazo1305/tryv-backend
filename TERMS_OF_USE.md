@@ -2,7 +2,7 @@
 
 **Última atualização:** 14/10/2026
 
-> ⚠️ **AVISO IMPORTANTE:** Este documento é um rascunho inicial, criado como ponto de partida, e não constitui aconselhamento jurídico. Antes de publicar ou submeter o app à App Store, recomenda-se revisão por um advogado — especialmente as cláusulas de isenção de responsabilidade sobre saúde/nutrição (seção 6), o marketplace de professores (seção 7), a legislação aplicável (seção 13) e o modelo de cobrança via Stripe fora do sistema de compras da Apple (seção 4, ver nota específica).
+> ⚠️ **AVISO IMPORTANTE:** Este documento é um rascunho inicial, criado como ponto de partida, e não constitui aconselhamento jurídico. Antes de publicar ou submeter o app à App Store, recomenda-se revisão por um advogado — especialmente as cláusulas de isenção de responsabilidade sobre saúde/nutrição (seção 6), a legislação aplicável (seção 12) e o modelo de cobrança via Stripe fora do sistema de compras da Apple (seção 4, ver nota específica).
 
 ---
 
@@ -33,20 +33,17 @@ O Tryv prevê uma assinatura base mensal que dá acesso a funcionalidades de nut
 
 > **Nota de implementação:** hoje o aplicativo ainda não possui um fluxo de compra para este plano base, nem qualquer bloqueio de funcionalidade por assinatura — todas as funcionalidades listadas acima estão disponíveis a qualquer usuário cadastrado, independentemente do status de assinatura. Esta seção descreve um modelo de cobrança planejado, não uma cobrança em vigor. Ajuste o texto (ou adie a publicação desta seção) até o fluxo estar implementado.
 
-### 4.2 Add-on de Professor
-Adicionalmente, você pode contratar um professor de educação física através do nosso marketplace, mediante valor definido pelo próprio professor.
-
-### 4.3 Processamento de Pagamentos
+### 4.2 Processamento de Pagamentos
 Todos os pagamentos são processados através do **Stripe**. O Tryv não armazena dados completos de cartão de crédito.
 
 > ⚠️ **Nota de risco — compliance com a App Store:** hoje, tanto a assinatura de professor (já implementada) quanto o plano base (planejado) processam cobrança inteiramente pelo Stripe Checkout, sem qualquer integração com o sistema de compras da Apple (In-App Purchase/StoreKit). A Diretriz 3.1.1 da App Store exige o uso de IAP para conteúdo, serviços ou funcionalidades digitais consumidas dentro do app, com exceções pontuais (ex: serviços físicos/pessoais consumidos fora do app, alguns marketplaces de serviço). Se a assinatura de professor for entendida pela Apple como "conteúdo digital consumido no app" (e não como intermediação de um serviço físico), o app pode ser rejeitado nesse modelo atual. **Recomenda-se avaliação específica com um especialista em App Store review antes de submeter o app**, e não apenas revisão jurídica genérica — esta é frequentemente a causa nº 1 de rejeição de apps com marketplace/assinatura.
 
-### 4.4 Cancelamento e Reembolso
+### 4.3 Cancelamento e Reembolso
 - Você pode cancelar sua assinatura a qualquer momento através das configurações do aplicativo ou da loja de aplicativos (App Store/Google Play)
 - O cancelamento entra em vigor ao final do período de cobrança vigente, salvo disposição em contrário
 - Políticas de reembolso seguem as regras da loja de aplicativos utilizada (Apple App Store ou Google Play Store) para compras feitas através delas
 
-> **Nota de implementação:** hoje não existe, dentro do aplicativo, nenhuma função de autoatendimento para cancelar uma assinatura ativa (nem portal de cobrança do Stripe vinculado, nem tela de gerenciamento de assinatura) — cancelamentos precisam ser tratados manualmente pela equipe. Além disso, como as cobranças são feitas via Stripe e não via App Store/Google Play (ver nota da seção 4.3), a referência a "cancelar pela loja de aplicativos" não se aplica na prática a assinaturas cobradas assim — o cancelamento pela loja só valeria para compras processadas pelo sistema de IAP da própria loja, que hoje não é usado.
+> **Nota de implementação:** hoje não existe, dentro do aplicativo, nenhuma função de autoatendimento para cancelar uma assinatura ativa (nem portal de cobrança do Stripe vinculado, nem tela de gerenciamento de assinatura) — cancelamentos precisam ser tratados manualmente pela equipe. Além disso, como as cobranças são feitas via Stripe e não via App Store/Google Play (ver nota da seção 4.2), a referência a "cancelar pela loja de aplicativos" não se aplica na prática a assinaturas cobradas assim — o cancelamento pela loja só valeria para compras processadas pelo sistema de IAP da própria loja, que hoje não é usado.
 
 ---
 
@@ -57,7 +54,7 @@ Ao publicar posts, fotos, comentários ou qualquer outro conteúdo no Tryv, voc�
 - Concede ao Tryv uma licença não exclusiva, mundial e gratuita para hospedar, exibir e distribuir esse conteúdo dentro do aplicativo, exclusivamente para operar as funcionalidades da plataforma (feed social, perfil, etc.)
 - Declara que possui os direitos necessários sobre o conteúdo publicado e que ele não viola direitos de terceiros
 
-O Tryv pode remover conteúdo que viole estes Termos, seja ofensivo, ilegal, ou que infrinja direitos de terceiros, a nosso critério. Veja a seção 9 sobre condutas proibidas, como denunciar e como bloquear.
+O Tryv pode remover conteúdo que viole estes Termos, seja ofensivo, ilegal, ou que infrinja direitos de terceiros, a nosso critério. Veja a seção 8 sobre condutas proibidas, como denunciar e como bloquear.
 
 ---
 
@@ -73,31 +70,15 @@ O Tryv pode remover conteúdo que viole estes Termos, seja ofensivo, ilegal, ou 
 
 ---
 
-## 7. Marketplace de Professores
-
-### 7.1 Para Alunos
-- Professores disponíveis no marketplace declaram possuir registro profissional válido (CREF), verificado no momento do cadastro
-- O Tryv atua como intermediário tecnológico entre alunos e professores, mas **não é parte na relação de prestação de serviços** entre você e o professor contratado
-- A qualidade, adequação e resultados dos treinos e orientações fornecidas pelo professor são de responsabilidade do próprio profissional contratado
-- Enquanto sua assinatura com um professor estiver ativa, ele pode ver quando você está com uma atividade em andamento e acompanhar, em tempo real, sua localização e métricas dessa atividade (ver Política de Privacidade, seção 4.1, para o escopo exato)
-
-### 7.2 Para Professores
-- Você declara possuir registro profissional válido e ativo (CREF) para atuar como educador físico
-- O Tryv cobra uma comissão sobre os valores recebidos através da plataforma: **20% (vinte por cento)** como padrão, reduzida para **12% (doze por cento)** quando você tiver criado pelo menos um desafio para seus alunos nos últimos 30 dias
-- Os repasses são processados através do Stripe Connect
-- Você é responsável por cumprir suas próprias obrigações fiscais e regulatórias referentes aos valores recebidos através da plataforma
-
----
-
-## 8. Uso do HealthKit / Apple Health
+## 7. Uso do HealthKit / Apple Health
 
 Ao autorizar a integração com o Apple Health, você permite que o Tryv **leia** dados de saúde conforme descrito em nossa Política de Privacidade. Você pode revogar essa autorização a qualquer momento nas configurações do seu iPhone.
 
 ---
 
-## 9. Conteúdo e Conduta
+## 8. Conteúdo e Conduta
 
-### 9.1 Condutas proibidas
+### 8.1 Condutas proibidas
 Ao usar o Tryv, você concorda em não:
 - Publicar conteúdo ilegal, ofensivo, discriminatório ou que viole direitos de terceiros
 - Assediar, ameaçar, intimidar ou humilhar outras pessoas
@@ -113,68 +94,67 @@ Ao usar o Tryv, você concorda em não:
 - Se passar por outra pessoa ou entidade (falsificação de identidade)
 - Interferir na segurança ou funcionamento do aplicativo
 
-### 9.2 Como denunciar
+### 8.2 Como denunciar
 Em qualquer post ou comentário de outra pessoa, toque no menu "⋯" e escolha **Denunciar**. Você escolhe o motivo (spam, assédio, nudez, violência, envolve menor de idade ou outro) e, se quiser, acrescenta detalhes. A pessoa denunciada não é informada de quem fez a denúncia. Você também pode escrever para contato@tryv.com.br.
 
-### 9.3 Como bloquear
+### 8.3 Como bloquear
 No menu "⋯" de um post ou comentário, ou no perfil da pessoa, escolha **Bloquear**. Depois de bloquear, você não verá mais os posts dessa pessoa e ela não verá os seus. Para desbloquear, acesse **Perfil > Usuários bloqueados**.
 
-### 9.4 Análise das denúncias e medidas
+### 8.4 Análise das denúncias e medidas
 O Tryv analisa as denúncias em até 24 horas. O conteúdo que violar estes Termos é removido, e o autor pode ter a conta suspensa ou excluída. Para dúvidas ou denúncias fora do aplicativo, escreva para contato@tryv.com.br.
 
-### 9.5 Verificação automática de textos e fotos
-Antes de publicar, o Tryv verifica automaticamente os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios, e bio e certificações de profissionais) e as fotos enviadas para posts. A verificação é automática e **pode errar**, tanto barrando algo permitido quanto deixando passar algo que não deveria.
+### 8.5 Verificação automática de textos e fotos
+Antes de publicar, o Tryv verifica automaticamente os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios e bio) e as fotos enviadas para posts. A verificação é automática e **pode errar**, tanto barrando algo permitido quanto deixando passar algo que não deveria.
 - Texto ou foto barrados não são publicados; o aplicativo mostra uma mensagem pedindo para você reescrever o texto ou escolher outra foto.
 - Se a verificação das fotos estiver indisponível, a foto não é publicada; tente de novo mais tarde.
 - Muitas tentativas barradas em pouco tempo causam uma pausa temporária nos envios.
 - Se você acha que algo foi barrado por engano, escreva para contato@tryv.com.br. [CONFIRMAR COM ADVOGADO: procedimento e prazo para analisar contestações de bloqueios automáticos]
-- Quem tenta publicar conteúdo proibido repetidamente pode, conforme as seções 9.4 e 12.2, ter a conta suspensa ou encerrada.
-- A verificação não substitui as denúncias: conteúdo que passou pela verificação ainda pode ser denunciado e removido (seções 9.2 e 9.4).
+- Quem tenta publicar conteúdo proibido repetidamente pode, conforme as seções 8.4 e 11.2, ter a conta suspensa ou encerrada.
+- A verificação não substitui as denúncias: conteúdo que passou pela verificação ainda pode ser denunciado e removido (seções 8.2 e 8.4).
 
 ---
 
-## 10. Propriedade Intelectual
+## 9. Propriedade Intelectual
 
 O aplicativo Tryv, sua marca, design, código-fonte e demais elementos (exceto o conteúdo gerado pelos usuários) são de propriedade do Tryv e protegidos por leis de propriedade intelectual. Nenhuma disposição destes Termos concede a você direitos sobre essa propriedade, além do direito limitado de uso do aplicativo conforme estes Termos.
 
 ---
 
-## 11. Limitação de Responsabilidade
+## 10. Limitação de Responsabilidade
 
-Na máxima extensão permitida pela lei aplicável, o Tryv não se responsabiliza por danos indiretos, incidentais ou consequenciais decorrentes do uso do aplicativo, incluindo, mas não se limitando a: perda de dados, lesões físicas decorrentes de treinos, decisões nutricionais baseadas em estimativas de IA, ou disputas entre alunos e professores contratados através do marketplace.
+Na máxima extensão permitida pela lei aplicável, o Tryv não se responsabiliza por danos indiretos, incidentais ou consequenciais decorrentes do uso do aplicativo, incluindo, mas não se limitando a: perda de dados, lesões físicas decorrentes de treinos ou decisões nutricionais baseadas em estimativas de IA.
 
 > ⚠️ **Nota para revisão jurídica:** cláusulas de limitação de responsabilidade têm validade variável conforme jurisdição e tipo de dano (o Código de Defesa do Consumidor brasileiro impõe limites a esse tipo de cláusula em relações de consumo). Recomenda-se validação específica desta seção.
 
 ---
 
-## 12. Encerramento
+## 11. Encerramento
 
-### 12.1 Exclusão da conta por você
+### 11.1 Exclusão da conta por você
 Você pode excluir sua conta a qualquer momento, diretamente no aplicativo, em **Perfil > Excluir conta**. Para confirmar, o aplicativo pede sua senha e a palavra **EXCLUIR**.
 - **A exclusão é imediata e irreversível.** Não é possível recuperar a conta nem os dados depois de confirmada.
 - São apagados seu perfil, treinos, corridas e atividades, refeições, fotos, posts, comentários, curtidas, seguidores, dados de saúde e os demais dados da conta (ver Política de Privacidade, seção 7, sobre cópias de segurança e registros que podem permanecer).
-- Assinaturas ativas (Pro e de professor) são canceladas na hora, **sem reembolso** do período já pago.
-- Se você é profissional do marketplace, é preciso antes encerrar seus alunos ativos e seus desafios ativos, e a conta de recebimentos (Stripe) não pode estar vinculada; o aplicativo informa o que estiver pendente, e você pode falar com o suporte em contato@tryv.com.br.
+- Assinaturas ativas (Pro) são canceladas na hora, **sem reembolso** do período já pago.
 - Se você é o único administrador, é preciso transferir a administração antes de excluir a conta.
 
-### 12.2 Suspensão ou encerramento pelo Tryv
+### 11.2 Suspensão ou encerramento pelo Tryv
 O Tryv pode suspender ou encerrar sua conta em caso de violação destes Termos, mediante notificação, exceto em casos de violação grave, quando o encerramento pode ser imediato.
 
 ---
 
-## 13. Legislação Aplicável e Foro
+## 12. Legislação Aplicável e Foro
 
 Estes Termos são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de [CIDADE A DEFINIR] para dirimir quaisquer controvérsias decorrentes destes Termos, com renúncia a qualquer outro, por mais privilegiado que seja.
 
 ---
 
-## 14. Alterações a Estes Termos
+## 13. Alterações a Estes Termos
 
 Podemos atualizar estes Termos periodicamente. Alterações significativas serão comunicadas através do aplicativo ou por e-mail. O uso continuado do Tryv após tais alterações constitui aceitação dos novos Termos.
 
 ---
 
-## 15. Contato
+## 14. Contato
 
 Para dúvidas sobre estes Termos de Uso, entre em contato:
 
@@ -182,4 +162,4 @@ Para dúvidas sobre estes Termos de Uso, entre em contato:
 
 ---
 
-*Este documento foi elaborado como rascunho inicial e deve ser revisado por um profissional jurídico antes de sua publicação oficial, especialmente quanto a: cláusulas de responsabilidade sobre saúde/nutrição, relação com professores do marketplace, limitação de responsabilidade à luz do Código de Defesa do Consumidor, foro/jurisdição aplicável, e o modelo de cobrança via Stripe fora do sistema de compras da Apple (risco de rejeição na App Store — ver seção 4.3).*
+*Este documento foi elaborado como rascunho inicial e deve ser revisado por um profissional jurídico antes de sua publicação oficial, especialmente quanto a: cláusulas de responsabilidade sobre saúde/nutrição, limitação de responsabilidade à luz do Código de Defesa do Consumidor, foro/jurisdição aplicável, e o modelo de cobrança via Stripe fora do sistema de compras da Apple (risco de rejeição na App Store — ver seção 4.2).*
