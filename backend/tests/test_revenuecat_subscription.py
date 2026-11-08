@@ -36,10 +36,20 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.core.config import settings  # noqa: E402
 
 assert settings.database_url == TEST_DB_URL
+# Quando outro modulo de teste ja importou `settings` antes (discover), as variaveis de ambiente acima chegam tarde: fixa direto.
+settings.revenuecat_webhook_auth = "segredo-de-teste"
+settings.revenuecat_pro_entitlement = "pro"
 
 _cfg = Config(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic.ini"))
 _cfg.set_main_option("script_location", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic"))
 command.upgrade(_cfg, "head")
+
+# O env.py do Alembic chama fileConfig(), que DESLIGA os loggers ja criados (disable_existing_loggers): religa-os para os testes de log.
+import logging  # noqa: E402
+
+for _logger in logging.root.manager.loggerDict.values():
+    if isinstance(_logger, logging.Logger):
+        _logger.disabled = False
 
 from app.core.database import SessionLocal  # noqa: E402
 from app.core.deps import has_active_pro_subscription  # noqa: E402

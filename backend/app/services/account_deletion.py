@@ -7,7 +7,8 @@ Reutilizavel (o endpoint POST /users/me/delete e um futuro job de limpeza em lot
   d. coleta as URLs do S3 (sem apagar), descartando as que outra pessoa referencia (`media_url` e texto livre);
   e. UMA transacao no banco (squads, participant_ids, denuncias, apagar na ordem das FKs); erro -> rollback total;
   f. commit;
-  g. DEPOIS do commit, best-effort (falha so loga o id do usuario): apaga o customer no Stripe e as midias no S3.
+  g. DEPOIS do commit, best-effort (falha so loga o id do usuario): apaga o customer no Stripe, pede ao RevenueCat a exclusao do
+     assinante (so se REVENUECAT_API_SECRET existir) e apaga as midias no S3.
 Logs: so ids do usuario; nunca e-mail, senha, hash, texto, URL, chave do S3 nem ids do Stripe.
 """
 import logging
@@ -50,6 +51,7 @@ from app.models.workout import WorkoutPlan, WorkoutSession
 from app.core.post_media import media_urls_of, urls_used_by_other_posts
 from app.services.post_removal import purge_post
 from app.services.avatar_profile import delete_stored_key
+from app.services import revenuecat_api
 from app.services.storage import delete_user_media_by_url
 from app.services.stripe_client import get_client
 
@@ -291,6 +293,18 @@ def _delete_stripe_customer(customer_id: str | None, user_id: uuid.UUID) -> None
         logger.warning("account_deletion_stripe_customer_failed user_id=%s (%s)", user_id, type(error).__name__)
 
 
+def _delete_revenuecat_subscriber(user_id: uuid.UUID) -> None:
+    """Pede ao RevenueCat a exclusao do assinante (app_user_id = id do usuario no Tryv). Melhor esforco, depois do commit: variavel
+    ausente = pula em silencio; qualquer falha so registra um aviso (so o id do usuario) e NUNCA bloqueia nem desfaz a exclusao."""
+    try:
+        requested = revenuecat_api.delete_subscriber(str(user_id))
+    except Exception as error:  # noqa: BLE001 -- best-effort, depois do commit
+        logger.warning("account_deletion_revenuecat_failed user_id=%s (%s)", user_id, type(error).__name__)
+        return
+    if requested:
+        logger.info("account_deletion_revenuecat_requested user_id=%s", user_id)
+
+
 def _delete_media(urls: list[str], user_id: uuid.UUID) -> None:
     failures = 0
     for url in urls:
@@ -341,6 +355,7 @@ def delete_user_account(db: Session, user: User) -> None:
 
     # Daqui para baixo a conta JA foi apagada: tudo e best-effort e so loga o id do usuario.
     _delete_stripe_customer(customer_id, uid)
+    _delete_revenuecat_subscriber(uid)
     _delete_media(media_urls, uid)
     # foto original e avatar guardados (nao sao URLs publicas, por isso fora de _collect_media_urls). delete_stored_key trata as duas formas: chave
     # privada (private/profile/) e a chave publica dos avatares ANTIGOS (profiles/...), que o backfill da migracao guarda como alternativa "avatar".

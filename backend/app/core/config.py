@@ -89,7 +89,10 @@ class Settings(BaseSettings):
     # revenuecat_webhook_auth: segredo compartilhado; o mesmo valor vai no campo "Authorization header" do webhook no painel do
     # RevenueCat (aceito como "<valor>" ou "Bearer <valor>"). Vazio = o webhook responde 503 (nunca aceita sem segredo).
     # revenuecat_pro_entitlement: nome do entitlement que significa "Tryv Pro" no RevenueCat.
+    # revenuecat_api_secret: chave SECRETA da API REST v1 do RevenueCat (nunca a chave publica do SDK), usada so para pedir a exclusao do
+    # assinante quando a conta e excluida (services/revenuecat_api.py). Vazia = essa etapa e pulada.
     revenuecat_webhook_auth: str = ""
+    revenuecat_api_secret: str = ""
     revenuecat_pro_entitlement: str = "pro"
 
     # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
