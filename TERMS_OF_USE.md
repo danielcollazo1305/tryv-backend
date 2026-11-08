@@ -29,7 +29,26 @@ Você deve ter no mínimo **18 (dezoito) anos** para criar uma conta e utilizar 
 ## 4. Assinaturas e Pagamentos
 
 ### 4.1 Plano Base
-O Tryv prevê uma assinatura base mensal que dá acesso a funcionalidades de nutrição, treino gerado por IA, rastreamento de atividades via GPS e integração com smartwatch/Apple Health. O valor vigente é exibido no aplicativo no momento da assinatura.
+O Tryv oferece uma assinatura mensal, o **Tryv Fit Pro**, que libera:
+- análise de refeições por foto e por texto, com IA;
+- geração de plano de treino por IA;
+- insight diário por IA;
+- resumo do período e comparativos (mês a mês e entre períodos) na tela inicial;
+- card de prontidão para treinar na tela inicial;
+- recordes pessoais de corrida, pedalada e caminhada;
+- relatório de frequência cardíaca;
+- exportação de relatórios em PDF.
+
+Continuam gratuitos:
+- registro de treinos (treino livre) e de refeições, com busca de alimentos;
+- rastreamento de atividades por GPS, com mapa e parciais por quilômetro;
+- frequência de treino e quilometragem semanal;
+- interpretação por IA de uma atividade já registrada;
+- Vitalidade (indicador de prontidão na aba Treino);
+- resumo de saúde (passos, sono e frequência cardíaca), a partir dos dados de saúde que você autorizar;
+- geração do avatar, com limite de gerações.
+
+O valor vigente é exibido no aplicativo, pela App Store, no momento da assinatura.
 
 > **Nota de implementação:** a assinatura é contratada dentro do aplicativo, por compra pela Apple (App Store). O status da assinatura (ativa, expirada, cancelada ou reembolsada) é gerenciado com o auxílio do RevenueCat (ver Política de Privacidade). As funcionalidades marcadas como Pro exigem uma assinatura ativa; as demais continuam disponíveis a qualquer usuário cadastrado.
 
