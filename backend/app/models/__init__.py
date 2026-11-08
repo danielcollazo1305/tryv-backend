@@ -28,7 +28,7 @@ from app.models.shoe_model import ShoeModel  # noqa: F401
 from app.models.smartwatch import SmartwatchData  # noqa: F401
 from app.models.social import Comment, Follow, Like, Post  # noqa: F401
 from app.models.squad import Squad, SquadMembership  # noqa: F401
-from app.models.subscription import Subscription  # noqa: F401
+from app.models.subscription import Subscription, SubscriptionWebhookEvent  # noqa: F401
 from app.models.trainer import Trainer  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.waitlist_email import WaitlistEmail  # noqa: F401

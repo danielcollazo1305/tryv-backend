@@ -35,7 +35,7 @@ from app.core.profile_rules import (
     username_filter_texts,
 )
 from app.core.rate_limit import SlidingWindowLimiter, enforce
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, has_active_pro_subscription
 from app.core.security import verify_password
 from app.models.avatar_attempt import AvatarAttempt
 from app.models.avatar_generation import AvatarGeneration
@@ -660,16 +660,7 @@ def get_public_profile(
 
 def compute_user_badges(db: Session, user_id: uuid.UUID) -> UserBadgesOut:
     """Selo Pro (assinatura base ativa) e selos Team (um por professor com trainer_addon ativo). 2 consultas."""
-    is_pro = (
-        db.query(Subscription)
-        .filter(
-            Subscription.user_id == user_id,
-            Subscription.type == "base",
-            Subscription.status == "active",
-        )
-        .first()
-        is not None
-    )
+    is_pro = has_active_pro_subscription(db, user_id)
 
     team_rows = (
         db.query(Trainer.professional_type, User.name)

@@ -85,6 +85,13 @@ class Settings(BaseSettings):
     # landing, ver mobile/constants/pricing.ts).
     stripe_pro_price_id: str = ""
 
+    # RevenueCat (assinatura Pro por compra dentro do app, Apple IAP) — ver routers/webhooks.py e services/revenuecat.py.
+    # revenuecat_webhook_auth: segredo compartilhado; o mesmo valor vai no campo "Authorization header" do webhook no painel do
+    # RevenueCat (aceito como "<valor>" ou "Bearer <valor>"). Vazio = o webhook responde 503 (nunca aceita sem segredo).
+    # revenuecat_pro_entitlement: nome do entitlement que significa "Tryv Pro" no RevenueCat.
+    revenuecat_webhook_auth: str = ""
+    revenuecat_pro_entitlement: str = "pro"
+
     # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""

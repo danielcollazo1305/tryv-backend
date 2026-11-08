@@ -1,7 +1,9 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -41,6 +43,21 @@ def get_current_user(
     return user
 
 
+def pro_subscription_filter(now: datetime | None = None):
+    """Condicao SQL de 'assinatura Tryv Pro valida agora' (type='base'), unica fonte da regra.
+    - expires_at NULL (Stripe e linhas antigas): vale pelo status 'active', como sempre foi;
+    - expires_at preenchido (compra no app): precisa estar no futuro;
+    - 'past_due' so conta com expires_at no futuro: e a carencia de cobranca da Apple (no Stripe past_due nunca teve expires_at)."""
+    now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+    return and_(
+        Subscription.type == "base",
+        or_(
+            and_(Subscription.status == "active", or_(Subscription.expires_at.is_(None), Subscription.expires_at > now)),
+            and_(Subscription.status == "past_due", Subscription.expires_at.isnot(None), Subscription.expires_at > now),
+        ),
+    )
+
+
 def has_active_pro_subscription(db: Session, user_id: uuid.UUID) -> bool:
     """
     Mesma checagem usada por require_pro_subscription, exposta como funcao
@@ -51,11 +68,7 @@ def has_active_pro_subscription(db: Session, user_id: uuid.UUID) -> bool:
     """
     return (
         db.query(Subscription)
-        .filter(
-            Subscription.user_id == user_id,
-            Subscription.type == "base",
-            Subscription.status == "active",
-        )
+        .filter(Subscription.user_id == user_id, pro_subscription_filter())
         .first()
         is not None
     )
