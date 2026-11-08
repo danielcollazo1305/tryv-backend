@@ -65,7 +65,7 @@
       </ul>
 
       <h3>2.3 Dados de Pagamento</h3>
-      <p>Processamos pagamentos de assinaturas através do <strong>Stripe</strong>, um processador de pagamentos terceirizado. O Tryv Fit <strong>não armazena</strong> números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.</p>
+      <p>Processamos pagamentos de assinaturas através da <strong>Apple (App Store)</strong>: a compra é feita dentro do aplicativo, na sua conta Apple, e o Tryv Fit <strong>não recebe nem armazena</strong> números de cartão de crédito ou dados financeiros — eles ficam com a Apple. Para saber se sua assinatura está ativa, usamos o <strong>RevenueCat</strong>, que recebe o identificador do seu usuário no Tryv e dados da compra (produto, datas do período, ambiente e situação da assinatura) e nos avisa quando ela muda.</p>
 
       <h3>2.4 Dados de Uso da Rede Social</h3>
       <ul>
@@ -101,7 +101,8 @@
         <tbody>
           <tr><td><strong>Anthropic (Claude API)</strong></td><td>Análise de fotos de refeições, geração de treinos personalizados, geração de insights</td></tr>
           <tr><td><strong>Amazon Web Services (S3)</strong></td><td>Armazenamento de mídias (fotos de refeições, posts, perfis)</td></tr>
-          <tr><td><strong>Stripe</strong></td><td>Processamento de pagamentos de assinaturas</td></tr>
+          <tr><td><strong>Apple (App Store)</strong></td><td>Processamento do pagamento e da assinatura (compra dentro do aplicativo)</td></tr>
+          <tr><td><strong>RevenueCat</strong></td><td>Validação e status da compra da assinatura: recebe o identificador do seu usuário no Tryv e dados da compra</td></tr>
           <tr><td><strong>Apple (HealthKit)</strong></td><td>Leitura de dados de saúde, mediante sua autorização</td></tr>
         </tbody>
       </table>

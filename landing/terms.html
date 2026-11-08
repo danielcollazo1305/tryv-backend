@@ -27,8 +27,7 @@
     <div class="doc-warning">
       ⚠️ <strong>AVISO IMPORTANTE:</strong> Este documento é um rascunho inicial, criado como ponto de partida, e não
       constitui aconselhamento jurídico. Antes de publicar ou submeter o app à App Store, recomenda-se revisão por
-      um advogado — especialmente as cláusulas de isenção de responsabilidade sobre saúde/nutrição (seção 6), a legislação aplicável (seção 12) e o modelo de cobrança via Stripe
-      fora do sistema de compras da Apple (seção 4, ver nota específica).
+      um advogado — especialmente as cláusulas de isenção de responsabilidade sobre saúde/nutrição (seção 6), a legislação aplicável (seção 12) e a cobrança, o reembolso e o direito de arrependimento nas assinaturas (seção 4.3).
     </div>
 
     <div class="doc-body">
@@ -56,24 +55,17 @@
       <h3>4.1 Plano Base</h3>
       <p>O Tryv Fit prevê uma assinatura base mensal que dá acesso a funcionalidades de nutrição, treino gerado por IA, rastreamento de atividades via GPS e integração com smartwatch/Apple Health. O valor vigente é exibido no aplicativo no momento da assinatura.</p>
       <div class="doc-warning">
-        <strong>Nota de implementação:</strong> hoje o aplicativo ainda não possui um fluxo de compra para este plano base, nem qualquer bloqueio de funcionalidade por assinatura — todas as funcionalidades listadas acima estão disponíveis a qualquer usuário cadastrado, independentemente do status de assinatura. Esta seção descreve um modelo de cobrança planejado, não uma cobrança em vigor. Ajuste o texto (ou adie a publicação desta seção) até o fluxo estar implementado.
+        <strong>Nota de implementação:</strong> a assinatura é contratada dentro do aplicativo, por compra pela Apple (App Store). O status da assinatura (ativa, expirada, cancelada ou reembolsada) é gerenciado com o auxílio do RevenueCat (ver Política de Privacidade). As funcionalidades marcadas como Pro exigem uma assinatura ativa; as demais continuam disponíveis a qualquer usuário cadastrado.
       </div>
 
       <h3>4.2 Processamento de Pagamentos</h3>
-      <p>Todos os pagamentos são processados através do <strong>Stripe</strong>. O Tryv Fit não armazena dados completos de cartão de crédito.</p>
-      <div class="doc-warning">
-        ⚠️ <strong>Nota de risco — compliance com a App Store:</strong> hoje, tanto a assinatura de professor (já implementada) quanto o plano base (planejado) processam cobrança inteiramente pelo Stripe Checkout, sem qualquer integração com o sistema de compras da Apple (In-App Purchase/StoreKit). A Diretriz 3.1.1 da App Store exige o uso de IAP para conteúdo, serviços ou funcionalidades digitais consumidas dentro do app, com exceções pontuais (ex: serviços físicos/pessoais consumidos fora do app, alguns marketplaces de serviço). Se a assinatura de professor for entendida pela Apple como "conteúdo digital consumido no app" (e não como intermediação de um serviço físico), o app pode ser rejeitado nesse modelo atual. <strong>Recomenda-se avaliação específica com um especialista em App Store review antes de submeter o app</strong>, e não apenas revisão jurídica genérica — esta é frequentemente a causa nº 1 de rejeição de apps com marketplace/assinatura.
-      </div>
-
+      <p>Todos os pagamentos são processados pela <strong>Apple (App Store)</strong>. O Tryv Fit não armazena dados completos de cartão de crédito.</p>
       <h3>4.3 Cancelamento e Reembolso</h3>
       <ul>
-        <li>Você pode cancelar sua assinatura a qualquer momento através das configurações do aplicativo ou da loja de aplicativos (App Store/Google Play)</li>
+        <li>Você pode cancelar sua assinatura a qualquer momento em <strong>Ajustes &gt; Apple ID &gt; Assinaturas</strong> do seu iPhone (o aplicativo oferece um atalho em Perfil &gt; Gerenciar assinatura). O Tryv Fit não consegue cancelar a assinatura por você</li>
         <li>O cancelamento entra em vigor ao final do período de cobrança vigente, salvo disposição em contrário</li>
-        <li>Políticas de reembolso seguem as regras da loja de aplicativos utilizada (Apple App Store ou Google Play Store) para compras feitas através delas</li>
+        <li>Pedidos de reembolso são analisados pela Apple e seguem as regras dela. [CONFIRMAR COM ADVOGADO: política de reembolso e direito de arrependimento (CDC, art. 49) para assinaturas contratadas pelo aplicativo]</li>
       </ul>
-      <div class="doc-warning">
-        <strong>Nota de implementação:</strong> hoje não existe, dentro do aplicativo, nenhuma função de autoatendimento para cancelar uma assinatura ativa (nem portal de cobrança do Stripe vinculado, nem tela de gerenciamento de assinatura) — cancelamentos precisam ser tratados manualmente pela equipe. Além disso, como as cobranças são feitas via Stripe e não via App Store/Google Play (ver nota da seção 4.3), a referência a "cancelar pela loja de aplicativos" não se aplica na prática a assinaturas cobradas assim — o cancelamento pela loja só valeria para compras processadas pelo sistema de IAP da própria loja, que hoje não é usado.
-      </div>
 
       <hr class="doc-hr">
 
@@ -155,7 +147,7 @@
 
       <hr class="doc-hr">
 
-      <p class="doc-footnote">Este documento foi elaborado como rascunho inicial e deve ser revisado por um profissional jurídico antes de sua publicação oficial, especialmente quanto a: cláusulas de responsabilidade sobre saúde/nutrição, limitação de responsabilidade à luz do Código de Defesa do Consumidor, foro/jurisdição aplicável, e o modelo de cobrança via Stripe fora do sistema de compras da Apple (risco de rejeição na App Store — ver seção 4.2).</p>
+      <p class="doc-footnote">Este documento foi elaborado como rascunho inicial e deve ser revisado por um profissional jurídico antes de sua publicação oficial, especialmente quanto a: cláusulas de responsabilidade sobre saúde/nutrição, limitação de responsabilidade à luz do Código de Defesa do Consumidor, foro/jurisdição aplicável, e reembolso e direito de arrependimento nas assinaturas (seção 4.3).</p>
     </div>
   </main>
 

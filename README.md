@@ -41,7 +41,7 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 - Feed social com posts, curtidas, comentários e seguidores.
 
 **Assinatura**
-- Assinatura **Tryv Pro** via Stripe Checkout, ativada por webhook.
+- Assinatura **Tryv Pro** por compra dentro do app (Apple IAP via RevenueCat), com status atualizado por webhook. *(Implementada no código, mas ainda não compilada nem testada em iPhone com um produto real da App Store.)*
 
 **Landing page**
 - Página estática com lista de espera, política de privacidade e termos de uso.
@@ -56,7 +56,7 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 | Backend | Python 3.14, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, JWT (python-jose) + bcrypt |
 | Banco de dados | PostgreSQL (psycopg2) |
 | Armazenamento | Amazon S3 (upload de imagens, via boto3) |
-| Pagamentos | Stripe (Checkout, webhooks e Connect) |
+| Pagamentos | Apple IAP via RevenueCat (compra no app e webhook). O código antigo do Stripe (Checkout e Connect) ainda está no backend e será removido |
 | IA | Anthropic Claude (análise de refeições e geração de treino) e OpenAI (insights e avatar) |
 | E-mail | Resend |
 | Deploy | Railway (API; migrations rodam a cada deploy), EAS Build (app) e Vercel (landing page) |
@@ -129,13 +129,15 @@ A documentação interativa (Swagger) fica em `http://localhost:8000/docs`.
 | `APP_BASE_URL` | URL pública da API (retornos do Stripe Checkout) |
 | `ANTHROPIC_API_KEY` | análise de refeições e geração de treino |
 | `OPENAI_API_KEY` | insights e avatar por IA |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID` | assinaturas e webhooks |
+| `REVENUECAT_WEBHOOK_AUTH`, `REVENUECAT_PRO_ENTITLEMENT` | webhook do RevenueCat (segredo compartilhado e nome do entitlement Pro) |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, `AWS_S3_REGION` | upload de imagens no S3 |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | e-mail de recuperação de senha |
 
 Opcionais, com valor padrão no código: `APP_TIMEZONE`, `AVATAR_IMAGE_MODEL`, `AVATAR_GENERATION_LIMIT`, `AVATAR_LIMIT_WINDOW_DAYS`, `DEFAULT_SHOE_LIFESPAN_KM`, `DEFAULT_BIKE_MAINTENANCE_KM`.
 
-Cada integração (IA, Stripe, S3, e-mail) só funciona com a sua respectiva chave.
+Cada integração (IA, RevenueCat, S3, e-mail) só funciona com a sua respectiva chave.
+
+O backend ainda lê `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e `STRIPE_PRO_PRICE_ID` (checkout antigo do Stripe, a ser removido); não são mais necessárias para a assinatura Pro nova.
 
 ---
 
@@ -147,12 +149,12 @@ npm install
 
 # aponte o app para a sua API (use o IP da máquina na rede Wi-Fi, não "localhost")
 cp .env.example .env.local        # Windows: copy .env.example .env.local
-# edite .env.local e defina EXPO_PUBLIC_API_URL
+# edite .env.local e defina EXPO_PUBLIC_API_URL e, para a assinatura, EXPO_PUBLIC_REVENUECAT_IOS_KEY (chave pública do SDK; sem ela a tela de assinatura mostra "indisponível")
 
 npx expo start
 ```
 
-Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como o Health Connect e a extensão de widget do iOS, exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
+Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como o Health Connect, a extensão de widget do iOS e a compra no app (RevenueCat), exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
 
 ---
 
@@ -179,7 +181,7 @@ Projeto em desenvolvimento ativo, em fase de pré-lançamento.
 
 **Funcionando (implementado no código):**
 - API com mais de 130 endpoints e 29 migrations, em produção no Railway.
-- Autenticação, nutrição, treinos, atividades por GPS, painel, equipamentos, XP, squads, ranking, desafios, feed social e assinatura Pro via Stripe.
+- Autenticação, nutrição, treinos, atividades por GPS, painel, equipamentos, XP, squads, ranking, desafios, feed social e assinatura Pro por compra no app (Apple IAP via RevenueCat; implementada, ainda não testada em iPhone). O checkout antigo do Stripe continua no backend até ser removido.
 - Integração com IA (Claude e OpenAI) e armazenamento de imagens no S3.
 
 **Em desenvolvimento ou com limitações:**

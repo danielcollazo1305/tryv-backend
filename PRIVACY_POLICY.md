@@ -45,7 +45,7 @@ contato@tryv.com.br
 - **Frequência cardíaca:** quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino. Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.
 
 ### 2.3 Dados de Pagamento
-Processamos pagamentos de assinaturas através do **Stripe**, um processador de pagamentos terceirizado. O Tryv **não armazena** números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.
+Processamos pagamentos de assinaturas através da **Apple (App Store)**: a compra é feita dentro do aplicativo, na sua conta Apple, e o Tryv **não recebe nem armazena** números de cartão de crédito ou dados financeiros — eles ficam com a Apple. Para saber se sua assinatura está ativa, usamos o **RevenueCat**, que recebe o identificador do seu usuário no Tryv e dados da compra (produto, datas do período, ambiente e situação da assinatura) e nos avisa quando ela muda.
 
 ### 2.4 Dados de Uso da Rede Social
 - Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo
@@ -85,7 +85,8 @@ Utilizamos os seguintes serviços de terceiros para operar o Tryv:
 |---|---|
 | **Anthropic (Claude API)** | Análise de fotos de refeições, geração de treinos personalizados, geração de insights e análise automatizada de segurança das fotos enviadas para posts, antes da publicação |
 | **Amazon Web Services (S3)** | Armazenamento de mídias (fotos de refeições, posts, perfis) |
-| **Stripe** | Processamento de pagamentos de assinaturas |
+| **Apple (App Store)** | Processamento do pagamento e da assinatura (compra dentro do aplicativo) |
+| **RevenueCat** | Validação e status da compra da assinatura: recebe o identificador do seu usuário no Tryv e dados da compra |
 | **OpenAI** | Geração do avatar estilizado a partir de uma selfie enviada por você. A selfie é processada em memória e enviada à OpenAI; não é guardada por nós (guardamos apenas o avatar gerado) |
 | **Resend** | Envio do e-mail de recuperação de senha (o e-mail contém seu nome e o código de verificação) |
 | **Apple (HealthKit)** | Leitura de dados de saúde, mediante sua autorização |
@@ -136,13 +137,13 @@ Você pode excluir sua conta no próprio aplicativo, em **Perfil > Excluir conta
 - Seus dados — perfil, treinos, corridas e atividades, refeições, dados de saúde, posts, comentários, curtidas, seguidores, bloqueios e demais dados da conta — são apagados do nosso banco de dados na hora.
 - Suas imagens (foto de perfil, fotos de refeições, de posts e de desafios) são removidas do nosso armazenamento de mídia.
 - Os registros técnicos do filtro automático ligados à sua conta (bloqueios e fotos aprovadas) são apagados junto com a conta.
-- Assinaturas ativas (Pro) são canceladas na hora, sem reembolso do período já pago.
+- **Excluir a conta não cancela a assinatura da Apple.** Se você assina o Tryv Fit Pro, cancele em **Ajustes > Apple ID > Assinaturas** para não continuar sendo cobrado; o aplicativo não consegue cancelá-la por você.
 
 ### 7.2 O que pode permanecer
 - **Cópias de segurança:** as cópias de segurança do banco de dados podem permanecer por até 90 dias depois da exclusão, até serem substituídas pela rotação normal, e não são usadas para outro fim.
 - **Denúncias de moderação:** o registro de uma denúncia (motivo, estado da análise e datas) é mantido como registro de segurança, sem vínculo com a conta excluída: quem denunciou e o autor denunciado deixam de ser identificáveis, e o trecho do conteúdo do autor excluído que estava guardado na denúncia é descartado.
 - **Tentativas de cadastro barradas pelo filtro de nomes:** quando um nome é barrado no cadastro ainda não existe conta; o registro técnico (tipo de lugar, categoria geral e data) não tem o texto nem identifica uma pessoa e, por isso, não é apagado junto com nenhuma conta. [CONFIRMAR COM ADVOGADO: prazo de guarda desses registros]
-- **Pagamentos (Stripe):** o Stripe, como processador de pagamentos, mantém registros financeiros por obrigação própria. Ao excluir sua conta, apagamos o seu cadastro de cliente no Stripe quando possível.
+- **Pagamentos (Apple e RevenueCat):** a Apple, como processadora do pagamento, mantém os registros financeiros da compra por obrigação própria, e o RevenueCat mantém o registro da compra sob a política dele. [CONFIRMAR COM ADVOGADO: se e como pediremos ao RevenueCat a exclusão dos dados do usuário ao excluir a conta, e o prazo de retenção]
 
 ### 7.3 Pendências que impedem a exclusão
 O único administrador precisa transferir a administração antes de excluir a conta.
