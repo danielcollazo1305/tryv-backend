@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
 import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
+import { identifyPurchasesUser, resetPurchasesUser } from '@/services/purchases';
 import { getUserBadges } from '@/services/user';
 
 // Reexportado de services/api.ts — a chave mora la porque a importacao
@@ -113,6 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await api.get<User>('/users/me');
     currentUserIdRef.current = response.data.id;
     setUser(response.data);
+    // Compras por RevenueCat: o app_user_id e o id do usuario no Tryv (o webhook do backend mapeia por ele). Nao bloqueia nem lanca.
+    void identifyPurchasesUser(response.data.id);
     // Sem await de proposito: nao atrasa o boot/login (isLoading) por causa
     // do Pro -- quem precisa dele le `isPro === null` como "carregando".
     void fetchIsPro(response.data.id);
@@ -123,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return userId ? fetchIsPro(userId) : null;
   }, [fetchIsPro]);
 
-  // O Pro e ativado pelo webhook do Stripe, fora do app: sem isto o isPro so seria relido no
+  // O Pro e ativado pelo webhook (RevenueCat/Stripe), fora do app: sem isto o isPro so seria relido no
   // login/boot. Ao voltar pro primeiro plano com sessao ativa, re-busca (no maximo 1x por 60 s).
   useEffect(() => {
     if (!token) return;
@@ -194,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     currentUserIdRef.current = null;
     setIsPro(null);
+    void resetPurchasesUser();
   }, []);
 
   return (

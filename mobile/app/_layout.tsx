@@ -11,7 +11,11 @@ import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
 import { runAutoImport, startBackgroundImportTrigger } from '@/services/workoutAutoImport';
+import { configurePurchases } from '@/services/purchases';
 import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
+
+// Assinatura por compra no app (RevenueCat): configura o SDK uma vez, ao abrir o app (sem chave ou fora do iOS, nao faz nada).
+configurePurchases();
 
 export default function RootLayout() {
   // Fontes do design novo (liquiglass) — telas ainda no sistema antigo nao
