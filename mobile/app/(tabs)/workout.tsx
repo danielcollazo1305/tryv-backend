@@ -8,11 +8,9 @@ import { GlassCard } from '@/components/GlassCard';
 import { ProGate } from '@/components/ProGate';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
-import { TrainerWorkoutSection } from '@/components/TrainerWorkoutSection';
 import { VitalityMonitor } from '@/components/VitalityMonitor';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/services/api';
-import { UserBadges, getUserBadges } from '@/services/user';
 import { WorkoutPlan, listWorkoutPlans } from '@/services/workouts';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -35,27 +33,15 @@ function StartActivityFab() {
 }
 
 /**
- * Gate de acesso a Treino (reformulacao) — dois acessos INDEPENDENTES:
- * - IA: exige Pro (badges.is_pro), confirmado no backend
- *   (workout_plans.py: POST /workout-plans/generate usa
- *   require_pro_subscription). Nao depende de ter Personal Trainer.
- * - Personal Trainer: exige assinatura ativa do tipo trainer_addon com um
- *   profissional professional_type='personal_trainer' — ja exposto via
- *   GET /users/{id}/badges.teams (mesmo endpoint usado em Perfil/Feed pro
- *   selo "Team [Nome]"), sem precisar de endpoint novo.
- *
- * 4 casos (A/B/C/D) — ver ProGate, TrainerWorkoutSection,
- * AiWorkoutSection.
- *
- * Migrado pro tema claro "prism-glass" — so troca de tokens/componentes
- * visuais (ScreenBackground2 -> 3, Button2 -> Button3, LiquiglassCard ->
- * GlassCard, colors2 -> colors3), nenhuma logica de acesso/geracao/
- * navegacao foi alterada.
+ * Aba Treino. O acesso e por ITEM, nao pela tela inteira:
+ * - gratuitos (sempre disponiveis): Vitalidade, historico de atividades, botao "+" (Treinar: treino livre, GPS e demais
+ *   modalidades);
+ * - Pro: so a geracao de plano de treino por IA (workout_plans.py: POST /workout-plans/generate usa require_pro_subscription).
+ *   Sem Pro, essa secao aparece como um cartao com o convite ao Pro (ProGate), sem esconder o resto da aba.
  */
 export default function WorkoutScreen() {
   const { user, isPro } = useAuth();
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
-  const [badges, setBadges] = useState<UserBadges | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,15 +50,9 @@ export default function WorkoutScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [plansData, badgesData] = await Promise.all([listWorkoutPlans(), getUserBadges(user.id)]);
-      setPlans(plansData);
-      setBadges(badgesData);
+      setPlans(await listWorkoutPlans());
     } catch (err) {
       setError(getApiErrorMessage(err, 'Não foi possível carregar seu treino.'));
-      // badges aqui so alimenta `teams` (Personal Trainer); o Pro vem do
-      // AuthContext. Falha = sem dado de Personal Trainer (badges null), nunca
-      // "nao e Pro" -- isPro nao depende desta busca.
-      setBadges(null);
     } finally {
       setLoading(false);
     }
@@ -93,56 +73,8 @@ export default function WorkoutScreen() {
     );
   }
 
-  const personalTrainerTeam = badges?.teams.find((team) => team.professional_type === 'personal_trainer') ?? null;
-  const hasPersonalTrainer = !!personalTrainerTeam;
-
-  // O plano mais recente de cada origem e tratado como o "ativo" atual —
-  // mesmo criterio que ja existia (plans[0]), so agora dividido por origem.
+  // O plano mais recente gerado por IA (sem trainer_id) e tratado como o "ativo" atual.
   const aiPlan = plans.find((plan) => !plan.trainer_id) ?? null;
-  const trainerPlan = plans.find((plan) => !!plan.trainer_id) ?? null;
-
-  // Caso A — sem Pro e sem Personal Trainer: gate cobrindo a tela inteira.
-  // So bloqueia com isPro === false (null = ainda carregando/falhou, nao e
-  // "sem Pro") e com `badges` carregado (sem ele nao sabemos se ha Personal
-  // Trainer; nesse caso cai na tela normal, que ja mostra o erro de carga).
-  // O FAB de iniciar atividade continua disponivel mesmo aqui — rastrear uma
-  // corrida/pedalada/caminhada com GPS nao depende de Pro nem de Personal
-  // Trainer, e um recurso gratuito independente do plano estruturado.
-  if (isPro === false && badges !== null && !hasPersonalTrainer) {
-    return (
-      <ScreenBackground3>
-        {/*
-          Entrada pro Perfil tambem aqui no Caso A — faltava antes desta
-          tarefa (so o retorno principal abaixo tinha avatar), o que
-          deixaria justamente quem mais se beneficia do badge de upgrade
-          (usuario free, sem Personal Trainer) sem ver-lo nesta aba.
-        */}
-        <View style={styles.gateHeader}>
-          <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Histórico de atividades">
-            <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
-          </Pressable>
-          <ProfileAvatarButton isPro={isPro ?? undefined} size={36} />
-        </View>
-        {/* Vitalidade e gratuita: fica FORA do ProGate (que nao e alterado) e acima dele. */}
-        <View style={styles.gateVitality}>
-          <VitalityMonitor />
-        </View>
-        <ProGate
-          variant="fullscreen"
-          title="Acesso a treinos"
-          subtitle="Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nível e equipamento disponível."
-        >
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="barbell" size={32} color={colors3.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>Nenhum plano de treino ainda</Text>
-          </View>
-        </ProGate>
-        <StartActivityFab />
-      </ScreenBackground3>
-    );
-  }
 
   return (
     <ScreenBackground3>
@@ -166,25 +98,14 @@ export default function WorkoutScreen() {
         </View>
         {!!error && <Text style={styles.error}>{error}</Text>}
 
-        {/* Vitalidade (gratuita): logo abaixo do cabecalho, antes das secoes de Personal Trainer e de IA; o botao de iniciar e o FAB flutuante. */}
+        {/* Vitalidade (gratuita): logo abaixo do cabecalho, antes da secao de IA; o botao de iniciar e o FAB flutuante. */}
         <VitalityMonitor />
 
-        {/* Casos B/D — secao do Personal Trainer, so quando ha assinatura ativa. */}
-        {hasPersonalTrainer && (
-          <TrainerWorkoutSection trainerName={personalTrainerTeam!.trainer_name} plan={trainerPlan} />
-        )}
-
-        {/* Caso C/D — Pro de verdade: secao de IA completa. */}
+        {/* Pro: secao de IA completa. */}
         {isPro === true && <AiWorkoutSection plan={aiPlan} />}
 
-        {/*
-          Caso B — tem Personal Trainer mas nao e Pro: a secao de IA nao
-          fica totalmente ausente (decisao deliberada, ver comentario
-          abaixo) — aparece ofuscada com CTA, pra deixar claro que e uma
-          funcionalidade bloqueada (nao algo quebrado/faltando), conforme
-          pedido explicitamente pra nao deixar essa ambiguidade.
-        */}
-        {isPro === false && hasPersonalTrainer && (
+        {/* Sem Pro: so a geracao de treino por IA fica bloqueada (cartao com convite ao Pro); o resto da aba continua livre. */}
+        {isPro === false && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Treino gerado por IA</Text>
             <ProGate variant="card" borderRadius={radius3.xl}>
@@ -210,17 +131,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gateHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing3.md,
-    paddingHorizontal: spacing3.containerMargin,
-    paddingTop: spacing3.xl,
-  },
   content: { padding: spacing3.containerMargin, paddingTop: spacing3.xl, paddingBottom: spacing3.xl, gap: spacing3.lg },
   headerWrap: { gap: spacing3.xs },
-  gateVitality: { paddingHorizontal: spacing3.containerMargin, paddingTop: spacing3.md },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.md },
