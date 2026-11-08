@@ -14,7 +14,6 @@ export type DeleteAccountErrorKind =
   | 'wrong_password'
   | 'blocked'
   | 'too_many'
-  | 'stripe_failed'
   | 'route_missing'
   | 'network'
   | 'session_expired'
@@ -76,10 +75,8 @@ export function classifyDeleteAccountError(err: unknown): DeleteAccountError {
     return { kind: 'too_many', message: 'Muitas tentativas. Tente novamente em alguns minutos.' };
   }
   if (status === 502) {
-    return {
-      kind: 'stripe_failed',
-      message: 'Não foi possível cancelar sua assinatura agora. Tente novamente em instantes.',
-    };
+    // O servidor ainda pode responder 502 (falha ao cancelar assinatura antiga do Stripe, removida na etapa 8): nada foi apagado.
+    return { kind: 'other', message: 'Não foi possível excluir a conta agora. Tente novamente em instantes.' };
   }
   // API de producao ainda sem o endpoint: 405, ou 404 com o corpo padrao {"detail":"Not Found"} do FastAPI.
   if (status === 405 || (status === 404 && (detail === 'Not Found' || detail === undefined))) {
