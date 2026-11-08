@@ -51,17 +51,8 @@ import {
   startBackgroundTracking,
   stopBackgroundTrackingAndFlush,
 } from '@/services/backgroundLocation';
-import { fetchRecentHeartRateBpm } from '@/services/health';
-import { finishLiveActivity, startLiveActivity, updateLiveActivity } from '@/services/liveActivities';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
-// Intervalo minimo entre atualizacoes ao vivo enviadas pro backend — o GPS
-// pinga a cada ~4s, mas o professor acompanhando nao precisa de mais que
-// isso; throttle evita chamadas de rede desnecessarias.
-const LIVE_UPDATE_THROTTLE_MS = 5000;
-// Uma leitura de FC mais velha que isso nao e mostrada como "ao vivo" —
-// melhor omitir do que enganar o professor com um numero de minutos atras.
-const LIVE_HEART_RATE_MAX_AGE_MS = 2 * 60 * 1000;
 // Distancia minima pra calcular pace ao vivo (mesmo valor de
 // distanceInterval do watchPositionAsync abaixo — ruido de GPS parado
 // ainda pode gerar um "movimento" de poucos centimetros entre pings do
@@ -145,11 +136,8 @@ export default function NewActivityScreen() {
   // primeiro plano ja esta rolando (ver useEffect abaixo).
   const [showBackgroundUpsell, setShowBackgroundUpsell] = useState(false);
   const appStateRef = useRef(AppState.currentState);
-  // Live Activity: o professor vinculado pode acompanhar via polling. E um
-  // bonus, nao o fluxo principal — qualquer falha aqui e engolida em
-  // silencio, nunca deve atrapalhar o aluno rastreando a propria atividade.
-  const liveActivityIdRef = useRef<string | null>(null);
-  const lastLiveUpdateAtRef = useRef(0);
+  // Envio de posicao/FC ao vivo pro backend DESLIGADO (modo professor removido do produto).
+  // O rastreamento local e o registro final (POST /runs) nao dependem disso.
 
   // Registro manual
   const [durationMinutes, setDurationMinutes] = useState('');
@@ -198,43 +186,6 @@ export default function NewActivityScreen() {
     }, 1000);
     return () => clearInterval(interval);
   }, [trackingActive, startedAt]);
-
-  // Envia a posicao atual pro backend (Live Activity), throttled — dispara a
-  // cada novo ponto de GPS (routePoints muda), mas so manda de fato se ja se
-  // passaram LIVE_UPDATE_THROTTLE_MS desde o ultimo envio.
-  useEffect(() => {
-    if (!trackingActive || !liveActivityIdRef.current || routePoints.length === 0 || !startedAt) return;
-    const now = Date.now();
-    if (now - lastLiveUpdateAtRef.current < LIVE_UPDATE_THROTTLE_MS) return;
-    lastLiveUpdateAtRef.current = now;
-
-    const activityId = liveActivityIdRef.current;
-    const last = routePoints[routePoints.length - 1];
-    const elapsed = Math.floor((now - startedAt.getTime()) / 1000);
-    const pace = liveDistanceMeters >= MIN_DISTANCE_METERS_FOR_PACE ? elapsed / (liveDistanceMeters / 1000) : null;
-
-    (async () => {
-      // Melhor esforco: so vem algo aqui se o usuario tiver Apple Watch (ou
-      // outro dispositivo companion) gravando ativamente por perto — o
-      // iPhone sozinho nao tem sensor de FC nem fonte alternativa via
-      // HealthKit, entao isso fica null na pratica na maioria dos treinos.
-      const heartRate =
-        Platform.OS === 'ios' ? await fetchRecentHeartRateBpm(LIVE_HEART_RATE_MAX_AGE_MS).catch(() => null) : null;
-
-      try {
-        await updateLiveActivity(activityId, {
-          lat: last.lat,
-          lng: last.lng,
-          distance_meters: liveDistanceMeters,
-          elapsed_seconds: elapsed,
-          pace_seconds_per_km: pace,
-          heart_rate_bpm: heartRate ?? undefined,
-        });
-      } catch {
-        // silencioso de proposito — ver comentario no ref acima
-      }
-    })();
-  }, [routePoints, trackingActive, startedAt, liveDistanceMeters]);
 
   // Garante que o GPS pare de ser rastreado se o usuario sair da tela sem finalizar.
   useEffect(() => {
@@ -323,16 +274,6 @@ export default function NewActivityScreen() {
       setTrackingActive(true);
       setStage('tracking');
 
-      // Bonus pro professor vinculado acompanhar ao vivo — nao bloqueia nem
-      // afeta o rastreamento do proprio aluno se falhar.
-      startLiveActivity(selectedType as GpsActivityType)
-        .then((live) => {
-          liveActivityIdRef.current = live.id;
-        })
-        .catch(() => {
-          liveActivityIdRef.current = null;
-        });
-
       const subscription = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 4000, distanceInterval: 10 },
         (loc) => {
@@ -362,18 +303,6 @@ export default function NewActivityScreen() {
     }
   };
 
-  /** Idempotente: seguro chamar mais de uma vez (ex: Finalizar seguido de Descartar). */
-  const stopLiveTracking = async () => {
-    const id = liveActivityIdRef.current;
-    if (!id) return;
-    liveActivityIdRef.current = null;
-    try {
-      await finishLiveActivity(id);
-    } catch {
-      // silencioso — linha efemera, uma falha aqui nao precisa incomodar o aluno
-    }
-  };
-
   const handleFinishTracking = () => {
     watchSubscriptionRef.current?.remove();
     watchSubscriptionRef.current = null;
@@ -382,12 +311,10 @@ export default function NewActivityScreen() {
     const finish = new Date();
     setFinishedAt(finish);
     setElapsedSeconds(Math.floor((finish.getTime() - (startedAt?.getTime() ?? finish.getTime())) / 1000));
-    stopLiveTracking();
     clearBackgroundTrackingState();
   };
 
   const handleDiscardTracking = () => {
-    stopLiveTracking();
     clearBackgroundTrackingState();
     setStage('select');
     setSelectedType(null);
