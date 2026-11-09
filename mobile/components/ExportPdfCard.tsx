@@ -2,6 +2,7 @@ import React from 'react';
 import { router } from 'expo-router';
 
 import { EditorialCard } from '@/components/EditorialCardV2';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * "Relatorio em PDF" — slide do carrossel "Para voce" da Home. Antes era um
@@ -18,6 +19,7 @@ import { EditorialCard } from '@/components/EditorialCardV2';
  * pra um contexto diferente do original.
  */
 export function ExportPdfCard() {
+  const { isPro } = useAuth();
   return (
     <EditorialCard
       image={require('../assets/imagens/acompanhamento-profissional-card.png')}
@@ -28,6 +30,7 @@ export function ExportPdfCard() {
       accessibilityLabel="Personal trainer orientando um aluno durante o treino"
       onPress={() => router.push('/export-pdf')}
       ctaLabel="Exportar PDF"
+      proBadge={isPro === false}
     />
   );
 }
