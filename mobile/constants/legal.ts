@@ -1,11 +1,10 @@
 /**
  * Links exibidos na tela de assinatura (a Apple exige Termos e Politica visiveis onde se compra) e em Ajustes.
  *
- * ATENCAO (a confirmar): os enderecos abaixo assumem que a landing (landing/terms.html e landing/privacy.html) esta publicada
- * em https://tryv.com.br. O dominio nao esta registrado em nenhum arquivo do repositorio alem do e-mail de contato; confirme a URL
- * real das paginas publicadas antes do envio para a App Store e ajuste LEGAL_BASE_URL.
+ * Os enderecos abaixo apontam para a landing (landing/terms.html e landing/privacy.html) em https://tryvfit.app, dominio informado
+ * pelo responsavel. A confirmar antes do envio para a App Store: que as duas paginas estejam publicadas nesse dominio, nestes caminhos.
  */
-const LEGAL_BASE_URL = 'https://tryv.com.br';
+const LEGAL_BASE_URL = 'https://tryvfit.app';
 
 export const TERMS_URL = `${LEGAL_BASE_URL}/terms.html`;
 export const PRIVACY_URL = `${LEGAL_BASE_URL}/privacy.html`;
