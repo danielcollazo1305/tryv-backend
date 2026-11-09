@@ -61,6 +61,14 @@ export default function HomeScreen() {
   const [insightLoading, setInsightLoading] = useState(true);
 
   const fetchSummary = useCallback(async () => {
+    // Resumo e insight so existem para Pro (402 para os demais): decide pelo plano, nao pelo 402.
+    // isPro !== true (gratuito ou ainda carregando) nao chama nada; o refetch acontece quando isPro vira true.
+    if (isPro !== true) {
+      setSummary(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -86,7 +94,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [viewMode]);
+  }, [viewMode, isPro]);
 
   const goToPreviousMonth = () => {
     if (viewMode.type === 'rolling') {
@@ -121,6 +129,11 @@ export default function HomeScreen() {
   };
 
   const fetchInsight = useCallback(async () => {
+    if (isPro !== true) {
+      setInsight(null);
+      setInsightLoading(false);
+      return;
+    }
     setInsightLoading(true);
     try {
       setInsight(await getDailyInsight());
@@ -129,7 +142,7 @@ export default function HomeScreen() {
     } finally {
       setInsightLoading(false);
     }
-  }, []);
+  }, [isPro]);
 
   useFocusEffect(
     useCallback(() => {
@@ -282,12 +295,12 @@ export default function HomeScreen() {
         (confirmado: getHomeSummary com `month` so e chamado aqui), entao
         mantive a funcionalidade, so anexada ao lugar certo.
       */}
-      <MonthComparisonCard />
+      {isPro === true && <MonthComparisonCard />}
 
       {/* Prontidao e so para Pro na Home (o endpoint e livre por causa da Vitalidade, na aba Treino): decide pelo plano, nao pelo 402. */}
       {isPro === true && <ReadinessCard />}
 
-      {insightLoading && (
+      {isPro === true && insightLoading && (
         <View style={styles.insightLoading}>
           <ActivityIndicator size="small" color={colors3.primary} />
         </View>
@@ -297,7 +310,7 @@ export default function HomeScreen() {
       <PersonalRecordsCard />
 
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+      {isPro === true && loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
       {!loading && summary && (
         <>
