@@ -45,7 +45,7 @@ function monthLabel(year: number, month: number): string {
 }
 
 export default function HomeScreen() {
-  const { user, logout, isPro } = useAuth();
+  const { user, logout, isPro, isProError, refreshIsPro } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
   const insets = useSafeAreaInsets();
 
@@ -313,6 +313,16 @@ export default function HomeScreen() {
       {/* Convite ao Pro no lugar dos blocos acima que nao aparecem para o gratuito; so com isPro === false (null = carregando, nao mostra). */}
       {isPro === false && <ProUpsellCard />}
 
+      {/* Nao deu para verificar a assinatura (isPro null + busca falhou): aviso discreto no lugar dos blocos Pro. Nao e paywall nem convite; some quando isPro vira true/false. */}
+      {isPro === null && isProError && (
+        <View style={styles.proCheckRow}>
+          <Text style={styles.proCheckText}>Não foi possível verificar sua assinatura.</Text>
+          <Pressable onPress={() => void refreshIsPro()} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.proCheckAction}>Tentar de novo</Text>
+          </Pressable>
+        </View>
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
       {isPro === true && loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
@@ -411,6 +421,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   error: { color: colors3.error, textAlign: 'center' },
+  proCheckRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing3.sm,
+  },
+  proCheckText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
+  proCheckAction: { ...typography3.labelMd, color: colors3.primary },
   loading: { marginTop: spacing3.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
   // statsCard (navegador de mes + peso/dias treinados/deficit) migrado
