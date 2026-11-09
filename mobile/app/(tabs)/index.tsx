@@ -19,6 +19,7 @@ import { ReadinessCard } from '@/components/ReadinessCard';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { TrainerPartnerRow } from '@/components/TrainerPartnerRow';
 import { TrainersHighlight } from '@/components/TrainersHighlight';
+import { ProUpsellCard } from '@/components/ProUpsellCard';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { ActivityProgressCard } from '@/components/ActivityProgressCard';
 import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
@@ -308,6 +309,9 @@ export default function HomeScreen() {
       {!insightLoading && !!insight && <InsightCard text={insight.insight_text} />}
 
       <PersonalRecordsCard />
+
+      {/* Convite ao Pro no lugar dos blocos acima que nao aparecem para o gratuito; so com isPro === false (null = carregando, nao mostra). */}
+      {isPro === false && <ProUpsellCard />}
 
       {!!error && <Text style={styles.error}>{error}</Text>}
       {isPro === true && loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
