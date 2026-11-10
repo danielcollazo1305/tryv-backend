@@ -19,13 +19,11 @@ from app.routers import (
     challenges,
     creatine_logs,
     dashboard,
-    diet_plans,
     equipment,
     gallery,
     foods,
     heart_rate,
     insights,
-    live_activities,
     media,
     meals,
     moderation,
@@ -39,8 +37,6 @@ from app.routers import (
     social,
     squads,
     subscriptions,
-    trainer_subscriptions,
-    trainers,
     users,
     waitlist,
     water_logs,
@@ -123,8 +119,6 @@ app.include_router(workout_plans.router)
 app.include_router(workout_sessions.router)
 app.include_router(smartwatch.router)
 app.include_router(runs.router)
-app.include_router(trainers.router)
-app.include_router(trainer_subscriptions.router)
 app.include_router(social.router)
 app.include_router(moderation.router)
 app.include_router(webhooks.router)
@@ -143,9 +137,7 @@ app.include_router(equipment.router)
 app.include_router(shoe_models.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
-app.include_router(live_activities.router)
 app.include_router(subscriptions.router)
-app.include_router(diet_plans.router)
 app.include_router(squads.router)
 app.include_router(ranking.router)
 app.include_router(waitlist.router)
