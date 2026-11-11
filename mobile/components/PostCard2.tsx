@@ -35,7 +35,7 @@ interface PostCard2Props {
  * GlassCard, colors2 -> colors3) — este componente e usado SO pelo Feed
  * (confirmado: nenhuma outra tela importa PostCard2), entao a migracao
  * total e segura, sem risco de vazar pra tela ainda escura nenhuma. O
- * badge "PRO"/"TEAM" NAO usa o componente compartilhado Badge.tsx (que e
+ * badge "PRO" NAO usa o componente compartilhado Badge.tsx (que e
  * usado por varias telas ainda escuras) — replicado localmente com cores
  * claras pra nao arriscar mudar o Badge em lugar nenhum fora daqui.
  * ObscuredCard ganhou uma prop `tint="light"` nova (default 'dark'
@@ -103,13 +103,6 @@ export function PostCard2({ post, badges, onPressAuthor, onToggleLike, onPressCo
                 <Text style={[styles.badgeText, styles.badgeTextPrimary]}>PRO</Text>
               </View>
             )}
-            {badges?.teams.map((team) => (
-              <View key={`${team.trainer_name}-${team.professional_type}`} style={styles.badgePill}>
-                <Text style={styles.badgeText} numberOfLines={1}>
-                  TEAM {team.trainer_name.toUpperCase()}
-                </Text>
-              </View>
-            ))}
             <Text style={styles.date}>{formatPostDate(post.created_at)}</Text>
           </View>
         </View>
@@ -171,7 +164,7 @@ const styles = StyleSheet.create({
   authorName: { ...typography3.bodyMd, fontWeight: '700' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing3.xs, flexWrap: 'wrap' },
 
-  // Badge "PRO"/"TEAM" local (nao o componente compartilhado Badge.tsx,
+  // Badge "PRO" local (nao o componente compartilhado Badge.tsx,
   // usado por telas ainda escuras) — mesmas cores do mockup aprovado.
   badgePill: {
     borderRadius: radius3.pill,

@@ -17,14 +17,8 @@ export interface UserUpdatePayload {
   city_ibge_code?: number;
 }
 
-export interface TeamBadge {
-  trainer_name: string;
-  professional_type: 'personal_trainer' | 'nutritionist';
-}
-
 export interface UserBadges {
   is_pro: boolean;
-  teams: TeamBadge[];
 }
 
 export async function updateProfile(payload: UserUpdatePayload): Promise<User> {

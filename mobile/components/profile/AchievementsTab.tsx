@@ -18,16 +18,15 @@ interface AchievementsTabProps {
 const days = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
 
 /**
- * Aba Conquistas do SEU perfil. O app so tem, de verdade, os selos Pro/Team (getUserBadges, mesmos dados da tela "Meus selos e conquistas") e as
- * sequencias de treino; nao ha uma lista de medalhas por recorde. "Ver todas" leva a tela que ja existe (settings/badges). O selo Team continua
- * escondido (marketplace de profissionais desativado, como ja era no perfil).
+ * Aba Conquistas do SEU perfil. O app so tem, de verdade, o selo Pro (getUserBadges, mesmos dados da tela "Meus selos e conquistas") e as
+ * sequencias de treino; nao ha uma lista de medalhas por recorde. "Ver todas" leva a tela que ja existe (settings/badges).
  */
 export function AchievementsTab({ badges, currentStreak, bestStreak }: AchievementsTabProps) {
   return (
     <View style={styles.box}>
       <GlassCard variant="card" padding={spacing3.md} style={styles.card}>
         <Text style={styles.sectionTitle}>Selos</Text>
-        <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
+        <ProfileBadges2 badges={badges} variant="light" />
         <Text style={styles.muted}>{badges?.is_pro ? 'Você é Tryv Fit Pro.' : 'Assine o Tryv Fit Pro para ganhar o selo Pro.'}</Text>
       </GlassCard>
 

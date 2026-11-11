@@ -226,7 +226,7 @@ export default function TabsLayout() {
         }}
       />
       {/*
-        Rotas ocultas (href: null, nao desregistradas): Treino (plano de IA/do personal; acessivel pela Home,
+        Rotas ocultas (href: null, nao desregistradas): Treino (plano de IA; acessivel pela Home,
         AiWorkoutCard e /treinar/[modalidade]), Ranking (ponte temporaria: trofeu no cabecalho do Social, ate o
         Social ganhar abas) e Desafios (carrossel da Home).
       */}

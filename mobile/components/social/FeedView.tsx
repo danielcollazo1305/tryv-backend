@@ -75,7 +75,7 @@ export function FeedView({ active = true, onUserBlocked }: FeedViewProps) {
   const listRef = useRef<FlatList<Post>>(null);
   const scrollOffsets = useRef<Record<FeedScope, number>>({ following: 0, explore: 0 });
   const [followingError, setFollowingError] = useState<string | null>(null);
-  // Badges (Pro/Team) do autor de cada post — GET /users/{id}/badges,
+  // Badge (Pro) do autor de cada post — GET /users/{id}/badges,
   // mesmo endpoint usado no Perfil Publico, so que buscado em paralelo pra
   // cada autor distinto da pagina em vez de um unico usuario.
   const [badgesByUser, setBadgesByUser] = useState<Record<string, UserBadges | null>>({});

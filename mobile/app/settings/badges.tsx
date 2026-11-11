@@ -10,11 +10,6 @@ import { useAuth } from '@/context/AuthContext';
 import { UserBadges, getUserBadges } from '@/services/user';
 import { colors2, radius2, spacing2, typography2 } from '@/constants/theme';
 
-const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
-  personal_trainer: 'Personal Trainer',
-  nutritionist: 'Nutricionista',
-};
-
 /**
  * Tela dedicada pro mockup config-badges-perfil.html ("Meus Selos e
  * Conquistas") — mesmos dados de ProfileBadges2 (getUserBadges), so que em
@@ -24,9 +19,9 @@ const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
  * componente novo so pra isso seria over-engineering pra uma tela unica.
  *
  * O titulo do mockup fala em "Selos e Conquistas", mas o conteudo real dele
- * so mostra Pro/Team (nao ha nenhuma lista separada de "conquistas" tipo
+ * so mostra o Pro (nao ha nenhuma lista separada de "conquistas" tipo
  * medalhas por PR/streak no mockup nem no backend) — entao nao ha lacuna
- * aqui, o que existe pra mostrar e exatamente is_pro + teams.
+ * aqui, o que existe pra mostrar e exatamente is_pro.
  */
 export default function BadgesScreen() {
   const { user } = useAuth();
@@ -55,7 +50,6 @@ export default function BadgesScreen() {
   );
 
   const isPro = badges?.is_pro ?? false;
-  const teams = badges?.teams ?? [];
 
   return (
     <ScreenBackground2 style={styles.flex}>
@@ -70,7 +64,7 @@ export default function BadgesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <Text style={styles.title}>Meus Selos e Conquistas</Text>
-          <Text style={styles.subtitle}>Gerencie seu nivel de acesso e vinculos.</Text>
+          <Text style={styles.subtitle}>Gerencie seu nivel de acesso.</Text>
         </View>
 
         {loading && (
@@ -99,25 +93,6 @@ export default function BadgesScreen() {
                 </View>
               </LiquiglassCard>
             )}
-
-            {teams.map((team) => (
-              <LiquiglassCard key={`${team.trainer_name}-${team.professional_type}`} contentStyle={styles.badgeCard}>
-                <View style={[styles.badgeIconWrap, styles.badgeIconWrapSecondary]}>
-                  <Ionicons name="people" size={28} color={colors2.secondary} />
-                </View>
-                <View style={styles.badgeTexts}>
-                  <View style={styles.badgeHeaderRow}>
-                    <Text style={styles.badgeTitle}>Team {team.trainer_name}</Text>
-                    <View style={[styles.statusPill, styles.statusPillSecondary]}>
-                      <Text style={[styles.statusPillText, styles.statusPillTextSecondary]}>VINCULADO</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.badgeDescription}>
-                    Assinatura ativa com {PROFESSIONAL_TYPE_LABEL[team.professional_type] ?? team.professional_type}.
-                  </Text>
-                </View>
-              </LiquiglassCard>
-            ))}
 
             {!isPro && (
               <LiquiglassCard style={styles.ctaCard}>
@@ -167,7 +142,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeIconWrapSecondary: { borderColor: 'rgba(221, 183, 255, 0.3)' },
   badgeTexts: { flex: 1, gap: spacing2.xs },
   badgeHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm, flexWrap: 'wrap' },
   badgeTitle: { ...typography2.headlineMd, fontSize: 18 },
@@ -181,8 +155,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(208, 188, 255, 0.2)',
   },
   statusPillText: { ...typography2.labelCaps, fontSize: 10, color: colors2.primary },
-  statusPillSecondary: { backgroundColor: 'rgba(221, 183, 255, 0.1)', borderColor: 'rgba(221, 183, 255, 0.2)' },
-  statusPillTextSecondary: { color: colors2.secondary },
 
   ctaCard: { gap: spacing2.sm },
   ctaHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },

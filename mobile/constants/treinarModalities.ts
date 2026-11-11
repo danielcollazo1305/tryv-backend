@@ -40,7 +40,7 @@ export const MODALITY_META: Record<ModalityId, ModalityMeta> = {
     title: 'Halter',
     category: 'Musculação',
     image: require('@/assets/sports/halter.png'),
-    description: 'Musculação: plano do dia, treino livre ou plano do personal.',
+    description: 'Musculação: plano do dia ou treino livre.',
     hasDistance: false,
     equipment: null,
   },

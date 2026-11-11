@@ -554,7 +554,7 @@ export default function ProfileScreen() {
     }, [user])
   );
 
-  // Selo Pro / Team sao so exibicao — qualquer falha (ex: rede) simplesmente
+  // O selo Pro e so exibicao — qualquer falha (ex: rede) simplesmente
   // nao mostra nada, sem bloquear o resto do perfil.
   useFocusEffect(
     useCallback(() => {
@@ -1031,19 +1031,12 @@ export default function ProfileScreen() {
 
         <View style={styles.badgesWrap}>
           {/*
-            Marketplace desativado pre-lancamento — badge "TEAM {profissional}"
-            escondida aqui (so no Perfil, sem tocar em ProfileBadges2.tsx, que
-            e compartilhado com social/[userId].tsx e settings/badges.tsx e
-            continua mostrando TEAM normalmente nesses 2 lugares). PRO
-            continua visivel normalmente. Nao apagar: so tirar o `teams: []`
-            no relancamento.
-
             variant="light" — ProfileBadges2 ainda e escuro por padrao (os 2
             outros usos acima seguem sem migrar), mesmo padrao de prop
             variant ja usado em EmptyFollowingState/ObscuredCard/TextField2
             nesta sessao pra nao afetar quem ainda nao migrou.
           */}
-          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
+          <ProfileBadges2 badges={badges} variant="light" />
         </View>
 
         <ProfileIdentity
