@@ -68,7 +68,6 @@ import {
   markVisited,
 } from '@/services/profileFeedState';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
-import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
 import { AVATAR_CONSENT_VERSION, AVATAR_LOADING_TEXT, AVATAR_MINOR_MESSAGE, isAvatarRestricted } from '@/services/avatarFlow';
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { shareInvite } from '@/utils/invite';
@@ -103,12 +102,6 @@ function GridIcon({ name, tone = 'primary' }: { name: React.ComponentProps<typeo
       <Ionicons name={name} size={19} color={tone === 'danger' ? colors3.error : colors3.primary} />
     </LinearGradient>
   );
-}
-
-interface PersonalChallengeProgress {
-  challenge: Challenge;
-  trainer: TrainerPublic | null;
-  heatmapDays: HeatmapDay[];
 }
 
 /**
@@ -528,29 +521,6 @@ export default function ProfileScreen() {
     }
   };
 
-  /*
-   * Marketplace desativado pre-lancamento — este fetch (isTrainer) so
-   * alimentava a opcao "Tornar-se profissional parceiro" / "Meu painel
-   * profissional" mais abaixo, tambem comentada. Nao apagar: reativar os 2
-   * blocos juntos no relancamento do marketplace de profissionais.
-   *
-   * useFocusEffect(
-   *   useCallback(() => {
-   *     let active = true;
-   *     getMyTrainerProfile()
-   *       .then(() => {
-   *         if (active) setIsTrainer(true);
-   *       })
-   *       .catch(() => {
-   *         if (active) setIsTrainer(false);
-   *       });
-   *     return () => {
-   *       active = false;
-   *     };
-   *   }, [])
-   * );
-   */
-
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
@@ -658,38 +628,6 @@ export default function ProfileScreen() {
       };
     }, [])
   );
-
-  /*
-   * Marketplace desativado pre-lancamento — secao "Desafios de
-   * profissionais" comentada mais abaixo (junto com este fetch, exclusivo
-   * dela). Nao apagar: reativar os 2 blocos juntos no relancamento.
-   *
-   * useFocusEffect(
-   *   useCallback(() => {
-   *     let active = true;
-   *     listMyActiveChallenges({ is_official: false })
-   *       .then(async (challenges) => {
-   *         const withDetails = await Promise.all(
-   *           challenges.map(async (challenge) => ({
-   *             challenge,
-   *             trainer: challenge.trainer_id ? await getTrainer(challenge.trainer_id).catch(() => null) : null,
-   *             heatmapDays: await (challenge.goal_type === 'manual'
-   *               ? listMyChallengeCheckins(challenge.id).then((checkins) => buildChallengeHeatmapDays(challenge, checkins))
-   *               : getChallengeProgress(challenge.id).then((progress) => buildAutomaticChallengeHeatmapDays(challenge, progress))
-   *             ).catch(() => []),
-   *           }))
-   *         );
-   *         if (active) setPersonalChallenges(withDetails);
-   *       })
-   *       .catch(() => {
-   *         if (active) setPersonalChallenges([]);
-   *       });
-   *     return () => {
-   *       active = false;
-   *     };
-   *   }, [])
-   * );
-   */
 
   // ---- Perfil com abas (E4): cabecalho + abas (Historico, Galeria, Progresso, Conquistas) numa FlatList so; "Configuracoes" e "Meus posts" no rodape.
   const consistencyTiles = (
@@ -925,89 +863,6 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
       </View>
-
-        {/*
-          Marketplace desativado pre-lancamento — secao "Desafios de
-          profissionais" escondida (card com heatmap de desafio vinculado a
-          um profissional). Nao apagar: reativar junto com o fetch de
-          personalChallenges comentado acima.
-
-          {personalChallenges.length > 0 && (
-            <View style={styles.challengesSection}>
-              <Text style={styles.sectionTitle}>Desafios de profissionais</Text>
-              {personalChallenges.map(({ challenge, trainer, heatmapDays }) => (
-                <Pressable
-                  key={challenge.id}
-                  onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: challenge.id } })}
-                >
-                  <LiquiglassCard style={styles.challengeCard} padding={spacing2.md}>
-                    <View style={styles.challengeCardHeader}>
-                      <Ionicons name="trophy" size={16} color={colors2.primary} />
-                      <View style={styles.challengeCardTexts}>
-                        <Text style={styles.challengeCardTitle}>{challenge.title}</Text>
-                        {!!trainer && <Text style={styles.challengeCardTrainer}>{trainer.user_name}</Text>}
-                      </View>
-                    </View>
-                    <HeatmapGrid
-                      days={heatmapDays}
-                      todayKey={todayKey()}
-                      cellSize={10}
-                      showDayNumbers={false}
-                      showWeekdayHeaders={false}
-                    />
-                  </LiquiglassCard>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        */}
-
-        {/*
-          Marketplace desativado pre-lancamento — 2 opcoes de navegacao
-          escondidas: "Profissionais" (lista de descoberta) e "Tornar-se
-          profissional parceiro" / "Meu painel profissional" (cadastro de
-          profissional, junto com o fetch de isTrainer comentado acima). Nao
-          apagar: reativar no relancamento do marketplace de profissionais.
-
-          <Pressable style={styles.optionWrap} onPress={() => router.push('/trainers')}>
-            <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
-              <View style={styles.optionRow}>
-                <View style={styles.optionIconWrap}>
-                  <Ionicons name="people" size={20} color={colors2.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>Profissionais</Text>
-                  <Text style={styles.optionSubtitle}>Encontre um profissional certificado</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-              </View>
-            </LiquiglassCard>
-          </Pressable>
-
-          <Pressable
-            style={styles.optionWrap}
-            onPress={() => router.push(isTrainer ? '/trainers/me' : '/trainers/register')}
-          >
-            <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
-              <View style={styles.optionRow}>
-                <View style={styles.optionIconWrap}>
-                  <Ionicons name={isTrainer ? 'clipboard' : 'ribbon'} size={20} color={colors2.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>
-                    {isTrainer ? 'Meu painel profissional' : 'Tornar-se profissional parceiro'}
-                  </Text>
-                  <Text style={styles.optionSubtitle}>
-                    {isTrainer
-                      ? 'Status, edição de perfil e pagamentos'
-                      : 'Cadastre seu registro profissional e comece a atender'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-              </View>
-            </LiquiglassCard>
-          </Pressable>
-        */}
 
         {/*
           debug de HealthKit, escondido pre-lancamento — reativar

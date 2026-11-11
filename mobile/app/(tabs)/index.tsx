@@ -17,8 +17,6 @@ import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
-import { TrainerPartnerRow } from '@/components/TrainerPartnerRow';
-import { TrainersHighlight } from '@/components/TrainersHighlight';
 import { ProUpsellCard } from '@/components/ProUpsellCard';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { ActivityProgressCard } from '@/components/ActivityProgressCard';
@@ -179,7 +177,7 @@ export default function HomeScreen() {
           paddingTop: insets.top + spacing3.md,
           // Tab bar flutuante nao empurra mais o layout (era barra fixa
           // antes, o React Navigation reservava esse espaco sozinho) —
-          // sem isso, o ultimo item do scroll (TrainerPartnerRow) fica
+          // sem isso, o ultimo item do scroll fica
           // parcialmente escondido atras dela. altura da barra +
           // espaco ate a safe area + respiro extra pedido (spacing3.lg).
           paddingBottom: insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + spacing3.lg,
@@ -254,8 +252,8 @@ export default function HomeScreen() {
         app/export-pdf.tsx (modal com a mesma logica/validacao de antes,
         so realocada) em vez de ficar sempre visivel ocupando espaco fixo.
         Reaproveita a imagem "acompanhamento-profissional-card.png", que
-        ficou sem uso quando TrainersHighlight foi escondida do
-        marketplace pre-lancamento (ver comentario dela abaixo).
+        ficou sem uso quando o card de profissionais saiu do
+        carrossel (modo professor removido).
       */}
       <Text style={styles.forYouTitle}>Para você</Text>
       <ScrollView
@@ -266,15 +264,8 @@ export default function HomeScreen() {
       >
         <AiWorkoutCard />
         <ExportPdfCard />
-        {/* Marketplace desativado pre-lancamento — TrainersHighlight ("Acompanhamento
-            profissional") escondida do carrossel. Nao apagar: so reativar esta linha
-            quando o marketplace de profissionais for relancado. */}
         <DesafiosCarouselSlide />
       </ScrollView>
-
-      {/* Marketplace desativado pre-lancamento — TrainerPartnerRow ("seja nosso
-          parceiro") escondida. Nao apagar: so reativar esta linha quando o
-          marketplace de profissionais for relancado. Ver TrainerPartnerRow.tsx. */}
 
       {/*
         Conteudo Pro existente (comparacao mensal, prontidao, insight do

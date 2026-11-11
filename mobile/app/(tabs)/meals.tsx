@@ -7,7 +7,6 @@ import { Button3 } from '@/components/Button3';
 import { CalorieBalanceCard } from '@/components/CalorieBalanceCard';
 import { DayStrip } from '@/components/DayStrip';
 import { GlassCard } from '@/components/GlassCard';
-import { DietPlanBanner } from '@/components/DietPlanBanner';
 import { GoalProgressBar } from '@/components/GoalProgressBar';
 import { MacrosGrid } from '@/components/MacrosGrid';
 import { MealCard } from '@/components/MealCard';
@@ -116,8 +115,6 @@ export default function MealsScreen() {
                 onPressSeeAll={() => router.push('/meal/photos')}
               />
             )}
-
-            <DietPlanBanner />
 
             <MacrosGrid
               calories={totals.calories}

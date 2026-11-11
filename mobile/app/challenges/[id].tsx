@@ -325,15 +325,6 @@ export default function ChallengeDetailScreen() {
               <GlassCard variant="card" style={styles.deniedCard}>
                 <Ionicons name="lock-closed" size={20} color={colors3.error} />
                 <Text style={styles.deniedText}>Voce precisa ser aluno deste professor para participar.</Text>
-                {!!challenge.trainer_id && (
-                  <Button3
-                    label="Ver perfil do professor"
-                    variant="secondary"
-                    onPress={() =>
-                      router.push({ pathname: '/trainers/[id]', params: { id: challenge.trainer_id! } })
-                    }
-                  />
-                )}
               </GlassCard>
             )}
 

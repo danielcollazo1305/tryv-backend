@@ -129,14 +129,6 @@ function RootNavigator() {
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="health/[metric]" />
-        <Stack.Screen name="trainers/index" />
-        <Stack.Screen name="trainers/select-type" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/register" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/me" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/students" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/students/[studentId]/workout-plan" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/live/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/discover" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/follows" options={{ presentation: 'modal' }} />
