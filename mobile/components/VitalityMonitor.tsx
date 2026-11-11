@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { router } from 'expo-router';
 import { ActivityIndicator, Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -110,7 +111,7 @@ export function VitalityMonitor() {
   ];
 
   return (
-    <View style={[styles.panel, { backgroundColor: panelColor, borderColor: hasColor ? lineColor : colors3.onSurfaceVariant }]} accessible accessibilityLabel={label}>
+    <View style={[styles.panel, { backgroundColor: panelColor, borderColor: hasColor ? lineColor : colors3.onSurfaceVariant }]} accessible={hasColor} accessibilityLabel={hasColor ? label : undefined}>
       <View style={styles.row}>
         {portrait}
         <View style={styles.info}>
@@ -136,7 +137,13 @@ export function VitalityMonitor() {
           </View>
         ))}
       </View>
-      <Text style={[styles.message, { color: TEXT_ON_PANEL }]}>{hasColor ? readiness?.recommendation_text ?? '' : VITALITY_NO_DATA_MESSAGE}</Text>
+      {hasColor ? (
+        <Text style={[styles.message, { color: TEXT_ON_PANEL }]}>{readiness?.recommendation_text ?? ''}</Text>
+      ) : (
+        <Pressable onPress={() => router.push('/activity')} accessibilityRole="button" accessibilityLabel={`${VITALITY_NO_DATA_MESSAGE}. Abre a tela de conexão.`} hitSlop={8}>
+          <Text style={[styles.message, styles.messageLink, { color: TEXT_ON_PANEL }]}>{VITALITY_NO_DATA_MESSAGE}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -158,6 +165,7 @@ const styles = StyleSheet.create({
   indicator: { flex: 1, alignItems: 'center' },
   indicatorName: { ...typography3.labelSm, textTransform: 'none' },
   indicatorValue: { ...typography3.headlineMd, fontSize: 18 },
+  messageLink: { textDecorationLine: 'underline', fontWeight: '700' },
   message: { ...typography3.bodyMd, fontSize: 14, lineHeight: 20 },
   retry: { borderRadius: radius3.pill, borderWidth: 1, borderColor: colors3.primary, paddingHorizontal: spacing3.md, paddingVertical: 6 },
   retryText: { ...typography3.bodyMd, fontSize: 14, fontWeight: '700', color: colors3.primary },

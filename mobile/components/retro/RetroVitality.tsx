@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
 import { RetroText } from '@/components/retro/RetroText';
@@ -87,11 +88,11 @@ export function RetroVitality() {
   ];
 
   return (
-    <View style={styles.panel} accessible={!hasColor} accessibilityLabel={hasColor ? undefined : vitalityAccessibilityLabel(state, readiness)}>
+    <View style={styles.panel}>
       <View
         style={styles.header}
-        accessible={hasColor}
-        accessibilityLabel={hasColor ? vitalityAccessibilityLabel(state, readiness) : undefined}
+        accessible
+        accessibilityLabel={vitalityAccessibilityLabel(state, readiness)}
       >
         <RetroText size={8} color={RETRO.textDim}>Vitalidade</RetroText>
         <RetroText size={9} color={color}>
@@ -115,9 +116,14 @@ export function RetroVitality() {
           </RetroText>
         )
       ) : (
-        <View style={styles.link}>
+        <Pressable
+          onPress={() => router.push('/activity')}
+          accessibilityRole="button"
+          accessibilityLabel={`${VITALITY_NO_DATA_MESSAGE}. Abre a tela de conexão.`}
+          style={styles.link}
+        >
           <RetroText size={8} color={RETRO.accent}>{VITALITY_NO_DATA_MESSAGE}</RetroText>
-        </View>
+        </Pressable>
       )}
     </View>
   );
