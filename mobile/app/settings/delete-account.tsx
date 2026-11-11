@@ -160,10 +160,6 @@ export default function DeleteAccountScreen() {
                   <Text style={styles.noticeLink}>Abrir minhas assinaturas na Apple</Text>
                 </Pressable>
               </View>
-              <Text style={styles.paragraph}>
-                Se você é professor ou nutricionista, encerre seus alunos e desafios antes; o app avisará se algo estiver
-                pendente.
-              </Text>
               <View style={styles.actions}>
                 <Pressable
                   onPress={() => setStep(2)}
