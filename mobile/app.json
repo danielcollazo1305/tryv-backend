@@ -55,7 +55,7 @@
         "@appeeky/expo-healthkit",
         {
           "healthSharePermission": "O Tryv Fit lê do Apple Saúde seu sono, frequência cardíaca, respiração, passos, distância, calorias ativas e treinos (com o trajeto de GPS, quando houver) para mostrar seu progresso, calcular sua prontidão para treinar e importar seus treinos. Parte desses dados é enviada à sua conta no Tryv Fit. Não usamos esses dados para publicidade e o app não grava nada no Apple Saúde.",
-          "healthUpdatePermission": false,
+          "healthUpdatePermission": "O Tryv Fit só lê dados do Apple Saúde e não grava nem altera nada nele. Esta permissão é declarada apenas porque a biblioteca de saúde usada pelo app inclui recursos de escrita que o app não utiliza.",
           "isBackgroundDeliveryEnabled": true,
           "healthConnectPermissions": []
         }
