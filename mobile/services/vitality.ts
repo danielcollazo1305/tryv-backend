@@ -16,7 +16,7 @@ export const VITALITY_LABELS: Record<VitalityState, string> = {
   nodata: 'Sem dados',
 };
 
-export const VITALITY_NO_DATA_MESSAGE = 'Conecte o Apple Health ou o Health Connect';
+export const VITALITY_NO_DATA_MESSAGE = 'Conecte o Apple Health';
 
 function isNum(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
