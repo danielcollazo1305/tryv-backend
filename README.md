@@ -27,7 +27,6 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 - **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) .
 - **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa e parciais por km, e **recordes pessoais (Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
 - Tela **Treinar** com o menu de modalidades (musculação, corrida/caminhada, luta e bike) e estatísticas por modalidade.
-- Importação de treinos pelo **Health Connect (Android)**. O Apple Health (iPhone) está **em breve**.
 - Live Activity no iOS para o treino livre em andamento (extensão de widget nativa).
 
 **Painel e saúde**
@@ -53,7 +52,7 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 
 | Camada | Ferramenta |
 |---|---|
-| Mobile | React Native 0.81 + Expo SDK 54, TypeScript, Expo Router, Axios, react-native-maps, react-native-svg, Health Connect |
+| Mobile | React Native 0.81 + Expo SDK 54, TypeScript, Expo Router, Axios, react-native-maps, react-native-svg |
 | Backend | Python 3.14, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, JWT (python-jose) + bcrypt |
 | Banco de dados | PostgreSQL (psycopg2) |
 | Armazenamento | Amazon S3 (upload de imagens, via boto3) |
@@ -153,7 +152,7 @@ cp .env.example .env.local        # Windows: copy .env.example .env.local
 npx expo start
 ```
 
-Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como o Health Connect, a extensão de widget do iOS e a compra no app (RevenueCat), exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
+Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como a extensão de widget do iOS e a compra no app (RevenueCat), exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
 
 ---
 
@@ -179,12 +178,12 @@ _Em breve._
 Projeto em desenvolvimento ativo, em fase de pré-lançamento.
 
 **Funcionando (implementado no código):**
-- API com mais de 130 endpoints e 42 migrations, em produção no Railway.
+- API com mais de 130 endpoints e 42 migrations, configurada para deploy no Railway (as migrations rodam antes de cada deploy, pelo `release` do `backend/Procfile`).
 - Autenticação, nutrição, treinos, atividades por GPS, painel, equipamentos, XP, squads, ranking, desafios, feed social e assinatura Pro por compra no app (Apple IAP via RevenueCat; implementada, ainda não testada em iPhone).
 - Integração com IA (Claude e OpenAI) e armazenamento de imagens no S3.
 
 **Em desenvolvimento ou com limitações:**
-- **Apple Health (iPhone): em breve.** A integração foi reimplementada com `@appeeky/expo-healthkit` (versão fixa 0.4.1, Expo Modules, sem Nitro, somente leitura) e já está commitada, mas **ainda não foi compilada nem testada em iPhone**; segue como "em breve" até o primeiro build validado. O **Health Connect (Android) já está disponível**.
+- **Apple Health (iPhone)**: a integração (`@appeeky/expo-healthkit`, versão fixa 0.4.1, somente leitura) está no código, mas **ainda não foi compilada nem testada em iPhone**.
 - **Catálogo de tênis**: a tabela e a busca existem, mas ainda sem dados carregados; por enquanto o cadastro usa o modelo digitado à mão.
 - **Testes automatizados**: o backend tem 65 testes (`backend/tests`: assinatura e webhook do RevenueCat, exclusão de conta, selos e desafios oficiais), que só rodam contra um Postgres descartável em localhost (variável `TRYV_TEST_DATABASE_URL`, ver `backend/README.md`). O app mobile não tem testes (só a checagem de tipos com `tsc`) e não há integração contínua.
 - **Documentos legais**: a política de privacidade e os termos de uso são rascunhos, com campos a preencher e sem revisão jurídica.
