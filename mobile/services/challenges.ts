@@ -68,16 +68,10 @@ export async function listChallenges(filters: {
 
 /**
  * Desafios ativos que o usuario logado participa — usado pra previa de
- * progresso na Home (is_official=true) e pra secao de desafios de
- * profissional no Perfil (is_official=false).
+ * progresso na Home (is_official=true).
  */
 export async function listMyActiveChallenges(filters: { is_official?: boolean } = {}): Promise<Challenge[]> {
   const response = await api.get<Challenge[]>('/challenges/mine', { params: filters });
-  return response.data;
-}
-
-export async function listTrainerChallenges(trainerId: string): Promise<Challenge[]> {
-  const response = await api.get<Challenge[]>(`/trainers/${trainerId}/challenges`);
   return response.data;
 }
 
