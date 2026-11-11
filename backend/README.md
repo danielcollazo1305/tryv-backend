@@ -1,8 +1,8 @@
 # Tryv — Backend (FastAPI)
 
-Primeira etapa do projeto: autenticação de usuários (registro, login, perfil protegido por JWT).
-Modelos de dados já criados para todo o escopo (nutrição, treino, professores, desafios, assinaturas),
-mas ainda sem rotas — isso vem nos próximos passos.
+API REST do Tryv Fit (FastAPI + SQLAlchemy + Alembic + PostgreSQL). A visão geral do produto, a lista de
+funcionalidades e as variáveis de ambiente estão no `README.md` da raiz; a lista completa de rotas fica no Swagger
+(`/docs`).
 
 ## Rodando localmente
 
@@ -18,7 +18,7 @@ pip install -r requirements.txt
 docker run --name fitness-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=fitness_app -p 5432:5432 -d postgres:16
 ```
 
-3. Copiar `.env.example` para `.env` e preencher os valores (pelo menos `DATABASE_URL` e `SECRET_KEY`).
+3. Copiar `.env.example` para `.env` e preencher os valores (pelo menos `DATABASE_URL` e `SECRET_KEY`; todas as variáveis têm valor padrão no código, mas cada integração só funciona com a sua chave).
 
 4. Rodar a API:
 ```bash
@@ -54,28 +54,35 @@ alembic current
 
 `alembic/env.py` já esta configurado pra puxar a `DATABASE_URL` de `app/core/config.py` (mesma configuração usada pelo resto do app, lida do `.env`) e o `target_metadata` de `app.models` (todos os models já importados ali) — não precisa editar `alembic.ini` nem `env.py` para rodar os comandos acima em outro ambiente, só apontar o `.env` daquele ambiente pro banco certo.
 
-## O que já funciona
-- `POST /auth/register` — criar conta (exige `date_of_birth`; so maiores de 18 anos, 422 caso contrario)
-- `POST /auth/login` — login, retorna JWT
-- `GET /users/me` — perfil do usuário logado (rota protegida)
+## Testes
 
-Todos os endpoints acima já foram testados de ponta a ponta.
+Os testes ficam em `tests/` (`unittest`) e rodam **só** contra um PostgreSQL descartável: exigem a variável `TRYV_TEST_DATABASE_URL` apontando para `localhost` e para um banco cujo nome comece com `tryv_test` (sem ela, os testes são pulados; nunca usam o banco do `.env`). O banco é criado do zero por `alembic upgrade head`. Nenhuma chamada de rede: o RevenueCat e o S3 são simulados.
+
+```bash
+# a partir de backend/, com um Postgres descartável rodando (ex.: Docker, porta 5433)
+TRYV_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/tryv_test_xxx python -I -m unittest discover -s tests
+```
+
+## Assinatura Tryv Pro
+
+A assinatura é comprada **dentro do app** (Apple IAP via RevenueCat). O backend nunca recebe recibo nem "sou Pro" do app:
+
+- `POST /webhooks/revenuecat` recebe os eventos do RevenueCat e grava a assinatura. Autenticado pelo segredo `REVENUECAT_WEBHOOK_AUTH`, aceito no cabeçalho `Authorization` como o valor puro ou como `Bearer <valor>`; sem a variável, responde 503. `REVENUECAT_PRO_ENTITLEMENT` é o nome do entitlement que vale como Pro.
+- `POST /subscriptions/iap/sync` só lê o que o webhook já gravou (o app chama depois de uma compra ou de "Restaurar compras").
+- O acesso Pro é decidido pelo servidor, em `app/core/deps.py` (`has_active_pro_subscription`), pelo status da assinatura e pela data de expiração (`expires_at`); uma assinatura em cobrança atrasada (`past_due`) só conta dentro da carência com `expires_at` no futuro. Linhas antigas com `provider='stripe'` e `expires_at` nulo continuam valendo pelo status.
+- Ao excluir uma conta, o backend pede ao RevenueCat a exclusão do assinante, em melhor esforço, só se `REVENUECAT_API_SECRET` estiver preenchida; uma falha nunca impede a exclusão.
 
 ## Estrutura do projeto
 ```
 app/
-  core/       → configuração, conexão com banco, segurança (hash de senha, JWT)
-  models/     → tabelas do banco (SQLAlchemy) — users, trainers, workout_plans,
-                workout_sessions, meals, challenges, subscriptions
-  routers/    → rotas da API (endpoints)
+  core/       → configuração, conexão com banco, segurança (hash de senha, JWT), regras compartilhadas
+  models/     → tabelas do banco (SQLAlchemy)
+  routers/    → rotas da API (endpoints), um arquivo por domínio
   schemas/    → validação de entrada/saída (Pydantic)
+  services/   → regras de negócio e integrações (IA, RevenueCat, S3, e-mail, XP)
+alembic/      → migrations
+tests/        → testes (unittest, contra um Postgres descartável)
+scripts/      → scripts de apoio (comparação de modelos de IA)
 ```
 
-## Próximos passos (nessa ordem sugerida)
-1. Rotas de refeições (`/meals`) + integração com Claude API para análise de foto
-2. Rotas de treino (`/workout-plans`) + geração de plano via Claude API
-3. Integração com smartwatch (webhooks/sync de HealthKit, Google Fit, Fitbit, Garmin)
-4. Rotas de GPS/corrida
-5. Cadastro de professores + verificação de CREF
-6. Stripe (assinatura base) e Stripe Connect (marketplace de professores)
-7. Desafios
+Nota técnica: algumas tabelas e colunas de um modo de profissionais que saiu do produto (por exemplo `trainers`, `diet_plans`, `live_activities`, `subscriptions.trainer_id` e as colunas `stripe_*`) continuam nos modelos e nas migrations apenas pelo histórico do banco; não há rotas para elas. Só uma migration própria pode removê-las.
