@@ -75,7 +75,7 @@ export function classifyDeleteAccountError(err: unknown): DeleteAccountError {
     return { kind: 'too_many', message: 'Muitas tentativas. Tente novamente em alguns minutos.' };
   }
   if (status === 502) {
-    // O servidor ainda pode responder 502 (falha ao cancelar assinatura antiga do Stripe, removida na etapa 8): nada foi apagado.
+    // O backend nao responde 502 nesta rota; vem de proxy/gateway. Mensagem generica, sem afirmar o estado da conta.
     return { kind: 'other', message: 'Não foi possível excluir a conta agora. Tente novamente em instantes.' };
   }
   // API de producao ainda sem o endpoint: 405, ou 404 com o corpo padrao {"detail":"Not Found"} do FastAPI.

@@ -12,7 +12,7 @@ export * from '@/services/accountErrors';
  * Exclusao de conta IMEDIATA e irreversivel (POST /users/me/delete, 204). O backend confere a senha e a palavra
  * EXCLUIR. O 401 de "Senha incorreta" NAO desloga: o cliente de API (services/api.ts) nao tem interceptor de resposta,
  * entao nada reage a 401 sozinho; quem decide e a tela, via classifyDeleteAccountError. Timeout de 60 s (o padrao de 15 s
- * e curto: o servidor cancela a assinatura no Stripe antes de apagar).
+ * e curto: o servidor apaga muitos dados e arquivos antes de responder).
  */
 export async function deleteMyAccount(password: string, confirmation: string): Promise<void> {
   await api.post('/users/me/delete', { password, confirmation: confirmation.trim() }, { timeout: 60000 });

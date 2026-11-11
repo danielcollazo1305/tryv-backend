@@ -21,14 +21,14 @@ const FEATURE_CHIPS: { icon: React.ComponentProps<typeof Ionicons>['name']; labe
 
 /**
  * So mostra o visual de sucesso quando o servidor confirmou o Pro (isPro === true no AuthContext;
- * a verificacao em checkout.tsx so navega pra ca nesse caso). Quem NAO e Pro (isPro === false)
- * e devolvido pro checkout; isPro null (ainda carregando/falha de rede) nao mostra nada.
+ * pro.tsx so navega pra ca depois de confirmar a compra com o servidor). Quem NAO e Pro (isPro === false)
+ * e devolvido pra tela de assinatura (/subscriptions/pro); isPro null (ainda carregando/falha de rede) nao mostra nada.
  */
 export default function SubscriptionConfirmationScreen() {
   const { isPro } = useAuth();
 
   useEffect(() => {
-    if (isPro === false) router.replace('/subscriptions/checkout');
+    if (isPro === false) router.replace('/subscriptions/pro');
   }, [isPro]);
 
   if (isPro !== true) return <ScreenBackground2 style={styles.flex}><View /></ScreenBackground2>;
