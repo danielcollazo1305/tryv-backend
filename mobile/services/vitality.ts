@@ -89,6 +89,13 @@ export function scoreToColor(score: number | null | undefined): string | null {
   return hslToHex(h, s, l);
 }
 
+/** Cor do score para fundo ESCURO (tela Treinar): mesma matiz e saturacao, luminosidade 62%. Contraste >= 5:1 sobre #0d0820 em toda a faixa 0-100 (conferido). */
+export function scoreToColorOnDark(score: number | null | undefined): string | null {
+  if (!isNum(score)) return null;
+  const { h, s } = hslAt(score);
+  return hslToHex(h, s, 62);
+}
+
 /** Fundo claro do painel: mesma matiz do score, bem clara. */
 export function scoreToPanelTint(score: number | null | undefined): string | null {
   if (!isNum(score)) return null;
