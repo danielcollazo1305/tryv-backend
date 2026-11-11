@@ -49,7 +49,6 @@ from app.services.account_deletion import (
     CONFIRMATION_WORD,
     AccountAlreadyGone,
     AccountDeletionBlocked,
-    AccountDeletionStripeError,
     delete_user_account,
 )
 from app.services.content_filter_guard import enforce_text_filter, ensure_max_length
@@ -442,8 +441,8 @@ def delete_my_account(
     """
     Exclusao de conta IMEDIATA e irreversivel (Apple 5.1.1(v)): apaga a conta e os dados da pessoa. Exige a senha atual e
     a palavra EXCLUIR. 422 confirmacao diferente de EXCLUIR; 429 muitas tentativas; 401 senha incorreta (conta no mesmo
-    limite do login); 409 pendencia (ultimo admin; profissional com alunos/desafios ativos ou conta Stripe Connect);
-    502 falha ao cancelar a assinatura no Stripe (nada e apagado); 204 em sucesso. Ver services/account_deletion.py.
+    limite do login); 409 pendencia (ultimo admin; perfil de profissional antigo com alunos/desafios ativos);
+    204 em sucesso (nenhuma chamada a provedor de pagamento: a assinatura do app se cancela na App Store). Ver services/account_deletion.py.
     """
     if payload.confirmation.strip() != CONFIRMATION_WORD:
         raise HTTPException(
@@ -468,11 +467,6 @@ def delete_my_account(
         delete_user_account(db, current_user)
     except AccountDeletionBlocked as blocked:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(blocked))
-    except AccountDeletionStripeError:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Nao foi possivel cancelar sua assinatura agora. Tente novamente em instantes.",
-        )
     except AccountAlreadyGone:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

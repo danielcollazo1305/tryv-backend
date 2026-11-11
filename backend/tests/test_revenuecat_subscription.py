@@ -2,7 +2,7 @@
 
 Rodam contra um Postgres DESCARTAVEL, nunca contra o banco do .env: exigem TRYV_TEST_DATABASE_URL apontando para
 localhost e para um banco cujo nome comece com "tryv_test". O banco e criado do zero por `alembic upgrade head` (o que tambem
-exercita a migration). Nenhuma chamada de rede: eventos simulados, sem chave do RevenueCat nem do Stripe.
+exercita a migration). Nenhuma chamada de rede: eventos simulados, sem chave do RevenueCat.
 
 Uso (a partir de backend/):
     set TRYV_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/tryv_test_xxx
@@ -25,8 +25,6 @@ if not (_parsed and _parsed.hostname in ("localhost", "127.0.0.1") and _parsed.p
 os.environ["DATABASE_URL"] = TEST_DB_URL
 os.environ["REVENUECAT_WEBHOOK_AUTH"] = "segredo-de-teste"
 os.environ["REVENUECAT_PRO_ENTITLEMENT"] = "pro"
-os.environ["STRIPE_SECRET_KEY"] = ""
-os.environ["STRIPE_WEBHOOK_SECRET"] = ""
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from alembic import command  # noqa: E402

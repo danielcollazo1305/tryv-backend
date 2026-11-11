@@ -17,7 +17,6 @@ if not (_parsed and _parsed.hostname in ("localhost", "127.0.0.1") and _parsed.p
     raise unittest.SkipTest("defina TRYV_TEST_DATABASE_URL (localhost, banco tryv_test*) para rodar estes testes")
 
 os.environ["DATABASE_URL"] = TEST_DB_URL
-os.environ["STRIPE_SECRET_KEY"] = ""
 os.environ["REVENUECAT_API_SECRET"] = ""
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -108,7 +107,7 @@ class AccountDeletionRevenueCatTests(SecretMixin, unittest.TestCase):
         self.db.add(self.user)
         self.db.commit()
         self.uid = self.user.id
-        # S3 e Stripe fora do teste: so o RevenueCat importa aqui.
+        # S3 fora do teste: so o RevenueCat importa aqui.
         self._patches = [
             mock.patch.object(account_deletion, "delete_user_media_by_url", return_value=True),
             mock.patch.object(account_deletion, "delete_stored_key", return_value=True),
@@ -169,6 +168,133 @@ class AccountDeletionRevenueCatTests(SecretMixin, unittest.TestCase):
             with self.assertNoLogs("app.services.account_deletion", level="WARNING"):
                 self.delete()
         self.assertFalse(self.user_exists())
+
+
+class AccountDeletionSemStripeTests(SecretMixin, unittest.TestCase):
+    """Depois da remocao do Stripe: a exclusao nao chama (nem importa) nada do Stripe, apaga dados e avatares, e o RevenueCat
+    segue como melhor esforco (ignorado se REVENUECAT_API_SECRET estiver vazio)."""
+
+    PASSWORD = "senha-de-teste-123"
+
+    def setUp(self):
+        super().setUp()
+        from fastapi.testclient import TestClient
+
+        from app.core.security import create_access_token, hash_password
+        from app.main import app
+
+        self.app = app
+        self.client = TestClient(app)
+        self.db = SessionLocal()
+        self.avatar_url = "https://exemplo.invalid/avatar.jpg"
+        self.keys = ["private/profile/a", "private/profile/b", "avatars/c", "avatars/d"]
+        self.user = User(
+            name="Teste",
+            email=f"{uuid.uuid4().hex}@example.invalid",
+            hashed_password=hash_password(self.PASSWORD),
+            is_admin=False,
+            avatar_url=self.avatar_url,
+            profile_photo_key=self.keys[0],
+            profile_photo_thumb_key=self.keys[1],
+            generated_avatar_key=self.keys[2],
+            generated_avatar_thumb_key=self.keys[3],
+        )
+        self.db.add(self.user)
+        self.db.commit()
+        self.uid = self.user.id
+        self.headers = {"Authorization": f"Bearer {create_access_token({'sub': str(self.uid)})}"}
+        self.media = mock.patch.object(account_deletion, "delete_user_media_by_url", return_value=True)
+        self.keys_mock = mock.patch.object(account_deletion, "delete_stored_key", return_value=True)
+        self.media_mock = self.media.start()
+        self.stored_mock = self.keys_mock.start()
+
+    def tearDown(self):
+        self.media.stop()
+        self.keys_mock.stop()
+        self.db.rollback()
+        self.db.query(Subscription).filter(Subscription.user_id == self.uid).delete()
+        self.db.query(User).filter(User.id == self.uid).delete()
+        self.db.commit()
+        self.db.close()
+        super().tearDown()
+
+    def user_exists(self) -> bool:
+        self.db.expire_all()
+        return self.db.query(User.id).filter(User.id == self.uid).first() is not None
+
+    def subscriptions_count(self) -> int:
+        self.db.expire_all()
+        return self.db.query(Subscription).filter(Subscription.user_id == self.uid).count()
+
+    def delete_via_api(self, password: str | None = None):
+        return self.client.post(
+            "/users/me/delete",
+            json={"password": password or self.PASSWORD, "confirmation": "EXCLUIR"},
+            headers=self.headers,
+        )
+
+    def test_codigo_nao_tem_mais_stripe(self):
+        self.assertFalse(hasattr(account_deletion, "stripe"))
+        self.assertFalse(hasattr(account_deletion, "AccountDeletionStripeError"))
+        self.assertNotIn("stripe", sys.modules)
+        paths = {getattr(route, "path", "") for route in self.app.routes}
+        self.assertNotIn("/webhooks/stripe", paths)
+        self.assertNotIn("/subscriptions/pro/checkout", paths)
+        # As rotas do RevenueCat continuam registradas (o comportamento delas e coberto em test_revenuecat_subscription.py).
+        self.assertIn("/webhooks/revenuecat", paths)
+        self.assertIn("/subscriptions/iap/sync", paths)
+
+    def test_usuario_sem_assinatura_apaga_dados_e_avatares_sem_rede(self):
+        settings.revenuecat_api_secret = ""
+        with mock.patch.object(revenuecat_api, "_request") as request:
+            response_ = self.delete_via_api()
+        self.assertEqual(response_.status_code, 204, response_.text)
+        self.assertFalse(self.user_exists())
+        request.assert_not_called()  # RevenueCat sem chave: pulado em silencio
+        self.media_mock.assert_any_call(self.avatar_url)
+        self.assertEqual(sorted(c.args[0] for c in self.stored_mock.call_args_list), sorted(self.keys))
+
+    def test_usuario_com_assinatura_do_app_apaga_tudo_e_pede_exclusao_ao_revenuecat(self):
+        self.db.add(
+            Subscription(
+                user_id=self.uid, type="base", provider="revenuecat", status="active",
+                expires_at=datetime.utcnow() + timedelta(days=5),
+            )
+        )
+        self.db.commit()
+        with mock.patch.object(revenuecat_api, "_request", return_value=response(200)) as request:
+            response_ = self.delete_via_api()
+        self.assertEqual(response_.status_code, 204, response_.text)
+        self.assertFalse(self.user_exists())
+        self.assertEqual(self.subscriptions_count(), 0)
+        request.assert_called_once()
+        self.assertEqual(request.call_args.args[1], f"https://api.revenuecat.com/v1/subscribers/{self.uid}")
+        self.assertEqual(len(self.stored_mock.call_args_list), len(self.keys))
+
+    def test_falha_do_revenuecat_nao_vira_erro_para_o_usuario(self):
+        with mock.patch.object(revenuecat_api, "_request", return_value=response(500)):
+            response_ = self.delete_via_api()
+        self.assertEqual(response_.status_code, 204, response_.text)
+        self.assertFalse(self.user_exists())
+
+    def test_dados_legados_do_stripe_nao_bloqueiam_nem_chamam_nada(self):
+        # Linha antiga do Stripe + stripe_customer_id: a exclusao so apaga as linhas locais (nao ha mais cliente Stripe).
+        self.user.stripe_customer_id = "cus_legado"
+        self.db.add(Subscription(user_id=self.uid, type="base", provider="stripe", stripe_subscription_id="sub_legado", status="active"))
+        self.db.commit()
+        settings.revenuecat_api_secret = ""
+        response_ = self.delete_via_api()
+        self.assertEqual(response_.status_code, 204, response_.text)
+        self.assertFalse(self.user_exists())
+        self.assertEqual(self.subscriptions_count(), 0)
+
+    def test_senha_errada_nao_apaga_nada(self):
+        with mock.patch.object(revenuecat_api, "_request") as request:
+            response_ = self.delete_via_api(password="senha-errada")
+        self.assertEqual(response_.status_code, 401)
+        self.assertTrue(self.user_exists())
+        request.assert_not_called()
+        self.stored_mock.assert_not_called()
 
 
 if __name__ == "__main__":

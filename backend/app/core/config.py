@@ -11,10 +11,6 @@ class Settings(BaseSettings):
     # core/timezone.py. Fixo por enquanto; env APP_TIMEZONE. Validado no boot.
     app_timezone: str = "America/Sao_Paulo"
 
-    # URL publica desta API — usada para montar success_url/cancel_url do
-    # Stripe Checkout (o navegador do usuario e redirecionado para ca).
-    app_base_url: str = "http://localhost:8000"
-
     # Banco de dados
     database_url: str = "postgresql://postgres:postgres@localhost:5432/fitness_app"
 
@@ -74,17 +70,6 @@ class Settings(BaseSettings):
     default_shoe_lifespan_km: float = 600.0
     default_bike_maintenance_km: float = 1000.0
 
-    # Stripe
-    stripe_secret_key: str = ""
-    stripe_webhook_secret: str = ""
-    # Price ID do plano Tryv Pro (R$ 22,90/mes, preco fixo criado uma vez no
-    # Stripe) — diferente da assinatura de professor, que monta o preco
-    # dinamicamente porque cada profissional define o proprio valor. O valor
-    # COBRADO e o do Price no Stripe, nao esta no codigo: ao mudar o preco, crie
-    # um novo Price no Stripe e atualize esta variavel (e o texto do app e da
-    # landing, ver mobile/constants/pricing.ts).
-    stripe_pro_price_id: str = ""
-
     # RevenueCat (assinatura Pro por compra dentro do app, Apple IAP) — ver routers/webhooks.py e services/revenuecat.py.
     # revenuecat_webhook_auth: segredo compartilhado; o mesmo valor vai no campo "Authorization header" do webhook no painel do
     # RevenueCat (aceito como "<valor>" ou "Bearer <valor>"). Vazio = o webhook responde 503 (nunca aceita sem segredo).
@@ -122,6 +107,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # Variaveis desconhecidas (ex.: STRIPE_* de um .env antigo) sao ignoradas em vez de derrubar a partida.
+        extra = "ignore"
 
 
 settings = Settings()

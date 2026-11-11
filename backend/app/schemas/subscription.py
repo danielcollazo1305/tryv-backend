@@ -3,10 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class CheckoutSessionOut(BaseModel):
-    checkout_url: str
-
-
 class IapSyncOut(BaseModel):
     """Estado da assinatura Pro por compra no app, como o webhook do RevenueCat registrou (nunca o que o app afirma)."""
     is_pro: bool
