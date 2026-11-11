@@ -119,7 +119,7 @@ export default function SocialScreen() {
         )}
         {visited.challenges && (
           <View style={[styles.flex, activeTab !== 'challenges' && styles.hidden]}>
-            <ChallengesView active={activeTab === 'challenges'} />
+            <ChallengesView />
           </View>
         )}
       </View>

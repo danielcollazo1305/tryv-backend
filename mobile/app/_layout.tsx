@@ -136,7 +136,6 @@ function RootNavigator() {
         <Stack.Screen name="social/post/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/comments/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="challenges/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/category/[category]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weight/index" />
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />

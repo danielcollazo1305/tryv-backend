@@ -48,13 +48,8 @@ function OfficialCategories() {
   );
 }
 
-interface ChallengesViewProps {
-  /** Mantida so porque quem monta a view (feed.tsx) ainda a passa; nao tem mais efeito (a unica lista agora e estatica). */
-  active?: boolean;
-}
-
 /** Conteudo da aba "Desafios" do Social: so os desafios oficiais do Tryv Fit, por categoria. Sem cabecalho proprio. */
-export function ChallengesView(_props: ChallengesViewProps) {
+export function ChallengesView() {
   return (
     <View style={styles.flex}>
       <OfficialCategories />

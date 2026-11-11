@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return userId ? fetchIsPro(userId) : null;
   }, [fetchIsPro]);
 
-  // O Pro e ativado pelo webhook (RevenueCat/Stripe), fora do app: sem isto o isPro so seria relido no
+  // O Pro e ativado pelo webhook do RevenueCat, fora do app: sem isto o isPro so seria relido no
   // login/boot. Ao voltar pro primeiro plano com sessao ativa, re-busca (no maximo 1x por 60 s).
   useEffect(() => {
     if (!token) return;

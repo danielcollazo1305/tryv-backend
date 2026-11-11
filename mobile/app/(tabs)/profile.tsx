@@ -72,7 +72,7 @@ import { AVATAR_CONSENT_VERSION, AVATAR_LOADING_TEXT, AVATAR_MINOR_MESSAGE, isAv
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { shareInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
-import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /** "2026-08" — mesmo formato/convencao ja usado em TrainingFrequencyCard.tsx (mes civil atual). */
 function currentMonthParam(): string {
@@ -1202,12 +1202,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: {
-    alignItems: 'center',
-    paddingTop: spacing3.xl,
-    padding: spacing3.containerMargin,
-    paddingBottom: spacing3.xl,
-  },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
   // Borda do avatar sobre o card escuro do Overall.
   avatarRing: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.25)' },
@@ -1342,12 +1336,6 @@ const styles = StyleSheet.create({
   // challengesSection/challengeCard* — usados so pelo bloco "Desafios de
   // profissionais" comentado (marketplace escondido pre-lancamento, ver
   // acima). Deixados como estavam (colors2), inertes, ate o relancamento.
-  challengesSection: { width: '100%', gap: spacing2.sm, marginBottom: spacing2.lg },
-  challengeCard: { gap: spacing2.sm },
-  challengeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  challengeCardTexts: { flex: 1, gap: 2 },
-  challengeCardTitle: { ...typography2.bodyMd, fontWeight: '700', fontSize: 14 },
-  challengeCardTrainer: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 
   optionWrap: { width: '100%', marginBottom: spacing3.sm },
   optionCard: { width: '100%' },

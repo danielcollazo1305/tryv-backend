@@ -28,15 +28,6 @@ export interface Challenge {
   created_at: string;
 }
 
-export interface ChallengeCreatePayload {
-  title: string;
-  description?: string | null;
-  start_date: string;
-  end_date: string;
-  is_official?: boolean;
-  category?: ChallengeCategory | null;
-}
-
 export interface ChallengeCheckin {
   id: string;
   user_id: string;
@@ -50,11 +41,6 @@ export interface ChallengeCheckin {
 export interface ChallengeCheckinCreatePayload {
   photo_url?: string | null;
   shared_publicly?: boolean;
-}
-
-export async function createChallenge(payload: ChallengeCreatePayload): Promise<Challenge> {
-  const response = await api.post<Challenge>('/challenges', payload);
-  return response.data;
 }
 
 /** Aba "App" — desafios oficiais do Tryv, filtrados por categoria. */
