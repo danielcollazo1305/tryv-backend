@@ -1,19 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, Easing, LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Avatar } from '@/components/Avatar';
-import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { useAuth } from '@/context/AuthContext';
-import { fetchLastNightSleepHours } from '@/services/health';
-import { getTodayReadiness, Readiness } from '@/services/readiness';
+import { useVitality } from '@/hooks/useVitality';
 import {
   VITALITY_LABELS,
   VITALITY_NO_DATA_MESSAGE,
   VitalityState,
-  readinessToState,
   scoreToColor,
   scoreToPanelTint,
   scoreToPillColor,
@@ -28,8 +23,6 @@ const PORTRAIT_SIZE = 64; // ate 64 o Avatar usa a miniatura
 const TEXT_ON_PANEL = '#1b1b1f'; // contraste >= 7:1 sobre o painel claro (testado em services/vitality)
 const WAVE_SECONDS: Record<VitalityState, number> = { fit: 3600, attention: 5200, recover: 9000, nodata: 0 };
 
-type Load = { kind: 'loading' } | { kind: 'error' } | { kind: 'ok'; readiness: Readiness };
-
 /**
  * Vitalidade (Treino): retrato do proprio usuario + linha de eletrocardiograma, na cor do score de prontidao (vermelho -> verde). Gratuito para
  * todos. O estado SEMPRE aparece tambem em texto (Em forma / Atencao / Recuperar); a cor nunca e a unica informacao. A onda e decorativa
@@ -38,53 +31,9 @@ type Load = { kind: 'loading' } | { kind: 'error' } | { kind: 'ok'; readiness: R
  */
 export function VitalityMonitor() {
   const { user } = useAuth();
-  const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [width, setWidth] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
   const shift = useRef(new Animated.Value(0)).current;
-
-  const fetchData = useCallback(async () => {
-    setLoad({ kind: 'loading' });
-    try {
-      let sleepHours: number | null = null;
-      if (Platform.OS === 'ios') {
-        const connected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
-        if (connected) {
-          try {
-            sleepHours = await fetchLastNightSleepHours();
-          } catch {
-            sleepHours = null;
-          }
-        }
-      }
-      setLoad({ kind: 'ok', readiness: await getTodayReadiness(sleepHours) });
-    } catch {
-      setLoad({ kind: 'error' });
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData])
-  );
-
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => {
-        if (active) setReduceMotion(value);
-      })
-      .catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, []);
-
-  const readiness = load.kind === 'ok' ? load.readiness : null;
-  const state: VitalityState = load.kind === 'ok' ? readinessToState(readiness) : 'nodata';
+  const { load, fetchData, reduceMotion, readiness, state } = useVitality();
   const hasColor = state !== 'nodata';
   const lineColor = (hasColor ? scoreToColor(readiness?.final_score) : null) ?? colors3.onSurfaceVariant;
   const panelColor = (hasColor ? scoreToPanelTint(readiness?.final_score) : null) ?? colors3.surfaceContainerHigh;
