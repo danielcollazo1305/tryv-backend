@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.danielcollazo.tryvmobile",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -16,34 +16,6 @@
       "entitlements": {
         "com.apple.security.application-groups": ["group.com.danielcollazo.tryvmobile"]
       }
-    },
-    "android": {
-      "package": "com.danielcollazo.tryvmobile",
-      "adaptiveIcon": {
-        "backgroundColor": "#0B0B0F",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.READ_CONTACTS",
-        "android.permission.health.READ_STEPS",
-        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
-        "android.permission.health.READ_HEART_RATE",
-        "android.permission.health.READ_SLEEP",
-        "android.permission.health.READ_EXERCISE",
-        "android.permission.health.READ_EXERCISE_ROUTES",
-        "android.permission.health.WRITE_STEPS",
-        "android.permission.health.WRITE_ACTIVE_CALORIES_BURNED",
-        "android.permission.health.WRITE_HEART_RATE",
-        "android.permission.health.WRITE_SLEEP",
-        "android.permission.health.WRITE_EXERCISE",
-        "android.permission.health.WRITE_EXERCISE_ROUTE"
-      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -67,8 +39,7 @@
           "locationWhenInUsePermission": "O Tryv Fit usa sua localizacao para rastrear a rota das suas corridas e pedaladas e para mostrar o mapa de territorio da sua cidade.",
           "locationAlwaysAndWhenInUsePermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
           "locationAlwaysPermission": "Precisamos da sua localizacao em segundo plano para continuar registrando sua corrida mesmo com a tela bloqueada ou o app minimizado.",
-          "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       "expo-web-browser",
@@ -80,7 +51,6 @@
         }
       ],
       "expo-video",
-      "react-native-health-connect",
       [
         "@appeeky/expo-healthkit",
         {
@@ -93,11 +63,6 @@
       [
         "expo-build-properties",
         {
-          "android": {
-            "minSdkVersion": 26,
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36
-          },
           "ios": {
             "deploymentTarget": "16.4"
           }
