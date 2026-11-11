@@ -40,13 +40,11 @@ from app.core.security import verify_password
 from app.models.avatar_attempt import AvatarAttempt
 from app.models.avatar_generation import AvatarGeneration
 from app.models.social import Follow
-from app.models.subscription import Subscription
-from app.models.trainer import Trainer
 from app.models.user import User
 from app.routers.dashboard import _compute_training_streaks
 from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES, _moderate_post_image
 from app.routers.overall import compute_overall
-from app.schemas.subscription import TeamBadge, UserBadgesOut
+from app.schemas.subscription import UserBadgesOut
 from app.services.account_deletion import (
     CONFIRMATION_WORD,
     AccountAlreadyGone,
@@ -659,27 +657,9 @@ def get_public_profile(
 
 
 def compute_user_badges(db: Session, user_id: uuid.UUID) -> UserBadgesOut:
-    """Selo Pro (assinatura base ativa) e selos Team (um por professor com trainer_addon ativo). 2 consultas."""
-    is_pro = has_active_pro_subscription(db, user_id)
-
-    team_rows = (
-        db.query(Trainer.professional_type, User.name)
-        .select_from(Subscription)
-        .join(Trainer, Subscription.trainer_id == Trainer.id)
-        .join(User, Trainer.user_id == User.id)
-        .filter(
-            Subscription.user_id == user_id,
-            Subscription.type == "trainer_addon",
-            Subscription.status == "active",
-        )
-        .all()
-    )
-    teams = [
-        TeamBadge(trainer_name=name, professional_type=professional_type)
-        for professional_type, name in team_rows
-    ]
-
-    return UserBadgesOut(is_pro=is_pro, teams=teams)
+    """Selo Pro (assinatura base ativa). `teams` continua na resposta, sempre vazio: o selo Team (modo professor) saiu do
+    produto, e o campo fica so para o app antigo nao quebrar ate ele deixar de le-lo."""
+    return UserBadgesOut(is_pro=has_active_pro_subscription(db, user_id), teams=[])
 
 
 @router.get("/{user_id}/badges", response_model=UserBadgesOut)
@@ -689,9 +669,8 @@ def get_user_badges(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Selo Pro (assinatura da plataforma) e selos "Team [Professor]" (um por
-    professor/nutricionista com assinatura ativa — sem prioridade unica entre
-    eles, um aluno pode ter Team Personal e Team Nutri ao mesmo tempo).
+    Selo Pro (assinatura da plataforma). `teams` vem sempre vazio (selo Team removido com o modo professor; o campo
+    fica so para compatibilidade com o app antigo).
     Publico pra qualquer usuario autenticado ver, tanto no proprio perfil
     quanto no perfil de terceiros — e informacao que faz sentido como prova
     social.
