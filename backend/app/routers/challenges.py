@@ -206,7 +206,8 @@ def list_challenges(
     Listagem geral com filtros — usada pela aba "App" (is_official=true +
     category).
     """
-    query = db.query(Challenge)
+    # trainer_id preenchido = desafio antigo de professor (modo removido): fora da lista.
+    query = db.query(Challenge).filter(Challenge.trainer_id.is_(None))
     if is_official is not None:
         query = query.filter(Challenge.is_official.is_(is_official))
     if category is not None:
@@ -228,7 +229,11 @@ def list_my_active_challenges(
     """
     challenges = (
         db.query(Challenge)
-        .filter(Challenge.participant_ids.any(current_user.id), Challenge.end_date >= datetime.utcnow())
+        .filter(
+            Challenge.trainer_id.is_(None),
+            Challenge.participant_ids.any(current_user.id),
+            Challenge.end_date >= datetime.utcnow(),
+        )
         .order_by(Challenge.created_at.desc())
         .all()
     )
@@ -313,6 +318,9 @@ def join_challenge(
     current_user: User = Depends(get_current_user),
 ):
     challenge = _get_challenge_or_404(db, challenge_id)
+    if challenge.trainer_id is not None:
+        # Desafio antigo de professor (modo removido): nao da para entrar.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Desafio nao encontrado")
 
     participants = list(challenge.participant_ids or [])
     if current_user.id in participants:
