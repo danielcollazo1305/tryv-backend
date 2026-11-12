@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { GlassCard } from '@/components/GlassCard';
+import { MealPhoto } from '@/components/MealPhoto';
 import { MealCover } from '@/components/MealCover';
 import { pickMealCover } from '@/utils/mealCoverPick';
 import { Meal, formatMealTime } from '@/services/meals';
@@ -37,7 +38,7 @@ export function MealCard({ meal }: { meal: Meal }) {
   if (photo) {
     return (
       <GlassCard variant="card" style={styles.cardWithPhoto}>
-        <Image source={{ uri: photo }} style={styles.photoLarge} resizeMode="cover" />
+        <MealPhoto uri={photo} />
         {info}
       </GlassCard>
     );
@@ -62,12 +63,6 @@ const styles = StyleSheet.create({
   },
   cardWithPhoto: {
     gap: spacing3.sm,
-  },
-  photoLarge: {
-    width: '100%',
-    aspectRatio: 4 / 3,
-    borderRadius: radius3.md,
-    backgroundColor: colors3.surfaceVariant,
   },
   photoPlaceholder: {
     width: 44,

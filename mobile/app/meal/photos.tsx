@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
+import { MealPhoto } from '@/components/MealPhoto';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, formatMealDateTime, listMeals } from '@/services/meals';
@@ -72,7 +73,7 @@ export default function MealPhotosScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <GlassCard variant="card" style={styles.photoCard} padding={0}>
-            <Image source={{ uri: item.photo_url! }} style={styles.photo} />
+            <MealPhoto uri={item.photo_url!} borderRadius={0} />
             <View style={styles.info}>
               <Text style={styles.description} numberOfLines={1}>
                 {item.description ?? 'Refeicao'}
@@ -115,7 +116,6 @@ const styles = StyleSheet.create({
   listContent: { padding: spacing3.containerMargin, paddingTop: 0, paddingBottom: spacing3.xl },
 
   photoCard: { overflow: 'hidden' },
-  photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors3.surfaceContainerHigh },
   info: { padding: spacing3.md, gap: spacing3.xs },
   description: { ...typography3.bodyMd, fontWeight: '600', fontSize: 16 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +18,7 @@ import { router } from 'expo-router';
 
 import { Button3 } from '@/components/Button3';
 import { ChoiceGroup2 } from '@/components/ChoiceGroup2';
+import { MealPhoto } from '@/components/MealPhoto';
 import { ProGate } from '@/components/ProGate';
 import { TextField2 } from '@/components/TextField2';
 import { useAuth } from '@/context/AuthContext';
@@ -221,7 +221,7 @@ export default function AddMealScreen() {
       setError('Permissao de camera negada. Habilite nas configuracoes do celular.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
     if (!result.canceled && result.assets[0]) {
       runAnalysis(result.assets[0].uri, photoHint);
     }
@@ -238,8 +238,6 @@ export default function AddMealScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
     });
     if (!result.canceled && result.assets[0]) {
       runAnalysis(result.assets[0].uri, photoHint);
@@ -439,7 +437,7 @@ export default function AddMealScreen() {
 
         {mode === 'photo' && stage === 'analyzing' && (
           <View style={styles.centered}>
-            {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
+            {!!imageUri && <MealPhoto uri={imageUri} borderRadius={radius3.lg} />}
             <ActivityIndicator size="large" color={colors3.primary} style={styles.analyzingSpinner} />
             <Text style={styles.analyzingText}>Analisando sua refeicao...</Text>
           </View>
@@ -447,7 +445,7 @@ export default function AddMealScreen() {
 
         {mode === 'photo' && (stage === 'reviewing' || stage === 'uploading' || stage === 'saving') && analysis && (
           <View style={styles.reviewContainer}>
-            {!!imageUri && <Image source={{ uri: imageUri }} style={styles.previewLarge} />}
+            {!!imageUri && <MealPhoto uri={imageUri} borderRadius={radius3.lg} />}
 
             <View style={styles.descriptionRow}>
               <Text style={styles.description}>{analysis.description}</Text>
@@ -643,12 +641,6 @@ const styles = StyleSheet.create({
   },
   pickButtonText: { ...typography3.headlineMd, fontSize: 16 },
   centered: { alignItems: 'center', marginTop: spacing3.xl },
-  previewLarge: {
-    width: '100%',
-    height: 220,
-    borderRadius: radius3.lg,
-    backgroundColor: colors3.surfaceContainerHigh,
-  },
   analyzingSpinner: { marginTop: spacing3.lg },
   analyzingText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, marginTop: spacing3.md },
   reviewContainer: { gap: spacing3.sm },
