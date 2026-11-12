@@ -20,6 +20,7 @@ import {
   isHealthAvailable,
 } from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
+import { formatSleepDuration } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
 // consistencia com o resto do app (o mockup aprovado, Tryv Metricas.dc.html,
@@ -85,7 +86,7 @@ const METRIC_CONFIG: Record<
     icon: 'moon',
     color: metricColors.sleep,
     unitLabel: 'h',
-    formatValue: (value) => `${value.toFixed(1)}h`,
+    formatValue: (value) => formatSleepDuration(value),
   },
   calories: {
     label: 'Calorias ativas',

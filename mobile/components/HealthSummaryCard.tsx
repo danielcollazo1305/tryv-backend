@@ -21,6 +21,7 @@ import {
 } from '@/services/health';
 import { syncRecentHeartRate } from '@/services/heartRateSync';
 import { colors2, colors3, metricColors, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { formatSleepDuration } from '@/utils/sleepFormat';
 
 // Definicao real agora em services/health.ts (um service nao devia
 // importar de um componente, e ensureHealthAuthorized la precisa dessa
@@ -256,7 +257,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
           color={metricColors.sleep}
           label="Sono"
           subLabel="ultima noite"
-          value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
+          value={summary.sleepLastNightHours != null ? formatSleepDuration(summary.sleepLastNightHours) : '--'}
           variant={variant}
         />
       )}

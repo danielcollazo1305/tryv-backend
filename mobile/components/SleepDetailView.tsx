@@ -15,6 +15,7 @@ import {
   SleepStage,
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import { formatSleepMinutes } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
 // consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
@@ -55,13 +56,7 @@ const STAGE_COLORS: Record<SleepStage, string> = {
 
 const PERIOD_OPTIONS = ['1D', '7D', '4 SEM', '1 ANO'] as const;
 
-function formatDuration(totalMinutes: number): string {
-  const minutes = Math.round(totalMinutes);
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (hours === 0) return `${remainder}m`;
-  return `${hours}h ${String(remainder).padStart(2, '0')}m`;
-}
+const formatDuration = formatSleepMinutes;
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

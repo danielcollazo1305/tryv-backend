@@ -14,6 +14,7 @@ import {
   isHealthAvailable,
 } from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
+import { formatSleepDuration } from '@/utils/sleepFormat';
 
 type Status = 'checking' | 'unavailable' | 'disconnected' | 'ready' | 'error';
 
@@ -129,7 +130,7 @@ export function HealthMetricsGrid() {
       key: 'sleep',
       color: metricColors.sleep,
       label: 'Sono',
-      value: summary?.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--',
+      value: summary?.sleepLastNightHours != null ? formatSleepDuration(summary.sleepLastNightHours) : '--',
       unit: 'ontem',
       progress:
         summary?.sleepLastNightHours != null
