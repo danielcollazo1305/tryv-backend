@@ -238,8 +238,10 @@ export default function HealthMetricDetailScreen() {
   // periodo, 1 janela atras (offset+1) — nao um numero ilustrativo (ver
   // investigacao/aprovacao anterior). null quando falta um dos dois lados
   // (ex: sem dado no periodo anterior) — nesse caso o badge nao aparece.
+  // Janela atual (offset 0) ainda esta em andamento (hoje parcial contra o periodo anterior inteiro): a comparacao enganaria, entao o badge so
+  // aparece em janelas ja encerradas (offset > 0).
   const deltaPercent =
-    history?.average != null && previousAverage != null && previousAverage !== 0
+    offset > 0 && history?.average != null && previousAverage != null && previousAverage !== 0
       ? ((history.average - previousAverage) / previousAverage) * 100
       : null;
 
