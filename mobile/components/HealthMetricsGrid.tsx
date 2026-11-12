@@ -13,6 +13,7 @@ import {
   HealthSummary,
   isHealthAvailable,
 } from '@/services/health';
+import { energySplit } from '@/services/healthkitState';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
 import { formatSleepDuration } from '@/utils/sleepFormat';
 
@@ -43,6 +44,27 @@ function formatCompactNumber(value: number): string {
   return `${(rounded / 1000).toFixed(1).replace('.', ',')}K`;
 }
 
+/** Calorias do dia: com basal, total (ativas + basal) e a divisao; sem basal, so a atividade, com o rotulo trocado e "Basal indisponivel" (nunca a ativa como total). */
+function caloriesTile(summary: HealthSummary | null): { label: string; value: string; sub?: string; progress: number | null } {
+  const active = summary?.activeEnergyTodayKcal ?? null;
+  const split = energySplit(active, summary?.basalEnergyTodayKcal);
+  const progress = active != null ? clamp01(active / ACTIVE_ENERGY_REFERENCE_KCAL) : null; // o anel segue a atividade
+  if (split.hasBasal) {
+    return {
+      label: 'Calorias',
+      value: formatCompactNumber(split.total as number),
+      sub: `Basal ${formatCompactNumber(split.basal as number)} · Ativ. ${formatCompactNumber(split.active ?? 0)}`,
+      progress,
+    };
+  }
+  return {
+    label: 'Cal. ativas',
+    value: active != null ? formatCompactNumber(active) : '--',
+    sub: active != null ? 'Basal indisponível' : undefined,
+    progress,
+  };
+}
+
 interface Tile {
   key: HealthMetricKey;
   color: string;
@@ -50,6 +72,8 @@ interface Tile {
   value: string;
   /** Mesma linha do valor (ex: "bpm", "de 10k"), nao e dado adicional. */
   unit: string;
+  /** Linha extra abaixo do valor (ex: divisao basal/atividade das calorias). */
+  sub?: string;
   progress: number | null; // 0-1, null = sem barra (sem dado)
 }
 
@@ -140,13 +164,8 @@ export function HealthMetricsGrid() {
     {
       key: 'calories',
       color: metricColors.energy,
-      label: 'Calorias',
-      value: summary?.activeEnergyTodayKcal != null ? formatCompactNumber(summary.activeEnergyTodayKcal) : '--',
+      ...caloriesTile(summary),
       unit: 'kcal',
-      progress:
-        summary?.activeEnergyTodayKcal != null
-          ? clamp01(summary.activeEnergyTodayKcal / ACTIVE_ENERGY_REFERENCE_KCAL)
-          : null,
     },
   ];
 
@@ -171,6 +190,11 @@ export function HealthMetricsGrid() {
             {tile.unit}
           </Text>
         </View>
+        {!!tile.sub && (
+          <Text style={styles.tileSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {tile.sub}
+          </Text>
+        )}
         <View style={styles.progressTrack}>
           <View
             style={[styles.progressFill, { width: `${(tile.progress ?? 0) * 100}%`, backgroundColor: tile.color }]}
@@ -227,6 +251,7 @@ const styles = StyleSheet.create({
   // secundario (ex: "kcal", "ontem", "de 10k") sempre aparece inteiro, e e
   // o numero (tileValue) que cede espaco/encolhe fonte quando precisar.
   tileUnit: { ...typography3.labelSm, color: colors3.outline, flexShrink: 0 },
+  tileSub: { ...typography3.labelSm, color: colors3.onSurfaceVariant, textTransform: 'none', marginTop: spacing3.xs },
   progressTrack: {
     height: 3,
     borderRadius: radius3.pill,

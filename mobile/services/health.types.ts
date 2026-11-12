@@ -44,6 +44,9 @@ export interface HealthSummary {
   distance7dMeters: number | null;
   activeEnergyTodayKcal: number | null;
   activeEnergy7dKcal: number | null;
+  /** Energia em repouso (basal) de hoje e dos ultimos 7 dias. null = sem dado ou sem permissao (o HealthKit nao diz qual dos dois). */
+  basalEnergyTodayKcal: number | null;
+  basalEnergy7dKcal: number | null;
   heartRate: {
     mostRecentBpm: number | null;
     mostRecentAt: string | null;
@@ -108,6 +111,9 @@ export interface HealthHistoryPoint {
   /** 'YYYY-MM-DD' (granularity='day') ou 'YYYY-MM' (granularity='month'), sempre local. */
   date: string;
   value: number | null;
+  /** So na metrica 'calories': partes de `value` (value = active + basal quando ha basal; so active quando nao ha). null = sem dado. */
+  active?: number | null;
+  basal?: number | null;
 }
 
 export interface HealthMetricHistory {

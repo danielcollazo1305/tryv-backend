@@ -35,6 +35,7 @@ import {
   StatBucket,
   addDays,
   bucketMap,
+  buildCaloriesHistory,
   buildHistory,
   classifyHealthAccess,
   dailyPoints,
@@ -73,10 +74,11 @@ const T_RESPIRATORY = 'HKQuantityTypeIdentifierRespiratoryRate';
 const T_STEPS = 'HKQuantityTypeIdentifierStepCount';
 const T_DISTANCE = 'HKQuantityTypeIdentifierDistanceWalkingRunning';
 const T_ENERGY = 'HKQuantityTypeIdentifierActiveEnergyBurned';
+const T_BASAL = 'HKQuantityTypeIdentifierBasalEnergyBurned';
 const T_SLEEP = 'HKCategoryTypeIdentifierSleepAnalysis';
 
 /** Lista UNICA de leitura (pedido de permissao e checagem usam a MESMA lista). Nada de escrita. */
-export const HEALTHKIT_READ_TYPES: readonly string[] = [T_WORKOUT, T_ROUTE, T_HEART_RATE, T_RESTING_HR, T_RESPIRATORY, T_STEPS, T_DISTANCE, T_ENERGY, T_SLEEP];
+export const HEALTHKIT_READ_TYPES: readonly string[] = [T_WORKOUT, T_ROUTE, T_HEART_RATE, T_RESTING_HR, T_RESPIRATORY, T_STEPS, T_DISTANCE, T_ENERGY, T_BASAL, T_SLEEP];
 
 type HK = typeof import('@appeeky/expo-healthkit').default;
 
@@ -366,13 +368,15 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
   if (!h || !h.isAvailable()) return emptyHealthSummary();
   const today = startOfDay(new Date());
   const sevenDaysAgo = new Date(Date.now() - 7 * dayMs);
-  const [stepsToday, steps7d, distanceTodayMeters, distance7dMeters, activeEnergyTodayKcal, activeEnergy7dKcal, heartRate, sleepLastNightHours] = await Promise.all([
+  const [stepsToday, steps7d, distanceTodayMeters, distance7dMeters, activeEnergyTodayKcal, activeEnergy7dKcal, basalEnergyTodayKcal, basalEnergy7dKcal, heartRate, sleepLastNightHours] = await Promise.all([
     safe(sumSince(T_STEPS, 'count', today)),
     safe(sumSince(T_STEPS, 'count', sevenDaysAgo)),
     safe(sumSince(T_DISTANCE, 'm', today)),
     safe(sumSince(T_DISTANCE, 'm', sevenDaysAgo)),
     safe(sumSince(T_ENERGY, 'kcal', today)),
     safe(sumSince(T_ENERGY, 'kcal', sevenDaysAgo)),
+    safe(sumSince(T_BASAL, 'kcal', today)),
+    safe(sumSince(T_BASAL, 'kcal', sevenDaysAgo)),
     safe(heartRateSummary(sevenDaysAgo)),
     safe(fetchLastNightSleepHours()),
   ]);
@@ -383,6 +387,8 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
     distance7dMeters,
     activeEnergyTodayKcal,
     activeEnergy7dKcal,
+    basalEnergyTodayKcal,
+    basalEnergy7dKcal,
     heartRate: heartRate ?? emptyHealthSummary().heartRate,
     sleepLastNightHours,
   };
@@ -395,6 +401,18 @@ export async function fetchHealthMetricHistory(metric: HealthMetricKey, period: 
   const keyOf = granularity === 'day' ? toDateKey : toMonthKey;
   if (!h || !h.isAvailable()) return buildHistory(period, offset, new Map());
   const interval = granularity === 'day' ? { day: 1 } : { month: 1 };
+  if (metric === 'calories') {
+    const [activeBuckets, basalBuckets] = await Promise.all([
+      safe(statsBuckets(T_ENERGY, 'kcal', start, endOfDay(end), h.StatisticsOption.cumulativeSum, interval)),
+      safe(statsBuckets(T_BASAL, 'kcal', start, endOfDay(end), h.StatisticsOption.cumulativeSum, interval)),
+    ]);
+    return buildCaloriesHistory(
+      period,
+      offset,
+      activeBuckets ? bucketMap(activeBuckets, 'sum', keyOf) : new Map(),
+      basalBuckets ? bucketMap(basalBuckets, 'sum', keyOf) : new Map()
+    );
+  }
   let byKey = new Map<string, number>();
   if (metric === 'sleep') {
     const samples = await safe(readSleepSamples(addDays(start, -1), addDays(end, 1)));
@@ -403,9 +421,7 @@ export async function fetchHealthMetricHistory(metric: HealthMetricKey, period: 
     const spec =
       metric === 'steps'
         ? { type: T_STEPS, unit: 'count', option: h.StatisticsOption.cumulativeSum, field: 'sum' as const }
-        : metric === 'calories'
-          ? { type: T_ENERGY, unit: 'kcal', option: h.StatisticsOption.cumulativeSum, field: 'sum' as const }
-          : { type: T_HEART_RATE, unit: 'count/min', option: h.StatisticsOption.discreteAverage, field: 'average' as const };
+        : { type: T_HEART_RATE, unit: 'count/min', option: h.StatisticsOption.discreteAverage, field: 'average' as const };
     const buckets = await safe(statsBuckets(spec.type, spec.unit, start, endOfDay(end), spec.option, interval));
     byKey = buckets ? bucketMap(buckets, spec.field, keyOf) : new Map();
   }

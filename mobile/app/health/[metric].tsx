@@ -20,6 +20,7 @@ import {
   isHealthAvailable,
 } from '@/services/health';
 import { colors3, metricColors, radius3, spacing3, typography3 } from '@/constants/theme';
+import { caloriesAverages, hasBasalEnergy } from '@/services/healthkitState';
 import { formatSleepDuration } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
@@ -89,7 +90,7 @@ const METRIC_CONFIG: Record<
     formatValue: (value) => formatSleepDuration(value),
   },
   calories: {
-    label: 'Calorias ativas',
+    label: 'Calorias',
     icon: 'flame',
     color: metricColors.energy,
     unitLabel: 'kcal',
@@ -234,6 +235,12 @@ export default function HealthMetricDetailScreen() {
   // isso so essa lista usa a ordem invertida.
   const dailyMostRecentFirst = [...daily].reverse();
 
+  // Calorias: com basal no periodo o valor e o TOTAL (ativas + basal) e a tela mostra a divisao; sem basal so existe a atividade (nunca chamada de total).
+  const isCalories = metric === 'calories';
+  const caloriesHasBasal = isCalories && daily.some((p) => hasBasalEnergy(p.basal));
+  const calAverages = isCalories ? caloriesAverages(daily) : null;
+  const fmtKcal = (value: number) => `${Math.round(value).toLocaleString('pt-BR')} kcal`;
+
   // Variacao percentual real: media do periodo atual vs. media do MESMO
   // periodo, 1 janela atras (offset+1) — nao um numero ilustrativo (ver
   // investigacao/aprovacao anterior). null quando falta um dos dois lados
@@ -321,7 +328,9 @@ export default function HealthMetricDetailScreen() {
             {status === 'ready' && history && (
               <View style={styles.readyContent}>
                 <View style={styles.averageCard}>
-                  <Text style={styles.averageEyebrow}>Média do período</Text>
+                  <Text style={styles.averageEyebrow}>
+                    {isCalories ? (caloriesHasBasal ? 'TOTAL · MÉDIA DO PERÍODO' : 'ATIVIDADE · MÉDIA DO PERÍODO') : 'Média do período'}
+                  </Text>
                   <View style={styles.averageRow}>
                     <Text style={styles.averageValue}>
                       {history.average != null ? config.formatValue(history.average) : '--'}
@@ -346,6 +355,15 @@ export default function HealthMetricDetailScreen() {
                       </View>
                     )}
                   </View>
+
+                  {isCalories && calAverages && (
+                    <View style={styles.energySplit}>
+                      <Text style={styles.energySplitText}>
+                        {caloriesHasBasal && calAverages.basal != null ? `Basal ${fmtKcal(calAverages.basal)}` : 'Basal indisponível'}
+                      </Text>
+                      <Text style={styles.energySplitText}>Atividade {fmtKcal(calAverages.active ?? 0)}</Text>
+                    </View>
+                  )}
 
                   {/*
                     Barras em flexbox puro (nao react-native-chart-kit) —
@@ -414,9 +432,16 @@ export default function HealthMetricDetailScreen() {
                           ]}
                         />
                       </View>
-                      <Text style={styles.dayValue}>
-                        {point.value != null ? `${config.formatValue(point.value)} ${config.unitLabel}` : '--'}
-                      </Text>
+                      <View style={styles.dayValueCol}>
+                        <Text style={styles.dayValue}>
+                          {point.value != null ? `${config.formatValue(point.value)} ${config.unitLabel}` : '--'}
+                        </Text>
+                        {isCalories && point.value != null && hasBasalEnergy(point.basal) && (
+                          <Text style={styles.dayValueSub}>
+                            Basal {Math.round(point.basal ?? 0).toLocaleString('pt-BR')} · Ativ. {Math.round(point.active ?? 0).toLocaleString('pt-BR')}
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -581,6 +606,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   dayBarFill: { height: '100%', borderRadius: 3 },
+  dayValueCol: { alignItems: 'flex-end', minWidth: 82 },
+  dayValueSub: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 13, color: colors3.onSurfaceVariant, textAlign: 'right' },
+  energySplit: { gap: 2, marginBottom: spacing3.lg },
+  energySplitText: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
   dayValue: {
     fontFamily: INTER_BOLD,
     fontSize: 13,
