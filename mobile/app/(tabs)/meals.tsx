@@ -124,7 +124,7 @@ export default function MealsScreen() {
               calorieGoal={user?.daily_calorie_goal ?? null}
             />
 
-            <CalorieBalanceCard caloriesToday={totals.calories} calorieGoal={user?.daily_calorie_goal ?? null} />
+            <CalorieBalanceCard caloriesToday={totals.calories} calorieGoal={user?.daily_calorie_goal ?? null} mealsCount={todaysMeals.length} />
 
             <GoalProgressBar label="Proteína" current={totals.protein} goal={user?.daily_protein_goal ?? null} />
 

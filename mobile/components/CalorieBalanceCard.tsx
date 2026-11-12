@@ -9,6 +9,8 @@ import { colors3, spacing3, typography3 } from '@/constants/theme';
 interface CalorieBalanceCardProps {
   caloriesToday: number;
   calorieGoal: number | null;
+  /** Refeicoes registradas hoje. 0 = nada registrado: nao ha deficit para mostrar (meta - 0 seria um "deficit" que nao existe). */
+  mealsCount: number;
 }
 
 // Verde do mockup aprovado (deficit — resultado "bom" pra quem quer
@@ -32,7 +34,7 @@ const DEFICIT_COLOR = '#15803d';
  * texto (`balanceText`), sem subtitulo nenhum — nao inventei essa
  * informacao nova.
  */
-export function CalorieBalanceCard({ caloriesToday, calorieGoal }: CalorieBalanceCardProps) {
+export function CalorieBalanceCard({ caloriesToday, calorieGoal, mealsCount }: CalorieBalanceCardProps) {
   if (calorieGoal == null) {
     return (
       <Pressable onPress={() => router.push('/settings/calorie-goal')}>
@@ -41,6 +43,15 @@ export function CalorieBalanceCard({ caloriesToday, calorieGoal }: CalorieBalanc
           <Text style={styles.emptyText}>Configure sua meta calórica para ver aqui</Text>
         </GlassCard>
       </Pressable>
+    );
+  }
+
+  if (mealsCount === 0) {
+    return (
+      <GlassCard variant="glass" style={styles.card}>
+        <Ionicons name="restaurant-outline" size={20} color={colors3.onSurfaceVariant} />
+        <Text style={styles.emptyText}>Nenhuma refeição registrada hoje</Text>
+      </GlassCard>
     );
   }
 
