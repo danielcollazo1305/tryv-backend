@@ -187,12 +187,14 @@ export function useHealthHistory(
         return;
       }
       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
+      // A janela anterior so serve pro badge de variacao, que so aparece com offset > 0 (janela atual em andamento nao compara) — no offset 0 nao
+      // vale gastar uma consulta inteira (no Sono 1 ANO, 12 faixas) pra um numero que nao e exibido.
       const [current, previous] = await Promise.all([
         fetchHealthMetricHistory(metric, period, offset),
-        fetchHealthMetricHistory(metric, period, offset + 1),
+        offset > 0 ? fetchHealthMetricHistory(metric, period, offset + 1) : Promise.resolve(null),
       ]);
       setHistory(current);
-      setPreviousAverage(previous.average);
+      setPreviousAverage(previous ? previous.average : null);
       setStatus('ready');
     } catch {
       setStatus('error');

@@ -53,6 +53,7 @@ import {
   roundBpm,
   round1,
   routePointsFrom,
+  averageSleepByMonth,
   sleepHoursByWakeDay,
   sourceLabel,
   startOfDay,
@@ -395,6 +396,44 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------- historico por periodo
+/** Quantas faixas mensais do 1 ANO consultam o HealthKit ao mesmo tempo (limita o pico de amostras na ponte nativa). */
+const SLEEP_MONTH_CHUNK_CONCURRENCY = 3;
+
+/**
+ * Sono por dia (7D/4 SEM) ou media de horas por noite em cada mes (1 ANO). O ano NAO e lido em uma consulta so (limit 0 devolveria dezenas de
+ * milhares de amostras de estagios de uma vez): vai em 12 faixas mensais, 3 por vez, e cada faixa e reduzida a um numero antes da proxima. Cada
+ * faixa le 1 dia a mais em cada ponta (uma noite que cruza a virada do mes nao e cortada) e so conta as noites que ACORDAM naquele mes.
+ */
+async function sleepHistoryByKey(start: Date, end: Date, granularity: 'day' | 'month'): Promise<Map<string, number>> {
+  if (granularity === 'day') {
+    const samples = await safe(readSleepSamples(addDays(start, -1), addDays(end, 1)));
+    return samples ? sleepHoursByWakeDay(samples, 'day') : new Map();
+  }
+  const months: Date[] = [];
+  for (let cursor = new Date(start.getFullYear(), start.getMonth(), 1); cursor <= end; cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)) {
+    months.push(cursor);
+  }
+  const t0 = Date.now();
+  let totalSamples = 0;
+  const result = new Map<string, number>();
+  for (let i = 0; i < months.length; i += SLEEP_MONTH_CHUNK_CONCURRENCY) {
+    const batch = months.slice(i, i + SLEEP_MONTH_CHUNK_CONCURRENCY);
+    const parts = await Promise.all(
+      batch.map(async (monthStart) => {
+        const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+        const samples = await safe(readSleepSamples(addDays(monthStart, -1), addDays(monthEnd, 1)));
+        if (!samples) return new Map<string, number>();
+        totalSamples += samples.length;
+        return averageSleepByMonth(sleepHoursByWakeDay(samples, 'day'), toMonthKey(monthStart));
+      })
+    );
+    for (const part of parts) for (const [key, value] of part) result.set(key, value);
+  }
+  // Medicao em aparelho: Metro/Xcode mostram quantas amostras o ano trouxe e quanto demorou (so em desenvolvimento).
+  if (__DEV__) console.log(`[sono 1 ano] ${totalSamples} amostras em ${Date.now() - t0} ms (${months.length} faixas)`);
+  return result;
+}
+
 export async function fetchHealthMetricHistory(metric: HealthMetricKey, period: HealthHistoryPeriod, offset = 0): Promise<HealthMetricHistory> {
   const { start, end, granularity } = resolveHistoryWindow(period, offset);
   const h = hk();
@@ -415,8 +454,7 @@ export async function fetchHealthMetricHistory(metric: HealthMetricKey, period: 
   }
   let byKey = new Map<string, number>();
   if (metric === 'sleep') {
-    const samples = await safe(readSleepSamples(addDays(start, -1), addDays(end, 1)));
-    byKey = samples ? sleepHoursByWakeDay(samples, granularity) : new Map();
+    byKey = await sleepHistoryByKey(start, end, granularity);
   } else {
     const spec =
       metric === 'steps'
