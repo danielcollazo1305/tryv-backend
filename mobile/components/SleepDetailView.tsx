@@ -5,11 +5,13 @@ import { router, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { GlassCard } from '@/components/GlassCard';
+import { HEALTH_METRIC_CONFIG, HEALTH_PERIOD_OPTIONS, HealthHistoryCard, useHealthHistory } from '@/components/HealthHistoryCard';
 import {
   ensureHealthAuthorized,
   fetchSleepSessionDetail,
   HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
+  HealthHistoryPeriod,
   isHealthAvailable,
   SleepSessionDetail,
   SleepStage,
@@ -53,8 +55,6 @@ const STAGE_COLORS: Record<SleepStage, string> = {
   awake: colors3.outlineVariant,
   inBed: colors3.outline,
 };
-
-const PERIOD_OPTIONS = ['1D', '7D', '4 SEM', '1 ANO'] as const;
 
 const formatDuration = formatSleepMinutes;
 
@@ -123,7 +123,7 @@ interface SelectedSegment {
  * desabilitados de proposito, em vez de fingir uma troca de dado que nao
  * existe (ver relatorio desta tarefa).
  */
-export function SleepDetailView() {
+function SleepNightView() {
   const [status, setStatus] = useState<Status>('checking');
   const [detail, setDetail] = useState<SleepSessionDetail | null>(null);
   const [selected, setSelected] = useState<SelectedSegment | null>(null);
@@ -203,31 +203,6 @@ export function SleepDetailView() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.periodRow}>
-        {PERIOD_OPTIONS.map((label) => {
-          const selectedPill = label === '1D';
-          return (
-            <View key={label} style={[styles.periodPill, selectedPill && styles.periodPillSelected]}>
-              <Text
-                style={[
-                  styles.periodPillText,
-                  selectedPill && styles.periodPillTextSelected,
-                  !selectedPill && styles.periodPillTextDisabled,
-                ]}
-              >
-                {label}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.navRow}>
-        <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
-        <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
-      </View>
-
       <GlassCard variant="glass" style={styles.card}>
         <Text style={styles.eyebrow}>Sono total</Text>
         <Text style={styles.totalValue}>{formatDuration(detail.breakdown.totalAsleepMinutes)}</Text>
@@ -354,8 +329,78 @@ export function SleepDetailView() {
   );
 }
 
+/**
+ * Tela de Sono: seletor de periodo (1D/7D/4 SEM/1 ANO). 1D mostra a ultima
+ * noite (SleepNightView); os demais usam o card generico de historico
+ * (HealthHistoryCard) com fetchHealthMetricHistory('sleep', periodo, offset).
+ */
+export function SleepDetailView() {
+  const [period, setPeriod] = useState<HealthHistoryPeriod>('1d');
+  const historyState = useHealthHistory('sleep', period, period !== '1d');
+
+  const handleChangePeriod = (value: HealthHistoryPeriod) => {
+    setPeriod(value);
+    historyState.setOffset(0);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.periodRow}>
+        {HEALTH_PERIOD_OPTIONS.map((option) => {
+          const selectedPill = option.value === period;
+          return (
+            <Pressable
+              key={option.value}
+              style={[styles.periodPill, selectedPill && styles.periodPillSelected]}
+              onPress={() => handleChangePeriod(option.value)}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: selectedPill }}
+            >
+              <Text style={[styles.periodPillText, selectedPill && styles.periodPillTextSelected]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {period === '1d' ? (
+        <>
+          <View style={styles.navRow}>
+            <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
+            <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
+          </View>
+          <SleepNightView />
+        </>
+      ) : historyState.status === 'unavailable' ? (
+        <Text style={styles.emptyText}>
+          {Platform.OS === 'android'
+            ? 'Instale ou atualize o app Health Connect pra ver seu sono aqui.'
+            : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+        </Text>
+      ) : historyState.status === 'disconnected' ? (
+        <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
+          <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar {HEALTH_SOURCE_LABEL}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
+        </Pressable>
+      ) : historyState.status === 'error' ? (
+        <Text style={styles.error}>Nao foi possivel carregar o sono.</Text>
+      ) : (
+        <HealthHistoryCard
+          metric="sleep"
+          config={HEALTH_METRIC_CONFIG.sleep}
+          state={historyState}
+          period={period}
+          onChangePeriod={handleChangePeriod}
+          showPeriodSelector={false}
+        />
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  loading: { marginVertical: spacing3.lg },
+  loading:{ marginVertical: spacing3.lg },
   error: { color: colors3.error, textAlign: 'center', marginTop: spacing3.xl },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
   connectHint: {
@@ -382,7 +427,6 @@ const styles = StyleSheet.create({
   periodPillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
   periodPillText: { ...typography3.labelSm, fontSize: 11 },
   periodPillTextSelected: { color: colors3.white, fontWeight: '700' },
-  periodPillTextDisabled: { color: colors3.outlineVariant },
 
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navLabel: { ...typography3.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1, color: colors3.onSurface },

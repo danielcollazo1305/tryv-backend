@@ -216,6 +216,8 @@ type Props = {
   /** Troca o periodo; quem chama tambem zera o offset (state.setOffset(0)). */
   onChangePeriod: (value: HealthHistoryPeriod) => void;
   periods?: HealthPeriodOption[];
+  /** false quando a tela dona ja desenha o seletor de periodo (Sono: 1D tem outra visao). */
+  showPeriodSelector?: boolean;
 };
 
 /**
@@ -231,6 +233,7 @@ export function HealthHistoryCard({
   period,
   onChangePeriod,
   periods = HEALTH_PERIOD_OPTIONS,
+  showPeriodSelector = true,
 }: Props) {
   const { status, offset, setOffset, history, previousAverage } = state;
 
@@ -265,20 +268,25 @@ export function HealthHistoryCard({
 
   return (
     <GlassCard variant="glass" style={styles.card}>
-      <View style={styles.periodRow}>
-        {periods.map((option) => {
-          const selected = option.value === period;
-          return (
-            <Pressable
-              key={option.value}
-              style={[styles.periodPill, selected && styles.periodPillSelected]}
-              onPress={() => onChangePeriod(option.value)}
-            >
-              <Text style={[styles.periodPillText, selected && styles.periodPillTextSelected]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {showPeriodSelector && (
+        <View style={styles.periodRow}>
+          {periods.map((option) => {
+            const selected = option.value === period;
+            return (
+              <Pressable
+                key={option.value}
+                style={[styles.periodPill, selected && styles.periodPillSelected]}
+                onPress={() => onChangePeriod(option.value)}
+                accessibilityRole="button"
+                accessibilityLabel={option.label}
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.periodPillText, selected && styles.periodPillTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <View style={styles.navRow}>
         <Pressable onPress={() => setOffset((prev) => prev + 1)} hitSlop={8} style={styles.navArrow}>
