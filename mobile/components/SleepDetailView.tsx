@@ -115,13 +115,12 @@ interface SelectedSegment {
  * apresentacao. Sem card de "Body Battery" (nao e recurso real do Tryv,
  * omitido por completo, nem placeholder).
  *
- * Seletor de periodo/navegacao "< >" do mockup: presente visualmente (pra
- * bater com a hierarquia identica de Passos/Calorias/FC), mas SO "1D" e
- * funcional — nao existe (ainda) busca de noites anteriores nem breakdown
- * agregado por semana/mes pra sono (fetchSleepSessionDetail so cobre "a
- * ultima noite"). Os outros pills e as setas de navegacao ficam
- * desabilitados de proposito, em vez de fingir uma troca de dado que nao
- * existe (ver relatorio desta tarefa).
+ * Esta view cobre so a ULTIMA noite (periodo "1D"): fetchSleepSessionDetail
+ * nao recebe data, entao nao ha navegacao para noites anteriores e as setas
+ * "< >" do 1D ficam desabilitadas (com accessibilityState/hint dizendo
+ * isso). Os periodos 7D/4 SEM/1 ANO sao tratados por SleepDetailView
+ * (mais abaixo), que usa o card generico HealthHistoryCard com
+ * fetchHealthMetricHistory('sleep', ...) — la as setas funcionam.
  */
 function SleepNightView() {
   const [status, setStatus] = useState<Status>('checking');
@@ -366,9 +365,25 @@ export function SleepDetailView() {
       {period === '1d' ? (
         <>
           <View style={styles.navRow}>
-            <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Noite anterior"
+              accessibilityState={{ disabled: true }}
+              accessibilityHint="Indisponível no período 1D. Use 7D, 4 SEM ou 1 ANO para ver o histórico."
+            >
+              <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
+            </View>
             <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Próxima noite"
+              accessibilityState={{ disabled: true }}
+              accessibilityHint="Você já está na noite mais recente."
+            >
+              <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
+            </View>
           </View>
           <SleepNightView />
         </>
