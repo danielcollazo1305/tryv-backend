@@ -40,6 +40,11 @@ private func accentPurple(for scheme: ColorScheme) -> Color {
     scheme == .dark ? Color.tryvPurpleOnDark : Color.tryvPurple
 }
 
+/// Titulo de reserva quando a lista de exercicios chega vazia (app mandou
+/// formato invalido ou treino sem exercicios ainda) -- sem isso o cartao
+/// mostrava so o icone e o cronometro, parecendo vazio.
+private let fallbackTitle = "Treino em andamento"
+
 /// "Serie 2 de 4" ou "Exercicio concluido" -- por EXERCICIO agora (nao
 /// mais um "allSetsCompleted" global), ja que a Live Activity pode estar
 /// mostrando qualquer exercicio do treino, nao so o "atual" automatico
@@ -225,14 +230,16 @@ private struct LockScreenCard: View {
             WorkoutBadge(size: 56, cornerRadius: 14)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(exercise?.name ?? "")
+                Text(exercise?.name ?? fallbackTitle)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(textPrimary)
                     .lineLimit(1)
-                Text(exercise.map(setProgressLabel) ?? "")
-                    .font(.system(size: 13))
-                    .foregroundStyle(textSecondary)
-                    .lineLimit(1)
+                if let exercise {
+                    Text(setProgressLabel(exercise))
+                        .font(.system(size: 13))
+                        .foregroundStyle(textSecondary)
+                        .lineLimit(1)
+                }
                 Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
@@ -310,14 +317,16 @@ struct FreeWorkoutLiveActivity: Widget {
                     let content = HStack(spacing: 8) {
                         WorkoutBadge(size: 32, cornerRadius: 8)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(exercise?.name ?? "")
+                            Text(exercise?.name ?? fallbackTitle)
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(diLeadingTint)
                                 .lineLimit(1)
-                            Text(exercise.map(setProgressLabel) ?? "")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            if let exercise {
+                                Text(setProgressLabel(exercise))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                     .padding(6)
