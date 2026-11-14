@@ -183,7 +183,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
             <Ionicons name="refresh" size={20} color={accentColor} />
           </View>
           <View style={s.connectInfo}>
-            <Text style={s.connectTitle}>Nao foi possivel carregar o {HEALTH_SOURCE_LABEL}</Text>
+            <Text style={s.connectTitle}>Não foi possível carregar o {HEALTH_SOURCE_LABEL}</Text>
             <Text style={s.connectSubtitle}>Toque para tentar novamente.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={mutedColor} />

@@ -134,7 +134,7 @@ export default function HealthKitImportScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Verifique treinos recentes no {HEALTH_SOURCE_LABEL} e importe os que ainda nao estao no Tryv Fit.
+          Verifique treinos recentes no {HEALTH_SOURCE_LABEL} e importe os que ainda não estão no Tryv Fit.
         </Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
