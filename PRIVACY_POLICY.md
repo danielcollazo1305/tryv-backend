@@ -41,7 +41,7 @@ contato@tryv.com.br
 - **Treinos:** treinos gerados por IA e o histórico de treinos realizados
 - **Atividades físicas:** dados de GPS durante corridas e pedaladas (localização, rota, distância, velocidade, tempo), além de atividades registradas manualmente (natação, lutas, outras modalidades)
 - **Peso corporal:** registros de peso ao longo do tempo, quando fornecidos por você
-- **Dados do Apple Health (HealthKit):** mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.
+- **Dados do Apple Health (HealthKit):** mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, energia em repouso (basal, as calorias que o corpo gasta em repouso), frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.
 - **Frequência cardíaca:** quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino. Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.
 
 ### 2.3 Dados de Pagamento

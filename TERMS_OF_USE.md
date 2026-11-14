@@ -45,7 +45,7 @@ Continuam gratuitos:
 - frequência de treino e quilometragem semanal;
 - interpretação por IA de uma atividade já registrada;
 - Vitalidade (indicador de prontidão na aba Treino);
-- resumo de saúde (passos, sono e frequência cardíaca), a partir dos dados de saúde que você autorizar;
+- resumo de saúde (passos, sono, frequência cardíaca e calorias ativas e em repouso), a partir dos dados de saúde que você autorizar;
 - geração do avatar, com limite de gerações.
 
 O valor vigente é exibido no aplicativo, pela App Store, no momento da assinatura.
