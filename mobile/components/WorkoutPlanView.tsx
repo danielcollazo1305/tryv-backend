@@ -102,8 +102,8 @@ export function WorkoutPlanView({
         });
       } catch {
         Alert.alert(
-          'Nao foi possivel salvar o registro',
-          'O treino vai continuar pro compartilhamento, mas o peso/reps registrados nesta sessao nao foram salvos. Tente novamente mais tarde.'
+          'Não foi possível salvar o registro',
+          'O treino vai continuar pro compartilhamento, mas o peso/reps registrados nesta sessão não foram salvos. Tente novamente mais tarde.'
         );
       } finally {
         setSaving(false);

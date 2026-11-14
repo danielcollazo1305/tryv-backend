@@ -129,7 +129,7 @@ export default function GenerateWorkoutScreen() {
       setPlanData(result);
       setStage('reviewing');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel gerar o plano de treino, tente novamente.'));
+      setError(getApiErrorMessage(err, 'Não foi possível gerar o plano de treino, tente novamente.'));
       // Volta pro formulario sem perder nenhuma resposta ja dada — fica na
       // ultima etapa (equipamento), de onde o usuario pode tentar de novo.
       setStage('form');
@@ -153,7 +153,7 @@ export default function GenerateWorkoutScreen() {
       await saveWorkoutPlan(planData);
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar o plano.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar o plano.'));
       setStage('reviewing');
     }
   };
@@ -183,7 +183,7 @@ export default function GenerateWorkoutScreen() {
           subtitle="Assine o Tryv Fit Pro para treinos gerados por IA, personalizados pro seu objetivo, nível e equipamento disponível."
         >
           <View style={styles.content}>
-            <Text style={styles.fieldLabel}>Qual e o seu objetivo com o treino?</Text>
+            <Text style={styles.fieldLabel}>Qual é o seu objetivo com o treino?</Text>
             <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} variant="light" />
           </View>
         </ProGate>
@@ -221,32 +221,32 @@ export default function GenerateWorkoutScreen() {
 
             {currentStep === 'goal' && (
               <>
-                <Text style={styles.fieldLabel}>Qual e o seu objetivo com o treino?</Text>
+                <Text style={styles.fieldLabel}>Qual é o seu objetivo com o treino?</Text>
                 <SelectionCard2 options={GOAL_OPTIONS} value={goal} onChange={setGoal} variant="light" />
               </>
             )}
 
             {currentStep === 'level' && (
               <>
-                <Text style={styles.fieldLabel}>Qual o seu nivel de experiencia?</Text>
+                <Text style={styles.fieldLabel}>Qual o seu nível de experiência?</Text>
                 <SelectionCard2 options={LEVEL_OPTIONS} value={level} onChange={setLevel} variant="light" />
               </>
             )}
 
             {currentStep === 'days' && (
               <>
-                <Text style={styles.fieldLabel}>Quantos dias por semana voce pode treinar?</Text>
+                <Text style={styles.fieldLabel}>Quantos dias por semana você pode treinar?</Text>
                 <SelectionCard2 options={DAYS_OPTIONS} value={daysPerWeek} onChange={setDaysPerWeek} variant="light" />
               </>
             )}
 
             {currentStep === 'equipment' && (
               <>
-                <Text style={styles.fieldLabel}>Qual equipamento voce tem disponivel?</Text>
+                <Text style={styles.fieldLabel}>Qual equipamento você tem disponível?</Text>
                 <SelectionCard2 options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} variant="light" />
                 <TextField2
                   variant="light"
-                  label="Observacoes (opcional)"
+                  label="Observações (opcional)"
                   placeholder="Ex: dor no joelho, prefiro treinos curtos..."
                   value={notes}
                   onChangeText={setNotes}

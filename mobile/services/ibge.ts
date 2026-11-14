@@ -21,13 +21,13 @@ export interface IbgeCity {
 
 export async function listIbgeStates(): Promise<IbgeState[]> {
   const response = await fetch(`${IBGE_BASE_URL}/estados?orderBy=nome`);
-  if (!response.ok) throw new Error('Nao foi possivel carregar a lista de estados.');
+  if (!response.ok) throw new Error('Não foi possível carregar a lista de estados.');
   return response.json();
 }
 
 export async function listIbgeCitiesByState(uf: string): Promise<IbgeCity[]> {
   const response = await fetch(`${IBGE_BASE_URL}/estados/${uf}/municipios`);
-  if (!response.ok) throw new Error('Nao foi possivel carregar os municipios deste estado.');
+  if (!response.ok) throw new Error('Não foi possível carregar os municípios deste estado.');
   const cities: IbgeCity[] = await response.json();
   return [...cities].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }

@@ -73,7 +73,7 @@ export function ExerciseVideoBlock({ videoUrl, isLight }: { videoUrl?: string | 
   return (
     <View style={s.videoPlaceholder}>
       <Ionicons name="play-circle-outline" size={20} color={isLight ? colors3.onSurfaceVariant : colors2.onSurfaceVariant} />
-      <Text style={s.videoPlaceholderText}>Video de execucao em breve</Text>
+      <Text style={s.videoPlaceholderText}>Vídeo de execução em breve</Text>
     </View>
   );
 }

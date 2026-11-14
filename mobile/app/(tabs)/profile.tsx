@@ -200,7 +200,7 @@ export default function ProfileScreen() {
     invitingRef.current = true;
     try {
       if ((await shareInvite()) === 'failed') {
-        Alert.alert('Nao foi possivel convidar', 'Nao foi possivel abrir o compartilhamento agora. Tente de novo em instantes.');
+        Alert.alert('Não foi possível convidar', 'Não foi possível abrir o compartilhamento agora. Tente de novo em instantes.');
       }
     } finally {
       invitingRef.current = false;
@@ -370,7 +370,7 @@ export default function ProfileScreen() {
       setAvatarToggleKey((key) => key + 1);
       setAvatarPickerVisible(false);
     } catch (err) {
-      setAvatarError(getApiErrorMessage(err, 'Nao foi possivel gerar seu avatar, tente novamente.'));
+      setAvatarError(getApiErrorMessage(err, 'Não foi possível gerar seu avatar, tente novamente.'));
     } finally {
       setAvatarUploading(false);
     }
@@ -392,7 +392,7 @@ export default function ProfileScreen() {
             await refreshUser();
             setAvatarPickerVisible(false);
           } catch (err) {
-            setAvatarError(getApiErrorMessage(err, 'Nao foi possivel remover seu avatar, tente novamente.'));
+            setAvatarError(getApiErrorMessage(err, 'Não foi possível remover seu avatar, tente novamente.'));
           } finally {
             setAvatarRemoving(false);
           }
@@ -431,7 +431,7 @@ export default function ProfileScreen() {
     setAvatarError(null);
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setAvatarError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setAvatarError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
@@ -444,7 +444,7 @@ export default function ProfileScreen() {
     setAvatarError(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setAvatarError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setAvatarError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -466,7 +466,7 @@ export default function ProfileScreen() {
 
   const handleDebugSeedHealthConnectData = async () => {
     if (Platform.OS !== 'android') {
-      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      Alert.alert('Só Android', 'Health Connect só existe no Android -- este teste não se aplica a este device.');
       return;
     }
     if (seedingHealthConnectRef.current) return;
@@ -499,7 +499,7 @@ export default function ProfileScreen() {
 
   const handleDebugSeedHealthConnectFcSonoTreino = async () => {
     if (Platform.OS !== 'android') {
-      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      Alert.alert('Só Android', 'Health Connect só existe no Android -- este teste não se aplica a este device.');
       return;
     }
     if (seedingHealthConnectRef.current) return;
@@ -510,7 +510,7 @@ export default function ProfileScreen() {
       console.log('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() ->', result);
       Alert.alert(
         'Dado de teste inserido',
-        `${result.heartRateSamples} amostras de FC, ~${result.sleepHours.toFixed(1)}h de sono (ultima noite) e 1 corrida de ${result.workoutMinutes}min com rota GPS. Confira FC/Sono na Home e "Importar treinos" em Atividades.`
+        `${result.heartRateSamples} amostras de FC, ~${result.sleepHours.toFixed(1)}h de sono (última noite) e 1 corrida de ${result.workoutMinutes}min com rota GPS. Confira FC/Sono na Home e "Importar treinos" em Atividades.`
       );
     } catch (err) {
       console.error('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() falhou:', err);
@@ -932,7 +932,7 @@ export default function ProfileScreen() {
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>[DEBUG] Inserir dado de teste (Health Connect)</Text>
                   <Text style={styles.optionSubtitle}>
-                    {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (so Android)'}
+                    {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (só Android)'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
@@ -963,7 +963,7 @@ export default function ProfileScreen() {
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>[DEBUG] Inserir FC/Sono/Treino de teste (Health Connect)</Text>
                   <Text style={styles.optionSubtitle}>
-                    {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (so Android)'}
+                    {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (só Android)'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />

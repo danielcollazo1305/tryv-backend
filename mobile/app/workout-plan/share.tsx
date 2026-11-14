@@ -35,12 +35,12 @@ export default function WorkoutShareScreen() {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
       const available = await Sharing.isAvailableAsync();
       if (!available) {
-        setError('Compartilhamento nao esta disponivel neste dispositivo.');
+        setError('Compartilhamento não está disponível neste dispositivo.');
         return;
       }
       await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartilhar treino' });
     } catch {
-      setError('Nao foi possivel gerar a imagem para compartilhar, tente novamente.');
+      setError('Não foi possível gerar a imagem para compartilhar, tente novamente.');
     } finally {
       setSharing(false);
     }
@@ -67,7 +67,7 @@ export default function WorkoutShareScreen() {
             <Button label="Compartilhar" onPress={handleShare} loading={sharing} />
           </>
         ) : (
-          <Text style={styles.error}>Nao foi possivel carregar esse treino.</Text>
+          <Text style={styles.error}>Não foi possível carregar esse treino.</Text>
         )}
       </ScrollView>
     </View>

@@ -214,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(newToken);
         await loadUser();
       } catch (error) {
-        throw new Error(getApiErrorMessage(error, 'Nao foi possivel entrar. Verifique suas credenciais.'));
+        throw new Error(getApiErrorMessage(error, 'Não foi possível entrar. Verifique suas credenciais.'));
       }
     },
     [loadUser]
@@ -227,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         // Preserva o que veio do filtro de conteudo (cabecalho X-Content-Filter) para o fim do cadastro decidir para onde levar a
         // pessoa; os demais erros (idade, e-mail repetido...) continuam sendo so a mensagem, como antes.
-        throw new ApiMessageError(getContentFilterMessage(error) ?? getApiErrorMessage(error, 'Nao foi possivel criar a conta.'), {
+        throw new ApiMessageError(getContentFilterMessage(error) ?? getApiErrorMessage(error, 'Não foi possível criar a conta.'), {
           contentFilter: isContentFilterError(error),
           pause: isContentFilterPause(error),
         });
