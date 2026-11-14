@@ -46,7 +46,6 @@ import {
   incrementalWindowStart,
   intradayPoints,
   isAuthorizationError,
-  lastNightSleepHours,
   lastSleepNight,
   nextWorkoutAnchor,
   resolveHistoryWindow,
@@ -283,18 +282,27 @@ async function readSleepSamples(from: Date, to?: Date): Promise<SleepSample[]> {
   return samples.map((s) => ({ startDate: s.startDate, endDate: s.endDate, value: s.value, sourceId: s.sourceId, sourceName: s.sourceName }));
 }
 
-/** Horas da ultima noite (sessao mais recente das ultimas 32 h); sem dado de sono = null. */
+/**
+ * Horas de sono da "ultima noite" pela regra do DIA DE DESPERTAR (a mesma de sleepHoursByWakeDay e do widget): soma as sessoes que terminam HOJE, entao
+ * um cochilo nao vira "a noite" e uma noite partida por uma pausa de mais de SLEEP_SESSION_GAP_MINUTES (90 min) soma as duas partes. Se ainda nao ha
+ * sono que termine hoje (antes de acordar ou sem sincronizar), cai para o dia anterior pela mesma regra (so ontem, nunca mais antigo). Sem dado = null.
+ * Usada pela Home, pela Vitalidade e pela prontidao (sleepLastNightHours); o widget usa fetchSleepHoursWokenToday, sem esse fallback.
+ */
 export async function fetchLastNightSleepHours(): Promise<number | null> {
   const h = hk();
   if (!h || !h.isAvailable()) return null;
-  const samples = await safe(readSleepSamples(new Date(Date.now() - (SLEEP_LOOKBACK_HOURS / 24) * dayMs)));
-  return samples ? lastNightSleepHours(samples) : null;
+  const now = new Date();
+  // Comeca 2 dias antes de hoje 00:00: uma noite que termina ontem pode ter comecado na noite anterior a ontem.
+  const samples = await safe(readSleepSamples(addDays(startOfDay(now), -2)));
+  if (!samples) return null;
+  const byDay = sleepHoursByWakeDay(samples, 'day');
+  return byDay.get(toDateKey(now)) ?? byDay.get(toDateKey(addDays(startOfDay(now), -1))) ?? null;
 }
 
 /**
  * Horas dormidas atribuidas a HOJE (o dia em que a pessoa ACORDOU, mesma regra de sleepHoursByWakeDay no historico), somando todas as sessoes que
- * terminam hoje. Sem sono que termine hoje = null (antes de acordar nao mostra a noite de ontem). Usada pelo widget; a Home usa
- * fetchLastNightSleepHours (sessao mais recente das ultimas 32 h), que pode diferir -- ver services/widgetSummary.ts.
+ * terminam hoje. Sem sono que termine hoje = null (antes de acordar nao mostra a noite de ontem). Usada pelo widget; fetchLastNightSleepHours
+ * (Home/Vitalidade) usa a mesma regra, mas com fallback para ontem quando ainda nao ha sono hoje.
  */
 export async function fetchSleepHoursWokenToday(): Promise<number | null> {
   const h = hk();
