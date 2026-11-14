@@ -48,7 +48,7 @@ export default function RegisterAvatarScreen() {
       await refreshUser();
       setOnboardingInProgress(false);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel gerar seu avatar, tente novamente.'));
+      setError(getApiErrorMessage(err, 'Não foi possível gerar seu avatar, tente novamente.'));
       setLoading(false);
     }
   };
@@ -83,7 +83,7 @@ export default function RegisterAvatarScreen() {
     setError(null);
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
@@ -96,7 +96,7 @@ export default function RegisterAvatarScreen() {
     setError(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

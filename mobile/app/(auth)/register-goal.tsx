@@ -67,7 +67,7 @@ export default function RegisterGoalScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv Fit</Text>
-          <Text style={styles.title}>Qual e o seu objetivo?</Text>
+          <Text style={styles.title}>Qual é o seu objetivo?</Text>
           <Text style={styles.subtitle}>Isso define como a IA vai montar seus treinos e planos alimentares</Text>
 
           <View style={styles.progressWrap}>
@@ -103,7 +103,7 @@ export default function RegisterGoalScreen() {
               />
             )}
             <Text style={styles.hint}>
-              Totalmente opcional. Se voce informar uma meta, mostramos uma estimativa de tempo pra chega-la no
+              Totalmente opcional. Se você informar uma meta, mostramos uma estimativa de tempo pra chega-la no
               fim do cadastro. Sem meta, o resto do cadastro continua normal.
             </Text>
           </>

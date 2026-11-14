@@ -44,11 +44,11 @@ export default function RegisterTrainingScreen() {
   const handleContinue = () => {
     setError(null);
     if (!trainingLevel) {
-      setError('Selecione seu nivel de treino.');
+      setError('Selecione seu nível de treino.');
       return;
     }
     if (!equipment) {
-      setError('Selecione o equipamento disponivel.');
+      setError('Selecione o equipamento disponível.');
       return;
     }
     updateDraft({ trainingLevel, equipment });
@@ -60,18 +60,18 @@ export default function RegisterTrainingScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv Fit</Text>
-          <Text style={styles.title}>Nivel e equipamento</Text>
-          <Text style={styles.subtitle}>Vamos usar isso pra sugerir treinos que fazem sentido pra voce</Text>
+          <Text style={styles.title}>Nível e equipamento</Text>
+          <Text style={styles.subtitle}>Vamos usar isso pra sugerir treinos que fazem sentido pra você</Text>
 
           <View style={styles.progressWrap}>
             <ProgressSteps2 variant="light" current={5} total={getOnboardingTotalSteps(draft)} label="Treino" />
           </View>
         </View>
 
-        <Text style={styles.fieldLabel}>Qual o seu nivel de experiencia?</Text>
+        <Text style={styles.fieldLabel}>Qual o seu nível de experiência?</Text>
         <SelectionCard2 variant="light" options={LEVEL_OPTIONS} value={trainingLevel} onChange={setTrainingLevel} />
 
-        <Text style={styles.fieldLabel}>Qual equipamento voce tem disponivel?</Text>
+        <Text style={styles.fieldLabel}>Qual equipamento você tem disponível?</Text>
         <SelectionCard2 variant="light" options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
