@@ -47,7 +47,6 @@
           "isIosBackgroundLocationEnabled": true
         }
       ],
-      "expo-web-browser",
       "@react-native-community/datetimepicker",
       [
         "expo-contacts",
