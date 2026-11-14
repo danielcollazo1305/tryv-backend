@@ -75,7 +75,8 @@
           "frequentUpdates": false,
           "groupIdentifier": "group.com.danielcollazo.tryvmobile"
         }
-      ]
+      ],
+      "./plugins/withoutFetchBackgroundMode"
     ],
     "experiments": {
       "typedRoutes": true
