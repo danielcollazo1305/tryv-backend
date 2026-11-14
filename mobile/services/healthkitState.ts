@@ -413,25 +413,6 @@ export function sleepHoursByWakeDay(samples: readonly SleepSample[], granularity
   return byKey;
 }
 
-/**
- * Media de horas por NOITE em cada mes ("YYYY-MM"), a partir das horas por dia ("YYYY-MM-DD") de sleepHoursByWakeDay. Dias sem sono nao entram na
- * media; mes sem nenhum dia nao aparece. So as chaves de `onlyMonth` (quando dado) entram — usado pra consultar o HealthKit por faixas mensais.
- */
-export function averageSleepByMonth(dayHours: ReadonlyMap<string, number>, onlyMonth?: string): Map<string, number> {
-  const sums = new Map<string, { total: number; days: number }>();
-  for (const [dayKey, hours] of dayHours) {
-    const monthKey = dayKey.slice(0, 7);
-    if (onlyMonth && monthKey !== onlyMonth) continue;
-    const acc = sums.get(monthKey) ?? { total: 0, days: 0 };
-    acc.total += hours;
-    acc.days += 1;
-    sums.set(monthKey, acc);
-  }
-  const result = new Map<string, number>();
-  for (const [monthKey, { total, days }] of sums) result.set(monthKey, total / days);
-  return result;
-}
-
 // ------------------------------------------------------------------------------------------------------------------ resumo
 export function emptyHealthSummary(): HealthSummary {
   return {

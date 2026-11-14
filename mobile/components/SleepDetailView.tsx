@@ -118,7 +118,7 @@ interface SelectedSegment {
  * Esta view cobre so a ULTIMA noite (periodo "1D"): fetchSleepSessionDetail
  * nao recebe data, entao nao ha navegacao para noites anteriores e as setas
  * "< >" do 1D ficam desabilitadas (com accessibilityState/hint dizendo
- * isso). Os periodos 7D/4 SEM/1 ANO sao tratados por SleepDetailView
+ * isso). Os periodos 7D/4 SEM sao tratados por SleepDetailView
  * (mais abaixo), que usa o card generico HealthHistoryCard com
  * fetchHealthMetricHistory('sleep', ...) — la as setas funcionam.
  */
@@ -328,8 +328,11 @@ function SleepNightView() {
   );
 }
 
+/** Periodos da tela de Sono: os do card generico menos o 1 ANO (Passos e Calorias continuam com ele). */
+const SLEEP_PERIOD_OPTIONS = HEALTH_PERIOD_OPTIONS.filter((option) => option.value !== '1y');
+
 /**
- * Tela de Sono: seletor de periodo (1D/7D/4 SEM/1 ANO). 1D mostra a ultima
+ * Tela de Sono: seletor de periodo (1D/7D/4 SEM; sem 1 ANO). 1D mostra a ultima
  * noite (SleepNightView); os demais usam o card generico de historico
  * (HealthHistoryCard) com fetchHealthMetricHistory('sleep', periodo, offset).
  */
@@ -345,7 +348,7 @@ export function SleepDetailView() {
   return (
     <View style={styles.container}>
       <View style={styles.periodRow}>
-        {HEALTH_PERIOD_OPTIONS.map((option) => {
+        {SLEEP_PERIOD_OPTIONS.map((option) => {
           const selectedPill = option.value === period;
           return (
             <Pressable
@@ -370,7 +373,7 @@ export function SleepDetailView() {
               accessibilityRole="button"
               accessibilityLabel="Noite anterior"
               accessibilityState={{ disabled: true }}
-              accessibilityHint="Indisponível no período 1D. Use 7D, 4 SEM ou 1 ANO para ver o histórico."
+              accessibilityHint="Indisponível no período 1D. Use 7D ou 4 SEM para ver o histórico."
             >
               <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
             </View>
