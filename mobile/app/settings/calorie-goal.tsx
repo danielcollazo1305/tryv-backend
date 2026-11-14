@@ -55,7 +55,7 @@ export default function CalorieGoalScreen() {
   const handleSave = async () => {
     const calorieValue = Number(calorieGoalInput);
     if (!calorieValue || calorieValue <= 0) {
-      setError('Informe uma meta de calorias valida.');
+      setError('Informe uma meta de calorias válida.');
       return;
     }
 
@@ -66,7 +66,7 @@ export default function CalorieGoalScreen() {
     if (proteinGoalInput.trim() !== '') {
       proteinValue = Number(proteinGoalInput);
       if (!proteinValue || proteinValue <= 0) {
-        setError('Informe uma meta de proteina valida, ou deixe em branco.');
+        setError('Informe uma meta de proteína válida, ou deixe em branco.');
         return;
       }
     }
@@ -81,7 +81,7 @@ export default function CalorieGoalScreen() {
       await refreshUser();
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar as metas.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar as metas.'));
     } finally {
       setSaving(false);
     }

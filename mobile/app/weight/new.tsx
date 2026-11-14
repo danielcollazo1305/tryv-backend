@@ -44,7 +44,7 @@ export default function NewWeightLogScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      setError('Informe um peso valido.');
+      setError('Informe um peso válido.');
       return;
     }
     setSubmitting(true);
@@ -54,7 +54,7 @@ export default function NewWeightLogScreen() {
       notifyDashboardChanged();
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel registrar o peso.'));
+      setError(getApiErrorMessage(err, 'Não foi possível registrar o peso.'));
       setSubmitting(false);
     }
   };

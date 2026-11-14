@@ -42,7 +42,7 @@ export default function MealPhotosScreen() {
     try {
       setMeals(await listMeals());
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar o historico de fotos.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar o histórico de fotos.'));
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function MealPhotosScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Historico de fotos</Text>
+        <Text style={styles.headerTitle}>Histórico de fotos</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -91,7 +91,7 @@ export default function MealPhotosScreen() {
             <View style={styles.empty}>
               <Ionicons name="images-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>
-                {error ?? 'Nenhuma refeicao com foto registrada ainda.'}
+                {error ?? 'Nenhuma refeição com foto registrada ainda.'}
               </Text>
             </View>
           ) : null

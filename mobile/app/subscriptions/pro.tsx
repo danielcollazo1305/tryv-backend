@@ -207,7 +207,7 @@ export default function TryvProScreen() {
           </View>
           <Text style={styles.heroTitle}>Tryv Fit Pro</Text>
           <Text style={styles.heroSubtitle}>
-            Desbloqueie IA, insights e relatorios avancados para acelerar sua evolucao.
+            Desbloqueie IA, insights e relatórios avançados para acelerar sua evolução.
           </Text>
         </View>
 

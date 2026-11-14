@@ -64,7 +64,7 @@ export default function BadgesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <Text style={styles.title}>Meus Selos e Conquistas</Text>
-          <Text style={styles.subtitle}>Gerencie seu nivel de acesso.</Text>
+          <Text style={styles.subtitle}>Gerencie seu nível de acesso.</Text>
         </View>
 
         {loading && (
@@ -88,7 +88,7 @@ export default function BadgesScreen() {
                     </View>
                   </View>
                   <Text style={styles.badgeDescription}>
-                    Acesso total a IA de treino e nutricao, metricas avancadas e exportacao de relatorios.
+                    Acesso total a IA de treino e nutrição, métricas avançadas e exportação de relatórios.
                   </Text>
                 </View>
               </LiquiglassCard>
@@ -101,7 +101,7 @@ export default function BadgesScreen() {
                   <Text style={styles.ctaTitle}>Desbloqueie seu Potencial</Text>
                 </View>
                 <Text style={styles.ctaSubtitle}>
-                  Eleve seus resultados com o Tryv Fit Pro. Analise detalhada, IA personalizada e muito mais.
+                  Eleve seus resultados com o Tryv Fit Pro. Análise detalhada, IA personalizada e muito mais.
                 </Text>
                 <Button2 label="Assinar agora" onPress={() => router.push('/subscriptions/pro')} />
               </LiquiglassCard>

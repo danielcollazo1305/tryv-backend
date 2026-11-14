@@ -42,9 +42,9 @@ type Stage = 'picking' | 'analyzing' | 'reviewing' | 'uploading' | 'saving';
 type Mode = 'photo' | 'manual';
 
 const CONFIDENCE_LABEL: Record<string, string> = {
-  alta: 'Confianca alta',
-  media: 'Confianca media',
-  baixa: 'Confianca baixa',
+  alta: 'Confiança alta',
+  media: 'Confiança média',
+  baixa: 'Confiança baixa',
 };
 
 const MODE_OPTIONS: { value: Mode; label: string }[] = [
@@ -207,7 +207,7 @@ export default function AddMealScreen() {
       setStage('reviewing');
     } catch (err) {
       setError(
-        getApiErrorMessage(err, 'Nao foi possivel analisar a foto, tente novamente com uma imagem mais nitida.')
+        getApiErrorMessage(err, 'Não foi possível analisar a foto, tente novamente com uma imagem mais nítida.')
       );
       setStage('picking');
     }
@@ -218,7 +218,7 @@ export default function AddMealScreen() {
     setError(null);
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
@@ -232,7 +232,7 @@ export default function AddMealScreen() {
     setError(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -265,7 +265,7 @@ export default function AddMealScreen() {
       setCorrectionText('');
     } catch (err) {
       setError(
-        getApiErrorMessage(err, 'Nao foi possivel reanalisar a foto, tente novamente com uma imagem mais nitida.')
+        getApiErrorMessage(err, 'Não foi possível reanalisar a foto, tente novamente com uma imagem mais nítida.')
       );
     } finally {
       setReanalyzing(false);
@@ -284,7 +284,7 @@ export default function AddMealScreen() {
       photoUrl = uploaded.url;
       photoThumbUrl = uploaded.thumb_url;
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel enviar a foto, tente novamente.'));
+      setError(getApiErrorMessage(err, 'Não foi possível enviar a foto, tente novamente.'));
       setStage('reviewing');
       return;
     }
@@ -305,7 +305,7 @@ export default function AddMealScreen() {
       if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, analysis.description, imageUri);
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar a refeição.'));
       setStage('reviewing');
     }
   };
@@ -334,7 +334,7 @@ export default function AddMealScreen() {
       setManualCarbs(String(Math.round(result.carbs)));
       setManualFat(String(Math.round(result.fat)));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel estimar essa refeicao, tente descrever de outro jeito.'));
+      setError(getApiErrorMessage(err, 'Não foi possível estimar essa refeição, tente descrever de outro jeito.'));
     } finally {
       setManualAnalyzing(false);
     }
@@ -351,7 +351,7 @@ export default function AddMealScreen() {
 
     const caloriesValue = Number(manualCalories.replace(',', '.'));
     if (!manualCalories.trim() || Number.isNaN(caloriesValue) || caloriesValue < 0) {
-      setError('Informe um valor valido de calorias.');
+      setError('Informe um valor válido de calorias.');
       return;
     }
 
@@ -359,7 +359,7 @@ export default function AddMealScreen() {
     const carbsValue = parseOptionalNonNegative(manualCarbs);
     const fatValue = parseOptionalNonNegative(manualFat);
     if (proteinValue === undefined || carbsValue === undefined || fatValue === undefined) {
-      setError('Proteina, carboidrato e gordura devem ser numeros validos (0 ou mais).');
+      setError('Proteína, carboidrato e gordura devem ser números válidos (0 ou mais).');
       return;
     }
 
@@ -384,7 +384,7 @@ export default function AddMealScreen() {
       if (shareVisibility !== 'none') shareMealToFeed(shareVisibility, description);
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar a refeicao.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar a refeição.'));
     } finally {
       setManualSaving(false);
     }
@@ -393,7 +393,7 @@ export default function AddMealScreen() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <Text style={styles.title}>Nova refeicao</Text>
+        <Text style={styles.title}>Nova refeição</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={26} color={colors3.onSurfaceVariant} />
         </Pressable>
@@ -439,7 +439,7 @@ export default function AddMealScreen() {
           <View style={styles.centered}>
             {!!imageUri && <MealPhoto uri={imageUri} borderRadius={radius3.lg} />}
             <ActivityIndicator size="large" color={colors3.primary} style={styles.analyzingSpinner} />
-            <Text style={styles.analyzingText}>Analisando sua refeicao...</Text>
+            <Text style={styles.analyzingText}>Analisando sua refeição...</Text>
           </View>
         )}
 
@@ -454,7 +454,7 @@ export default function AddMealScreen() {
               </View>
             </View>
             <Text style={styles.confidence}>
-              {CONFIDENCE_LABEL[analysis.confidence] ?? `Confianca: ${analysis.confidence}`}
+              {CONFIDENCE_LABEL[analysis.confidence] ?? `Confiança: ${analysis.confidence}`}
             </Text>
 
             {stage === 'reviewing' && !showCorrection && (
@@ -493,7 +493,7 @@ export default function AddMealScreen() {
             )}
 
             <TextField2 label="Calorias (kcal)" keyboardType="decimal-pad" value={calories} onChangeText={setCalories} />
-            <TextField2 label="Proteina (g)" keyboardType="decimal-pad" value={protein} onChangeText={setProtein} />
+            <TextField2 label="Proteína (g)" keyboardType="decimal-pad" value={protein} onChangeText={setProtein} />
             <TextField2 label="Carboidrato (g)" keyboardType="decimal-pad" value={carbs} onChangeText={setCarbs} />
             <TextField2 label="Gordura (g)" keyboardType="decimal-pad" value={fat} onChangeText={setFat} />
 
@@ -523,7 +523,7 @@ export default function AddMealScreen() {
         {mode === 'manual' && (
           <View style={styles.reviewContainer}>
             <TextField2
-              label="Descricao do alimento"
+              label="Descrição do alimento"
               placeholder="Ex: Peito de frango grelhado"
               value={manualDescription}
               onChangeText={setManualDescription}
@@ -559,7 +559,7 @@ export default function AddMealScreen() {
               onChangeText={setManualCalories}
             />
             <TextField2
-              label="Proteina (g) — opcional"
+              label="Proteína (g) — opcional"
               placeholder="Ex: 40"
               keyboardType="decimal-pad"
               value={manualProtein}
@@ -589,7 +589,7 @@ export default function AddMealScreen() {
 
             <FavoriteToggle value={saveAsFavorite} onChange={setSaveAsFavorite} />
 
-            <Button3 label="Salvar refeicao" onPress={handleSaveManual} loading={manualSaving} />
+            <Button3 label="Salvar refeição" onPress={handleSaveManual} loading={manualSaving} />
           </View>
         )}
       </ScrollView>

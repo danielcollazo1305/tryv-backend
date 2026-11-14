@@ -35,7 +35,7 @@ function fmtNum(value: number | null | undefined, decimals = 0): string {
 }
 
 function deltaLabel(metric: MetricComparison): string {
-  if (metric.delta_absolute == null) return 'sem comparacao';
+  if (metric.delta_absolute == null) return 'sem comparação';
   const sign = metric.delta_absolute > 0 ? '+' : '';
   const pct = metric.delta_percent != null ? ` (${sign}${metric.delta_percent.toFixed(0)}%)` : '';
   return `${sign}${metric.delta_absolute.toFixed(1)}${pct}`;
@@ -47,19 +47,19 @@ function buildHomeSummarySection(summary: HomeSummary): string {
       ? `${summary.weight_change_kg > 0 ? '+' : ''}${summary.weight_change_kg.toFixed(1)} kg`
       : '--';
   const calorieRow = summary.calorie_summary
-    ? `<tr><td>Calorias consumidas (media/dia)</td><td>${fmtNum(summary.calorie_summary.avg_consumed, 0)} kcal</td></tr>
+    ? `<tr><td>Calorias consumidas (média/dia)</td><td>${fmtNum(summary.calorie_summary.avg_consumed, 0)} kcal</td></tr>
        ${
          summary.calorie_summary.avg_deficit != null
-           ? `<tr><td>Deficit calorico (media/dia)</td><td>${fmtNum(summary.calorie_summary.avg_deficit, 0)} kcal</td></tr>`
+           ? `<tr><td>Déficit calórico (média/dia)</td><td>${fmtNum(summary.calorie_summary.avg_deficit, 0)} kcal</td></tr>`
            : ''
        }`
-    : `<tr><td colspan="2" class="muted">Sem dados suficientes de refeicoes neste periodo.</td></tr>`;
+    : `<tr><td colspan="2" class="muted">Sem dados suficientes de refeições neste período.</td></tr>`;
 
   return `
     <section class="card">
-      <h2>Resumo do periodo</h2>
+      <h2>Resumo do período</h2>
       <table>
-        <tr><td>Variacao de peso</td><td>${weightChange}</td></tr>
+        <tr><td>Variação de peso</td><td>${weightChange}</td></tr>
         <tr><td>Dias treinados</td><td>${summary.days_trained} de ${summary.days_total}</td></tr>
         ${calorieRow}
       </table>
@@ -69,9 +69,9 @@ function buildHomeSummarySection(summary: HomeSummary): string {
 function buildPeriodComparisonSection(comparison: PeriodComparison): string {
   const rows: [string, MetricComparison, string][] = [
     ['Km percorridos', comparison.distance_km, 'km'],
-    ['Treinos concluidos', comparison.workouts_count, ''],
-    ['Kcal/dia (media)', comparison.avg_daily_calories, 'kcal'],
-    ['Variacao de peso', comparison.weight_change_kg, 'kg'],
+    ['Treinos concluídos', comparison.workouts_count, ''],
+    ['Kcal/dia (média)', comparison.avg_daily_calories, 'kcal'],
+    ['Variação de peso', comparison.weight_change_kg, 'kg'],
   ];
 
   const rowsHtml = rows
@@ -88,13 +88,13 @@ function buildPeriodComparisonSection(comparison: PeriodComparison): string {
 
   return `
     <section class="card">
-      <h2>Comparacao com o periodo anterior</h2>
+      <h2>Comparação com o período anterior</h2>
       <p class="muted">
         ${formatShortDate(comparison.current_start)} a ${formatShortDate(comparison.current_end)}
         vs. ${formatShortDate(comparison.previous_start)} a ${formatShortDate(comparison.previous_end)}
       </p>
       <table>
-        <tr><th>Metrica</th><th>Atual</th><th>Anterior</th><th>Delta</th></tr>
+        <tr><th>Métrica</th><th>Atual</th><th>Anterior</th><th>Delta</th></tr>
         ${rowsHtml}
       </table>
     </section>`;
@@ -105,7 +105,7 @@ function buildPersonalRecordsSection(records: PersonalRecords): string {
   if (activityTypes.length === 0) {
     return `
       <section class="card">
-        <h2>Recordes pessoais (historico completo)</h2>
+        <h2>Recordes pessoais (histórico completo)</h2>
         <p class="muted">Sem recordes registrados ainda.</p>
       </section>`;
   }
@@ -116,7 +116,7 @@ function buildPersonalRecordsSection(records: PersonalRecords): string {
       const label = ACTIVITY_TYPE_LABELS[activityType as ActivityType] ?? activityType;
       const rows: string[] = [];
       if (typeRecords.longest_distance) {
-        rows.push(`<tr><td>Maior distancia</td><td>${formatDistanceKm(typeRecords.longest_distance.distance_meters)} km</td></tr>`);
+        rows.push(`<tr><td>Maior distância</td><td>${formatDistanceKm(typeRecords.longest_distance.distance_meters)} km</td></tr>`);
       }
       if (typeRecords.longest_duration) {
         rows.push(`<tr><td>Mais longa</td><td>${formatDuration(typeRecords.longest_duration.duration_seconds)}</td></tr>`);
@@ -133,7 +133,7 @@ function buildPersonalRecordsSection(records: PersonalRecords): string {
 
   return `
     <section class="card">
-      <h2>Recordes pessoais (historico completo)</h2>
+      <h2>Recordes pessoais (histórico completo)</h2>
       ${blocks}
     </section>`;
 }
@@ -142,18 +142,18 @@ function buildHeartRateSection(report: HeartRateReport, rangeLabel: string): str
   if (report.daily.length === 0) {
     return `
       <section class="card">
-        <h2>Relatorio de frequencia cardiaca</h2>
+        <h2>Relatório de frequência cardíaca</h2>
         <p class="muted">Sem amostras de frequencia cardiaca no periodo (${rangeLabel}).</p>
       </section>`;
   }
 
   return `
     <section class="card">
-      <h2>Relatorio de frequencia cardiaca</h2>
+      <h2>Relatório de frequência cardíaca</h2>
       <p class="muted">${rangeLabel}</p>
       <table>
-        <tr><td>FC media</td><td>${fmtNum(report.avg_bpm, 0)} bpm</td></tr>
-        <tr><td>FC maxima</td><td>${fmtNum(report.max_bpm, 0)} bpm</td></tr>
+        <tr><td>FC média</td><td>${fmtNum(report.avg_bpm, 0)} bpm</td></tr>
+        <tr><td>FC máxima</td><td>${fmtNum(report.max_bpm, 0)} bpm</td></tr>
         <tr><td>FC de repouso (estimada)</td><td>${fmtNum(report.resting_estimate.bpm, 0)} bpm</td></tr>
       </table>
       <p class="disclaimer">${report.resting_estimate.note}</p>
@@ -258,7 +258,7 @@ export async function exportPeriodReportPdf(userName: string, startDate: Date, e
 
   const available = await Sharing.isAvailableAsync();
   if (!available) {
-    throw new Error('Compartilhamento nao esta disponivel neste dispositivo.');
+    throw new Error('Compartilhamento não está disponível neste dispositivo.');
   }
-  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Exportar relatorio' });
+  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Exportar relatório' });
 }

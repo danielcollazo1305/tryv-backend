@@ -17,7 +17,7 @@ interface MealPhotoProps {
 export function MealPhoto({ uri, borderRadius = radius3.md, style }: MealPhotoProps) {
   return (
     <View style={[styles.frame, { borderRadius }, style]}>
-      <Image source={{ uri }} style={styles.image} resizeMode="contain" accessibilityLabel="Foto da refeicao" />
+      <Image source={{ uri }} style={styles.image} resizeMode="contain" accessibilityLabel="Foto da refeição" />
     </View>
   );
 }
