@@ -153,7 +153,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
             <Text style={s.connectTitle}>Conectar {HEALTH_SOURCE_LABEL}</Text>
             <Text style={s.connectSubtitle}>
               {Platform.OS === 'ios'
-                ? 'Veja passos, distancia, frequencia cardiaca, calorias e sono aqui.'
+                ? 'Veja passos, distância, frequência cardíaca, calorias e sono aqui.'
                 : 'Veja seus passos e calorias ativas aqui.'}
             </Text>
           </View>
@@ -237,7 +237,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
         <HealthMetricRow
           icon="heart"
           color={metricColors.heartRate}
-          label="Frequencia cardiaca"
+          label="Frequência cardíaca"
           subLabel={
             summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
           }
@@ -245,7 +245,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
           variant={variant}
         >
           <Pressable onPress={() => router.push('/heart-rate-report')} style={s.reportLink} hitSlop={8}>
-            <Text style={s.reportLinkText}>Ver relatorio completo de FC</Text>
+            <Text style={s.reportLinkText}>Ver relatório completo de FC</Text>
             <Ionicons name="chevron-forward" size={14} color={accentColor} />
           </Pressable>
         </HealthMetricRow>
@@ -256,7 +256,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
           icon="moon"
           color={metricColors.sleep}
           label="Sono"
-          subLabel="ultima noite"
+          subLabel="última noite"
           value={summary.sleepLastNightHours != null ? formatSleepDuration(summary.sleepLastNightHours) : '--'}
           variant={variant}
         />

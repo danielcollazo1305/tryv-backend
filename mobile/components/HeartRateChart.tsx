@@ -27,8 +27,8 @@ export function HeartRateChart({ data }: { data: DailyHeartRatePoint[] }) {
       <View style={styles.empty}>
         <Text style={styles.emptyText}>
           {data.length === 0
-            ? 'Sem amostras de frequencia cardiaca nos ultimos 30 dias.'
-            : 'Poucos dias com amostra ainda — o grafico aparece com mais dados.'}
+            ? 'Sem amostras de frequência cardíaca nos últimos 30 dias.'
+            : 'Poucos dias com amostra ainda — o gráfico aparece com mais dados.'}
         </Text>
       </View>
     );

@@ -53,7 +53,7 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel, variant = 'dar
   }, [fetcher]);
 
   if (error) {
-    return <Text style={s.emptyText}>Nao foi possivel carregar o historico da semana.</Text>;
+    return <Text style={s.emptyText}>Não foi possível carregar o histórico da semana.</Text>;
   }
 
   if (!data) {
@@ -66,7 +66,7 @@ export function HealthWeeklyBarChart({ fetcher, color, unitLabel, variant = 'dar
 
   const daysWithData = data.filter((point) => point.value != null);
   if (daysWithData.length === 0) {
-    return <Text style={s.emptyText}>Sem dados suficientes nos ultimos 7 dias.</Text>;
+    return <Text style={s.emptyText}>Sem dados suficientes nos últimos 7 dias.</Text>;
   }
 
   const today = data[data.length - 1];

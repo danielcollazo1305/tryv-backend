@@ -57,7 +57,7 @@ export default function HealthMetricDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {!config || !metric ? (
-          <Text style={styles.error}>Metrica invalida.</Text>
+          <Text style={styles.error}>Métrica inválida.</Text>
         ) : metric === 'sleep' ? (
           <SleepDetailView />
         ) : metric === 'heartRate' ? (
@@ -65,8 +65,8 @@ export default function HealthMetricDetailScreen() {
         ) : state.status === 'unavailable' ? (
           <Text style={styles.emptyText}>
             {Platform.OS === 'android'
-              ? 'Instale ou atualize o app Health Connect pra ver seu historico de saude aqui.'
-              : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+              ? 'Instale ou atualize o app Health Connect pra ver seu histórico de saúde aqui.'
+              : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
           </Text>
         ) : state.status === 'disconnected' ? (
           <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
@@ -74,7 +74,7 @@ export default function HealthMetricDetailScreen() {
             <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
           </Pressable>
         ) : state.status === 'error' ? (
-          <Text style={styles.error}>Nao foi possivel carregar o historico.</Text>
+          <Text style={styles.error}>Não foi possível carregar o histórico.</Text>
         ) : (
           <HealthHistoryCard
             metric={metric}

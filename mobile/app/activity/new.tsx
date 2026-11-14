@@ -255,7 +255,7 @@ export default function NewActivityScreen() {
   const startTracking = async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de localizacao negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de localização negada. Habilite nas configurações do celular.');
       return;
     }
     try {
@@ -299,7 +299,7 @@ export default function NewActivityScreen() {
       );
       watchSubscriptionRef.current = subscription;
     } catch {
-      setError('Nao foi possivel obter sua localizacao. Tente novamente.');
+      setError('Não foi possível obter sua localização. Tente novamente.');
     }
   };
 
@@ -344,7 +344,7 @@ export default function NewActivityScreen() {
       setSavedRun(run);
       setStage('result');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar a atividade.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar a atividade.'));
       setStage('tracking');
     }
   };
@@ -353,7 +353,7 @@ export default function NewActivityScreen() {
 
   const handleSaveManual = async () => {
     if (!selectedType || !canSubmitManual) {
-      setError('Informe a duracao em minutos.');
+      setError('Informe a duração em minutos.');
       return;
     }
     setStage('saving');
@@ -370,7 +370,7 @@ export default function NewActivityScreen() {
       setSavedManual(activity);
       setStage('result');
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel salvar a atividade.'));
+      setError(getApiErrorMessage(err, 'Não foi possível salvar a atividade.'));
       setStage('manual-form');
     }
   };
@@ -382,7 +382,7 @@ export default function NewActivityScreen() {
       const data = savedRun ? await getRunInsight(savedRun.id) : savedManual ? await getManualActivityInsight(savedManual.id) : null;
       setInsight(data);
     } catch (err) {
-      setInsightError(getApiErrorMessage(err, 'Nao foi possivel gerar a analise desta atividade.'));
+      setInsightError(getApiErrorMessage(err, 'Não foi possível gerar a análise desta atividade.'));
     } finally {
       setInsightLoading(false);
     }
@@ -393,7 +393,7 @@ export default function NewActivityScreen() {
 
   const handleCloseTracking = () => {
     if (trackingActive) {
-      Alert.alert('Sair da atividade?', 'O rastreamento em andamento sera perdido.', [
+      Alert.alert('Sair da atividade?', 'O rastreamento em andamento será perdido.', [
         { text: 'Continuar rastreando', style: 'cancel' },
         { text: 'Sair e descartar', style: 'destructive', onPress: handleDiscardTracking },
       ]);
@@ -466,7 +466,7 @@ export default function NewActivityScreen() {
             </View>
             <View style={styles.backgroundUpsellButtons}>
               <Pressable onPress={() => setShowBackgroundUpsell(false)} hitSlop={8}>
-                <Text style={styles.backgroundUpsellDismiss}>Agora nao</Text>
+                <Text style={styles.backgroundUpsellDismiss}>Agora não</Text>
               </Pressable>
               <Pressable onPress={handleActivateBackgroundUpsell} hitSlop={8}>
                 <Text style={styles.backgroundUpsellActivate}>Ativar</Text>
@@ -539,7 +539,7 @@ export default function NewActivityScreen() {
               />
             )}
             <TextField2
-              label="Duracao (minutos)"
+              label="Duração (minutos)"
               placeholder="Ex: 45"
               keyboardType="number-pad"
               value={durationMinutes}
@@ -627,7 +627,7 @@ export default function NewActivityScreen() {
               <>
                 {!!insightError && <Text style={styles.error}>{insightError}</Text>}
                 <Button2
-                  label="Ver analise da IA"
+                  label="Ver análise da IA"
                   variant="secondary"
                   onPress={handleFetchInsight}
                   loading={insightLoading}

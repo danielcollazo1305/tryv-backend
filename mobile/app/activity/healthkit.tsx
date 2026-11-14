@@ -71,15 +71,15 @@ export default function HealthKitImportScreen() {
     try {
       // iOS -> Apple HealthKit, Android -> Health Connect (ver services/health.ts).
       if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-        throw new Error('Importar treinos so esta disponivel em iPhone ou Android.');
+        throw new Error('Importar treinos só está disponível em iPhone ou Android.');
       }
       const available = await isHealthAvailable();
       if (!available) {
-        throw new Error(`${HEALTH_SOURCE_LABEL} nao esta disponivel neste dispositivo.`);
+        throw new Error(`${HEALTH_SOURCE_LABEL} não está disponível neste dispositivo.`);
       }
       const granted = await requestHealthPermissions();
       if (!granted) {
-        throw new Error(`Permissao do ${HEALTH_SOURCE_LABEL} negada. Habilite nas configuracoes do celular.`);
+        throw new Error(`Permissão do ${HEALTH_SOURCE_LABEL} negada. Habilite nas configurações do celular.`);
       }
 
       const since = new Date(Date.now() - DAYS_TO_LOOK_BACK * 24 * 60 * 60 * 1000);
@@ -92,7 +92,7 @@ export default function HealthKitImportScreen() {
       setWorkouts(hkWorkouts.filter((workout) => !isAlreadyImported(workout, runs, manualActivities)));
       setStage('list');
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Nao foi possivel verificar o ${HEALTH_SOURCE_LABEL}.`);
+      setError(err instanceof Error ? err.message : `Não foi possível verificar o ${HEALTH_SOURCE_LABEL}.`);
       setStage('idle');
     }
   };
@@ -114,7 +114,7 @@ export default function HealthKitImportScreen() {
       if (!workout.routePoints?.length && workout.routeUnavailable) setRouteImportSkipped(true);
       setWorkouts((prev) => prev.filter((w) => w.id !== workout.id));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel importar este treino.'));
+      setError(getApiErrorMessage(err, 'Não foi possível importar este treino.'));
     } finally {
       importingRef.current = null;
       setImportingId(null);

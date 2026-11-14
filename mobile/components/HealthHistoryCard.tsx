@@ -66,7 +66,7 @@ export type HealthMetricConfig = {
 
 export const HEALTH_METRIC_CONFIG: Record<HealthMetricKey, HealthMetricConfig> = {
   heartRate: {
-    label: 'Frequencia cardiaca',
+    label: 'Frequência cardíaca',
     icon: 'heart',
     color: metricColors.heartRate,
     unitLabel: 'bpm',

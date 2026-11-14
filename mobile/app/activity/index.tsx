@@ -117,7 +117,7 @@ export default function ActivitiesScreen() {
       setRuns(runsData);
       setManualActivities(manualData);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar suas atividades.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar suas atividades.'));
     } finally {
       setLoading(false);
     }

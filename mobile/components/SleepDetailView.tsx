@@ -173,7 +173,7 @@ function SleepNightView() {
       <Text style={styles.emptyText}>
         {Platform.OS === 'android'
           ? 'Instale ou atualize o app Health Connect pra ver seu sono aqui.'
-          : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+          : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
       </Text>
     );
   }
@@ -188,11 +188,11 @@ function SleepNightView() {
   }
 
   if (status === 'error') {
-    return <Text style={styles.error}>Nao foi possivel carregar o sono.</Text>;
+    return <Text style={styles.error}>Não foi possível carregar o sono.</Text>;
   }
 
   if (status === 'empty' || !detail) {
-    return <Text style={styles.emptyText}>Nenhum registro de sono na ultima noite.</Text>;
+    return <Text style={styles.emptyText}>Nenhum registro de sono na última noite.</Text>;
   }
 
   const totalForBars = detail.breakdown.totalAsleepMinutes + detail.breakdown.awakeMinutes;
@@ -391,7 +391,7 @@ export function SleepDetailView() {
         <Text style={styles.emptyText}>
           {Platform.OS === 'android'
             ? 'Instale ou atualize o app Health Connect pra ver seu sono aqui.'
-            : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+            : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
         </Text>
       ) : historyState.status === 'disconnected' ? (
         <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
@@ -399,7 +399,7 @@ export function SleepDetailView() {
           <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
         </Pressable>
       ) : historyState.status === 'error' ? (
-        <Text style={styles.error}>Nao foi possivel carregar o sono.</Text>
+        <Text style={styles.error}>Não foi possível carregar o sono.</Text>
       ) : (
         <HealthHistoryCard
           metric="sleep"
