@@ -11,6 +11,7 @@ import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
 import { runAutoImport, startBackgroundImportTrigger } from '@/services/workoutAutoImport';
+import { syncWidgetSummary } from '@/services/widgetSummary';
 import { configurePurchases } from '@/services/purchases';
 import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
 
@@ -78,8 +79,13 @@ function RootNavigator() {
     if (!token) return;
 
     runAutoImport('foreground');
+    // Widget de tela inicial (services/widgetSummary.ts): nunca lanca erro e limita a 1 gravacao a cada 5 min.
+    syncWidgetSummary();
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') runAutoImport('foreground');
+      if (nextState === 'active') {
+        runAutoImport('foreground');
+        syncWidgetSummary();
+      }
     });
 
     let cancelled = false;

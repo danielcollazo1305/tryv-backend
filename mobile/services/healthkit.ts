@@ -292,6 +292,20 @@ export async function fetchLastNightSleepHours(): Promise<number | null> {
   return samples ? lastNightSleepHours(samples) : null;
 }
 
+/**
+ * Horas dormidas atribuidas a HOJE (o dia em que a pessoa ACORDOU, mesma regra de sleepHoursByWakeDay no historico), somando todas as sessoes que
+ * terminam hoje. Sem sono que termine hoje = null (antes de acordar nao mostra a noite de ontem). Usada pelo widget; a Home usa
+ * fetchLastNightSleepHours (sessao mais recente das ultimas 32 h), que pode diferir -- ver services/widgetSummary.ts.
+ */
+export async function fetchSleepHoursWokenToday(): Promise<number | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const now = new Date();
+  const samples = await safe(readSleepSamples(addDays(startOfDay(now), -1)));
+  if (!samples) return null;
+  return sleepHoursByWakeDay(samples, 'day').get(toDateKey(now)) ?? null;
+}
+
 /** Detalhe da ultima noite (estagios, linha do tempo, FC e respiracao durante o sono). Sem sono = null. */
 export async function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
   const h = hk();
