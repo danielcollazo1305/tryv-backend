@@ -48,7 +48,7 @@ interface ModerationOptions {
 
 /** Texto de confirmacao de exclusao de post (o mesmo da tela de detalhe do post). */
 export function confirmDeletePost(onConfirm: () => void) {
-  Alert.alert('Excluir post?', 'Essa acao nao pode ser desfeita.', [
+  Alert.alert('Excluir post?', 'Essa ação não pode ser desfeita.', [
     { text: 'Cancelar', style: 'cancel' },
     { text: 'Excluir', style: 'destructive', onPress: onConfirm },
   ]);

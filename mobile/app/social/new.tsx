@@ -105,7 +105,7 @@ export default function NewPostScreen() {
     }
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
@@ -121,7 +121,7 @@ export default function NewPostScreen() {
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     // Varias fotos de uma vez (ate o que ainda cabe nas 10). Com selecao multipla nao ha recorte.
@@ -178,11 +178,11 @@ export default function NewPostScreen() {
             markError(
               photosRef.current,
               photo.id,
-              upload?.message ?? getApiErrorMessage(err, 'Nao foi possivel enviar esta foto, tente novamente.'),
+              upload?.message ?? getApiErrorMessage(err, 'Não foi possível enviar esta foto, tente novamente.'),
               upload?.kind ?? 'other'
             )
           );
-          showTop('Uma das fotos nao foi enviada. Veja abaixo qual foi e resolva para publicar.');
+          showTop('Uma das fotos não foi enviada. Veja abaixo qual foi e resolva para publicar.');
           return;
         }
       }
@@ -200,7 +200,7 @@ export default function NewPostScreen() {
         // Texto barrado pelo filtro (422) ou pausa (429): mostra a mensagem do servidor e MANTEM legenda e fotos (ja enviadas, nao sobem de novo).
         // 422 sem o cabecalho do filtro (ex.: "foto nao verificada" ou "ja usada"): os enderecos nao valem mais; a proxima tentativa reenvia e reverifica.
         if (getHttpStatus(err) === 422 && !getContentFilterMessage(err)) apply(resetAllToPending(photosRef.current));
-        showTop(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel publicar o post.'));
+        showTop(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Não foi possível publicar o post.'));
       }
     } finally {
       busyRef.current = false;
@@ -260,14 +260,14 @@ export default function NewPostScreen() {
               style={styles.pickButton}
               onPress={handlePickFromLibrary}
               accessibilityRole="button"
-              accessibilityLabel="Escolher da galeria, ate 10 fotos"
+              accessibilityLabel="Escolher da galeria, até 10 fotos"
             >
               <View style={styles.pickIconWrap}>
                 <Ionicons name="images" size={26} color={colors2.primary} />
               </View>
               <Text style={styles.pickButtonText}>Escolher da galeria</Text>
             </Pressable>
-            <Text style={styles.limitHint}>Voce pode publicar ate 10 fotos em um post.</Text>
+            <Text style={styles.limitHint}>Você pode publicar até 10 fotos em um post.</Text>
           </View>
         )}
 
@@ -339,7 +339,7 @@ export default function NewPostScreen() {
                   </Pressable>
                   <Pressable style={styles.addTile} onPress={handleTakePhoto} accessibilityRole="button" accessibilityLabel="Tirar mais uma foto">
                     <Ionicons name="camera-outline" size={22} color={colors2.primary} />
-                    <Text style={styles.addTileText}>Camera</Text>
+                    <Text style={styles.addTileText}>Câmera</Text>
                   </Pressable>
                 </>
               )}
@@ -349,7 +349,7 @@ export default function NewPostScreen() {
               const position = photos.findIndex((p) => p.id === photo.id) + 1;
               return (
                 <View key={photo.id} style={styles.failBox} accessibilityRole="alert">
-                  <Text style={styles.failTitle}>{`Foto ${position} nao foi enviada`}</Text>
+                  <Text style={styles.failTitle}>{`Foto ${position} não foi enviada`}</Text>
                   {!!photo.error && <Text style={styles.failText}>{photo.error}</Text>}
                   <View style={styles.failActions}>
                     {canRetry(photo) && (
@@ -379,7 +379,7 @@ export default function NewPostScreen() {
 
             <TextField2
               label="Legenda (opcional)"
-              placeholder="O que voce esta treinando hoje?"
+              placeholder="O que você está treinando hoje?"
               value={caption}
               onChangeText={setCaption}
               maxLength={CAPTION_MAX_LENGTH}
@@ -412,7 +412,7 @@ export default function NewPostScreen() {
             {busy && !saving && (
               <Text style={styles.verifyHint}>Estamos verificando as fotos, uma de cada vez. Isso pode levar alguns segundos.</Text>
             )}
-            <Button2 label="Comecar de novo" variant="secondary" onPress={handleStartOver} disabled={busy} />
+            <Button2 label="Começar de novo" variant="secondary" onPress={handleStartOver} disabled={busy} />
           </View>
         )}
       </ScrollView>

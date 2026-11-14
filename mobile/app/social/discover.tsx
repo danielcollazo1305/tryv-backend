@@ -68,7 +68,7 @@ export default function DiscoverScreen() {
         setSearchResults(results);
         setSearchError(null);
       } catch {
-        setSearchError('Nao foi possivel buscar. Tente novamente.');
+        setSearchError('Não foi possível buscar. Tente novamente.');
       } finally {
         setSearching(false);
       }
@@ -247,7 +247,7 @@ export default function DiscoverScreen() {
             )}
             ItemSeparatorComponent={() => <View style={{ height: spacing3.md }} />}
             ListEmptyComponent={
-              !searching && query.trim() ? <Text style={styles.emptyText}>Nenhum usuario encontrado.</Text> : null
+              !searching && query.trim() ? <Text style={styles.emptyText}>Nenhum usuário encontrado.</Text> : null
             }
           />
         ) : contactsState === 'checking' || contactsState === 'loading' ? (
@@ -257,9 +257,9 @@ export default function DiscoverScreen() {
             <View style={styles.explainIconWrap}>
               <Ionicons name="people" size={24} color={colors3.primary} />
             </View>
-            <Text style={styles.explainTitle}>Encontre amigos que ja usam o Tryv Fit</Text>
+            <Text style={styles.explainTitle}>Encontre amigos que já usam o Tryv Fit</Text>
             <Text style={styles.explainText}>
-              O Tryv Fit acessa sua agenda so pra comparar numeros de telefone com quem ja tem conta -- nenhum outro
+              O Tryv Fit acessa sua agenda só pra comparar números de telefone com quem já tem conta -- nenhum outro
               dado do seu contato (nome, foto, e-mail) e enviado.
             </Text>
             <Button3 label="Permitir acesso aos contatos" onPress={handleRequestPermission} />
@@ -271,7 +271,7 @@ export default function DiscoverScreen() {
             </View>
             <Text style={styles.explainTitle}>Acesso aos contatos negado</Text>
             <Text style={styles.explainText}>
-              Voce pode permitir o acesso depois nas configuracoes do sistema, ou buscar pessoas pelo nome por
+              Você pode permitir o acesso depois nas configurações do sistema, ou buscar pessoas pelo nome por
               enquanto.
             </Text>
             <Button3 label="Tentar novamente" onPress={handleRequestPermission} />
@@ -281,7 +281,7 @@ export default function DiscoverScreen() {
           </GlassCard>
         ) : contactsState === 'error' ? (
           <GlassCard variant="card" style={styles.explainCard}>
-            <Text style={styles.explainTitle}>Nao foi possivel ler seus contatos</Text>
+            <Text style={styles.explainTitle}>Não foi possível ler seus contatos</Text>
             <Button3 label="Tentar novamente" onPress={loadContacts} />
           </GlassCard>
         ) : contactsListData.length === 0 ? (

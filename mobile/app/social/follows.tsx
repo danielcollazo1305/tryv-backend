@@ -73,7 +73,7 @@ export default function FollowsScreen() {
       setSuggestions(suggestionsData);
       setMyFollowingIds(new Set(followingData.map((u) => u.id)));
     } catch {
-      setError('Nao foi possivel carregar essa lista.');
+      setError('Não foi possível carregar essa lista.');
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,7 @@ export default function FollowsScreen() {
             </View>
             <Text style={styles.emptyTitle}>Nenhum seguidor</Text>
             <Text style={styles.emptySubtitle}>
-              Voce pode compartilhar seu perfil com outras pessoas para comecar.
+              Você pode compartilhar seu perfil com outras pessoas para começar.
             </Text>
             <Button3 label="Compartilhar perfil" onPress={() => shareProfile(user?.name ?? 'eu')} />
           </View>
@@ -175,9 +175,9 @@ export default function FollowsScreen() {
           <View style={styles.emptyIconWrap}>
             <Ionicons name="sparkles-outline" size={28} color={colors3.onSurfaceVariant} />
           </View>
-          <Text style={styles.emptyTitle}>Sem sugestoes</Text>
+          <Text style={styles.emptyTitle}>Sem sugestões</Text>
           <Text style={styles.emptySubtitle}>
-            Nao ha sugestoes de amigos neste momento. Volte mais tarde para verificar se ha novas sugestoes.
+            Não há sugestões de amigos neste momento. Volte mais tarde para verificar se há novas sugestões.
           </Text>
         </View>
       );

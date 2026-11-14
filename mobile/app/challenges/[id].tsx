@@ -78,7 +78,7 @@ export default function ChallengeDetailScreen() {
       loadedChallenge = await getChallenge(id);
       setChallenge(loadedChallenge);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar este desafio.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar este desafio.'));
       setLoading(false);
       return;
     }
@@ -127,7 +127,7 @@ export default function ChallengeDetailScreen() {
       await joinChallenge(id);
       await fetchAll();
     } catch (err) {
-      setJoinError(getApiErrorMessage(err, 'Nao foi possivel entrar no desafio.'));
+      setJoinError(getApiErrorMessage(err, 'Não foi possível entrar no desafio.'));
     } finally {
       setJoining(false);
     }
@@ -141,7 +141,7 @@ export default function ChallengeDetailScreen() {
       await leaveChallenge(id);
       await fetchAll();
     } catch (err) {
-      setJoinError(getApiErrorMessage(err, 'Nao foi possivel sair do desafio.'));
+      setJoinError(getApiErrorMessage(err, 'Não foi possível sair do desafio.'));
     } finally {
       setJoining(false);
     }
@@ -150,7 +150,7 @@ export default function ChallengeDetailScreen() {
   const handleTakeCheckinPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setCheckinError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setCheckinError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
@@ -160,7 +160,7 @@ export default function ChallengeDetailScreen() {
   const handlePickCheckinPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setCheckinError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setCheckinError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -213,7 +213,7 @@ export default function ChallengeDetailScreen() {
       setCheckinVisibility('none');
       await fetchAll();
     } catch (err) {
-      setCheckinError(getApiErrorMessage(err, 'Nao foi possivel registrar seu check-in.'));
+      setCheckinError(getApiErrorMessage(err, 'Não foi possível registrar seu check-in.'));
     } finally {
       setCheckinSaving(false);
     }
@@ -314,7 +314,7 @@ export default function ChallengeDetailScreen() {
                 ) : hasCheckedInToday ? (
                   <GlassCard variant="card" style={styles.checkinDoneCard}>
                     <Ionicons name="checkmark-circle" size={22} color={colors3.primary} />
-                    <Text style={styles.checkinDoneText}>Voce ja fez check-in hoje!</Text>
+                    <Text style={styles.checkinDoneText}>Você já fez check-in hoje!</Text>
                   </GlassCard>
                 ) : (
                   <GlassCard variant="card" style={styles.checkinCard}>
@@ -349,7 +349,7 @@ export default function ChallengeDetailScreen() {
 
                 <GlassCard variant="card" style={styles.heatmapCard}>
                   <View style={styles.heatmapHeader}>
-                    <Text style={styles.sectionTitle}>Sua consistencia</Text>
+                    <Text style={styles.sectionTitle}>Sua consistência</Text>
                     {consistencyStreak.count > 0 && (
                       <View style={styles.streakBadge}>
                         <Ionicons name="flame" size={14} color={colors3.primary} />
@@ -368,7 +368,7 @@ export default function ChallengeDetailScreen() {
               <View style={styles.participantsSection}>
                 <Text style={styles.sectionTitle}>Participantes</Text>
                 {participants.length === 0 ? (
-                  <Text style={styles.emptyText}>Ninguem entrou ainda.</Text>
+                  <Text style={styles.emptyText}>Ninguém entrou ainda.</Text>
                 ) : (
                   participants.map((p) => (
                     <Pressable
