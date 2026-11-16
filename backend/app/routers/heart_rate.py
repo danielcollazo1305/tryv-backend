@@ -1,7 +1,9 @@
+import uuid
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -29,20 +31,34 @@ def sync_heart_rate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    samples = [
-        HeartRateSample(
-            user_id=current_user.id,
-            source=payload.source,
-            bpm=item.bpm,
-            recorded_at=item.recorded_at,
-        )
+    """
+    Grava um lote de amostras (ate HEART_RATE_SYNC_MAX_BATCH por requisicao; acima disso, 422). Idempotente: a mesma leitura
+    (usuario, fonte, instante) e gravada uma unica vez (ON CONFLICT DO NOTHING no unique uq_heart_rate_user_source_recorded), entao
+    reenviar um lote, ou a amostra da borda do lote anterior, nao duplica nada. A resposta traz SO as amostras realmente criadas
+    agora (as que ja existiam nao voltam); o app nao usa o corpo da resposta.
+    """
+    rows = [
+        {
+            "id": uuid.uuid4(),
+            "user_id": current_user.id,
+            "source": payload.source,
+            "bpm": item.bpm,
+            "recorded_at": item.recorded_at,
+        }
         for item in payload.samples
     ]
-    db.add_all(samples)
+    inserted = (
+        db.execute(
+            pg_insert(HeartRateSample)
+            .values(rows)
+            .on_conflict_do_nothing(constraint="uq_heart_rate_user_source_recorded")
+            .returning(HeartRateSample)
+        )
+        .scalars()
+        .all()
+    )
     db.commit()
-    for sample in samples:
-        db.refresh(sample)
-    return samples
+    return inserted
 
 
 @router.get("/", response_model=list[HeartRateSampleOut])

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.smartwatch import SmartwatchSource
 
@@ -11,11 +11,27 @@ class HeartRateSampleItem(BaseModel):
     recorded_at: datetime
 
 
+# Maximo de amostras por requisicao de POST /heart-rate/sync (o app envia lotes de ate 500).
+HEART_RATE_SYNC_MAX_BATCH = 1000
+
+
 class HeartRateSyncRequest(BaseModel):
     """Um lote de amostras vem tipicamente de uma unica sincronizacao de
-    device, entao a fonte e informada uma vez para o lote inteiro."""
+    device, entao a fonte e informada uma vez para o lote inteiro.
+    No maximo HEART_RATE_SYNC_MAX_BATCH amostras por requisicao (422 acima disso)."""
     source: SmartwatchSource
     samples: list[HeartRateSampleItem] = Field(..., min_length=1)
+
+    @field_validator("samples", mode="before")
+    @classmethod
+    def _limit_batch_size(cls, value):
+        # Antes de validar item por item: um lote enorme e recusado sem processar nada.
+        if isinstance(value, list) and len(value) > HEART_RATE_SYNC_MAX_BATCH:
+            raise ValueError(
+                f"O lote aceita no maximo {HEART_RATE_SYNC_MAX_BATCH} amostras por requisicao "
+                f"(recebidas: {len(value)}). Envie em lotes menores."
+            )
+        return value
 
 
 class HeartRateSampleOut(BaseModel):
