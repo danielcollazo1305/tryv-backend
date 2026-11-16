@@ -244,6 +244,7 @@ private struct LockScreenCard: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(Color.lockTextPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 if let exercise {
                     Text(setProgressLabel(exercise))
                         .font(.system(size: 13))
