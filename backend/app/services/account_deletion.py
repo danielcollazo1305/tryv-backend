@@ -20,6 +20,7 @@ from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.ai_usage import AiUsage
 from app.models.avatar_generation import AvatarGeneration
 from app.models.challenge import Challenge, ChallengeCheckin
 from app.models.content_filter_event import ContentFilterEvent
@@ -81,7 +82,7 @@ USER_OWNED_TABLES = frozenset(
         "smartwatch_data", "readiness_scores", "daily_insights", "runs", "manual_activities", "live_activities",
         "equipment", "points_events", "avatar_generations", "avatar_attempts", "password_reset_tokens", "subscriptions",
         "squad_memberships", "squads", "trainers", "content_filter_events",
-        "media_uploads",
+        "media_uploads", "ai_usage",
     }
 )
 # Tratadas pelo ON DELETE do proprio banco (so CASCADE/SET NULL sao aceitos), com a justificativa:
@@ -102,6 +103,7 @@ _SIMPLE_DELETIONS = [
     (CreatineLog, CreatineLog.user_id),
     (WeightLog, WeightLog.user_id),
     (HeartRateSample, HeartRateSample.user_id),
+    (AiUsage, AiUsage.user_id),
     (SmartwatchData, SmartwatchData.user_id),
     (ReadinessScore, ReadinessScore.user_id),
     (DailyInsight, DailyInsight.user_id),
