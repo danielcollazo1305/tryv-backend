@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     revenuecat_api_secret: str = ""
     revenuecat_pro_entitlement: str = "pro"
 
+    # Feature flags (envs SLEEP_API_ENABLED e AGENT_ENABLED), DESLIGADAS por padrao. Hoje so sao expostas ao app por GET /features
+    # (routers/features.py); as rotas de sono e do agente ainda nao existem e, quando existirem, ficam atras destas chaves.
+    sleep_api_enabled: bool = False
+    agent_enabled: bool = False
+
     # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""

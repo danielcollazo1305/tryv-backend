@@ -20,6 +20,7 @@ from app.routers import (
     creatine_logs,
     dashboard,
     equipment,
+    features,
     gallery,
     foods,
     heart_rate,
@@ -137,6 +138,7 @@ app.include_router(equipment.router)
 app.include_router(shoe_models.router)
 app.include_router(insights.router)
 app.include_router(readiness.router)
+app.include_router(features.router)
 app.include_router(subscriptions.router)
 app.include_router(squads.router)
 app.include_router(ranking.router)
