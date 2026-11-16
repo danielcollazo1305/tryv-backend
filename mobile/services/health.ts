@@ -21,6 +21,7 @@ import { Platform } from 'react-native';
 
 import * as healthConnect from './healthConnect';
 import * as healthkit from './healthkit';
+import type { SleepQualityReading } from './sleepNights';
 import type {
   DailyQuantityPoint,
   DayHeartRateDetail,
@@ -125,6 +126,11 @@ export function fetchWeekHeartRateDetail(weekOffset = 0): Promise<WeekHeartRateD
 
 export function fetchLastNightSleepHours(): Promise<number | null> {
   return isIOS ? healthkit.fetchLastNightSleepHours() : healthConnect.fetchLastNightSleepHours();
+}
+
+/** Qualidade do sono (0-100) calculada no aparelho; so iOS (o Android do app foi descontinuado: devolve null). Ver healthkit.ts:fetchSleepQualityReading. */
+export function fetchSleepQualityReading(): Promise<SleepQualityReading | null> {
+  return isIOS ? healthkit.fetchSleepQualityReading() : Promise.resolve(null);
 }
 
 export function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {

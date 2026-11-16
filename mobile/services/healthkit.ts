@@ -61,6 +61,8 @@ import {
   toMonthKey,
   weekHeartRate,
 } from './healthkitState';
+import { SLEEP_QUALITY_LOOKBACK_DAYS, sleepQualityForToday } from './sleepNights';
+import type { SleepQualityReading } from './sleepNights';
 
 export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
 
@@ -311,6 +313,20 @@ export async function fetchSleepHoursWokenToday(): Promise<number | null> {
   const samples = await safe(readSleepSamples(addDays(startOfDay(now), -1)));
   if (!samples) return null;
   return sleepHoursByWakeDay(samples, 'day').get(toDateKey(now)) ?? null;
+}
+
+/**
+ * Qualidade do sono (0-100, estimativa de bem-estar calculada AQUI, no aparelho) da noite que terminou hoje; sem ela, a de ontem marcada como
+ * provisoria (isToday = false); sem noite = null. So LEITURA do Apple Saude: nada e enviado a lugar nenhum. A logica e pura e testada em
+ * sleepNights.ts / sleepQuality.ts; aqui so o IO. Le os ultimos SLEEP_QUALITY_LOOKBACK_DAYS dias (7 noites + folga) para divida e regularidade.
+ */
+export async function fetchSleepQualityReading(): Promise<SleepQualityReading | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const now = new Date();
+  const samples = await safe(readSleepSamples(addDays(startOfDay(now), -SLEEP_QUALITY_LOOKBACK_DAYS)));
+  if (!samples) return null;
+  return sleepQualityForToday(samples, now);
 }
 
 /** Detalhe da ultima noite (estagios, linha do tempo, FC e respiracao durante o sono). Sem sono = null. */
