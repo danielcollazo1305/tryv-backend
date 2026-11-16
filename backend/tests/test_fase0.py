@@ -366,6 +366,59 @@ class AiClientLimitsTests(unittest.TestCase):
         self.assertEqual(client.timeout.read, 60.0)
         self.assertEqual(client.timeout.connect, 10.0)
 
+    def test_padroes_por_funcao(self):
+        from app.services import ai_client
+
+        for kind, read in (("insight", 60.0), ("meal", 90.0), ("workout_plan", 180.0)):
+            timeout = ai_client.get_client(kind).timeout
+            self.assertEqual((kind, timeout.read, timeout.connect), (kind, read, 10.0))
+            self.assertEqual(ai_client.get_client(kind).max_retries, 1)
+        self.assertEqual(ai_client.get_client().timeout.read, 60.0)  # sem argumento = insight
+
+    def test_funcao_desconhecida_e_erro_claro(self):
+        from app.services import ai_client
+
+        with self.assertRaises(ValueError):
+            ai_client.get_client("outra")
+
+    def test_variaveis_de_ambiente_sobrescrevem_cada_funcao(self):
+        from app.services import ai_client
+
+        with mock.patch.object(settings, "ai_timeout_meal_seconds", "120"), mock.patch.object(
+            settings, "ai_timeout_workout_plan_seconds", "240.5"
+        ), mock.patch.object(settings, "ai_timeout_insight_seconds", "30"), mock.patch.object(settings, "ai_connect_timeout_seconds", "5"):
+            self.assertEqual((ai_client.get_client("meal").timeout.read, ai_client.get_client("meal").timeout.connect), (120.0, 5.0))
+            self.assertEqual(ai_client.get_client("workout_plan").timeout.read, 240.5)
+            self.assertEqual(ai_client.get_client("insight").timeout.read, 30.0)
+
+    def test_valor_invalido_volta_ao_padrao(self):
+        from app.services import ai_client
+
+        for raw in ("abc", "0", "-5", "601", "nan", "  "):
+            with mock.patch.object(settings, "ai_timeout_workout_plan_seconds", raw), mock.patch.object(
+                settings, "ai_connect_timeout_seconds", raw
+            ):
+                timeout = ai_client.get_client("workout_plan").timeout
+                self.assertEqual((raw, timeout.read, timeout.connect), (raw, 180.0, 10.0))
+
+    def test_cada_servico_usa_o_timeout_da_sua_funcao(self):
+        from app.services import activity_insight, daily_insight, meal_analysis, workout_generator
+
+        client = mock.Mock()
+        client.messages.create.return_value = fake_response(payload={"anything": 1}, stop_reason="refusal")
+        expected = [
+            (meal_analysis, lambda: meal_analysis.analyze_meal_photo(b"x"), "meal"),
+            (meal_analysis, lambda: meal_analysis.analyze_meal_text("arroz"), "meal"),
+            (workout_generator, lambda: workout_generator.generate_workout_plan("g", "l", 3, "e"), "workout_plan"),
+            (daily_insight, lambda: daily_insight.generate_daily_insight({"activities": []}, []), "insight"),
+            (activity_insight, lambda: activity_insight.generate_activity_insight({"activity_type": "run"}), "insight"),
+        ]
+        for module, call, kind in expected:
+            with mock.patch.object(module, "get_client", return_value=client) as getter:
+                with self.assertRaises(ValueError):  # a resposta simulada e uma recusa: so interessa com que funcao o cliente foi pedido
+                    call()
+            self.assertEqual(getter.call_args.args[0] if getter.call_args.args else "insight", kind, module.__name__)
+
     def test_ids_de_modelo_nao_mudaram(self):
         from app.services import ai_client
 

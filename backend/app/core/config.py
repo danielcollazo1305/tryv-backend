@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     # 0 = geracao desligada (nunca "sem teto"). O dia e o dia local (APP_TIMEZONE).
     ai_insight_daily_limit: str = ""
 
+    # Timeouts da IA POR FUNCAO, em segundos (envs AI_TIMEOUT_INSIGHT_SECONDS, AI_TIMEOUT_MEAL_SECONDS, AI_TIMEOUT_WORKOUT_PLAN_SECONDS e
+    # AI_CONNECT_TIMEOUT_SECONDS). Texto de proposito: vazio/invalido/<= 0/acima de 600 = padrao (60 / 90 / 180 / 10), ver services/ai_client.py.
+    ai_timeout_insight_seconds: str = ""
+    ai_timeout_meal_seconds: str = ""
+    ai_timeout_workout_plan_seconds: str = ""
+    ai_connect_timeout_seconds: str = ""
+
     # Validade (segundos) da URL assinada das imagens PRIVADAS do perfil (foto original e avatar guardados), so para o dono.
     private_image_url_expires_seconds: int = 600
 

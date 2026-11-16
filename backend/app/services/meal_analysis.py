@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 
-from app.services.ai_client import MODEL, get_client
+from app.services.ai_client import AI_KIND_MEAL, MODEL, get_client
 from app.services.ai_usage import FEATURE_MEAL_PHOTO, FEATURE_MEAL_TEXT, record_ai_usage
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ def analyze_meal_photo(
             f"o alimento, especialmente se a aparencia visual for ambigua."
         )
 
-    response = get_client().messages.create(
+    response = get_client(AI_KIND_MEAL).messages.create(
         model=MODEL,
         max_tokens=4096,
         thinking={"type": "adaptive"},
@@ -131,7 +131,7 @@ def analyze_meal_text(description: str, quantity: str | None = None, *, user_id:
         prompt += "\nQuantidade/peso nao informado — assuma uma porcao individual tipica."
     prompt += "\nEstime calorias e macros."
 
-    response = get_client().messages.create(
+    response = get_client(AI_KIND_MEAL).messages.create(
         model=MODEL,
         max_tokens=4096,
         thinking={"type": "adaptive"},

@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 
-from app.services.ai_client import MODEL, get_client
+from app.services.ai_client import AI_KIND_WORKOUT_PLAN, MODEL, get_client
 from app.services.ai_usage import FEATURE_WORKOUT_PLAN, record_ai_usage
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ def generate_workout_plan(
         prompt += f"Observacoes adicionais: {notes}\n"
     prompt += f"\nMonte um plano de treino semanal para esses {days_per_week} dias."
 
-    response = get_client().messages.create(
+    response = get_client(AI_KIND_WORKOUT_PLAN).messages.create(
         model=MODEL,
         max_tokens=4096,
         thinking={"type": "adaptive"},
