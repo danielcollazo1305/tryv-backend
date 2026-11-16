@@ -53,9 +53,9 @@ private func lockScreenTitle(_ exercise: FreeWorkoutActivityAttributes.ExerciseS
 /// (ver NextExerciseIntent/PreviousExerciseIntent, Attributes.swift).
 private func setProgressLabel(_ exercise: FreeWorkoutActivityAttributes.ExerciseSummary) -> String {
     if exercise.firstIncompleteSetIndex == -1 {
-        return "Exercicio concluido"
+        return "Exercício concluído"
     }
-    return "Serie \(exercise.firstIncompleteSetIndex + 1) de \(exercise.totalSets)"
+    return "Série \(exercise.firstIncompleteSetIndex + 1) de \(exercise.totalSets)"
 }
 
 /// Selo/"capa" do treino -- equivalente a capa do album num player de
