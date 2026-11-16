@@ -110,6 +110,16 @@ def _hr_score(db: Session, user_id, today: date) -> float | None:
     return round(max(0.0, min(100.0, score)), 1)
 
 
+def _resolve_sleep_score(sleep_hours: float | None, sleep_quality: float | None) -> float | None:
+    """Pilar de sono: a qualidade (0-100, calculada no aparelho) tem prioridade; sem ela, o calculo por horas (app antigo, ou sem dado de
+    qualidade); sem nenhum dos dois, None (o peso e redistribuido entre carga e FC, ver _combine_scores)."""
+    if sleep_quality is not None:
+        return round(sleep_quality, 1)
+    if sleep_hours is not None:
+        return _sleep_score(sleep_hours)
+    return None
+
+
 def _recommendation_text(score: float) -> str:
     if score >= 80:
         return "Excelente prontidao — bom dia para um treino intenso."
@@ -139,12 +149,23 @@ def get_today_readiness(
     sleep_hours: float | None = Query(
         None, ge=0, le=24, description="Horas de sono da ultima noite, vindas do HealthKit (mobile) — o backend nao tem acesso direto a isso."
     ),
+    sleep_quality: float | None = Query(
+        None,
+        ge=0,
+        le=100,
+        description="Qualidade do sono (0 a 100) calculada NO APARELHO a partir do HealthKit (duracao, eficiencia, despertares, divida, regularidade "
+        "e estagios). Opcional. Se vier, e usada como pilar de sono no lugar do calculo por horas (sleep_hours vira so fallback).",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Gratuito (qualquer usuario logado): devolve so o resumo basico (final_score, sub-scores e texto). Insights de IA e comparativos
     seguem exclusivos do Pro, em outros endpoints (/insights/*).
+
+    Sono: aceita sleep_quality (0-100, opcional, calculada no aparelho) e sleep_hours (opcional, so horas). Com sleep_quality, ela vira o
+    sleep_score; senao vale o calculo por horas; sem nenhum, o pilar de sono fica de fora. Fora da faixa 0-100 (ou nao numerico): 422.
+    O app antigo, que so envia sleep_hours (ou nada), continua funcionando igual.
 
     Calcula (e re-calcula a cada chamada, sobrescrevendo o registro do dia)
     o score de prontidao de hoje. Diferente de /insights/daily, aqui nao ha
@@ -157,7 +178,7 @@ def get_today_readiness(
     """
     today = local_today()
 
-    sleep_score = _sleep_score(sleep_hours) if sleep_hours is not None else None
+    sleep_score = _resolve_sleep_score(sleep_hours, sleep_quality)
     load_score = _load_score(db, current_user.id, today)
     hr_score = _hr_score(db, current_user.id, today)
     final_score = _combine_scores(sleep_score, load_score, hr_score)
