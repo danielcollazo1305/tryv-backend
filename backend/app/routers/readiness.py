@@ -12,7 +12,9 @@ from app.models.manual_activity import ManualActivity
 from app.models.readiness_score import ReadinessScore
 from app.models.run import Run
 from app.models.user import User
+from app.models.workout import WorkoutSession
 from app.schemas.readiness import ReadinessOut
+from app.services.training_load import strength_session_minutes
 
 router = APIRouter(prefix="/readiness", tags=["readiness"])
 
@@ -45,7 +47,8 @@ def _sleep_score(hours: float) -> float:
 
 
 def _load_score(db: Session, user_id, today: date) -> float:
-    """Baseado no volume total treinado (Run + ManualActivity) nos ultimos
+    """Baseado no volume total treinado (Run + ManualActivity + musculacao,
+    esta em minutos equivalentes, ver services/training_load.py) nos ultimos
     7 dias: pouco volume recente = bem descansado (score alto); muito
     volume = fadiga acumulada (score baixo). Sem nenhum treino nos ultimos
     7 dias, entende-se como "sem fadiga acumulada" (score maximo) — o que
@@ -70,7 +73,18 @@ def _load_score(db: Session, user_id, today: date) -> float:
         .scalar()
         or 0
     )
-    total_minutes = (run_seconds / 60) + manual_minutes
+    strength_sessions = (
+        db.query(WorkoutSession.exercises, WorkoutSession.duration_minutes)
+        .filter(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.completed_at >= start,
+            WorkoutSession.completed_at < end,
+        )
+        .all()
+    )
+    strength_minutes = sum(strength_session_minutes(exercises, duration) for exercises, duration in strength_sessions)
+
+    total_minutes = (run_seconds / 60) + manual_minutes + strength_minutes
     if total_minutes <= 0:
         return 100.0
     score = 100 - (total_minutes / 600) * 80
