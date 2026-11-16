@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.ai_usage import AiUsage
+from app.models.avatar_attempt import AvatarAttempt
 from app.models.avatar_generation import AvatarGeneration
 from app.models.challenge import Challenge, ChallengeCheckin
 from app.models.content_filter_event import ContentFilterEvent
@@ -112,6 +113,7 @@ _SIMPLE_DELETIONS = [
     (LiveActivity, LiveActivity.user_id),
     (Equipment, Equipment.user_id),
     (PointsEvent, PointsEvent.user_id),
+    (AvatarAttempt, AvatarAttempt.user_id),
     (AvatarGeneration, AvatarGeneration.user_id),
     (PasswordResetToken, PasswordResetToken.user_id),
     (Subscription, Subscription.user_id),

@@ -46,6 +46,7 @@ from app.core.database import Base, SessionLocal  # noqa: E402
 from app.core.security import create_access_token, hash_password  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.ai_usage import AiUsage  # noqa: E402
+from app.models.avatar_attempt import AvatarAttempt  # noqa: E402
 from app.models.daily_insight import DailyInsight  # noqa: E402
 from app.models.heart_rate import HeartRateSample  # noqa: E402
 from app.models.subscription import Subscription  # noqa: E402
@@ -72,7 +73,7 @@ class Base_(unittest.TestCase):
     def tearDown(self):
         self.db.rollback()
         for uid in (self.uid, self.other_id):  # ids guardados: o objeto User pode ter sido apagado pelo proprio teste
-            for model in (AiUsage, HeartRateSample, DailyInsight, Subscription):
+            for model in (AiUsage, AvatarAttempt, HeartRateSample, DailyInsight, Subscription):
                 self.db.query(model).filter(model.user_id == uid).delete()
             self.db.query(User).filter(User.id == uid).delete()
         self.db.commit()
@@ -405,7 +406,9 @@ class FeaturesTests(Base_):
 # ---------------------------------------------------------------------------------------------------------------- B4: exclusao
 
 
-class AccountDeletionNewTablesTests(Base_):
+class DeletionBase(Base_):
+    """Base da exclusao de conta: sem rede (midia e RevenueCat simulados)."""
+
     def setUp(self):
         super().setUp()
         self.patches = [
@@ -421,6 +424,8 @@ class AccountDeletionNewTablesTests(Base_):
             p.stop()
         super().tearDown()
 
+
+class AccountDeletionNewTablesTests(DeletionBase):
     def test_toda_tabela_com_fk_para_users_esta_coberta(self):
         """Rede de seguranca por introspeccao: tabela nova que aponte para users precisa entrar na exclusao de conta."""
         missing = []
@@ -455,6 +460,24 @@ class AccountDeletionNewTablesTests(Base_):
         # os dados da outra pessoa ficam intactos
         self.assertEqual(self.db.query(AiUsage).filter(AiUsage.user_id == self.other.id).count(), 1)
         self.assertEqual(self.db.query(HeartRateSample).filter(HeartRateSample.user_id == self.other.id).count(), 1)
+
+
+
+class AccountDeletionAvatarAttemptsTests(DeletionBase):
+    """Regressao: avatar_attempts tem FK para users sem ON DELETE, entao a exclusao precisa apaga-la explicitamente (antes dava 500)."""
+
+    def test_excluir_conta_de_quem_ja_tentou_gerar_avatar_apaga_as_tentativas(self):
+        self.db.add_all([AvatarAttempt(user_id=self.uid), AvatarAttempt(user_id=self.uid), AvatarAttempt(user_id=self.other_id)])
+        self.db.commit()
+        r = self.client.post("/users/me/delete", json={"password": PASSWORD, "confirmation": "EXCLUIR"}, headers=self.headers)
+        self.assertEqual(r.status_code, 204, r.text)
+        self.db.expire_all()
+        self.assertIsNone(self.db.query(User.id).filter(User.id == self.uid).first())
+        self.assertEqual(self.db.query(AvatarAttempt).filter(AvatarAttempt.user_id == self.uid).count(), 0)
+        self.assertEqual(self.db.query(AvatarAttempt).filter(AvatarAttempt.user_id == self.other_id).count(), 1)  # a de outra pessoa fica
+
+    def test_avatar_attempts_esta_na_lista_de_exclusoes_simples(self):
+        self.assertIn(AvatarAttempt, [model for model, _ in account_deletion._SIMPLE_DELETIONS])
 
 
 if __name__ == "__main__":
