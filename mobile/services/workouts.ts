@@ -1,3 +1,4 @@
+import { AI_TIMEOUT_WORKOUT_PLAN_MS } from '@/constants/aiTimeouts';
 import { api } from '@/services/api';
 import { parseUtcDate } from '@/services/activities';
 
@@ -95,9 +96,8 @@ export interface WorkoutGenerateRequest {
 
 /** Gera um plano via IA — nao salva nada ainda. */
 export async function generateWorkoutPlan(payload: WorkoutGenerateRequest): Promise<WorkoutPlanData> {
-  // Mesma folga de timeout usada na analise de refeicao — o backend usa
-  // "thinking" e pode demorar bem mais que o padrao.
-  const response = await api.post<WorkoutPlanData>('/workout-plans/generate', payload, { timeout: 45000 });
+  // O backend usa "thinking" e gera um plano semanal completo: e a chamada de IA mais longa (constants/aiTimeouts.ts).
+  const response = await api.post<WorkoutPlanData>('/workout-plans/generate', payload, { timeout: AI_TIMEOUT_WORKOUT_PLAN_MS });
   return response.data;
 }
 

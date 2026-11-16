@@ -1,3 +1,4 @@
+import { AI_TIMEOUT_MEAL_MS } from '@/constants/aiTimeouts';
 import { api } from '@/services/api';
 
 export interface MealAnalysis {
@@ -60,8 +61,8 @@ export async function analyzeMealPhoto(imageUri: string, userHint?: string): Pro
   if (userHint && userHint.trim()) formData.append('user_hint', userHint.trim());
 
   // A analise usa "thinking" no backend e pode demorar mais que o timeout
-  // padrao do cliente — da mais folga so para essa chamada.
-  const response = await api.post<MealAnalysis>('/meals/analyze', formData, { timeout: 45000 });
+  // padrao do cliente — da mais folga so para essa chamada (constants/aiTimeouts.ts: um pouco acima do backend).
+  const response = await api.post<MealAnalysis>('/meals/analyze', formData, { timeout: AI_TIMEOUT_MEAL_MS });
   return response.data;
 }
 
@@ -70,7 +71,7 @@ export async function analyzeMealText(description: string, quantity?: string): P
   const response = await api.post<MealAnalysis>(
     '/meals/analyze-text',
     { description, quantity: quantity || null },
-    { timeout: 45000 }
+    { timeout: AI_TIMEOUT_MEAL_MS }
   );
   return response.data;
 }
