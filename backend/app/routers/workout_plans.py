@@ -50,6 +50,7 @@ def generate(
             days_per_week=payload.days_per_week,
             equipment=payload.equipment,
             notes=payload.notes,
+            user_id=current_user.id,
         )
     except (anthropic.APIError, ValueError) as e:
         logger.error("Falha ao gerar plano de treino (user_id=%s): %s", current_user.id, e)

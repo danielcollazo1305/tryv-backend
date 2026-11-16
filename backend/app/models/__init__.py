@@ -3,6 +3,7 @@ Importa todos os modelos para que Base.metadata os conheça (e as foreign
 keys entre eles resolvam corretamente) independente de quais routers/
 servicos estejam sendo carregados no momento.
 """
+from app.models.ai_usage import AiUsage  # noqa: F401
 from app.models.avatar_generation import AvatarGeneration  # noqa: F401
 from app.models.avatar_attempt import AvatarAttempt  # noqa: F401
 from app.models.challenge import Challenge, ChallengeCheckin  # noqa: F401

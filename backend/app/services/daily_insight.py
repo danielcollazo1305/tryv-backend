@@ -8,9 +8,11 @@ json_schema ja usado nesses dois e em activity_insight.py.
 """
 import json
 import logging
+import uuid
 
 from app.services.activity_plausibility import check_activity_plausibility
 from app.services.ai_client import LIGHT_MODEL, get_client
+from app.services.ai_usage import FEATURE_DAILY_INSIGHT, record_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,7 @@ _SYSTEM_PROMPT = (
 )
 
 
-def generate_daily_insight(weekly_summary: dict, recent_insights: list[str]) -> dict:
+def generate_daily_insight(weekly_summary: dict, recent_insights: list[str], *, user_id: uuid.UUID | None = None) -> dict:
     """
     Gera o insight do dia a partir de um resumo dos ultimos 7 dias do
     usuario e da lista dos ultimos insights ja mostrados (para nao repetir).
@@ -87,6 +89,9 @@ def generate_daily_insight(weekly_summary: dict, recent_insights: list[str]) -> 
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": _INSIGHT_SCHEMA}},
     )
+
+    # Uso (so numeros) registrado logo apos a resposta, antes das checagens abaixo: recusa/truncamento tambem gastam tokens.
+    record_ai_usage(user_id, FEATURE_DAILY_INSIGHT, LIGHT_MODEL, response)
 
     if response.stop_reason == "refusal":
         logger.error("Geracao de insight diario recusada pelos filtros de seguranca da IA")

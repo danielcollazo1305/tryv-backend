@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # Teto de TENTATIVAS de avatar por usuario por dia (env AVATAR_DAILY_ATTEMPT_LIMIT), com ou sem sucesso: falha que nao consome a cota de
     # geracoes (moderacao, recusa da OpenAI) nao pode virar gasto ilimitado de IA. Janela de 24 h.
     avatar_daily_attempt_limit: int = 10
+    # Teto DIARIO, por usuario, de insights gerados por IA em POST /insights/generate (services/ai_usage.py). Env AI_INSIGHT_DAILY_LIMIT.
+    # Texto de proposito (como image_moderation_daily_cap): vazio/invalido/negativo = padrao (AI_INSIGHT_DAILY_LIMIT_DEFAULT, generoso);
+    # 0 = geracao desligada (nunca "sem teto"). O dia e o dia local (APP_TIMEZONE).
+    ai_insight_daily_limit: str = ""
+
     # Validade (segundos) da URL assinada das imagens PRIVADAS do perfil (foto original e avatar guardados), so para o dono.
     private_image_url_expires_seconds: int = 600
 

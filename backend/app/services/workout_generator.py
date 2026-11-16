@@ -6,8 +6,10 @@ mesmo padrao usado em meal_analysis.py.
 """
 import json
 import logging
+import uuid
 
 from app.services.ai_client import MODEL, get_client
+from app.services.ai_usage import FEATURE_WORKOUT_PLAN, record_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +118,8 @@ def generate_workout_plan(
     days_per_week: int,
     equipment: str,
     notes: str | None = None,
+    *,
+    user_id: uuid.UUID | None = None,
 ) -> dict:
     """
     Gera um plano de treino semanal estruturado via IA.
@@ -142,6 +146,9 @@ def generate_workout_plan(
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": _WORKOUT_PLAN_SCHEMA}},
     )
+
+    # Uso (so numeros) registrado logo apos a resposta, antes das checagens abaixo: recusa/truncamento tambem gastam tokens.
+    record_ai_usage(user_id, FEATURE_WORKOUT_PLAN, MODEL, response)
 
     if response.stop_reason == "refusal":
         logger.error("Geracao de plano de treino recusada pelos filtros de seguranca da IA")

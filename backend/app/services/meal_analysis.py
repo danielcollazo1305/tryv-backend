@@ -6,8 +6,10 @@ em vez de pedir JSON no prompt e tentar interpretar o texto de volta.
 import base64
 import json
 import logging
+import uuid
 
 from app.services.ai_client import MODEL, get_client
+from app.services.ai_usage import FEATURE_MEAL_PHOTO, FEATURE_MEAL_TEXT, record_ai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,13 @@ _TEXT_SYSTEM_PROMPT = (
 )
 
 
-def analyze_meal_photo(image_bytes: bytes, media_type: str = "image/jpeg", user_hint: str | None = None) -> dict:
+def analyze_meal_photo(
+    image_bytes: bytes,
+    media_type: str = "image/jpeg",
+    user_hint: str | None = None,
+    *,
+    user_id: uuid.UUID | None = None,
+) -> dict:
     """
     Le uma foto de refeicao e retorna calorias + macros estimados.
 
@@ -90,6 +98,9 @@ def analyze_meal_photo(image_bytes: bytes, media_type: str = "image/jpeg", user_
         output_config={"format": {"type": "json_schema", "schema": _MEAL_SCHEMA}},
     )
 
+    # Uso (so numeros) registrado logo apos a resposta, antes das checagens abaixo: recusa/truncamento tambem gastam tokens.
+    record_ai_usage(user_id, FEATURE_MEAL_PHOTO, MODEL, response)
+
     if response.stop_reason == "refusal":
         logger.error("Analise de refeicao recusada pelos filtros de seguranca da IA")
         raise ValueError("Nao foi possivel analisar esta imagem")
@@ -101,7 +112,7 @@ def analyze_meal_photo(image_bytes: bytes, media_type: str = "image/jpeg", user_
     return json.loads(text)
 
 
-def analyze_meal_text(description: str, quantity: str | None = None) -> dict:
+def analyze_meal_text(description: str, quantity: str | None = None, *, user_id: uuid.UUID | None = None) -> dict:
     """
     Estima calorias + macros a partir de uma descricao textual do
     alimento (ex: "200g de cuscuz", "peito de frango grelhado"). Mesmo
@@ -128,6 +139,9 @@ def analyze_meal_text(description: str, quantity: str | None = None) -> dict:
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": _MEAL_SCHEMA}},
     )
+
+    # Uso (so numeros) registrado logo apos a resposta, antes das checagens abaixo: recusa/truncamento tambem gastam tokens.
+    record_ai_usage(user_id, FEATURE_MEAL_TEXT, MODEL, response)
 
     if response.stop_reason == "refusal":
         logger.error("Analise de refeicao por texto recusada pelos filtros de seguranca da IA")

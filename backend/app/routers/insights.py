@@ -17,6 +17,7 @@ from app.models.meal import Meal
 from app.models.run import Run
 from app.models.user import User
 from app.schemas.daily_insight import DailyInsightOut
+from app.services.ai_usage import enforce_insight_daily_cap
 from app.services.daily_insight import generate_daily_insight
 
 router = APIRouter(prefix="/insights", tags=["insights"])
@@ -113,7 +114,7 @@ def _generate_and_upsert(db: Session, current_user: User) -> DailyInsight:
             .all()
         ]
         try:
-            result = generate_daily_insight(summary, recent_insights)
+            result = generate_daily_insight(summary, recent_insights, user_id=current_user.id)
         except (anthropic.APIError, openai.APIError, ValueError) as e:
             logger.error("Falha ao gerar insight diario (user_id=%s): %s", current_user.id, e)
             raise HTTPException(
@@ -154,7 +155,11 @@ def generate_today_insight(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_pro_subscription),
 ):
-    """Gera (ou regenera) o insight de hoje — sobrescreve o registro do dia em vez de duplicar."""
+    """Gera (ou regenera) o insight de hoje — sobrescreve o registro do dia em vez de duplicar.
+
+    Teto diario por usuario (AI_INSIGHT_DAILY_LIMIT, ver services/ai_usage.py): acima dele, 429 sem chamar a IA.
+    """
+    enforce_insight_daily_cap(db, current_user.id)
     return _generate_and_upsert(db, current_user)
 
 

@@ -59,7 +59,7 @@ async def analyze(
     image_bytes = await file.read()
     media_type = file.content_type or "image/jpeg"
     try:
-        return analyze_meal_photo(image_bytes, media_type=media_type, user_hint=user_hint)
+        return analyze_meal_photo(image_bytes, media_type=media_type, user_hint=user_hint, user_id=current_user.id)
     except (anthropic.APIError, ValueError) as e:
         logger.error("Falha ao analisar foto de refeicao (user_id=%s): %s", current_user.id, e)
         raise HTTPException(
@@ -80,7 +80,7 @@ def analyze_text(
     MealAnalysis. Tambem nao grava nada no banco.
     """
     try:
-        return analyze_meal_text(payload.description, quantity=payload.quantity)
+        return analyze_meal_text(payload.description, quantity=payload.quantity, user_id=current_user.id)
     except (anthropic.APIError, ValueError) as e:
         logger.error("Falha ao analisar descricao de refeicao (user_id=%s): %s", current_user.id, e)
         raise HTTPException(

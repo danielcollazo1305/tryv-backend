@@ -142,7 +142,7 @@ def get_manual_activity_insight(
     }
 
     try:
-        return generate_activity_insight(activity_data)
+        return generate_activity_insight(activity_data, user_id=current_user.id)
     except (anthropic.APIError, openai.APIError, ValueError) as e:
         logger.error("Falha ao gerar insight de atividade manual (activity_id=%s): %s", activity.id, e)
         raise HTTPException(
