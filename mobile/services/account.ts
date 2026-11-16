@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { FREE_DRAFT_STORAGE_KEY } from '@/context/WorkoutSessionDraftContext';
 import { api } from '@/services/api';
-import { LAST_SYNC_KEY as HEART_RATE_LAST_SYNC_KEY } from '@/services/heartRateSync';
+import { LAST_RUN_KEY as HEART_RATE_LAST_RUN_KEY, LAST_SYNC_KEY as HEART_RATE_LAST_SYNC_KEY } from '@/services/heartRateSync';
 import { ANCHOR_KEY as AUTO_IMPORT_ANCHOR_KEY, LAST_RUN_KEY as AUTO_IMPORT_LAST_RUN_KEY } from '@/services/workoutAutoImport';
 
 export * from '@/services/accountErrors';
@@ -25,7 +25,8 @@ export async function deleteMyAccount(password: string, confirmation: string): P
  *  - AsyncStorage 'workout-session-draft-free-v1': rascunho do treino livre em andamento (dados da pessoa).
  *  - AsyncStorage 'workout_auto_import_anchor_v1' / '..._last_run_v1': ancora e diagnostico da importacao automatica de
  *    treinos; se ficassem, uma conta nova no mesmo aparelho NAO reimportaria os treinos anteriores a ancora.
- *  - SecureStore 'heart_rate_last_synced_at': cursor da sincronizacao de batimentos (mesmo motivo).
+ *  - SecureStore 'heart_rate_last_synced_at' (cursor da sincronizacao de batimentos) e 'heart_rate_last_sync_run_at'
+ *    (intervalo minimo entre execucoes): mesmo motivo.
  *
  * NAO limpa (sao do aparelho, nao da conta): 'healthkit_connected' (a permissao do Apple Health e do aparelho e
  * continua valendo) e 'workout_auto_import_enabled_v1' (preferencia de uso do aparelho). O rascunho em MEMORIA do
@@ -42,11 +43,13 @@ export async function clearLocalAccountData(): Promise<string[]> {
       // best-effort: a conta ja foi apagada no servidor
     }
   }
-  try {
-    await SecureStore.deleteItemAsync(HEART_RATE_LAST_SYNC_KEY);
-    removed.push(HEART_RATE_LAST_SYNC_KEY);
-  } catch {
-    // idem
+  for (const key of [HEART_RATE_LAST_SYNC_KEY, HEART_RATE_LAST_RUN_KEY]) {
+    try {
+      await SecureStore.deleteItemAsync(key);
+      removed.push(key);
+    } catch {
+      // idem
+    }
   }
   return removed;
 }
