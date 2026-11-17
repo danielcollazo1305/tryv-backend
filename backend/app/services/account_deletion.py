@@ -2,23 +2,26 @@
 
 Reutilizavel (o endpoint POST /users/me/delete e um futuro job de limpeza em lote chamam a mesma funcao). Ordem:
   a. trava a linha do usuario (FOR UPDATE: duas exclusoes simultaneas nao se atropelam; a segunda ve o usuario sumido);
-  b. pre-checagens (ultimo admin; profissional com alunos/desafios/planos ativos ou conta Stripe Connect) -> Blocked;
-  c. Stripe: cancela as assinaturas do usuario (Pro e `trainer_addon` como aluno); falha -> StripeError e NADA e apagado;
-  d. coleta as URLs do S3 (sem apagar), descartando as que outra pessoa referencia (`media_url` e texto livre);
-  e. UMA transacao no banco (squads, participant_ids, denuncias, apagar na ordem das FKs); erro -> rollback total;
-  f. commit;
-  g. DEPOIS do commit, best-effort (falha so loga o id do usuario): apaga o customer no Stripe e as midias no S3.
-Logs: so ids do usuario; nunca e-mail, senha, hash, texto, URL, chave do S3 nem ids do Stripe.
+  b. pre-checagens (ultimo admin; perfil de profissional antigo com alunos/desafios/planos ativos) -> Blocked;
+  c. coleta as URLs do S3 (sem apagar), descartando as que outra pessoa referencia (`media_url` e texto livre);
+  d. UMA transacao no banco (squads, participant_ids, denuncias, apagar na ordem das FKs); erro -> rollback total;
+  e. commit;
+  f. DEPOIS do commit, best-effort (falha so loga o id do usuario): pede ao RevenueCat a exclusao do assinante (so se
+     REVENUECAT_API_SECRET existir) e apaga as midias e os avatares guardados no S3.
+Nao ha chamada a nenhum provedor de pagamento ANTES de apagar: a assinatura do app e da Apple (cancela-se na App Store) e nada
+impede a exclusao.
+Logs: so ids do usuario; nunca e-mail, senha, hash, texto, URL nem chave do S3.
 """
 import logging
 import uuid
 from datetime import datetime
 
-import stripe
 from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.ai_usage import AiUsage
+from app.models.avatar_attempt import AvatarAttempt
 from app.models.avatar_generation import AvatarGeneration
 from app.models.challenge import Challenge, ChallengeCheckin
 from app.models.content_filter_event import ContentFilterEvent
@@ -49,8 +52,9 @@ from app.models.weight_log import WeightLog
 from app.models.workout import WorkoutPlan, WorkoutSession
 from app.core.post_media import media_urls_of, urls_used_by_other_posts
 from app.services.post_removal import purge_post
+from app.services.avatar_profile import delete_stored_key
+from app.services import revenuecat_api
 from app.services.storage import delete_user_media_by_url
-from app.services.stripe_client import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +63,6 @@ CONFIRMATION_WORD = "EXCLUIR"
 
 class AccountDeletionBlocked(Exception):
     """Pendencia que impede a exclusao (409). A mensagem ja e o texto para a pessoa, em portugues."""
-
-
-class AccountDeletionStripeError(Exception):
-    """Falha ao cancelar a assinatura no Stripe (502). Nada foi apagado."""
 
 
 class AccountAlreadyGone(Exception):
@@ -81,9 +81,9 @@ USER_OWNED_TABLES = frozenset(
         "posts", "likes", "comments", "follows", "user_blocks", "challenge_checkins", "workout_sessions", "workout_plans",
         "diet_plans", "meals", "saved_meals", "water_logs", "creatine_logs", "weight_logs", "heart_rate_samples",
         "smartwatch_data", "readiness_scores", "daily_insights", "runs", "manual_activities", "live_activities",
-        "equipment", "points_events", "avatar_generations", "password_reset_tokens", "subscriptions",
+        "equipment", "points_events", "avatar_generations", "avatar_attempts", "password_reset_tokens", "subscriptions",
         "squad_memberships", "squads", "trainers", "content_filter_events",
-        "media_uploads",
+        "media_uploads", "ai_usage",
     }
 )
 # Tratadas pelo ON DELETE do proprio banco (so CASCADE/SET NULL sao aceitos), com a justificativa:
@@ -104,6 +104,7 @@ _SIMPLE_DELETIONS = [
     (CreatineLog, CreatineLog.user_id),
     (WeightLog, WeightLog.user_id),
     (HeartRateSample, HeartRateSample.user_id),
+    (AiUsage, AiUsage.user_id),
     (SmartwatchData, SmartwatchData.user_id),
     (ReadinessScore, ReadinessScore.user_id),
     (DailyInsight, DailyInsight.user_id),
@@ -112,6 +113,7 @@ _SIMPLE_DELETIONS = [
     (LiveActivity, LiveActivity.user_id),
     (Equipment, Equipment.user_id),
     (PointsEvent, PointsEvent.user_id),
+    (AvatarAttempt, AvatarAttempt.user_id),
     (AvatarGeneration, AvatarGeneration.user_id),
     (PasswordResetToken, PasswordResetToken.user_id),
     (Subscription, Subscription.user_id),
@@ -142,46 +144,7 @@ def find_blocking_reason(db: Session, user: User) -> str | None:
             return "Você ainda tem alunos ativos. Encerre as assinaturas e os planos dos seus alunos antes de excluir a conta."
         if db.query(Challenge.id).filter(Challenge.trainer_id == trainer.id, Challenge.end_date >= datetime.utcnow()).count():
             return "Você ainda tem desafios ativos. Aguarde o término deles ou fale com o suporte antes de excluir a conta."
-        if trainer.stripe_account_id:
-            return "Sua conta de recebimentos (Stripe) ainda está vinculada. Fale com o suporte para encerrá-la antes de excluir a conta."
     return None
-
-
-def _stripe_already_gone(client, subscription_id: str, error: Exception) -> bool:
-    """True se o erro do Stripe significa 'ja cancelada / nao existe' (idempotente)."""
-    if getattr(error, "code", None) == "resource_missing":
-        return True
-    try:
-        current = client.subscriptions.retrieve(subscription_id)
-        return getattr(current, "status", None) == "canceled"
-    except stripe.StripeError as retrieve_error:
-        return getattr(retrieve_error, "code", None) == "resource_missing"
-
-
-def _cancel_stripe_subscriptions(db: Session, user_id: uuid.UUID) -> None:
-    """Cancela NA HORA (sem reembolso) todas as assinaturas ainda nao canceladas do usuario (Pro e trainer_addon como
-    aluno). Ja cancelada/inexistente no Stripe = sucesso. Qualquer outra falha -> AccountDeletionStripeError."""
-    ids = [
-        sid
-        for (sid,) in db.query(Subscription.stripe_subscription_id).filter(
-            Subscription.user_id == user_id,
-            Subscription.stripe_subscription_id.isnot(None),
-            or_(Subscription.status.is_(None), Subscription.status != "canceled"),
-        )
-    ]
-    if not ids:
-        return
-    try:
-        client = get_client()
-        for subscription_id in ids:
-            try:
-                client.subscriptions.cancel(subscription_id)
-            except stripe.StripeError as error:
-                if not _stripe_already_gone(client, subscription_id, error):
-                    raise
-    except Exception as error:  # noqa: BLE001 -- qualquer falha (Stripe, rede, chave ausente) aborta antes de apagar
-        logger.error("account_deletion_stripe_cancel_failed user_id=%s (%s)", user_id, type(error).__name__)
-        raise AccountDeletionStripeError() from error
 
 
 def _collect_media_urls(db: Session, user: User) -> list[str]:
@@ -281,13 +244,16 @@ def _delete_database_rows(db: Session, user: User) -> None:
     _delete_user_row(db, uid)
 
 
-def _delete_stripe_customer(customer_id: str | None, user_id: uuid.UUID) -> None:
-    if not customer_id:
-        return
+def _delete_revenuecat_subscriber(user_id: uuid.UUID) -> None:
+    """Pede ao RevenueCat a exclusao do assinante (app_user_id = id do usuario no Tryv). Melhor esforco, depois do commit: variavel
+    ausente = pula em silencio; qualquer falha so registra um aviso (so o id do usuario) e NUNCA bloqueia nem desfaz a exclusao."""
     try:
-        get_client().customers.delete(customer_id)
+        requested = revenuecat_api.delete_subscriber(str(user_id))
     except Exception as error:  # noqa: BLE001 -- best-effort, depois do commit
-        logger.warning("account_deletion_stripe_customer_failed user_id=%s (%s)", user_id, type(error).__name__)
+        logger.warning("account_deletion_revenuecat_failed user_id=%s (%s)", user_id, type(error).__name__)
+        return
+    if requested:
+        logger.info("account_deletion_revenuecat_requested user_id=%s", user_id)
 
 
 def _delete_media(urls: list[str], user_id: uuid.UUID) -> None:
@@ -305,9 +271,8 @@ def _delete_media(urls: list[str], user_id: uuid.UUID) -> None:
 
 def delete_user_account(db: Session, user: User) -> None:
     """Exclui a conta e os dados da pessoa (ver o docstring do modulo para a ordem). Levanta AccountAlreadyGone,
-    AccountDeletionBlocked ou AccountDeletionStripeError (nada apagado) ou qualquer erro de banco (rollback total)."""
+    AccountDeletionBlocked (nada apagado) ou qualquer erro de banco (rollback total)."""
     uid = user.id
-    customer_id = user.stripe_customer_id
 
     locked = db.query(User).filter(User.id == uid).with_for_update().first()
     if locked is None:
@@ -317,8 +282,17 @@ def delete_user_account(db: Session, user: User) -> None:
     if reason:
         raise AccountDeletionBlocked(reason)
 
-    _cancel_stripe_subscriptions(db, uid)
     media_urls = _collect_media_urls(db, locked)
+    stored_keys = [
+        k
+        for k in (
+            locked.profile_photo_key,
+            locked.profile_photo_thumb_key,
+            locked.generated_avatar_key,
+            locked.generated_avatar_thumb_key,
+        )
+        if k
+    ]
 
     try:
         _delete_database_rows(db, locked)
@@ -329,6 +303,10 @@ def delete_user_account(db: Session, user: User) -> None:
         raise
 
     # Daqui para baixo a conta JA foi apagada: tudo e best-effort e so loga o id do usuario.
-    _delete_stripe_customer(customer_id, uid)
+    _delete_revenuecat_subscriber(uid)
     _delete_media(media_urls, uid)
+    # foto original e avatar guardados (nao sao URLs publicas, por isso fora de _collect_media_urls). delete_stored_key trata as duas formas: chave
+    # privada (private/profile/) e a chave publica dos avatares ANTIGOS (profiles/...), que o backfill da migracao guarda como alternativa "avatar".
+    for key in stored_keys:
+        delete_stored_key(key)
     logger.info("account_deleted user_id=%s", uid)

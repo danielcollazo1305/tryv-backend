@@ -153,6 +153,58 @@ export function buildHistory(period: HealthHistoryPeriod, offset: number, byKey:
   return { period, granularity, offset, startDate: toDateKey(start), endDate: toDateKey(end), points, average };
 }
 
+// ------------------------------------------------------------------------------------------------------------ calorias: ativas + basal
+/** Ha basal de verdade (> 0)? Basal ausente ou 0 (sem Apple Watch, sem permissao) = indisponivel: a energia ativa NUNCA e chamada de total. */
+export function hasBasalEnergy(basalKcal: number | null | undefined): boolean {
+  return typeof basalKcal === 'number' && Number.isFinite(basalKcal) && basalKcal > 0;
+}
+
+/** Divisao do dia: total so existe quando ha basal; sem basal, total = null e so a atividade e conhecida. */
+export function energySplit(
+  activeKcal: number | null | undefined,
+  basalKcal: number | null | undefined
+): { hasBasal: boolean; total: number | null; active: number | null; basal: number | null } {
+  const active = typeof activeKcal === 'number' && Number.isFinite(activeKcal) ? activeKcal : null;
+  const hasBasal = hasBasalEnergy(basalKcal);
+  const basal = hasBasal ? (basalKcal as number) : null;
+  return { hasBasal, total: hasBasal ? (active ?? 0) + (basal as number) : null, active, basal };
+}
+
+/**
+ * Historico de calorias: por dia/mes, value = ativas + basal quando ha basal naquele ponto; sem basal, value = so as ativas (o tipo do ponto
+ * guarda as duas partes para a tela dizer qual e qual). A media e a do value, so sobre os pontos com dado.
+ */
+export function buildCaloriesHistory(
+  period: HealthHistoryPeriod,
+  offset: number,
+  activeByKey: Map<string, number>,
+  basalByKey: Map<string, number>,
+  now: Date = new Date()
+): HealthMetricHistory {
+  const valueByKey = new Map<string, number>();
+  for (const key of new Set([...activeByKey.keys(), ...basalByKey.keys()])) {
+    const split = energySplit(activeByKey.get(key), basalByKey.get(key));
+    const value = split.total ?? split.active;
+    if (value != null) valueByKey.set(key, value);
+  }
+  const history = buildHistory(period, offset, valueByKey, now);
+  const points = history.points.map((p) => {
+    const split = energySplit(activeByKey.get(p.date), basalByKey.get(p.date));
+    return { ...p, active: split.active, basal: split.basal };
+  });
+  return { ...history, points };
+}
+
+/** Medias de ativas e basal sobre os mesmos pontos da media do value (soma = media do total quando ha basal em todos). basal null = nenhum ponto com basal. */
+export function caloriesAverages(points: readonly HealthHistoryPoint[]): { active: number | null; basal: number | null } {
+  const withData = points.filter((p) => p.value != null);
+  if (withData.length === 0) return { active: null, basal: null };
+  const anyBasal = withData.some((p) => hasBasalEnergy(p.basal));
+  const active = withData.reduce((s, p) => s + (p.active ?? 0), 0) / withData.length;
+  const basal = anyBasal ? withData.reduce((s, p) => s + (p.basal ?? 0), 0) / withData.length : null;
+  return { active, basal };
+}
+
 export const roundBpm = (n: number | null | undefined): number | null => (finiteNumber(n) ? Math.round(n) : null);
 export const round1 = (n: number | null | undefined): number | null => (finiteNumber(n) ? Math.round(n * 10) / 10 : null);
 
@@ -370,6 +422,8 @@ export function emptyHealthSummary(): HealthSummary {
     distance7dMeters: null,
     activeEnergyTodayKcal: null,
     activeEnergy7dKcal: null,
+    basalEnergyTodayKcal: null,
+    basalEnergy7dKcal: null,
     heartRate: { mostRecentBpm: null, mostRecentAt: null, average7dBpm: null },
     sleepLastNightHours: null,
   };
@@ -377,7 +431,7 @@ export function emptyHealthSummary(): HealthSummary {
 
 /** O resumo tem ALGUM dado real (qualquer campo diferente de null)? Zero medido conta como dado. */
 export function summaryHasData(s: HealthSummary): boolean {
-  return [s.stepsToday, s.steps7d, s.distanceTodayMeters, s.distance7dMeters, s.activeEnergyTodayKcal, s.activeEnergy7dKcal, s.heartRate.mostRecentBpm, s.heartRate.average7dBpm, s.sleepLastNightHours].some(
+  return [s.stepsToday, s.steps7d, s.distanceTodayMeters, s.distance7dMeters, s.activeEnergyTodayKcal, s.activeEnergy7dKcal, s.basalEnergyTodayKcal, s.basalEnergy7dKcal, s.heartRate.mostRecentBpm, s.heartRate.average7dBpm, s.sleepLastNightHours].some(
     (v) => v !== null && v !== undefined
   );
 }

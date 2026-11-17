@@ -30,7 +30,7 @@ export function MuscleDiagram({ muscles }: MuscleDiagramProps) {
     return (
       <LiquiglassCard style={styles.emptyCard}>
         <Text style={styles.emptyText}>
-          Nao foi possivel identificar os grupos musculares deste treino.
+          Não foi possível identificar os grupos musculares deste treino.
         </Text>
       </LiquiglassCard>
     );

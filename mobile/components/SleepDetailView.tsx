@@ -5,16 +5,19 @@ import { router, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { GlassCard } from '@/components/GlassCard';
+import { HEALTH_METRIC_CONFIG, HEALTH_PERIOD_OPTIONS, HealthHistoryCard, useHealthHistory } from '@/components/HealthHistoryCard';
 import {
   ensureHealthAuthorized,
   fetchSleepSessionDetail,
   HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
+  HealthHistoryPeriod,
   isHealthAvailable,
   SleepSessionDetail,
   SleepStage,
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import { formatSleepMinutes } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
 // consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
@@ -53,15 +56,7 @@ const STAGE_COLORS: Record<SleepStage, string> = {
   inBed: colors3.outline,
 };
 
-const PERIOD_OPTIONS = ['1D', '7D', '4 SEM', '1 ANO'] as const;
-
-function formatDuration(totalMinutes: number): string {
-  const minutes = Math.round(totalMinutes);
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (hours === 0) return `${remainder}m`;
-  return `${hours}h ${String(remainder).padStart(2, '0')}m`;
-}
+const formatDuration = formatSleepMinutes;
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -120,15 +115,14 @@ interface SelectedSegment {
  * apresentacao. Sem card de "Body Battery" (nao e recurso real do Tryv,
  * omitido por completo, nem placeholder).
  *
- * Seletor de periodo/navegacao "< >" do mockup: presente visualmente (pra
- * bater com a hierarquia identica de Passos/Calorias/FC), mas SO "1D" e
- * funcional — nao existe (ainda) busca de noites anteriores nem breakdown
- * agregado por semana/mes pra sono (fetchSleepSessionDetail so cobre "a
- * ultima noite"). Os outros pills e as setas de navegacao ficam
- * desabilitados de proposito, em vez de fingir uma troca de dado que nao
- * existe (ver relatorio desta tarefa).
+ * Esta view cobre so a ULTIMA noite (periodo "1D"): fetchSleepSessionDetail
+ * nao recebe data, entao nao ha navegacao para noites anteriores e as setas
+ * "< >" do 1D ficam desabilitadas (com accessibilityState/hint dizendo
+ * isso). Os periodos 7D/4 SEM sao tratados por SleepDetailView
+ * (mais abaixo), que usa o card generico HealthHistoryCard com
+ * fetchHealthMetricHistory('sleep', ...) — la as setas funcionam.
  */
-export function SleepDetailView() {
+function SleepNightView() {
   const [status, setStatus] = useState<Status>('checking');
   const [detail, setDetail] = useState<SleepSessionDetail | null>(null);
   const [selected, setSelected] = useState<SelectedSegment | null>(null);
@@ -179,7 +173,7 @@ export function SleepDetailView() {
       <Text style={styles.emptyText}>
         {Platform.OS === 'android'
           ? 'Instale ou atualize o app Health Connect pra ver seu sono aqui.'
-          : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+          : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
       </Text>
     );
   }
@@ -194,11 +188,11 @@ export function SleepDetailView() {
   }
 
   if (status === 'error') {
-    return <Text style={styles.error}>Nao foi possivel carregar o sono.</Text>;
+    return <Text style={styles.error}>Não foi possível carregar o sono.</Text>;
   }
 
   if (status === 'empty' || !detail) {
-    return <Text style={styles.emptyText}>Nenhum registro de sono na ultima noite.</Text>;
+    return <Text style={styles.emptyText}>Nenhum registro de sono na última noite.</Text>;
   }
 
   const totalForBars = detail.breakdown.totalAsleepMinutes + detail.breakdown.awakeMinutes;
@@ -208,31 +202,6 @@ export function SleepDetailView() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.periodRow}>
-        {PERIOD_OPTIONS.map((label) => {
-          const selectedPill = label === '1D';
-          return (
-            <View key={label} style={[styles.periodPill, selectedPill && styles.periodPillSelected]}>
-              <Text
-                style={[
-                  styles.periodPillText,
-                  selectedPill && styles.periodPillTextSelected,
-                  !selectedPill && styles.periodPillTextDisabled,
-                ]}
-              >
-                {label}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.navRow}>
-        <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
-        <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
-      </View>
-
       <GlassCard variant="glass" style={styles.card}>
         <Text style={styles.eyebrow}>Sono total</Text>
         <Text style={styles.totalValue}>{formatDuration(detail.breakdown.totalAsleepMinutes)}</Text>
@@ -359,8 +328,97 @@ export function SleepDetailView() {
   );
 }
 
+/** Periodos da tela de Sono: os do card generico menos o 1 ANO (Passos e Calorias continuam com ele). */
+const SLEEP_PERIOD_OPTIONS = HEALTH_PERIOD_OPTIONS.filter((option) => option.value !== '1y');
+
+/**
+ * Tela de Sono: seletor de periodo (1D/7D/4 SEM; sem 1 ANO). 1D mostra a ultima
+ * noite (SleepNightView); os demais usam o card generico de historico
+ * (HealthHistoryCard) com fetchHealthMetricHistory('sleep', periodo, offset).
+ */
+export function SleepDetailView() {
+  const [period, setPeriod] = useState<HealthHistoryPeriod>('1d');
+  const historyState = useHealthHistory('sleep', period, period !== '1d');
+
+  const handleChangePeriod = (value: HealthHistoryPeriod) => {
+    setPeriod(value);
+    historyState.setOffset(0);
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.periodRow}>
+        {SLEEP_PERIOD_OPTIONS.map((option) => {
+          const selectedPill = option.value === period;
+          return (
+            <Pressable
+              key={option.value}
+              style={[styles.periodPill, selectedPill && styles.periodPillSelected]}
+              onPress={() => handleChangePeriod(option.value)}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: selectedPill }}
+            >
+              <Text style={[styles.periodPillText, selectedPill && styles.periodPillTextSelected]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {period === '1d' ? (
+        <>
+          <View style={styles.navRow}>
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Noite anterior"
+              accessibilityState={{ disabled: true }}
+              accessibilityHint="Indisponível no período 1D. Use 7D ou 4 SEM para ver o histórico."
+            >
+              <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
+            </View>
+            <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Próxima noite"
+              accessibilityState={{ disabled: true }}
+              accessibilityHint="Você já está na noite mais recente."
+            >
+              <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
+            </View>
+          </View>
+          <SleepNightView />
+        </>
+      ) : historyState.status === 'unavailable' ? (
+        <Text style={styles.emptyText}>
+          {Platform.OS === 'android'
+            ? 'Instale ou atualize o app Health Connect pra ver seu sono aqui.'
+            : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
+        </Text>
+      ) : historyState.status === 'disconnected' ? (
+        <Pressable style={styles.connectHint} onPress={() => router.push('/activity')} hitSlop={8}>
+          <Text style={styles.connectHintText}>Nenhum dado sincronizado ainda. Conectar {HEALTH_SOURCE_LABEL}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors3.primary} />
+        </Pressable>
+      ) : historyState.status === 'error' ? (
+        <Text style={styles.error}>Não foi possível carregar o sono.</Text>
+      ) : (
+        <HealthHistoryCard
+          metric="sleep"
+          config={HEALTH_METRIC_CONFIG.sleep}
+          state={historyState}
+          period={period}
+          onChangePeriod={handleChangePeriod}
+          showPeriodSelector={false}
+        />
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  loading: { marginVertical: spacing3.lg },
+  loading:{ marginVertical: spacing3.lg },
   error: { color: colors3.error, textAlign: 'center', marginTop: spacing3.xl },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
   connectHint: {
@@ -387,7 +445,6 @@ const styles = StyleSheet.create({
   periodPillSelected: { backgroundColor: colors3.primary, borderColor: colors3.primary },
   periodPillText: { ...typography3.labelSm, fontSize: 11 },
   periodPillTextSelected: { color: colors3.white, fontWeight: '700' },
-  periodPillTextDisabled: { color: colors3.outlineVariant },
 
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navLabel: { ...typography3.bodyMd, fontWeight: '600', textAlign: 'center', flex: 1, color: colors3.onSurface },

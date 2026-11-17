@@ -11,10 +11,6 @@ class Settings(BaseSettings):
     # core/timezone.py. Fixo por enquanto; env APP_TIMEZONE. Validado no boot.
     app_timezone: str = "America/Sao_Paulo"
 
-    # URL publica desta API — usada para montar success_url/cancel_url do
-    # Stripe Checkout (o navegador do usuario e redirecionado para ca).
-    app_base_url: str = "http://localhost:8000"
-
     # Banco de dados
     database_url: str = "postgresql://postgres:postgres@localhost:5432/fitness_app"
 
@@ -63,22 +59,43 @@ class Settings(BaseSettings):
     # Cada geracao custa dinheiro real; pra testar, suba o valor no Railway e volte depois.
     avatar_generation_limit: int = 3
     avatar_limit_window_days: int = 30
+    # Teto de TENTATIVAS de avatar por usuario por dia (env AVATAR_DAILY_ATTEMPT_LIMIT), com ou sem sucesso: falha que nao consome a cota de
+    # geracoes (moderacao, recusa da OpenAI) nao pode virar gasto ilimitado de IA. Janela de 24 h.
+    avatar_daily_attempt_limit: int = 10
+    # Teto DIARIO, por usuario, de insights gerados por IA em POST /insights/generate (services/ai_usage.py). Env AI_INSIGHT_DAILY_LIMIT.
+    # Texto de proposito (como image_moderation_daily_cap): vazio/invalido/negativo = padrao (AI_INSIGHT_DAILY_LIMIT_DEFAULT, generoso);
+    # 0 = geracao desligada (nunca "sem teto"). O dia e o dia local (APP_TIMEZONE).
+    ai_insight_daily_limit: str = ""
+
+    # Timeouts da IA POR FUNCAO, em segundos (envs AI_TIMEOUT_INSIGHT_SECONDS, AI_TIMEOUT_MEAL_SECONDS, AI_TIMEOUT_WORKOUT_PLAN_SECONDS e
+    # AI_CONNECT_TIMEOUT_SECONDS). Texto de proposito: vazio/invalido/<= 0/acima de 600 = padrao (60 / 90 / 180 / 10), ver services/ai_client.py.
+    ai_timeout_insight_seconds: str = ""
+    ai_timeout_meal_seconds: str = ""
+    ai_timeout_workout_plan_seconds: str = ""
+    ai_connect_timeout_seconds: str = ""
+
+    # Validade (segundos) da URL assinada das imagens PRIVADAS do perfil (foto original e avatar guardados), so para o dono.
+    private_image_url_expires_seconds: int = 600
 
     # Equipamentos (env DEFAULT_SHOE_LIFESPAN_KM / DEFAULT_BIKE_MAINTENANCE_KM): padroes quando o item nao
     # informa vida util (tenis) ou intervalo de revisao (bike) -- ver routers/equipment.py.
     default_shoe_lifespan_km: float = 600.0
     default_bike_maintenance_km: float = 1000.0
 
-    # Stripe
-    stripe_secret_key: str = ""
-    stripe_webhook_secret: str = ""
-    # Price ID do plano Tryv Pro (R$ 22,90/mes, preco fixo criado uma vez no
-    # Stripe) — diferente da assinatura de professor, que monta o preco
-    # dinamicamente porque cada profissional define o proprio valor. O valor
-    # COBRADO e o do Price no Stripe, nao esta no codigo: ao mudar o preco, crie
-    # um novo Price no Stripe e atualize esta variavel (e o texto do app e da
-    # landing, ver mobile/constants/pricing.ts).
-    stripe_pro_price_id: str = ""
+    # RevenueCat (assinatura Pro por compra dentro do app, Apple IAP) — ver routers/webhooks.py e services/revenuecat.py.
+    # revenuecat_webhook_auth: segredo compartilhado; o mesmo valor vai no campo "Authorization header" do webhook no painel do
+    # RevenueCat (aceito como "<valor>" ou "Bearer <valor>"). Vazio = o webhook responde 503 (nunca aceita sem segredo).
+    # revenuecat_pro_entitlement: nome do entitlement que significa "Tryv Pro" no RevenueCat.
+    # revenuecat_api_secret: chave SECRETA da API REST v1 do RevenueCat (nunca a chave publica do SDK), usada so para pedir a exclusao do
+    # assinante quando a conta e excluida (services/revenuecat_api.py). Vazia = essa etapa e pulada.
+    revenuecat_webhook_auth: str = ""
+    revenuecat_api_secret: str = ""
+    revenuecat_pro_entitlement: str = "pro"
+
+    # Feature flags (envs SLEEP_API_ENABLED e AGENT_ENABLED), DESLIGADAS por padrao. Hoje so sao expostas ao app por GET /features
+    # (routers/features.py); as rotas de sono e do agente ainda nao existem e, quando existirem, ficam atras destas chaves.
+    sleep_api_enabled: bool = False
+    agent_enabled: bool = False
 
     # AWS S3 — upload de imagens (refeicoes, posts do feed, perfis)
     aws_access_key_id: str = ""
@@ -107,6 +124,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # Variaveis desconhecidas (ex.: STRIPE_* de um .env antigo) sao ignoradas em vez de derrubar a partida.
+        extra = "ignore"
 
 
 settings = Settings()

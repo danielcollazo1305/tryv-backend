@@ -19,7 +19,7 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 const SEX_OPTIONS: { value: BiologicalSex; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
   { value: 'masculino', label: 'Masculino', icon: 'male' },
   { value: 'feminino', label: 'Feminino', icon: 'female' },
-  { value: 'prefiro_nao_informar', label: 'Prefiro nao informar', icon: 'help-circle-outline' },
+  { value: 'prefiro_nao_informar', label: 'Prefiro não informar', icon: 'help-circle-outline' },
 ];
 
 function formatDate(date: Date): string {
@@ -81,7 +81,7 @@ export default function RegisterBodyScreen() {
       return;
     }
     if (!biologicalSex) {
-      setError('Selecione uma opcao de sexo biologico.');
+      setError('Selecione uma opção de sexo biológico.');
       return;
     }
 
@@ -103,7 +103,7 @@ export default function RegisterBodyScreen() {
           <View style={styles.header}>
             <Text style={styles.logo}>Tryv Fit</Text>
             <Text style={styles.title}>Fale sobre o seu corpo</Text>
-            <Text style={styles.subtitle}>Usamos isso para calcular suas necessidades caloricas com precisao</Text>
+            <Text style={styles.subtitle}>Usamos isso para calcular suas necessidades calóricas com precisão</Text>
 
             <View style={styles.progressWrap}>
               <ProgressSteps2 variant="light" current={2} total={getOnboardingTotalSteps(draft)} label="Corpo" />
@@ -141,7 +141,7 @@ export default function RegisterBodyScreen() {
             )}
           </View>
 
-          <Text style={styles.fieldLabel}>Sexo biologico</Text>
+          <Text style={styles.fieldLabel}>Sexo biológico</Text>
           <SelectionCard2 variant="light" options={SEX_OPTIONS} value={biologicalSex} onChange={setBiologicalSex} />
 
           <TextField2
@@ -153,7 +153,7 @@ export default function RegisterBodyScreen() {
             placeholder="Ex: 18"
           />
           <Text style={styles.hint}>
-            Se voce souber esse numero, ele deixa a meta calorica mais precisa. Pode deixar em branco se nao souber.
+            Se você souber esse número, ele deixa a meta calórica mais precisa. Pode deixar em branco se não souber.
           </Text>
 
           <View style={styles.dateField}>

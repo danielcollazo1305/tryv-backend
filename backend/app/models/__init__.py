@@ -3,7 +3,9 @@ Importa todos os modelos para que Base.metadata os conheça (e as foreign
 keys entre eles resolvam corretamente) independente de quais routers/
 servicos estejam sendo carregados no momento.
 """
+from app.models.ai_usage import AiUsage  # noqa: F401
 from app.models.avatar_generation import AvatarGeneration  # noqa: F401
+from app.models.avatar_attempt import AvatarAttempt  # noqa: F401
 from app.models.challenge import Challenge, ChallengeCheckin  # noqa: F401
 from app.models.content_filter_event import ContentFilterEvent  # noqa: F401
 from app.models.creatine_log import CreatineLog  # noqa: F401
@@ -27,7 +29,7 @@ from app.models.shoe_model import ShoeModel  # noqa: F401
 from app.models.smartwatch import SmartwatchData  # noqa: F401
 from app.models.social import Comment, Follow, Like, Post  # noqa: F401
 from app.models.squad import Squad, SquadMembership  # noqa: F401
-from app.models.subscription import Subscription  # noqa: F401
+from app.models.subscription import Subscription, SubscriptionWebhookEvent  # noqa: F401
 from app.models.trainer import Trainer  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.waitlist_email import WaitlistEmail  # noqa: F401

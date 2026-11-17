@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
-import { ProGate } from '@/components/ProGate';
 import { useAuth } from '@/context/AuthContext';
 import {
   ACTIVITY_TYPE_ICONS,
@@ -17,13 +16,9 @@ import {
   formatPace,
   getPersonalRecords,
 } from '@/services/activities';
-import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 const PACE_REFERENCE_ORDER = ['1km', '5km', '10km'];
-
-// Esqueleto mostrado borrado atras do ProGate pra quem nao e Pro: so os rotulos
-// das linhas reais, com "--" no lugar do valor (nunca numero inventado).
-const LOCKED_PREVIEW_ROWS = ['Maior distância', 'Mais longa', 'Melhor pace (5km)'];
 
 function activityLabel(activityType: string): string {
   return ACTIVITY_TYPE_LABELS[activityType as ActivityType] ?? activityType;
@@ -71,7 +66,8 @@ function ActivityTypeBlock({ activityType, records }: { activityType: string; re
  * Recordes pessoais por modalidade (corrida/pedalada/etc.) — card
  * auto-suficiente, mesmo padrao do ReadinessCard/MonthComparisonCard: some
  * silenciosamente se falhar, nao ha nada registrado ainda, ou o usuario nao
- * for Pro (402).
+ * for Pro. Para o usuario gratuito o convite ao Pro e o ProUpsellCard da Home
+ * (este card nao chama o endpoint nem mostra nada).
  *
  * Migrado pro tema claro "prism-glass" nesta tarefa (LiquiglassCard ->
  * GlassCard, colors2 -> colors3) — exclusivo da Home (confirmado, nenhum
@@ -86,9 +82,8 @@ export function PersonalRecordsCard() {
   const [loading, setLoading] = useState(true);
 
   const fetchRecords = useCallback(async () => {
-    // isPro === false: o endpoint devolveria 402 -- nem chama, o ProGate abaixo
-    // cobre. null (ainda carregando/falhou) segue o fluxo de sempre.
-    if (isPro === false) return;
+    // So Pro: gratuito (402) e isPro ainda indefinido nao chamam o endpoint; o refetch vem quando isPro vira true.
+    if (isPro !== true) return;
     setLoading(true);
     try {
       setRecords(await getPersonalRecords());
@@ -105,21 +100,7 @@ export function PersonalRecordsCard() {
     }, [fetchRecords])
   );
 
-  if (isPro === false) {
-    return (
-      <ProGate variant="card" borderRadius={radius3.xl}>
-        <GlassCard style={styles.card}>
-          <Text style={styles.title}>Recordes pessoais</Text>
-          {LOCKED_PREVIEW_ROWS.map((label) => (
-            <View key={label} style={styles.row}>
-              <Text style={styles.rowLabel}>{label}</Text>
-              <Text style={styles.rowValue}>--</Text>
-            </View>
-          ))}
-        </GlassCard>
-      </ProGate>
-    );
-  }
+  if (isPro !== true) return null;
 
   if (loading) {
     return (

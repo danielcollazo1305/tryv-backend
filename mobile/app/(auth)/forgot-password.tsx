@@ -33,7 +33,7 @@ export default function ForgotPasswordScreen() {
       await forgotPassword(email.trim());
       router.push({ pathname: '/(auth)/reset-password', params: { email: email.trim() } });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel enviar o codigo. Tente novamente.'));
+      setError(getApiErrorMessage(err, 'Não foi possível enviar o código. Tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.logo}>Tryv Fit</Text>
             <Text style={styles.title}>Esqueci minha senha</Text>
             <Text style={styles.subtitle}>
-              Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um codigo de verificacao.
+              Informe o e-mail da sua conta. Se ele estiver cadastrado, vamos enviar um código de verificação.
             </Text>
           </View>
 
@@ -64,7 +64,7 @@ export default function ForgotPasswordScreen() {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Button3 label="Enviar codigo" onPress={handleSubmit} loading={loading} />
+          <Button3 label="Enviar código" onPress={handleSubmit} loading={loading} />
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Lembrou a senha? </Text>

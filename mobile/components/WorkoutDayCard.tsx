@@ -31,10 +31,9 @@ function buildDefaultSets(count: number): SetEntry[] {
 }
 
 /**
- * Player de verdade — instalado nesta tarefa (expo-video) porque agora
- * existe uma fonte real de video_url (exercicio de plano source='trainer',
- * anexado pelo profissional ao montar o plano em
- * trainers/students/[studentId]/workout-plan.tsx). Componente separado (em
+ * Player de verdade (expo-video), usado quando o exercicio traz um
+ * video_url real (hoje so planos antigos source='trainer'; a tela em que o
+ * profissional anexava o video foi removida). Componente separado (em
  * vez de um if dentro de ExerciseVideoBlock) porque useVideoPlayer e um
  * hook — so pode ser chamado incondicionalmente dentro de um componente
  * que so monta quando ha videoUrl de verdade.
@@ -59,14 +58,12 @@ function ExerciseVideoPlayer({ videoUrl }: { videoUrl: string }) {
  * Video de execucao por exercicio:
  * - Plano de IA: video vem da biblioteca generica do proprio app
  *   (ExerciseLibraryEntry.videoUrl, ver constants/exerciseLibrary.ts).
- * - Plano de Personal Trainer: video vem de exercise.video_url (o
- *   profissional anexa ao montar o plano) — dependencia que existia
- *   documentada aqui ("nao existe endpoint pro trainer atribuir plano")
- *   foi resolvida nesta tarefa.
+ * - Exercicio com video_url (planos antigos source='trainer'): video vem de
+ *   exercise.video_url.
  * exercise.video_url tem prioridade sobre a biblioteca generica quando os
  * dois existirem (nunca deveriam coexistir na pratica, ja que um exercicio
- * de plano de trainer normalmente nao bate por nome com a biblioteca, mas
- * o video real e especifico do profissional teria precedencia mesmo assim).
+ * desses planos normalmente nao bate por nome com a biblioteca, mas o video
+ * real teria precedencia mesmo assim).
  */
 export function ExerciseVideoBlock({ videoUrl, isLight }: { videoUrl?: string | null; isLight: boolean }) {
   if (videoUrl) {
@@ -76,7 +73,7 @@ export function ExerciseVideoBlock({ videoUrl, isLight }: { videoUrl?: string | 
   return (
     <View style={s.videoPlaceholder}>
       <Ionicons name="play-circle-outline" size={20} color={isLight ? colors3.onSurfaceVariant : colors2.onSurfaceVariant} />
-      <Text style={s.videoPlaceholderText}>Video de execucao em breve</Text>
+      <Text style={s.videoPlaceholderText}>Vídeo de execução em breve</Text>
     </View>
   );
 }

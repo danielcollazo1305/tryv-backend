@@ -1,9 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
 import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
+import { identifyPurchasesUser, resetPurchasesUser } from '@/services/purchases';
 import { getUserBadges } from '@/services/user';
 
 // Reexportado de services/api.ts — a chave mora la porque a importacao
@@ -13,6 +15,10 @@ const TOKEN_KEY = AUTH_TOKEN_STORAGE_KEY;
 
 // Intervalo minimo entre re-buscas de isPro disparadas pelo retorno do app ao primeiro plano.
 const IS_PRO_FOREGROUND_THROTTLE_MS = 60_000;
+
+// Tentativas extras (alem da primeira) quando a busca de isPro falha e isPro ainda e null: no maximo 3, com espera crescente.
+// Resposta 401 nao e repetida. Depois disso so o foreground (60 s), refreshIsPro manual ou novo login/boot buscam de novo.
+const IS_PRO_RETRY_DELAYS_MS = [3_000, 10_000, 30_000];
 
 export interface User {
   id: string;
@@ -35,6 +41,8 @@ export interface User {
   avatar_url: string | null;
   /** Miniatura 256x256 (null em avatares antigos: usar avatar_url). */
   avatar_thumb_url?: string | null;
+  /** Qual imagem esta em avatar_url: a foto ou o avatar (so no perfil proprio). */
+  avatar_source?: 'photo' | 'avatar' | null;
   /** Perfil (E7/E8). Opcionais: servidor antigo nao devolve; null = ainda nao definido. */
   username?: string | null;
   bio?: string | null;
@@ -67,6 +75,12 @@ interface AuthContextValue {
    */
   refreshIsPro: () => Promise<boolean | null>;
   /**
+   * A ultima busca de isPro falhou (rede/servidor/401). Some no primeiro sucesso e no logout. Com `isPro === null`
+   * significa "nao deu para verificar a assinatura" (nunca "nao e Pro"); serve so para a UI avisar e oferecer
+   * `refreshIsPro()`.
+   */
+  isProError: boolean;
+  /**
    * Flag de transicao pro wizard de cadastro: entre o passo que cria a
    * conta (token ja setado, ver register()) e um passo extra opcional
    * depois dele (ex: register-avatar.tsx), o guard de app/_layout.tsx
@@ -87,30 +101,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingInProgress, setOnboardingInProgress] = useState(false);
   const [isPro, setIsPro] = useState<boolean | null>(null);
+  const [isProError, setIsProError] = useState(false);
   // Id do usuario da sessao atual -- descarta resposta de badges que chega
   // depois de um logout/troca de conta, pra nao gravar isPro do usuario errado.
   const currentUserIdRef = useRef<string | null>(null);
   // Momento da ultima busca de isPro (qualquer origem) -- base do throttle do retorno ao primeiro plano.
   const lastIsProFetchRef = useRef(0);
+  // Retry limitado de isPro: timer pendente, quantas tentativas extras ja foram agendadas e se isPro ja foi lido com sucesso.
+  const isProRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isProRetryCountRef = useRef(0);
+  const isProKnownRef = useRef(false);
 
-  const fetchIsPro = useCallback(async (userId: string): Promise<boolean | null> => {
-    lastIsProFetchRef.current = Date.now();
-    try {
-      const badges = await getUserBadges(userId);
-      if (currentUserIdRef.current !== userId) return null;
-      setIsPro(badges.is_pro);
-      return badges.is_pro;
-    } catch {
-      // Falha (rede/servidor): nao mexe em isPro -- fica null se nunca
-      // carregou, ou mantem o ultimo valor conhecido. Nunca vira false.
-      return null;
+  const clearIsProRetry = useCallback(() => {
+    if (isProRetryTimerRef.current) {
+      clearTimeout(isProRetryTimerRef.current);
+      isProRetryTimerRef.current = null;
     }
+    isProRetryCountRef.current = 0;
   }, []);
+
+  // isRetry = chamada feita pelo proprio timer de retry (nao zera o contador); as demais origens (boot/login, foreground, manual) zeram.
+  const fetchIsPro = useCallback(
+    async (userId: string, isRetry = false): Promise<boolean | null> => {
+      if (!isRetry) clearIsProRetry();
+      lastIsProFetchRef.current = Date.now();
+      try {
+        const badges = await getUserBadges(userId);
+        if (currentUserIdRef.current !== userId) return null;
+        clearIsProRetry();
+        isProKnownRef.current = true;
+        setIsPro(badges.is_pro);
+        setIsProError(false);
+        return badges.is_pro;
+      } catch (error) {
+        // Falha (rede/servidor/401): nao mexe em isPro -- fica null se nunca
+        // carregou, ou mantem o ultimo valor conhecido. Nunca vira false.
+        if (currentUserIdRef.current !== userId) return null;
+        setIsProError(true);
+        const unauthorized = axios.isAxiosError(error) && error.response?.status === 401;
+        const attempt = isProRetryCountRef.current;
+        if (!unauthorized && !isProKnownRef.current && attempt < IS_PRO_RETRY_DELAYS_MS.length) {
+          isProRetryCountRef.current = attempt + 1;
+          isProRetryTimerRef.current = setTimeout(() => {
+            isProRetryTimerRef.current = null;
+            // So repete com a mesma sessao e enquanto isPro continuar sem valor.
+            if (currentUserIdRef.current === userId && !isProKnownRef.current) void fetchIsPro(userId, true);
+          }, IS_PRO_RETRY_DELAYS_MS[attempt]);
+        }
+        return null;
+      }
+    },
+    [clearIsProRetry]
+  );
+
+  // Desmontar o provider cancela o retry pendente.
+  useEffect(() => clearIsProRetry, [clearIsProRetry]);
 
   const loadUser = useCallback(async () => {
     const response = await api.get<User>('/users/me');
     currentUserIdRef.current = response.data.id;
     setUser(response.data);
+    // Compras por RevenueCat: o app_user_id e o id do usuario no Tryv (o webhook do backend mapeia por ele). Nao bloqueia nem lanca.
+    void identifyPurchasesUser(response.data.id);
     // Sem await de proposito: nao atrasa o boot/login (isLoading) por causa
     // do Pro -- quem precisa dele le `isPro === null` como "carregando".
     void fetchIsPro(response.data.id);
@@ -121,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return userId ? fetchIsPro(userId) : null;
   }, [fetchIsPro]);
 
-  // O Pro e ativado pelo webhook do Stripe, fora do app: sem isto o isPro so seria relido no
+  // O Pro e ativado pelo webhook do RevenueCat, fora do app: sem isto o isPro so seria relido no
   // login/boot. Ao voltar pro primeiro plano com sessao ativa, re-busca (no maximo 1x por 60 s).
   useEffect(() => {
     if (!token) return;
@@ -162,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(newToken);
         await loadUser();
       } catch (error) {
-        throw new Error(getApiErrorMessage(error, 'Nao foi possivel entrar. Verifique suas credenciais.'));
+        throw new Error(getApiErrorMessage(error, 'Não foi possível entrar. Verifique suas credenciais.'));
       }
     },
     [loadUser]
@@ -175,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         // Preserva o que veio do filtro de conteudo (cabecalho X-Content-Filter) para o fim do cadastro decidir para onde levar a
         // pessoa; os demais erros (idade, e-mail repetido...) continuam sendo so a mensagem, como antes.
-        throw new ApiMessageError(getContentFilterMessage(error) ?? getApiErrorMessage(error, 'Nao foi possivel criar a conta.'), {
+        throw new ApiMessageError(getContentFilterMessage(error) ?? getApiErrorMessage(error, 'Não foi possível criar a conta.'), {
           contentFilter: isContentFilterError(error),
           pause: isContentFilterPause(error),
         });
@@ -192,7 +244,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     currentUserIdRef.current = null;
     setIsPro(null);
-  }, []);
+    setIsProError(false);
+    isProKnownRef.current = false;
+    clearIsProRetry();
+    void resetPurchasesUser();
+  }, [clearIsProRetry]);
 
   return (
     <AuthContext.Provider
@@ -206,6 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser: loadUser,
         isPro,
         refreshIsPro,
+        isProError,
         onboardingInProgress,
         setOnboardingInProgress,
       }}

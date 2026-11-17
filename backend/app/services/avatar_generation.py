@@ -1,10 +1,10 @@
 """
-Geracao de avatar estilizado via OpenAI Images API (edicao de imagem a partir
-da selfie). Mesmo cliente/chave das chamadas de baixo risco (ver
-openai_client.py). A selfie original NUNCA e persistida em disco/S3/banco:
-esta funcao so recebe bytes em memoria e devolve bytes em memoria, quem
-decide o que fazer com o resultado e o chamador (ver routers/users.py,
-POST /users/me/avatar).
+Geracao de avatar em estilo anime via OpenAI Images API (edicao de imagem a
+partir da foto de perfil). Mesmo cliente/chave das chamadas de baixo risco (ver
+openai_client.py). Esta funcao so recebe bytes em memoria e devolve bytes em
+memoria; quem decide o que guardar (a foto, em prefixo PRIVADO do S3, e o avatar)
+e o chamador (ver routers/users.py, POST /users/me/avatar), depois do
+consentimento da pessoa e da moderacao da foto.
 """
 import base64
 import logging
@@ -18,21 +18,25 @@ from app.services.openai_client import get_client
 logger = logging.getLogger(__name__)
 
 # Decisao do teste A/B de avatar: variante "V2" -- gpt-image-1.5, quality
-# medium, input_fidelity=high e o prompt abaixo (low-poly facetado, fiel ao
-# rosto), escolhida no lugar do baseline (gpt-image-1-mini, prompt PS1 em
-# portugues) por preservar bem mais a semelhanca com a pessoa. O MODELO vem de
+# medium e input_fidelity=high, escolhida no lugar do baseline (gpt-image-1-mini)
+# por preservar bem mais a semelhanca com a pessoa. O ESTILO era low-poly e agora
+# e anime (prompt abaixo); a fidelidade ao rosto segue a mesma. O MODELO vem de
 # settings.avatar_image_model (env AVATAR_IMAGE_MODEL, default "gpt-image-1.5"),
 # pra poder trocar sem novo codigo. Atencao: o gpt-image-1-mini NAO suporta
 # input_fidelity -- se a env apontar pra ele, a API rejeita o parametro.
 AVATAR_STYLE_PROMPT = (
-    "Transform this photo into a stylized 3D game character portrait in the look of "
-    "1990s low-polygon console games: faceted low-poly geometry, flat shading with "
-    "visible polygon edges, limited color palette, slightly blocky features, simple "
-    "solid-color background. Keep the person clearly recognizable: preserve their "
-    "exact face shape, facial proportions, eye shape and spacing, nose, mouth, "
-    "eyebrows, hairstyle and hairline, facial hair pattern (beard/stubble), skin tone "
-    "and expression. Head and shoulders, centered, facing the camera. No text, no "
-    "logos, no watermark."
+    "Transform this photo into an anime-style character portrait: firm clean outlines, "
+    "cel shading with block shadows, vivid but harmonious colors, soft white highlights, "
+    "simple solid-color background. Keep the person clearly recognizable: preserve their "
+    "face shape, facial proportions, eye shape and spacing, nose, mouth, eyebrows, "
+    "hairstyle and hairline, facial hair pattern (beard/stubble), skin tone and "
+    "expression. Head and shoulders, centered, facing the camera. No text, no logos, "
+    "no watermark."
+)
+
+# Mensagem unica para recusa da OpenAI (moderacao do modelo), foto sem rosto ou resposta vazia. Nenhuma delas consome a cota de geracoes.
+AVATAR_REFUSED_MESSAGE = (
+    "Nao foi possivel criar o avatar a partir desta foto. Tente uma foto de rosto, de frente e com boa luz."
 )
 AVATAR_QUALITY = "medium"
 AVATAR_INPUT_FIDELITY = "high"
@@ -81,10 +85,16 @@ def _is_billing_or_auth_error(error: openai.OpenAIError) -> bool:
     return _error_code(error) in _BILLING_ERROR_CODES
 
 
-def generate_ps1_avatar(image_bytes: bytes, content_type: str, user_id: uuid.UUID | str | None = None) -> bytes:
+def _is_content_refusal(error: openai.OpenAIError) -> bool:
+    """Recusa por politica de conteudo/seguranca do modelo (ex: moderation_blocked, content_policy_violation)."""
+    code = _error_code(error) or ""
+    return "moderation" in code or "content_policy" in code or "safety" in code
+
+
+def generate_avatar(image_bytes: bytes, content_type: str, user_id: uuid.UUID | str | None = None) -> bytes:
     """
-    Chama a API de edicao de imagem da OpenAI com a selfie (em memoria) e
-    retorna os bytes PNG do resultado estilizado.
+    Chama a API de edicao de imagem da OpenAI com a foto de perfil (em memoria) e
+    retorna os bytes PNG do avatar em estilo anime.
 
     Levanta AvatarServiceUnavailableError se a OpenAI recusar por saldo/cota
     esgotado ou chave/permissao invalida, e AvatarGenerationError em qualquer
@@ -124,11 +134,14 @@ def generate_ps1_avatar(image_bytes: bytes, content_type: str, user_id: uuid.UUI
             )
             raise AvatarServiceUnavailableError(AVATAR_UNAVAILABLE_MESSAGE) from e
         logger.error("Falha na chamada de geracao de avatar via OpenAI: %s", e)
+        if _is_content_refusal(e):
+            logger.warning("Geracao de avatar recusada pela OpenAI (user_id=%s code=%s)", user_id, _error_code(e))
+            raise AvatarGenerationError(AVATAR_REFUSED_MESSAGE) from e
         raise AvatarGenerationError("Nao foi possivel gerar o avatar, tente novamente") from e
 
     if not response.data or not response.data[0].b64_json:
         logger.error("Resposta de geracao de avatar sem imagem (data/b64_json ausente)")
-        raise AvatarGenerationError("Nao foi possivel gerar o avatar, tente novamente")
+        raise AvatarGenerationError(AVATAR_REFUSED_MESSAGE)
 
     # Log de custo: so user_id, modelo, quality e tokens -- nunca imagem nem outro dado pessoal.
     usage = getattr(response, "usage", None)

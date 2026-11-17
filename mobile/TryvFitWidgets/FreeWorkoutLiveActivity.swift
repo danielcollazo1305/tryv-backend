@@ -9,37 +9,43 @@ import AppIntents
 /// tarefa.
 private extension Color {
     static let tryvPurple = Color(red: 0x6B / 255.0, green: 0x38 / 255.0, blue: 0xD4 / 255.0)
+    /// Versao mais clara do roxo (#A78BFA) -- #6B38D4 tem contraste fraco
+    /// sobre fundo escuro (cronometro/icones no modo escuro e na Dynamic
+    /// Island, que e sempre escura).
+    static let tryvPurpleOnDark = Color(red: 0xA7 / 255.0, green: 0x8B / 255.0, blue: 0xFA / 255.0)
 }
 
-/// Fundo claro, mesmo espirito do "prism-glass" do lado React Native
-/// (GlassCard.tsx: rgba(255,255,255,.4)) -- opacidade bem mais alta que
-/// o GlassCard real de proposito: `.activityBackgroundTint` NAO desenha
-/// nenhum material/blur proprio por baixo (diferente de um
-/// .background(.ultraThinMaterial) no React Native) -- e so uma cor
-/// solida tingindo o card. Testado a 0.4 (mais fiel ao GlassCard) numa
-/// tarefa anterior e ainda pareceu escuro no dispositivo real (o papel de
-/// parede da tela de bloqueio, normalmente escuro, transparecia demais
-/// por baixo) -- 0.92 mantem so um resquicio de translucidez sem
-/// comprometer legibilidade.
-///
-/// So vale pra tela de bloqueio/banner -- `.activityBackgroundTint` NAO
-/// tem nenhum efeito na Dynamic Island (confirmado via documentacao/
-/// exemplos oficiais: esse modifier "controla a cor de fundo na tela de
-/// bloqueio ou banner"). A Dynamic Island (compacta E expandida) sempre
-/// renderiza contra o material escuro fixo do proprio sistema -- Apple
-/// nao da nenhuma API pra customizar isso, entao nao ha "fundo claro"
-/// possivel la; o que da pra controlar (e o que precisava de ajuste,
-/// achado nesta tarefa) e garantir que TEXTO/ICONES na Dynamic Island
-/// usem cores claras (legiveis no escuro fixo), nao as mesmas cores
-/// escuras usadas na tela de bloqueio agora clara -- ver `tint` em
-/// TransportControls/ExerciseNavButton abaixo.
-private let backgroundTint = Color.white.opacity(0.92)
-/// Texto escuro sobre fundo claro agora (era texto claro sobre fundo
-/// escuro antes desta tarefa) -- 2 niveis, mesmo padrao de
-/// primary/secondary text ja usado no resto do app (colors3.onSurface/
-/// onSurfaceVariant).
-private let textPrimary = Color.black.opacity(0.85)
-private let textSecondary = Color.black.opacity(0.55)
+/// A Dynamic Island e sempre escura -- la .primary vira claro sozinho
+/// (textPrimary so e usado la, e como cor das setas dentro dela).
+private let textPrimary = Color.primary
+
+/// Cores FIXAS do cartao da tela de bloqueio (LockScreenCard). Nao dependem de
+/// colorScheme, de .primary/.secondary nem de vidro do sistema: o fundo e um
+/// roxo escuro OPACO definido aqui e todo texto e claro sobre ele (contraste
+/// alto em qualquer tema, papel de parede ou versao do iOS). Antes, no iOS 26,
+/// o cartao aparecia vazio (so a borda de vidro) porque o conteudo ficava
+/// atras/dentro de .glassEffect com texto de cor dependente do ambiente.
+private extension Color {
+    static let lockCardBackground = Color(red: 0x2B / 255.0, green: 0x14 / 255.0, blue: 0x58 / 255.0)
+    static let lockTextPrimary = Color.white
+    static let lockTextSecondary = Color.white.opacity(0.78)
+    static let lockTimer = Color(red: 0xC4 / 255.0, green: 0xB5 / 255.0, blue: 0xFD / 255.0)
+}
+
+/// Titulo de reserva quando a lista de exercicios chega vazia (app mandou
+/// formato invalido ou treino sem exercicios ainda) -- sem isso o cartao
+/// mostrava so o icone e o cronometro, parecendo vazio.
+private let fallbackTitle = "Treino em andamento"
+
+/// Titulo do cartao: nome do exercicio, ou o texto de reserva quando nao ha
+/// exercicio OU o nome chega vazio/so espacos (Text("") ocuparia espaco sem
+/// mostrar nada).
+private func lockScreenTitle(_ exercise: FreeWorkoutActivityAttributes.ExerciseSummary?) -> String {
+    guard let name = exercise?.name.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+        return fallbackTitle
+    }
+    return name
+}
 
 /// "Serie 2 de 4" ou "Exercicio concluido" -- por EXERCICIO agora (nao
 /// mais um "allSetsCompleted" global), ja que a Live Activity pode estar
@@ -47,9 +53,9 @@ private let textSecondary = Color.black.opacity(0.55)
 /// (ver NextExerciseIntent/PreviousExerciseIntent, Attributes.swift).
 private func setProgressLabel(_ exercise: FreeWorkoutActivityAttributes.ExerciseSummary) -> String {
     if exercise.firstIncompleteSetIndex == -1 {
-        return "Exercicio concluido"
+        return "Exercício concluído"
     }
-    return "Serie \(exercise.firstIncompleteSetIndex + 1) de \(exercise.totalSets)"
+    return "Série \(exercise.firstIncompleteSetIndex + 1) de \(exercise.totalSets)"
 }
 
 /// Selo/"capa" do treino -- equivalente a capa do album num player de
@@ -83,6 +89,12 @@ private struct WorkoutBadge: View {
             .aspectRatio(contentMode: .fill)
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            // O PNG do icone e roxo quase preto -- sobre fundo escuro ele
+            // sumia. Contorno roxo claro delimita o selo em qualquer tema.
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.tryvPurpleOnDark.opacity(0.9), lineWidth: 1.5)
+            )
     }
 }
 
@@ -96,6 +108,9 @@ private struct WorkoutBadge: View {
 private struct MarkSetButton: View {
     var exercise: FreeWorkoutActivityAttributes.ExerciseSummary
     var size: CGFloat = 44
+    /// true = circulo roxo SOLIDO tambem no iOS 26 (sem .glassEffect). O cartao
+    /// da tela de bloqueio usa true; a Dynamic Island mantem o padrao (false).
+    var solidStyle: Bool = false
 
     var body: some View {
         let done = exercise.firstIncompleteSetIndex == -1
@@ -111,7 +126,7 @@ private struct MarkSetButton: View {
                     // do card (acima) tambem envolve este botao, entao os
                     // 2 vidros (retangulo do card + circulo do botao)
                     // refletem luz de forma consistente entre si.
-                    if #available(iOS 26.0, *) {
+                    if #available(iOS 26.0, *), !solidStyle {
                         Image(systemName: "checkmark")
                             .font(.system(size: size * 0.42, weight: .bold))
                             .foregroundStyle(.white)
@@ -183,6 +198,8 @@ private struct TransportControls: View {
     var navTint: Color = textPrimary
     var checkButtonSize: CGFloat = 44
     var navButtonSize: CGFloat = 32
+    /// Repassado a MarkSetButton (ver la). Padrao false = comportamento da Dynamic Island.
+    var solidStyle: Bool = false
 
     var body: some View {
         let index = state.viewedExerciseIndex
@@ -193,12 +210,62 @@ private struct TransportControls: View {
                 ExerciseNavButton(intent: PreviousExerciseIntent(), systemImage: "backward.fill", enabled: index > 0, tint: navTint, size: navButtonSize)
             }
             if let exercise {
-                MarkSetButton(exercise: exercise, size: checkButtonSize)
+                MarkSetButton(exercise: exercise, size: checkButtonSize, solidStyle: solidStyle)
             }
             if #available(iOS 17.0, *) {
                 ExerciseNavButton(intent: NextExerciseIntent(), systemImage: "forward.fill", enabled: index < state.exercises.count - 1, tint: navTint, size: navButtonSize)
             }
         }
+    }
+}
+
+/// Cartao da tela de bloqueio/banner, na versao mais simples e robusta: fundo
+/// roxo escuro OPACO definido por nos (Color.lockCardBackground), texto de cor
+/// FIXA clara, sem @Environment, sem .glassEffect e sem GlassEffectContainer.
+/// Sempre mostra titulo e cronometro, mesmo sem nenhum exercicio.
+///
+/// O fundo e pintado de 2 jeitos: .background (dentro da view) e
+/// .activityBackgroundTint (o sistema pinta o cartao com a mesma cor) -- se um
+/// deles for ignorado, o outro garante o fundo opaco.
+private struct LockScreenCard: View {
+    let attributes: FreeWorkoutActivityAttributes
+    let state: FreeWorkoutActivityAttributes.ContentState
+
+    var body: some View {
+        let startDate = Date(timeIntervalSince1970: attributes.startedAtMs / 1000)
+        let index = state.viewedExerciseIndex
+        let exercise = state.exercises.indices.contains(index) ? state.exercises[index] : nil
+
+        HStack(spacing: 14) {
+            WorkoutBadge(size: 56, cornerRadius: 14)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(lockScreenTitle(exercise))
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(Color.lockTextPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if let exercise {
+                    Text(setProgressLabel(exercise))
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.lockTextSecondary)
+                        .lineLimit(1)
+                }
+                Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
+                    .font(.system(size: 15, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundColor(Color.lockTimer)
+            }
+
+            Spacer(minLength: 8)
+
+            TransportControls(state: state, navTint: Color.lockTextPrimary, solidStyle: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.lockCardBackground)
+        .activityBackgroundTint(Color.lockCardBackground)
+        .activitySystemActionForegroundColor(Color.lockTextPrimary)
     }
 }
 
@@ -212,62 +279,7 @@ private struct TransportControls: View {
 struct FreeWorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FreeWorkoutActivityAttributes.self) { context in
-            let startDate = Date(timeIntervalSince1970: context.attributes.startedAtMs / 1000)
-            let index = context.state.viewedExerciseIndex
-            let exercise = context.state.exercises.indices.contains(index) ? context.state.exercises[index] : nil
-
-            let card = HStack(spacing: 14) {
-                WorkoutBadge(size: 56, cornerRadius: 14)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(exercise?.name ?? "")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(textPrimary)
-                        .lineLimit(1)
-                    Text(exercise.map(setProgressLabel) ?? "")
-                        .font(.system(size: 13))
-                        .foregroundStyle(textSecondary)
-                        .lineLimit(1)
-                    Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
-                        .font(.system(size: 15, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.tryvPurple)
-                }
-
-                Spacer(minLength: 8)
-
-                TransportControls(state: context.state)
-            }
-            .padding(16)
-
-            // iOS 26+ -- vidro de verdade (.glassEffect, API nativa da
-            // "Liquid Glass") no lugar do .activityBackgroundTint solido.
-            // GlassEffectContainer envolvendo o card INTEIRO (nao so o
-            // HStack) de proposito: o botao de check (MarkSetButton) tem
-            // seu PROPRIO .glassEffect(...circle...) mais fundo na arvore
-            // -- o container compartilhado e o que faz os 2 pedacos de
-            // vidro (card retangular + botao circular) refletirem luz de
-            // forma consistente entre si, em vez de cada um calcular seu
-            // proprio vidro isolado (recomendacao da Apple pra vidros
-            // proximos/adjacentes). Aplicado DEPOIS de padding/layout, na
-            // ordem recomendada pela Apple.
-            //
-            // iOS < 26 -- continua com .activityBackgroundTint (unica API
-            // pre-26 que de fato pinta o fundo da Live Activity na tela
-            // de bloqueio; um .background(.ultraThinMaterial) simples
-            // nao e garantido fazer isso do mesmo jeito -- .activityBackgroundTint
-            // existe justamente pra cobrir esse caso especifico do
-            // sistema).
-            Group {
-                if #available(iOS 26.0, *) {
-                    GlassEffectContainer {
-                        card.glassEffect(.regular, in: .rect(cornerRadius: 20))
-                    }
-                } else {
-                    card.activityBackgroundTint(backgroundTint)
-                }
-            }
-            .activitySystemActionForegroundColor(textPrimary)
+            LockScreenCard(attributes: context.attributes, state: context.state)
         } dynamicIsland: { context in
             let startDate = Date(timeIntervalSince1970: context.attributes.startedAtMs / 1000)
             let index = context.state.viewedExerciseIndex
@@ -279,7 +291,7 @@ struct FreeWorkoutLiveActivity: Widget {
                 // nao exclusivo de Live Activity). O PAINEL geral da
                 // Dynamic Island continua sendo escuro fixo do sistema
                 // sempre (nao ha API pra mudar isso -- ver comentario em
-                // backgroundTint acima), mas um card de vidro claro
+                // cardBackground acima), mas um card de vidro claro
                 // SOBRE o conteudo de cada regiao e algo que da pra
                 // tentar. Se a Apple de fato deixa esse card aparecer
                 // sobre o painel fixo, ou normaliza/ignora, so da pra
@@ -294,14 +306,16 @@ struct FreeWorkoutLiveActivity: Widget {
                     let content = HStack(spacing: 8) {
                         WorkoutBadge(size: 32, cornerRadius: 8)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(exercise?.name ?? "")
+                            Text(exercise?.name ?? fallbackTitle)
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(diLeadingTint)
                                 .lineLimit(1)
-                            Text(exercise.map(setProgressLabel) ?? "")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            if let exercise {
+                                Text(setProgressLabel(exercise))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                     .padding(6)
@@ -316,7 +330,7 @@ struct FreeWorkoutLiveActivity: Widget {
                     Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
                         .font(.system(size: 16, weight: .semibold))
                         .monospacedDigit()
-                        .foregroundStyle(Color.tryvPurple)
+                        .foregroundStyle(Color.tryvPurpleOnDark)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     // navTint precisa acompanhar o fundo real desta
@@ -346,14 +360,14 @@ struct FreeWorkoutLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "dumbbell.fill")
-                    .foregroundStyle(Color.tryvPurple)
+                    .foregroundStyle(Color.tryvPurpleOnDark)
             } compactTrailing: {
                 Text(timerInterval: startDate...Date.distantFuture, countsDown: false)
                     .monospacedDigit()
                     .frame(width: 44)
             } minimal: {
                 Image(systemName: "dumbbell.fill")
-                    .foregroundStyle(Color.tryvPurple)
+                    .foregroundStyle(Color.tryvPurpleOnDark)
             }
         }
     }

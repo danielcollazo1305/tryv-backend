@@ -112,16 +112,6 @@ export async function listWorkoutPlans(): Promise<WorkoutPlan[]> {
   return response.data;
 }
 
-/**
- * Personal trainer monta um plano manual (sem IA) pra um aluno especifico
- * — preenche a lacuna que deixava TrainerWorkoutSection sempre no estado
- * vazio. Reaproveita o mesmo formato de WorkoutPlanData dos planos de IA.
- */
-export async function createStudentWorkoutPlan(studentId: string, planData: WorkoutPlanData): Promise<WorkoutPlan> {
-  const response = await api.post<WorkoutPlan>(`/trainers/students/${studentId}/workout-plans`, planData);
-  return response.data;
-}
-
 export interface WorkoutSetLog {
   weight_kg: number | null;
   reps: number | null;

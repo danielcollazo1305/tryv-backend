@@ -16,7 +16,7 @@ export async function getExerciseVolume(days: PeriodDays) {
   const { start_date, end_date } = periodWindow(days);
   const response = await api.get<unknown>('/dashboard/exercise-volume', { params: { start_date, end_date } });
   const data = normalizeExerciseVolume(response.data);
-  if (!data) throw new Error('Resposta inesperada do volume por exercicio');
+  if (!data) throw new Error('Resposta inesperada do volume por exercício');
   return data;
 }
 

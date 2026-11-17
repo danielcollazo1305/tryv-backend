@@ -56,7 +56,7 @@ export default function RegisterScreen() {
       return;
     }
     if (password !== confirmPassword) {
-      setError('As senhas nao coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
     // Peso deixou de ser opcional (onboarding expandido) -- a meta
@@ -78,7 +78,7 @@ export default function RegisterScreen() {
           <View style={styles.header}>
             <Text style={styles.logo}>Tryv Fit</Text>
             <Text style={styles.title}>Criar sua conta</Text>
-            <Text style={styles.subtitle}>Vamos comecar sua jornada</Text>
+            <Text style={styles.subtitle}>Vamos começar sua jornada</Text>
 
             <View style={styles.progressWrap}>
               <ProgressSteps2 variant="light" current={1} total={getOnboardingTotalSteps(draft)} label="Conta" />
@@ -134,7 +134,7 @@ export default function RegisterScreen() {
           <Button3 label="Continuar" onPress={handleContinue} />
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Ja tem conta? </Text>
+            <Text style={styles.footerText}>Já tem conta? </Text>
             <Link href="/(auth)/login" style={styles.link}>
               Entrar
             </Link>

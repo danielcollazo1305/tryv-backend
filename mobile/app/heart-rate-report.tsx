@@ -32,7 +32,7 @@ export default function HeartRateReportScreen() {
     try {
       setReport(await getHeartRateReport());
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar o relatorio de frequencia cardiaca.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar o relatório de frequência cardíaca.'));
     } finally {
       setLoading(false);
     }

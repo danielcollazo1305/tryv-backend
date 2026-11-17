@@ -24,7 +24,7 @@ export type PostOrigin = 'manual' | 'auto';
  * proprio proposito da tela) — so um seletor Publico/Seguidores.
  */
 export const SHARE_VISIBILITY_OPTIONS: { value: ShareVisibility; label: string }[] = [
-  { value: 'none', label: 'Nao compartilhar' },
+  { value: 'none', label: 'Não compartilhar' },
   { value: 'followers', label: 'Seguidores' },
   { value: 'public', label: 'Publico' },
 ];

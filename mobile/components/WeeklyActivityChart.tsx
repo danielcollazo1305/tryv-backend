@@ -69,7 +69,7 @@ export function WeeklyActivityChart({ userId }: { userId?: string } = {}) {
   if (error) {
     return (
       <Text style={styles.emptyText}>
-        {userId ? 'Nao foi possivel carregar os km rodados da semana.' : 'Nao foi possivel carregar seus km rodados da semana.'}
+        {userId ? 'Não foi possível carregar os km rodados da semana.' : 'Não foi possível carregar seus km rodados da semana.'}
       </Text>
     );
   }
@@ -84,7 +84,7 @@ export function WeeklyActivityChart({ userId }: { userId?: string } = {}) {
       <Text style={styles.emptyText}>
         {userId
           ? 'Ainda sem corridas registradas.'
-          : 'Nenhuma corrida nos ultimos 7 dias. Registre uma corrida para ver seu grafico de km aqui.'}
+          : 'Nenhuma corrida nos últimos 7 dias. Registre uma corrida para ver seu gráfico de km aqui.'}
       </Text>
     );
   }

@@ -303,8 +303,8 @@ export function HeartRateDetailView() {
     return (
       <Text style={styles.emptyText}>
         {Platform.OS === 'android'
-          ? 'Instale ou atualize o app Health Connect pra ver sua frequencia cardiaca aqui.'
-          : 'Historico de saude disponivel so no iPhone, via Apple Health.'}
+          ? 'Instale ou atualize o app Health Connect pra ver sua frequência cardíaca aqui.'
+          : 'Histórico de saúde disponível só no iPhone, via Apple Health.'}
       </Text>
     );
   }
@@ -319,7 +319,7 @@ export function HeartRateDetailView() {
   }
 
   if (status === 'error') {
-    return <Text style={styles.error}>Nao foi possivel carregar a frequencia cardiaca.</Text>;
+    return <Text style={styles.error}>Não foi possível carregar a frequência cardíaca.</Text>;
   }
 
   return (

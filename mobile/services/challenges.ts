@@ -28,15 +28,6 @@ export interface Challenge {
   created_at: string;
 }
 
-export interface ChallengeCreatePayload {
-  title: string;
-  description?: string | null;
-  start_date: string;
-  end_date: string;
-  is_official?: boolean;
-  category?: ChallengeCategory | null;
-}
-
 export interface ChallengeCheckin {
   id: string;
   user_id: string;
@@ -52,11 +43,6 @@ export interface ChallengeCheckinCreatePayload {
   shared_publicly?: boolean;
 }
 
-export async function createChallenge(payload: ChallengeCreatePayload): Promise<Challenge> {
-  const response = await api.post<Challenge>('/challenges', payload);
-  return response.data;
-}
-
 /** Aba "App" — desafios oficiais do Tryv, filtrados por categoria. */
 export async function listChallenges(filters: {
   is_official?: boolean;
@@ -68,16 +54,10 @@ export async function listChallenges(filters: {
 
 /**
  * Desafios ativos que o usuario logado participa — usado pra previa de
- * progresso na Home (is_official=true) e pra secao de desafios de
- * profissional no Perfil (is_official=false).
+ * progresso na Home (is_official=true).
  */
 export async function listMyActiveChallenges(filters: { is_official?: boolean } = {}): Promise<Challenge[]> {
   const response = await api.get<Challenge[]>('/challenges/mine', { params: filters });
-  return response.data;
-}
-
-export async function listTrainerChallenges(trainerId: string): Promise<Challenge[]> {
-  const response = await api.get<Challenge[]>(`/trainers/${trainerId}/challenges`);
   return response.data;
 }
 

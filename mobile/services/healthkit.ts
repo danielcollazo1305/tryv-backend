@@ -35,6 +35,7 @@ import {
   StatBucket,
   addDays,
   bucketMap,
+  buildCaloriesHistory,
   buildHistory,
   classifyHealthAccess,
   dailyPoints,
@@ -45,7 +46,6 @@ import {
   incrementalWindowStart,
   intradayPoints,
   isAuthorizationError,
-  lastNightSleepHours,
   lastSleepNight,
   nextWorkoutAnchor,
   resolveHistoryWindow,
@@ -73,10 +73,11 @@ const T_RESPIRATORY = 'HKQuantityTypeIdentifierRespiratoryRate';
 const T_STEPS = 'HKQuantityTypeIdentifierStepCount';
 const T_DISTANCE = 'HKQuantityTypeIdentifierDistanceWalkingRunning';
 const T_ENERGY = 'HKQuantityTypeIdentifierActiveEnergyBurned';
+const T_BASAL = 'HKQuantityTypeIdentifierBasalEnergyBurned';
 const T_SLEEP = 'HKCategoryTypeIdentifierSleepAnalysis';
 
 /** Lista UNICA de leitura (pedido de permissao e checagem usam a MESMA lista). Nada de escrita. */
-export const HEALTHKIT_READ_TYPES: readonly string[] = [T_WORKOUT, T_ROUTE, T_HEART_RATE, T_RESTING_HR, T_RESPIRATORY, T_STEPS, T_DISTANCE, T_ENERGY, T_SLEEP];
+export const HEALTHKIT_READ_TYPES: readonly string[] = [T_WORKOUT, T_ROUTE, T_HEART_RATE, T_RESTING_HR, T_RESPIRATORY, T_STEPS, T_DISTANCE, T_ENERGY, T_BASAL, T_SLEEP];
 
 type HK = typeof import('@appeeky/expo-healthkit').default;
 
@@ -281,12 +282,35 @@ async function readSleepSamples(from: Date, to?: Date): Promise<SleepSample[]> {
   return samples.map((s) => ({ startDate: s.startDate, endDate: s.endDate, value: s.value, sourceId: s.sourceId, sourceName: s.sourceName }));
 }
 
-/** Horas da ultima noite (sessao mais recente das ultimas 32 h); sem dado de sono = null. */
+/**
+ * Horas de sono da "ultima noite" pela regra do DIA DE DESPERTAR (a mesma de sleepHoursByWakeDay e do widget): soma as sessoes que terminam HOJE, entao
+ * um cochilo nao vira "a noite" e uma noite partida por uma pausa de mais de SLEEP_SESSION_GAP_MINUTES (90 min) soma as duas partes. Se ainda nao ha
+ * sono que termine hoje (antes de acordar ou sem sincronizar), cai para o dia anterior pela mesma regra (so ontem, nunca mais antigo). Sem dado = null.
+ * Usada pela Home, pela Vitalidade e pela prontidao (sleepLastNightHours); o widget usa fetchSleepHoursWokenToday, sem esse fallback.
+ */
 export async function fetchLastNightSleepHours(): Promise<number | null> {
   const h = hk();
   if (!h || !h.isAvailable()) return null;
-  const samples = await safe(readSleepSamples(new Date(Date.now() - (SLEEP_LOOKBACK_HOURS / 24) * dayMs)));
-  return samples ? lastNightSleepHours(samples) : null;
+  const now = new Date();
+  // Comeca 2 dias antes de hoje 00:00: uma noite que termina ontem pode ter comecado na noite anterior a ontem.
+  const samples = await safe(readSleepSamples(addDays(startOfDay(now), -2)));
+  if (!samples) return null;
+  const byDay = sleepHoursByWakeDay(samples, 'day');
+  return byDay.get(toDateKey(now)) ?? byDay.get(toDateKey(addDays(startOfDay(now), -1))) ?? null;
+}
+
+/**
+ * Horas dormidas atribuidas a HOJE (o dia em que a pessoa ACORDOU, mesma regra de sleepHoursByWakeDay no historico), somando todas as sessoes que
+ * terminam hoje. Sem sono que termine hoje = null (antes de acordar nao mostra a noite de ontem). Usada pelo widget; fetchLastNightSleepHours
+ * (Home/Vitalidade) usa a mesma regra, mas com fallback para ontem quando ainda nao ha sono hoje.
+ */
+export async function fetchSleepHoursWokenToday(): Promise<number | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const now = new Date();
+  const samples = await safe(readSleepSamples(addDays(startOfDay(now), -1)));
+  if (!samples) return null;
+  return sleepHoursByWakeDay(samples, 'day').get(toDateKey(now)) ?? null;
 }
 
 /** Detalhe da ultima noite (estagios, linha do tempo, FC e respiracao durante o sono). Sem sono = null. */
@@ -366,13 +390,15 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
   if (!h || !h.isAvailable()) return emptyHealthSummary();
   const today = startOfDay(new Date());
   const sevenDaysAgo = new Date(Date.now() - 7 * dayMs);
-  const [stepsToday, steps7d, distanceTodayMeters, distance7dMeters, activeEnergyTodayKcal, activeEnergy7dKcal, heartRate, sleepLastNightHours] = await Promise.all([
+  const [stepsToday, steps7d, distanceTodayMeters, distance7dMeters, activeEnergyTodayKcal, activeEnergy7dKcal, basalEnergyTodayKcal, basalEnergy7dKcal, heartRate, sleepLastNightHours] = await Promise.all([
     safe(sumSince(T_STEPS, 'count', today)),
     safe(sumSince(T_STEPS, 'count', sevenDaysAgo)),
     safe(sumSince(T_DISTANCE, 'm', today)),
     safe(sumSince(T_DISTANCE, 'm', sevenDaysAgo)),
     safe(sumSince(T_ENERGY, 'kcal', today)),
     safe(sumSince(T_ENERGY, 'kcal', sevenDaysAgo)),
+    safe(sumSince(T_BASAL, 'kcal', today)),
+    safe(sumSince(T_BASAL, 'kcal', sevenDaysAgo)),
     safe(heartRateSummary(sevenDaysAgo)),
     safe(fetchLastNightSleepHours()),
   ]);
@@ -383,29 +409,47 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
     distance7dMeters,
     activeEnergyTodayKcal,
     activeEnergy7dKcal,
+    basalEnergyTodayKcal,
+    basalEnergy7dKcal,
     heartRate: heartRate ?? emptyHealthSummary().heartRate,
     sleepLastNightHours,
   };
 }
 
 // ----------------------------------------------------------------------------------------------------------------- historico por periodo
+/** Sono por dia (7D/4 SEM), cada noite no dia em que a pessoa ACORDOU. Le 1 dia a mais em cada ponta para nao cortar uma noite que cruza a janela. */
+async function sleepHistoryByKey(start: Date, end: Date): Promise<Map<string, number>> {
+  const samples = await safe(readSleepSamples(addDays(start, -1), addDays(end, 1)));
+  return samples ? sleepHoursByWakeDay(samples, 'day') : new Map();
+}
+
 export async function fetchHealthMetricHistory(metric: HealthMetricKey, period: HealthHistoryPeriod, offset = 0): Promise<HealthMetricHistory> {
   const { start, end, granularity } = resolveHistoryWindow(period, offset);
   const h = hk();
   const keyOf = granularity === 'day' ? toDateKey : toMonthKey;
   if (!h || !h.isAvailable()) return buildHistory(period, offset, new Map());
   const interval = granularity === 'day' ? { day: 1 } : { month: 1 };
+  if (metric === 'calories') {
+    const [activeBuckets, basalBuckets] = await Promise.all([
+      safe(statsBuckets(T_ENERGY, 'kcal', start, endOfDay(end), h.StatisticsOption.cumulativeSum, interval)),
+      safe(statsBuckets(T_BASAL, 'kcal', start, endOfDay(end), h.StatisticsOption.cumulativeSum, interval)),
+    ]);
+    return buildCaloriesHistory(
+      period,
+      offset,
+      activeBuckets ? bucketMap(activeBuckets, 'sum', keyOf) : new Map(),
+      basalBuckets ? bucketMap(basalBuckets, 'sum', keyOf) : new Map()
+    );
+  }
   let byKey = new Map<string, number>();
   if (metric === 'sleep') {
-    const samples = await safe(readSleepSamples(addDays(start, -1), addDays(end, 1)));
-    byKey = samples ? sleepHoursByWakeDay(samples, granularity) : new Map();
+    // A tela de Sono nao tem 1 ANO (granularidade mensal): so 1D/7D/4 SEM chegam aqui. Se um dia chegar, volta vazio em vez de misturar chaves.
+    byKey = granularity === 'day' ? await sleepHistoryByKey(start, end) : new Map();
   } else {
     const spec =
       metric === 'steps'
         ? { type: T_STEPS, unit: 'count', option: h.StatisticsOption.cumulativeSum, field: 'sum' as const }
-        : metric === 'calories'
-          ? { type: T_ENERGY, unit: 'kcal', option: h.StatisticsOption.cumulativeSum, field: 'sum' as const }
-          : { type: T_HEART_RATE, unit: 'count/min', option: h.StatisticsOption.discreteAverage, field: 'average' as const };
+        : { type: T_HEART_RATE, unit: 'count/min', option: h.StatisticsOption.discreteAverage, field: 'average' as const };
     const buckets = await safe(statsBuckets(spec.type, spec.unit, start, endOfDay(end), spec.option, interval));
     byKey = buckets ? bucketMap(buckets, spec.field, keyOf) : new Map();
   }

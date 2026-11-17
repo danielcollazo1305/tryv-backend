@@ -5,13 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserBadges } from '@/services/user';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 
-const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
-  personal_trainer: 'Personal',
-  nutritionist: 'Nutri',
-};
-
 export function ProfileBadges({ badges }: { badges: UserBadges | null }) {
-  if (!badges || (!badges.is_pro && badges.teams.length === 0)) {
+  if (!badges || !badges.is_pro) {
     return null;
   }
 
@@ -23,13 +18,6 @@ export function ProfileBadges({ badges }: { badges: UserBadges | null }) {
           <Text style={styles.proText}>Tryv Fit Pro</Text>
         </View>
       )}
-      {badges.teams.map((team) => (
-        <View key={`${team.trainer_name}-${team.professional_type}`} style={[styles.pill, styles.teamPill]}>
-          <Text style={styles.teamText}>
-            Team {team.trainer_name} ({PROFESSIONAL_TYPE_LABEL[team.professional_type] ?? team.professional_type})
-          </Text>
-        </View>
-      ))}
     </View>
   );
 }
@@ -56,15 +44,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.white,
     fontWeight: '700',
-  },
-  teamPill: {
-    backgroundColor: colors.accentSoft,
-    borderWidth: 1,
-    borderColor: colors.accentMuted,
-  },
-  teamText: {
-    ...typography.caption,
-    color: colors.accent,
-    fontWeight: '600',
   },
 });

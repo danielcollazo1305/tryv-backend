@@ -23,7 +23,7 @@ import { colors3, spacing3, typography3 } from '@/constants/theme';
  * - SEM plano ativo: o card NAO desaparece mais (antes retornava null) —
  *   convida pro registro LIVRE (FreeWorkoutLogView.tsx, via
  *   workout-plan/free-session.tsx), sem depender de plano nenhum.
- * Os dois botoes abrem a tela "Treinar" (/treinar); o plano do dia, o treino livre e o plano do personal
+ * Os dois botoes abrem a tela "Treinar" (/treinar); o plano do dia e o treino livre
  * ficam la dentro, em Halter. Religado no tema visual "prism-glass" (ver colors3 em constants/theme.ts).
  */
 export function TodayWorkoutCard() {

@@ -35,7 +35,7 @@ export default function RegisterFrequencyScreen() {
   const handleContinue = () => {
     setError(null);
     if (trainingFrequency === null || cardioFrequency === null) {
-      setError('Selecione quantas vezes por semana voce treina e faz cardio.');
+      setError('Selecione quantas vezes por semana você treina e faz cardio.');
       return;
     }
     updateDraft({
@@ -51,7 +51,7 @@ export default function RegisterFrequencyScreen() {
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Sua rotina semanal</Text>
-          <Text style={styles.subtitle}>Isso ajuda a calibrar sua meta calorica com base na sua atividade real</Text>
+          <Text style={styles.subtitle}>Isso ajuda a calibrar sua meta calórica com base na sua atividade real</Text>
 
           <View style={styles.progressWrap}>
             <ProgressSteps2 variant="light" current={4} total={getOnboardingTotalSteps(draft)} label="Rotina" />
@@ -60,14 +60,14 @@ export default function RegisterFrequencyScreen() {
 
         <ChoiceGroup2
           variant="light"
-          label="Quantas vezes por semana voce treina (musculacao)?"
+          label="Quantas vezes por semana você treina (musculação)?"
           options={SESSION_COUNT_OPTIONS}
           value={trainingFrequency}
           onChange={setTrainingFrequency}
         />
         <ChoiceGroup2
           variant="light"
-          label="Quantas vezes por semana voce faz cardio?"
+          label="Quantas vezes por semana você faz cardio?"
           options={SESSION_COUNT_OPTIONS}
           value={cardioFrequency}
           onChange={setCardioFrequency}

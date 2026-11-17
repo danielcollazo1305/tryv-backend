@@ -1250,6 +1250,8 @@ export async function fetchHealthSummary(): Promise<HealthSummary> {
     distance7dMeters: null,
     activeEnergyTodayKcal: activeEnergyTodayKcal != null ? Math.round(activeEnergyTodayKcal) : null,
     activeEnergy7dKcal: activeEnergy7dKcal != null ? Math.round(activeEnergy7dKcal) : null,
+    basalEnergyTodayKcal: null,
+    basalEnergy7dKcal: null,
     heartRate: heartRate ?? EMPTY_HEART_RATE,
     sleepLastNightHours,
   };

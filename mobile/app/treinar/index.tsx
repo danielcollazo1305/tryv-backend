@@ -9,6 +9,7 @@ import { RetroFooter } from '@/components/retro/RetroFooter';
 import { RetroSegmentBar } from '@/components/retro/RetroSegmentBar';
 import { RetroSlot } from '@/components/retro/RetroSlot';
 import { RetroText } from '@/components/retro/RetroText';
+import { RetroVitality } from '@/components/retro/RetroVitality';
 import { RETRO } from '@/components/retro/retroTheme';
 import { MODALITY_FALLBACK_ORDER, MODALITY_META } from '@/constants/treinarModalities';
 import { useAuth } from '@/context/AuthContext';
@@ -149,6 +150,8 @@ export default function TreinarScreen() {
             {user?.name ?? ''}
           </RetroText>
         </View>
+
+        <RetroVitality />
 
         <View style={styles.mainRow}>
           <View style={[styles.bigBox, { width: bigSize, height: bigSize }]}>

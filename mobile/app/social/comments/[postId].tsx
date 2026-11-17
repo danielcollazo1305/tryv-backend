@@ -87,7 +87,7 @@ export default function CommentsScreen() {
     try {
       setComments(await listComments(postId));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar os comentarios.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar os comentários.'));
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export default function CommentsScreen() {
       setContent('');
     } catch (err) {
       // Texto barrado (422) ou pausa (429): mensagem do servidor; o comentario digitado FICA no campo para editar.
-      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Nao foi possivel enviar o comentario.'));
+      setError(getContentFilterMessage(err) ?? getApiErrorMessage(err, 'Não foi possível enviar o comentário.'));
     } finally {
       setSending(false);
     }
@@ -129,14 +129,14 @@ export default function CommentsScreen() {
       await deleteComment(comment.id);
       setComments((prev) => prev.filter((c) => c.id !== comment.id));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel excluir o comentario.'));
+      setError(getApiErrorMessage(err, 'Não foi possível excluir o comentário.'));
     }
   };
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
-        <Text style={styles.title}>Comentarios</Text>
+        <Text style={styles.title}>Comentários</Text>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="close" size={26} color={colors.textSecondary} />
         </Pressable>
@@ -176,7 +176,7 @@ export default function CommentsScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>Nenhum comentario ainda. Seja o primeiro!</Text>
+              <Text style={styles.emptyText}>Nenhum comentário ainda. Seja o primeiro!</Text>
             </View>
           }
         />
@@ -185,7 +185,7 @@ export default function CommentsScreen() {
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="Escreva um comentario..."
+          placeholder="Escreva um comentário..."
           placeholderTextColor={colors.textMuted}
           value={content}
           onChangeText={setContent}

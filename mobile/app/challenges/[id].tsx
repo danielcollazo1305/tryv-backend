@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
@@ -34,18 +33,12 @@ import {
 } from '@/services/challenges';
 import { uploadMedia } from '@/services/media';
 import { SHARE_VISIBILITY_OPTIONS, ShareVisibility, UserBrief, createPost } from '@/services/social';
-import { TrainerPublic, getTrainer, licenseLabel } from '@/services/trainers';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { getInitials } from '@/utils/text';
 
 const CATEGORY_LABEL: Record<string, string> = {
   musculacao_corrida: 'Musculação/Corrida',
   alimentacao: 'Alimentação',
-};
-
-const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
-  personal_trainer: 'Personal Trainer',
-  nutritionist: 'Nutricionista',
 };
 
 /**
@@ -61,7 +54,6 @@ export default function ChallengeDetailScreen() {
   const { user } = useAuth();
 
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [creatorTrainer, setCreatorTrainer] = useState<TrainerPublic | null>(null);
   // null = nao autorizado a ver a lista (403) — esconde a secao em vez de mostrar erro.
   const [participants, setParticipants] = useState<UserBrief[] | null>(null);
   const [isParticipating, setIsParticipating] = useState(false);
@@ -70,7 +62,6 @@ export default function ChallengeDetailScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [joining, setJoining] = useState(false);
-  const [joinDenied, setJoinDenied] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
   const [checkinPhotoUri, setCheckinPhotoUri] = useState<string | null>(null);
@@ -87,17 +78,9 @@ export default function ChallengeDetailScreen() {
       loadedChallenge = await getChallenge(id);
       setChallenge(loadedChallenge);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar este desafio.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar este desafio.'));
       setLoading(false);
       return;
-    }
-
-    if (loadedChallenge.trainer_id) {
-      getTrainer(loadedChallenge.trainer_id)
-        .then(setCreatorTrainer)
-        .catch(() => setCreatorTrainer(null));
-    } else {
-      setCreatorTrainer(null);
     }
 
     let participating = false;
@@ -140,16 +123,11 @@ export default function ChallengeDetailScreen() {
     if (!id) return;
     setJoining(true);
     setJoinError(null);
-    setJoinDenied(false);
     try {
       await joinChallenge(id);
       await fetchAll();
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 403) {
-        setJoinDenied(true);
-      } else {
-        setJoinError(getApiErrorMessage(err, 'Nao foi possivel entrar no desafio.'));
-      }
+      setJoinError(getApiErrorMessage(err, 'Não foi possível entrar no desafio.'));
     } finally {
       setJoining(false);
     }
@@ -163,7 +141,7 @@ export default function ChallengeDetailScreen() {
       await leaveChallenge(id);
       await fetchAll();
     } catch (err) {
-      setJoinError(getApiErrorMessage(err, 'Nao foi possivel sair do desafio.'));
+      setJoinError(getApiErrorMessage(err, 'Não foi possível sair do desafio.'));
     } finally {
       setJoining(false);
     }
@@ -172,7 +150,7 @@ export default function ChallengeDetailScreen() {
   const handleTakeCheckinPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setCheckinError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setCheckinError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [4, 3] });
@@ -182,7 +160,7 @@ export default function ChallengeDetailScreen() {
   const handlePickCheckinPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setCheckinError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setCheckinError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -235,7 +213,7 @@ export default function ChallengeDetailScreen() {
       setCheckinVisibility('none');
       await fetchAll();
     } catch (err) {
-      setCheckinError(getApiErrorMessage(err, 'Nao foi possivel registrar seu check-in.'));
+      setCheckinError(getApiErrorMessage(err, 'Não foi possível registrar seu check-in.'));
     } finally {
       setCheckinSaving(false);
     }
@@ -252,9 +230,6 @@ export default function ChallengeDetailScreen() {
   // agora", um numero exato, nao um piso — por isso nao mostra "+"
   // (comparar com TrainingFrequencyCard).
   const consistencyStreak = computeCurrentStreak(heatmapDays, todayKey());
-  const creatorLabel = creatorTrainer
-    ? PROFESSIONAL_TYPE_LABEL[creatorTrainer.professional_type] ?? creatorTrainer.professional_type
-    : null;
 
   return (
     <ScreenBackground3 style={styles.flex}>
@@ -285,21 +260,11 @@ export default function ChallengeDetailScreen() {
             </Text>
 
             <View style={styles.tagsRow}>
-              {challenge.is_official ? (
+              {challenge.is_official && (
                 <View style={styles.tag}>
                   <Ionicons name="shield-checkmark" size={13} color={colors3.primary} />
                   <Text style={styles.tagText}>Desafio oficial Tryv Fit</Text>
                 </View>
-              ) : (
-                creatorTrainer && (
-                  <View style={styles.tag}>
-                    <Ionicons name="checkmark-circle" size={13} color={colors3.primary} />
-                    <Text style={styles.tagText} numberOfLines={1}>
-                      Desafio de {creatorTrainer.user_name} — {creatorLabel} (
-                      {licenseLabel(creatorTrainer.professional_type)} {creatorTrainer.license_number})
-                    </Text>
-                  </View>
-                )
               )}
               {!!challenge.category && (
                 <View style={styles.tag}>
@@ -320,22 +285,6 @@ export default function ChallengeDetailScreen() {
                 <Text style={styles.statLabel}>Fizeram check-in hoje</Text>
               </GlassCard>
             </View>
-
-            {joinDenied && (
-              <GlassCard variant="card" style={styles.deniedCard}>
-                <Ionicons name="lock-closed" size={20} color={colors3.error} />
-                <Text style={styles.deniedText}>Voce precisa ser aluno deste professor para participar.</Text>
-                {!!challenge.trainer_id && (
-                  <Button3
-                    label="Ver perfil do professor"
-                    variant="secondary"
-                    onPress={() =>
-                      router.push({ pathname: '/trainers/[id]', params: { id: challenge.trainer_id! } })
-                    }
-                  />
-                )}
-              </GlassCard>
-            )}
 
             {!!joinError && <Text style={styles.error}>{joinError}</Text>}
 
@@ -365,7 +314,7 @@ export default function ChallengeDetailScreen() {
                 ) : hasCheckedInToday ? (
                   <GlassCard variant="card" style={styles.checkinDoneCard}>
                     <Ionicons name="checkmark-circle" size={22} color={colors3.primary} />
-                    <Text style={styles.checkinDoneText}>Voce ja fez check-in hoje!</Text>
+                    <Text style={styles.checkinDoneText}>Você já fez check-in hoje!</Text>
                   </GlassCard>
                 ) : (
                   <GlassCard variant="card" style={styles.checkinCard}>
@@ -400,7 +349,7 @@ export default function ChallengeDetailScreen() {
 
                 <GlassCard variant="card" style={styles.heatmapCard}>
                   <View style={styles.heatmapHeader}>
-                    <Text style={styles.sectionTitle}>Sua consistencia</Text>
+                    <Text style={styles.sectionTitle}>Sua consistência</Text>
                     {consistencyStreak.count > 0 && (
                       <View style={styles.streakBadge}>
                         <Ionicons name="flame" size={14} color={colors3.primary} />
@@ -419,7 +368,7 @@ export default function ChallengeDetailScreen() {
               <View style={styles.participantsSection}>
                 <Text style={styles.sectionTitle}>Participantes</Text>
                 {participants.length === 0 ? (
-                  <Text style={styles.emptyText}>Ninguem entrou ainda.</Text>
+                  <Text style={styles.emptyText}>Ninguém entrou ainda.</Text>
                 ) : (
                   participants.map((p) => (
                     <Pressable
@@ -483,8 +432,6 @@ const styles = StyleSheet.create({
   statNumber: { ...typography3.headlineLg, fontSize: 24, lineHeight: 28, color: colors3.onSurface },
   statLabel: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant, textAlign: 'center' },
 
-  deniedCard: { alignItems: 'center', gap: spacing3.sm },
-  deniedText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant, textAlign: 'center' },
 
   sectionTitle: { ...typography3.headlineMd, fontSize: 18 },
 

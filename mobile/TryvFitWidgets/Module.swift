@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import ActivityKit
+import WidgetKit
 
 /// [{"name": String, "totalSets": Int, "firstIncompleteSetIndex": Int}, ...]
 /// vindo do JS (LiveActivityContentState.exercises, services/liveActivity.ts)
@@ -132,6 +133,17 @@ public class ReactNativeWidgetExtensionModule: Module {
             let pending = sharedDefaults.array(forKey: "pendingSetUpdates") as? [[String: Any]] ?? []
             sharedDefaults.removeObject(forKey: "pendingSetUpdates")
             return pending
+        }
+
+        // Widget de tela inicial "Resumo do dia" (TryvFitSummaryWidget.swift, na extensao). Recebe o resumo ja
+        // montado pelo JS (services/widgetSummary.ts) como JSON em String, grava no App Group e pede o reload do
+        // widget. Guardar como String (e nao Codable) evita compartilhar tipos entre app e extensao -- so a
+        // extensao decodifica. A chave e o `kind` repetem as constantes de TryvFitSummaryWidget.swift (os 2
+        // targets nao compartilham aquele arquivo): se mudar la, mude aqui.
+        AsyncFunction("writeDailySummary") { (json: String) async in
+            guard let sharedDefaults = UserDefaults(suiteName: sharedDefaultsSuiteName) else { return }
+            sharedDefaults.set(json, forKey: "dailySummary.v1")
+            WidgetCenter.shared.reloadTimelines(ofKind: "TryvFitSummaryWidget")
         }
     }
 }

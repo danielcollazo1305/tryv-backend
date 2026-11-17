@@ -17,8 +17,7 @@ import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
-import { TrainerPartnerRow } from '@/components/TrainerPartnerRow';
-import { TrainersHighlight } from '@/components/TrainersHighlight';
+import { ProUpsellCard } from '@/components/ProUpsellCard';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
 import { ActivityProgressCard } from '@/components/ActivityProgressCard';
 import { TodayWorkoutCard } from '@/components/TodayWorkoutCard';
@@ -44,7 +43,7 @@ function monthLabel(year: number, month: number): string {
 }
 
 export default function HomeScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, isPro, isProError, refreshIsPro } = useAuth();
   const firstName = user?.name?.split(' ')[0] ?? '';
   const insets = useSafeAreaInsets();
 
@@ -61,6 +60,14 @@ export default function HomeScreen() {
   const [insightLoading, setInsightLoading] = useState(true);
 
   const fetchSummary = useCallback(async () => {
+    // Resumo e insight so existem para Pro (402 para os demais): decide pelo plano, nao pelo 402.
+    // isPro !== true (gratuito ou ainda carregando) nao chama nada; o refetch acontece quando isPro vira true.
+    if (isPro !== true) {
+      setSummary(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -86,7 +93,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [viewMode]);
+  }, [viewMode, isPro]);
 
   const goToPreviousMonth = () => {
     if (viewMode.type === 'rolling') {
@@ -121,6 +128,11 @@ export default function HomeScreen() {
   };
 
   const fetchInsight = useCallback(async () => {
+    if (isPro !== true) {
+      setInsight(null);
+      setInsightLoading(false);
+      return;
+    }
     setInsightLoading(true);
     try {
       setInsight(await getDailyInsight());
@@ -129,7 +141,7 @@ export default function HomeScreen() {
     } finally {
       setInsightLoading(false);
     }
-  }, []);
+  }, [isPro]);
 
   useFocusEffect(
     useCallback(() => {
@@ -165,7 +177,7 @@ export default function HomeScreen() {
           paddingTop: insets.top + spacing3.md,
           // Tab bar flutuante nao empurra mais o layout (era barra fixa
           // antes, o React Navigation reservava esse espaco sozinho) —
-          // sem isso, o ultimo item do scroll (TrainerPartnerRow) fica
+          // sem isso, o ultimo item do scroll fica
           // parcialmente escondido atras dela. altura da barra +
           // espaco ate a safe area + respiro extra pedido (spacing3.lg).
           paddingBottom: insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + spacing3.lg,
@@ -240,8 +252,8 @@ export default function HomeScreen() {
         app/export-pdf.tsx (modal com a mesma logica/validacao de antes,
         so realocada) em vez de ficar sempre visivel ocupando espaco fixo.
         Reaproveita a imagem "acompanhamento-profissional-card.png", que
-        ficou sem uso quando TrainersHighlight foi escondida do
-        marketplace pre-lancamento (ver comentario dela abaixo).
+        ficou sem uso quando o card de profissionais saiu do
+        carrossel (modo professor removido).
       */}
       <Text style={styles.forYouTitle}>Para você</Text>
       <ScrollView
@@ -252,15 +264,8 @@ export default function HomeScreen() {
       >
         <AiWorkoutCard />
         <ExportPdfCard />
-        {/* Marketplace desativado pre-lancamento — TrainersHighlight ("Acompanhamento
-            profissional") escondida do carrossel. Nao apagar: so reativar esta linha
-            quando o marketplace de profissionais for relancado. */}
         <DesafiosCarouselSlide />
       </ScrollView>
-
-      {/* Marketplace desativado pre-lancamento — TrainerPartnerRow ("seja nosso
-          parceiro") escondida. Nao apagar: so reativar esta linha quando o
-          marketplace de profissionais for relancado. Ver TrainerPartnerRow.tsx. */}
 
       {/*
         Conteudo Pro existente (comparacao mensal, prontidao, insight do
@@ -282,11 +287,12 @@ export default function HomeScreen() {
         (confirmado: getHomeSummary com `month` so e chamado aqui), entao
         mantive a funcionalidade, so anexada ao lugar certo.
       */}
-      <MonthComparisonCard />
+      {isPro === true && <MonthComparisonCard />}
 
-      <ReadinessCard />
+      {/* Prontidao e so para Pro na Home (o endpoint e livre por causa da Vitalidade, na aba Treino): decide pelo plano, nao pelo 402. */}
+      {isPro === true && <ReadinessCard />}
 
-      {insightLoading && (
+      {isPro === true && insightLoading && (
         <View style={styles.insightLoading}>
           <ActivityIndicator size="small" color={colors3.primary} />
         </View>
@@ -295,8 +301,21 @@ export default function HomeScreen() {
 
       <PersonalRecordsCard />
 
+      {/* Convite ao Pro no lugar dos blocos acima que nao aparecem para o gratuito; so com isPro === false (null = carregando, nao mostra). */}
+      {isPro === false && <ProUpsellCard />}
+
+      {/* Nao deu para verificar a assinatura (isPro null + busca falhou): aviso discreto no lugar dos blocos Pro. Nao e paywall nem convite; some quando isPro vira true/false. */}
+      {isPro === null && isProError && (
+        <View style={styles.proCheckRow}>
+          <Text style={styles.proCheckText}>Não foi possível verificar sua assinatura.</Text>
+          <Pressable onPress={() => void refreshIsPro()} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.proCheckAction}>Tentar de novo</Text>
+          </Pressable>
+        </View>
+      )}
+
       {!!error && <Text style={styles.error}>{error}</Text>}
-      {loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
+      {isPro === true && loading && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
 
       {!loading && summary && (
         <>
@@ -393,6 +412,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   error: { color: colors3.error, textAlign: 'center' },
+  proCheckRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing3.sm,
+  },
+  proCheckText: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
+  proCheckAction: { ...typography3.labelMd, color: colors3.primary },
   loading: { marginTop: spacing3.lg },
   insightLoading: { alignItems: 'flex-start', paddingVertical: spacing3.xs },
   // statsCard (navegador de mes + peso/dias treinados/deficit) migrado

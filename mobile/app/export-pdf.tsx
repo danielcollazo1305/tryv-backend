@@ -91,7 +91,7 @@ export default function ExportPdfScreen() {
     try {
       await exportPeriodReportPdf(user?.name ?? '', exportStartDate, exportEndDate);
     } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Nao foi possivel exportar o relatorio em PDF.'));
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar o relatório em PDF.'));
     } finally {
       setExporting(false);
     }

@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "icon.png",
+      "filename" : "TryvAppIcon@1x.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "icon.png",
+      "filename" : "TryvAppIcon@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "icon.png",
+      "filename" : "TryvAppIcon@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

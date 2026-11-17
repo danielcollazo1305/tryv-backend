@@ -50,6 +50,8 @@ interface EditorialCardProps {
   ctaLabel?: string;
   /** Alternativa ao CTA — barra de progresso real + legenda (usado pelo slide de Desafios quando ha desafio ativo; o HTML de referencia so modela o estado "sem desafio ativo", que usa ctaLabel). */
   progress?: { percent: number; label: string };
+  /** Etiqueta "Pro" discreta no canto da foto -- so para atalhos que levam a um recurso Pro (quem usa decide, com isPro === false). */
+  proBadge?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -83,6 +85,7 @@ export function EditorialCard({
   onPress,
   ctaLabel,
   progress,
+  proBadge,
   style,
 }: EditorialCardProps) {
   const cardWidth = useCardWidth();
@@ -119,6 +122,11 @@ export function EditorialCard({
       <View style={styles.iconBadge}>
         <Ionicons name={icon} size={16} color="#ffffff" />
       </View>
+      {proBadge && (
+        <View style={styles.proBadge}>
+          <Text style={styles.proBadgeText}>Pro</Text>
+        </View>
+      )}
 
       <View style={styles.content}>
         <Text style={styles.category}>{categoryLabel}</Text>
@@ -175,6 +183,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  proBadge: {
+    position: 'absolute',
+    left: 12,
+    top: 12,
+    height: 24,
+    paddingHorizontal: spacing3.sm,
+    borderRadius: radius3.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proBadgeText: { ...typography3.labelSm, fontSize: 11, color: '#ffffff' },
   // Sem fundo proprio (nem cor solida nem translucida) — o card inteiro e
   // a foto + gradiente, o texto so fica posicionado na parte de baixo via
   // `justifyContent: 'flex-end'` do wrapper.

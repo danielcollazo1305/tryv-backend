@@ -28,7 +28,7 @@ export default function ChallengeCategoryScreen() {
     try {
       setItems(await listChallenges({ is_official: true, category }));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar os desafios.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar os desafios.'));
     } finally {
       setLoading(false);
     }

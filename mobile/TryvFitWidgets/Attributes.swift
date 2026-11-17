@@ -99,7 +99,7 @@ struct FreeWorkoutActivityAttributes: ActivityAttributes {
 /// diretamente.
 @available(iOS 17.0, *)
 struct MarkCurrentSetDoneIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Marcar serie concluida"
+    static var title: LocalizedStringResource = "Marcar série concluída"
 
     func perform() async throws -> some IntentResult {
         guard let activity = Activity<FreeWorkoutActivityAttributes>.activities.first else {
@@ -147,7 +147,7 @@ struct MarkCurrentSetDoneIntent: LiveActivityIntent {
 /// MarkCurrentSetDoneIntent.
 @available(iOS 17.0, *)
 struct NextExerciseIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Proximo exercicio"
+    static var title: LocalizedStringResource = "Próximo exercício"
 
     func perform() async throws -> some IntentResult {
         guard let activity = Activity<FreeWorkoutActivityAttributes>.activities.first else {
@@ -166,7 +166,7 @@ struct NextExerciseIntent: LiveActivityIntent {
 /// contrario.
 @available(iOS 17.0, *)
 struct PreviousExerciseIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Exercicio anterior"
+    static var title: LocalizedStringResource = "Exercício anterior"
 
     func perform() async throws -> some IntentResult {
         guard let activity = Activity<FreeWorkoutActivityAttributes>.activities.first else {

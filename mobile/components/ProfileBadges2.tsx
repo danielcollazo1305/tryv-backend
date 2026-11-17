@@ -5,11 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserBadges } from '@/services/user';
 import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
 
-const PROFESSIONAL_TYPE_LABEL: Record<string, string> = {
-  personal_trainer: 'Personal',
-  nutritionist: 'Nutri',
-};
-
 interface ProfileBadges2Props {
   badges: UserBadges | null;
   /**
@@ -28,7 +23,7 @@ interface ProfileBadges2Props {
  * migracao — por isso versao nova em vez de editar a antiga.
  */
 export function ProfileBadges2({ badges, variant = 'dark' }: ProfileBadges2Props) {
-  if (!badges || (!badges.is_pro && badges.teams.length === 0)) {
+  if (!badges || !badges.is_pro) {
     return null;
   }
   const isLight = variant === 'light';
@@ -42,13 +37,6 @@ export function ProfileBadges2({ badges, variant = 'dark' }: ProfileBadges2Props
           <Text style={s.proText}>PRO</Text>
         </View>
       )}
-      {badges.teams.map((team) => (
-        <View key={`${team.trainer_name}-${team.professional_type}`} style={[s.pill, s.teamPill]}>
-          <Text style={s.teamText} numberOfLines={1}>
-            TEAM {team.trainer_name.toUpperCase()} ({PROFESSIONAL_TYPE_LABEL[team.professional_type] ?? team.professional_type})
-          </Text>
-        </View>
-      ))}
     </View>
   );
 }
@@ -77,13 +65,6 @@ const styles = StyleSheet.create({
     ...typography2.labelCaps,
     color: colors2.primary,
   },
-  teamPill: {
-    borderColor: colors2.outlineVariant,
-  },
-  teamText: {
-    ...typography2.labelCaps,
-    color: colors2.onSurfaceVariant,
-  },
 });
 
 const stylesLight = StyleSheet.create({
@@ -111,13 +92,5 @@ const stylesLight = StyleSheet.create({
     textTransform: 'none',
     color: colors3.primary,
     fontWeight: '700',
-  },
-  teamPill: {
-    borderColor: colors3.outlineVariant,
-  },
-  teamText: {
-    ...typography3.labelSm,
-    textTransform: 'none',
-    color: colors3.onSurfaceVariant,
   },
 });

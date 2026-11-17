@@ -5,14 +5,16 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_pro_subscription
+from app.core.deps import get_current_user
 from app.core.timezone import local_date, local_day_bounds, local_range_bounds, local_today
 from app.models.heart_rate import HeartRateSample
 from app.models.manual_activity import ManualActivity
 from app.models.readiness_score import ReadinessScore
 from app.models.run import Run
 from app.models.user import User
+from app.models.workout import WorkoutSession
 from app.schemas.readiness import ReadinessOut
+from app.services.training_load import strength_session_minutes
 
 router = APIRouter(prefix="/readiness", tags=["readiness"])
 
@@ -44,15 +46,23 @@ def _sleep_score(hours: float) -> float:
     return round(max(70.0, 100 - (hours - 9) * 10), 1)
 
 
-def _load_score(db: Session, user_id, today: date) -> float:
-    """Baseado no volume total treinado (Run + ManualActivity) nos ultimos
+def _load_score(db: Session, user_id, today: date, include_today: bool = True) -> float:
+    """Baseado no volume total treinado (Run + ManualActivity + musculacao,
+    esta em minutos equivalentes, ver services/training_load.py) nos ultimos
     7 dias: pouco volume recente = bem descansado (score alto); muito
     volume = fadiga acumulada (score baixo). Sem nenhum treino nos ultimos
     7 dias, entende-se como "sem fadiga acumulada" (score maximo) — o que
     faz sentido pra esse pilar especifico, mesmo que nao reflita
-    condicionamento fisico geral."""
+    condicionamento fisico geral.
+
+    include_today=False (usado por load_score_prior): a janela e dos 7 dias ANTERIORES a hoje (hoje - 7 ate ontem), sem nada do dia de hoje. E a
+    carga que o app usa na base da manha da Vitalidade dinamica, para o treino de hoje nao contar duas vezes (na base e no desgaste do dia).
+    """
     # `today` e o dia LOCAL; janela de SEVEN_DAYS dias locais -> limites UTC (fim exclusivo).
-    start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS - 1), today)
+    if include_today:
+        start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS - 1), today)
+    else:
+        start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS), today - timedelta(days=1))
 
     run_seconds = (
         db.query(func.sum(Run.duration_seconds))
@@ -70,7 +80,18 @@ def _load_score(db: Session, user_id, today: date) -> float:
         .scalar()
         or 0
     )
-    total_minutes = (run_seconds / 60) + manual_minutes
+    strength_sessions = (
+        db.query(WorkoutSession.exercises, WorkoutSession.duration_minutes)
+        .filter(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.completed_at >= start,
+            WorkoutSession.completed_at < end,
+        )
+        .all()
+    )
+    strength_minutes = sum(strength_session_minutes(exercises, duration) for exercises, duration in strength_sessions)
+
+    total_minutes = (run_seconds / 60) + manual_minutes + strength_minutes
     if total_minutes <= 0:
         return 100.0
     score = 100 - (total_minutes / 600) * 80
@@ -110,6 +131,16 @@ def _hr_score(db: Session, user_id, today: date) -> float | None:
     return round(max(0.0, min(100.0, score)), 1)
 
 
+def _resolve_sleep_score(sleep_hours: float | None, sleep_quality: float | None) -> float | None:
+    """Pilar de sono: a qualidade (0-100, calculada no aparelho) tem prioridade; sem ela, o calculo por horas (app antigo, ou sem dado de
+    qualidade); sem nenhum dos dois, None (o peso e redistribuido entre carga e FC, ver _combine_scores)."""
+    if sleep_quality is not None:
+        return round(sleep_quality, 1)
+    if sleep_hours is not None:
+        return _sleep_score(sleep_hours)
+    return None
+
+
 def _recommendation_text(score: float) -> str:
     if score >= 80:
         return "Excelente prontidao — bom dia para um treino intenso."
@@ -139,10 +170,24 @@ def get_today_readiness(
     sleep_hours: float | None = Query(
         None, ge=0, le=24, description="Horas de sono da ultima noite, vindas do HealthKit (mobile) — o backend nao tem acesso direto a isso."
     ),
+    sleep_quality: float | None = Query(
+        None,
+        ge=0,
+        le=100,
+        description="Qualidade do sono (0 a 100) calculada NO APARELHO a partir do HealthKit (duracao, eficiencia, despertares, divida, regularidade "
+        "e estagios). Opcional. Se vier, e usada como pilar de sono no lugar do calculo por horas (sleep_hours vira so fallback).",
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_pro_subscription),
+    current_user: User = Depends(get_current_user),
 ):
     """
+    Gratuito (qualquer usuario logado): devolve so o resumo basico (final_score, sub-scores e texto). Insights de IA e comparativos
+    seguem exclusivos do Pro, em outros endpoints (/insights/*).
+
+    Sono: aceita sleep_quality (0-100, opcional, calculada no aparelho) e sleep_hours (opcional, so horas). Com sleep_quality, ela vira o
+    sleep_score; senao vale o calculo por horas; sem nenhum, o pilar de sono fica de fora. Fora da faixa 0-100 (ou nao numerico): 422.
+    O app antigo, que so envia sleep_hours (ou nada), continua funcionando igual.
+
     Calcula (e re-calcula a cada chamada, sobrescrevendo o registro do dia)
     o score de prontidao de hoje. Diferente de /insights/daily, aqui nao ha
     cache "congelado" — o calculo e barato (so agregacao no banco) e o dado
@@ -154,8 +199,9 @@ def get_today_readiness(
     """
     today = local_today()
 
-    sleep_score = _sleep_score(sleep_hours) if sleep_hours is not None else None
+    sleep_score = _resolve_sleep_score(sleep_hours, sleep_quality)
     load_score = _load_score(db, current_user.id, today)
+    load_score_prior = _load_score(db, current_user.id, today, include_today=False)
     hr_score = _hr_score(db, current_user.id, today)
     final_score = _combine_scores(sleep_score, load_score, hr_score)
     recommendation = _recommendation_text(final_score)
@@ -185,4 +231,6 @@ def get_today_readiness(
 
     db.commit()
     db.refresh(record)
-    return record
+    out = ReadinessOut.model_validate(record)
+    out.load_score_prior = load_score_prior  # so na resposta (nao e coluna): a base da manha do app usa este valor
+    return out

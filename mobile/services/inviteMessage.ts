@@ -2,7 +2,7 @@
 // (Claude outputs/try_convidar_app.mjs). O envio em si fica em utils/invite.ts.
 
 /** Mensagem de convite sem link (o app ainda nao tem URL de loja; nada de inventar uma). */
-export const INVITE_BASE_MESSAGE = 'Estou usando o Tryv para treinar e cuidar da alimentacao. Vem comigo!';
+export const INVITE_BASE_MESSAGE = 'Estou usando o Tryv para treinar e cuidar da alimentação. Vem comigo!';
 
 /**
  * Mensagem de convite. `storeUrl` vazio, ausente ou que nao seja um endereco http(s) = so a mensagem base (sem link, sem "undefined").

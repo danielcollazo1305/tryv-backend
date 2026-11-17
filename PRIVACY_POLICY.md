@@ -41,26 +41,20 @@ contato@tryv.com.br
 - **Treinos:** treinos gerados por IA e o histórico de treinos realizados
 - **Atividades físicas:** dados de GPS durante corridas e pedaladas (localização, rota, distância, velocidade, tempo), além de atividades registradas manualmente (natação, lutas, outras modalidades)
 - **Peso corporal:** registros de peso ao longo do tempo, quando fornecidos por você
-- **Dados do Apple Health (HealthKit):** mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.
-- **Frequência cardíaca:** quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e, durante uma atividade com GPS em andamento, para exibição a um professor autorizado (ver seção 4.1). Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.
+- **Dados do Apple Health (HealthKit):** mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, energia em repouso (basal, as calorias que o corpo gasta em repouso), frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.
+- **Frequência cardíaca:** quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino. Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.
 
 ### 2.3 Dados de Pagamento
-Processamos pagamentos de assinaturas através do **Stripe**, um processador de pagamentos terceirizado. O Tryv **não armazena** números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.
+Processamos pagamentos de assinaturas através da **Apple (App Store)**: a compra é feita dentro do aplicativo, na sua conta Apple, e o Tryv **não recebe nem armazena** números de cartão de crédito ou dados financeiros — eles ficam com a Apple. Para saber se sua assinatura está ativa, usamos o **RevenueCat**, que recebe o identificador do seu usuário no Tryv e dados da compra (produto, datas do período, ambiente e situação da assinatura) e nos avisa quando ela muda.
 
-### 2.4 Dados de Professores (Marketplace)
-Para usuários que se cadastram como professores de educação física, coletamos adicionalmente:
-- Número de registro profissional (CREF) para fins de verificação
-- Dados de conta bancária/Stripe Connect para processamento de repasses
-- Informações de perfil profissional exibidas publicamente no marketplace
-
-### 2.5 Dados de Uso da Rede Social
+### 2.4 Dados de Uso da Rede Social
 - Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo
 - Fotos e mídias enviadas para publicações
 - Bloqueios de outros usuários e denúncias de posts ou comentários (motivo, detalhes que você escrever e data), feitos ou recebidos, usados para moderação
-- Fotos enviadas para posts: antes de publicar, uma cópia reduzida da foto é enviada para análise automatizada de segurança (ver seções 4.2 e 5). Das fotos aprovadas guardamos um registro técnico (quem enviou, pasta, endereço da foto e data), usado para permitir a publicação e limitar a quantidade de envios; as fotos recusadas não são guardadas
+- Fotos enviadas para posts: antes de publicar, uma cópia reduzida da foto é enviada para análise automatizada de segurança (ver seções 4.1 e 5). Das fotos aprovadas guardamos um registro técnico (quem enviou, pasta, endereço da foto e data), usado para permitir a publicação e limitar a quantidade de envios; as fotos recusadas não são guardadas
 - Registro técnico dos bloqueios do filtro automático de conteúdo: quando um texto ou uma foto seus são barrados, guardamos o usuário (quando há conta), o tipo de lugar (por exemplo, comentário ou foto de post), uma categoria geral do motivo e a data. **Não guardamos o texto, nem o termo barrado, nem a foto, nem o endereço IP nesse registro.** Ele serve para pausar temporariamente quem tenta muitas vezes e para acompanhar abusos
 
-### 2.6 Lista de Espera (Site)
+### 2.5 Lista de Espera (Site)
 Se você se inscrever na lista de espera no nosso site, guardamos o endereço de e-mail informado para avisá-lo do lançamento. Se você criar e depois excluir uma conta com o mesmo e-mail, esse registro da lista de espera também é apagado.
 
 ---
@@ -69,12 +63,11 @@ Se você se inscrever na lista de espera no nosso site, guardamos o endereço de
 
 Utilizamos os dados coletados para:
 
-- Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social, marketplace)
+- Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social)
 - Gerar análises nutricionais automatizadas a partir de fotos de refeições, utilizando serviços de inteligência artificial (ver seção 5)
 - Gerar treinos personalizados através de inteligência artificial
 - Calcular métricas de saúde e desempenho, como o Dashboard de Evolução, Score de Prontidão para Treino e Insights personalizados
-- Processar pagamentos de assinaturas e repasses a professores
-- Permitir que professores autorizados (mediante assinatura ativa) vejam quando um aluno está treinando no momento e acompanhem, em tempo real, a localização e as métricas (distância, ritmo, tempo e frequência cardíaca quando disponível) de uma atividade com GPS enquanto ela estiver em andamento
+- Processar pagamentos de assinaturas
 - Viabilizar a rede social do aplicativo (feed, seguir, curtir, comentar)
 - Melhorar e manter a segurança do aplicativo
 - Verificar automaticamente textos e fotos antes de publicar, para reduzir conteúdo impróprio na rede social (ver seção 5)
@@ -85,29 +78,22 @@ Utilizamos os dados coletados para:
 
 ## 4. Compartilhamento de Dados
 
-### 4.1 Com Professores
-Se você contratar um professor através do marketplace do Tryv, dois tipos de informação passam a ficar visíveis para esse professor, exclusivamente enquanto sua assinatura estiver ativa:
-
-- Se você está com uma atividade (corrida ou pedalada com GPS) em andamento neste exato momento;
-- Enquanto essa atividade estiver em andamento, sua localização, distância percorrida, ritmo, tempo decorrido e frequência cardíaca (quando disponível).
-
-Essa visibilidade é limitada à atividade acontecendo ao vivo. O professor **não** tem acesso ao seu histórico de treinos, refeições, peso ou outros dados além do que está descrito acima.
-
-### 4.2 Com Prestadores de Serviço (Subprocessadores)
+### 4.1 Com Prestadores de Serviço (Subprocessadores)
 Utilizamos os seguintes serviços de terceiros para operar o Tryv:
 
 | Serviço | Finalidade |
 |---|---|
 | **Anthropic (Claude API)** | Análise de fotos de refeições, geração de treinos personalizados, geração de insights e análise automatizada de segurança das fotos enviadas para posts, antes da publicação |
 | **Amazon Web Services (S3)** | Armazenamento de mídias (fotos de refeições, posts, perfis) |
-| **Stripe / Stripe Connect** | Processamento de pagamentos e repasses a professores |
+| **Apple (App Store)** | Processamento do pagamento e da assinatura (compra dentro do aplicativo) |
+| **RevenueCat** | Validação e status da compra da assinatura: recebe o identificador do seu usuário no Tryv e dados da compra |
 | **OpenAI** | Geração do avatar estilizado a partir de uma selfie enviada por você. A selfie é processada em memória e enviada à OpenAI; não é guardada por nós (guardamos apenas o avatar gerado) |
 | **Resend** | Envio do e-mail de recuperação de senha (o e-mail contém seu nome e o código de verificação) |
 | **Apple (HealthKit)** | Leitura de dados de saúde, mediante sua autorização |
 
 Esses serviços processam dados em nosso nome, sob suas próprias políticas de privacidade e segurança.
 
-### 4.3 Por Obrigação Legal
+### 4.2 Por Obrigação Legal
 Poderemos divulgar dados se exigido por lei, ordem judicial ou para proteger direitos, segurança ou propriedade do Tryv ou de terceiros.
 
 ---
@@ -124,7 +110,7 @@ Os dados enviados para esse processamento incluem as imagens de refeições (qua
 
 **Fotos de posts.** Quando você envia uma foto para um post, o Tryv reduz o tamanho da foto, grava uma cópia em formato JPEG sem os metadados do arquivo original e envia essa cópia à Anthropic para uma análise automatizada de segurança (por exemplo, nudez, violência explícita, autolesão, símbolos de ódio, drogas e menores em contexto sexual). A decisão de aprovar ou recusar é automática. Se a foto for aprovada, ela é gravada no nosso armazenamento e pode ser publicada; se for recusada, não é gravada e você é avisado para escolher outra. Se a análise estiver indisponível no momento, a foto não é publicada. [CONFIRMAR COM ADVOGADO: como a Anthropic trata as imagens recebidas (retenção, uso para treinamento de modelos, localização dos servidores), a base legal e a transferência internacional desse envio]
 
-**Textos.** Os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios, bio e certificações de profissionais) são comparados, antes de publicar, com uma lista de termos mantida pelo Tryv, nos nossos próprios sistemas, sem enviar o texto a terceiros para essa verificação. Textos barrados não são gravados. A verificação é automática e pode errar; escreva para contato@tryv.com.br para pedir revisão. [CONFIRMAR COM ADVOGADO: direito de revisão de decisões automatizadas e prazo de resposta aos pedidos de revisão]
+**Textos.** Os textos que você escreve em lugares visíveis a outras pessoas (legendas de posts, comentários, nomes, nomes de clubes, títulos e descrições de desafios e bio) são comparados, antes de publicar, com uma lista de termos mantida pelo Tryv, nos nossos próprios sistemas, sem enviar o texto a terceiros para essa verificação. Textos barrados não são gravados. A verificação é automática e pode errar; escreva para contato@tryv.com.br para pedir revisão. [CONFIRMAR COM ADVOGADO: direito de revisão de decisões automatizadas e prazo de resposta aos pedidos de revisão]
 
 Para gerar o avatar estilizado a partir de uma selfie, o Tryv utiliza a API de imagens da OpenAI. A selfie é enviada à OpenAI somente para esse processamento; no nosso servidor ela fica apenas em memória e não é guardada por nós (guardamos somente o avatar gerado). Consulte a Política de Privacidade da OpenAI para mais informações sobre como esses dados são tratados por esse fornecedor.
 
@@ -151,16 +137,16 @@ Você pode excluir sua conta no próprio aplicativo, em **Perfil > Excluir conta
 - Seus dados — perfil, treinos, corridas e atividades, refeições, dados de saúde, posts, comentários, curtidas, seguidores, bloqueios e demais dados da conta — são apagados do nosso banco de dados na hora.
 - Suas imagens (foto de perfil, fotos de refeições, de posts e de desafios) são removidas do nosso armazenamento de mídia.
 - Os registros técnicos do filtro automático ligados à sua conta (bloqueios e fotos aprovadas) são apagados junto com a conta.
-- Assinaturas ativas (Pro e de professor) são canceladas na hora, sem reembolso do período já pago.
+- **Excluir a conta não cancela a assinatura da Apple.** Se você assina o Tryv Fit Pro, cancele em **Ajustes > Apple ID > Assinaturas** para não continuar sendo cobrado; o aplicativo não consegue cancelá-la por você.
 
 ### 7.2 O que pode permanecer
 - **Cópias de segurança:** as cópias de segurança do banco de dados podem permanecer por até 90 dias depois da exclusão, até serem substituídas pela rotação normal, e não são usadas para outro fim.
 - **Denúncias de moderação:** o registro de uma denúncia (motivo, estado da análise e datas) é mantido como registro de segurança, sem vínculo com a conta excluída: quem denunciou e o autor denunciado deixam de ser identificáveis, e o trecho do conteúdo do autor excluído que estava guardado na denúncia é descartado.
 - **Tentativas de cadastro barradas pelo filtro de nomes:** quando um nome é barrado no cadastro ainda não existe conta; o registro técnico (tipo de lugar, categoria geral e data) não tem o texto nem identifica uma pessoa e, por isso, não é apagado junto com nenhuma conta. [CONFIRMAR COM ADVOGADO: prazo de guarda desses registros]
-- **Pagamentos (Stripe):** o Stripe, como processador de pagamentos, mantém registros financeiros por obrigação própria. Ao excluir sua conta, apagamos o seu cadastro de cliente no Stripe quando possível.
+- **Pagamentos (Apple e RevenueCat):** a Apple, como processadora do pagamento, mantém os registros financeiros da compra por obrigação própria. Ao excluir sua conta, pedimos ao RevenueCat a exclusão do seu cadastro de assinante, em melhor esforço: se o pedido falhar, a exclusão da sua conta no Tryv não é bloqueada, e o RevenueCat pode manter o registro da compra sob a política dele. [CONFIRMAR COM ADVOGADO: prazo de retenção dos dados no RevenueCat e na Apple]
 
 ### 7.3 Pendências que impedem a exclusão
-Profissionais do marketplace precisam antes encerrar seus alunos e desafios ativos, e a conta de recebimentos (Stripe) não pode estar vinculada; o aplicativo informa o que estiver pendente, e você pode falar com o suporte em contato@tryv.com.br. O único administrador precisa transferir a administração antes de excluir a conta.
+O único administrador precisa transferir a administração antes de excluir a conta.
 
 ---
 

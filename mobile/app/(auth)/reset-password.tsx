@@ -37,11 +37,11 @@ export default function ResetPasswordScreen() {
   const handleSubmit = async () => {
     setError(null);
     if (!email) {
-      setError('E-mail nao informado. Volte e refaca a solicitacao.');
+      setError('E-mail não informado. Volte e refaça a solicitação.');
       return;
     }
     if (code.trim().length !== 6 || !/^\d{6}$/.test(code.trim())) {
-      setError('Informe o codigo de 6 digitos recebido por e-mail.');
+      setError('Informe o código de 6 dígitos recebido por e-mail.');
       return;
     }
     // Mesma regra de forca de senha do cadastro (ver (auth)/register.tsx).
@@ -50,7 +50,7 @@ export default function ResetPasswordScreen() {
       return;
     }
     if (password !== confirmPassword) {
-      setError('As senhas nao coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
     setLoading(true);
@@ -59,7 +59,7 @@ export default function ResetPasswordScreen() {
       setSuccess(true);
       setTimeout(() => router.replace('/(auth)/login'), 1500);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Codigo invalido ou expirado.'));
+      setError(getApiErrorMessage(err, 'Código inválido ou expirado.'));
     } finally {
       setLoading(false);
     }
@@ -74,8 +74,8 @@ export default function ResetPasswordScreen() {
             <Text style={styles.title}>Redefinir senha</Text>
             <Text style={styles.subtitle}>
               {email
-                ? `Digite o codigo enviado para ${email} e escolha sua nova senha.`
-                : 'Digite o codigo recebido por e-mail e escolha sua nova senha.'}
+                ? `Digite o código enviado para ${email} e escolha sua nova senha.`
+                : 'Digite o código recebido por e-mail e escolha sua nova senha.'}
             </Text>
           </View>
 
@@ -90,7 +90,7 @@ export default function ResetPasswordScreen() {
             <>
               <TextField2
                 variant="light"
-                label="Codigo de verificacao"
+                label="Código de verificação"
                 keyboardType="number-pad"
                 maxLength={6}
                 value={code}
@@ -120,7 +120,7 @@ export default function ResetPasswordScreen() {
 
               <View style={styles.footer}>
                 <Text style={styles.link} onPress={() => router.back()}>
-                  Nao recebi o codigo
+                  Não recebi o código
                 </Text>
               </View>
             </>

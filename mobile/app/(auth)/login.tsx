@@ -25,7 +25,7 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel entrar.');
+      setError(err instanceof Error ? err.message : 'Não foi possível entrar.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function LoginScreen() {
           </Link>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Ainda nao tem conta? </Text>
+            <Text style={styles.footerText}>Ainda não tem conta? </Text>
             <Link href="/(auth)/register" style={styles.link}>
               Criar conta
             </Link>

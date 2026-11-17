@@ -5,15 +5,15 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 interface BadgeProps {
   label: string;
-  /** primary = selo "PRO" (lavanda); secondary = selo "TEAM [Nome]" (neutro). */
+  /** primary = selo "PRO" (lavanda); secondary = neutro. */
   variant?: 'primary' | 'secondary';
   style?: StyleProp<ViewStyle>;
 }
 
 /**
- * Selo pequeno usado no perfil e em cards (ex: "PRO", "TEAM RAFAEL SILVA").
- * Mesmo padrao visual em todas as telas que usam badge (Marketplace, Rede
- * Social, Assinatura, Configuracoes).
+ * Selo pequeno usado no perfil e em cards (ex: "PRO").
+ * Mesmo padrao visual em todas as telas que usam badge (Rede Social,
+ * Assinatura, Configuracoes).
  *
  * Repintado pro tema claro "prism-glass" (colors3) — unico consumer hoje e
  * app/subscriptions/pro.tsx, ja migrado; por isso sem variant dark/light

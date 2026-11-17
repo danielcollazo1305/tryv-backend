@@ -25,24 +25,23 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 
 **Treino e atividades**
 - **Plano de treino semanal gerado por IA (Pro)**, treino livre (séries, peso e repetições) .
-- **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa, parciais por km e recordes pessoais **(Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
-- Importação de treinos pelo **Health Connect (Android)**. O Apple Health (iPhone) está **em breve**.
+- **Rastreamento por GPS** de corrida, pedalada e caminhada, com mapa e parciais por km, e **recordes pessoais (Pro)**; registro manual de natação, luta (com estilo), HIIT e outras.
+- Tela **Treinar** com o menu de modalidades (musculação, corrida/caminhada, luta e bike) e estatísticas por modalidade.
 - Live Activity no iOS para o treino livre em andamento (extensão de widget nativa).
 
 **Painel e saúde**
-- Progresso semanal e mensal, mapa de frequência de treinos, sequências, comparativos entre períodos e pontuação geral ("Overall").
-- Prontidão para treinar, insights diários por IA e comparativos entre períodos **(Pro)**; exportação de relatório em PDF.
+- Progresso semanal e mensal, mapa de frequência de treinos, sequências, pontuação geral ("Overall") e Vitalidade (indicador de prontidão na aba Treino).
+- **(Pro)**: resumo do período e comparativos (mês a mês e entre períodos) na tela inicial, card de prontidão da tela inicial, insight diário por IA, relatório de frequência cardíaca e exportação de relatório em PDF.
 
 **Equipamentos**
 - Cadastro de tênis (com busca em catálogo), bike, relógio e fita cardíaca; barra de vida útil do tênis, barra de manutenção da bike, equipamento padrão e aposentadoria de itens.
 
 **Comunidade e gamificação**
-- XP e níveis, **squads**, ranking individual e de squads, **mapa de território** por cidade e desafios com check-in.
+- XP e níveis, **squads**, ranking individual e de squads, **mapa de território** por cidade e desafios oficiais do Tryv Fit (por categoria) com check-in.
 - Feed social com posts, curtidas, comentários e seguidores.
 
-**Assinatura e professores**
-- Assinatura **Tryv Pro** via Stripe Checkout, ativada por webhook.
-- Cadastro de professores, onboarding de conta Stripe Connect (Express) e assinatura do professor com cobrança por *destination charge*. *(No app, este marketplace está desativado durante o pré-lançamento.)*
+**Assinatura**
+- Assinatura **Tryv Pro** comprada dentro do app (Apple IAP via RevenueCat). O servidor decide o acesso Pro pelo status e pela data de expiração da assinatura, registrados pelo webhook do RevenueCat; o app nunca afirma que o usuário é Pro. *(Implementada no código, mas ainda não compilada nem testada em iPhone com um produto real da App Store.)*
 
 **Landing page**
 - Página estática com lista de espera, política de privacidade e termos de uso.
@@ -53,11 +52,11 @@ Tudo o que está listado existe no código. O que é restrito a assinantes está
 
 | Camada | Ferramenta |
 |---|---|
-| Mobile | React Native 0.81 + Expo SDK 54, TypeScript, Expo Router, Axios, react-native-maps, react-native-svg, Health Connect |
+| Mobile | React Native 0.81 + Expo SDK 54, TypeScript, Expo Router, Axios, react-native-maps, react-native-svg |
 | Backend | Python 3.14, FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, JWT (python-jose) + bcrypt |
 | Banco de dados | PostgreSQL (psycopg2) |
 | Armazenamento | Amazon S3 (upload de imagens, via boto3) |
-| Pagamentos | Stripe (Checkout, webhooks e Connect) |
+| Pagamentos | Apple IAP via RevenueCat (compra no app e webhook; o servidor decide o acesso pela data de expiração) |
 | IA | Anthropic Claude (análise de refeições e geração de treino) e OpenAI (insights e avatar) |
 | E-mail | Resend |
 | Deploy | Railway (API; migrations rodam a cada deploy), EAS Build (app) e Vercel (landing page) |
@@ -74,10 +73,11 @@ tryv/
 │   │   ├── models/          tabelas (SQLAlchemy)
 │   │   ├── routers/         endpoints, um arquivo por domínio
 │   │   ├── schemas/         validação de entrada e saída (Pydantic)
-│   │   ├── services/        regras de negócio e integrações (IA, Stripe, S3, e-mail, XP)
+│   │   ├── services/        regras de negócio e integrações (IA, RevenueCat, S3, e-mail, XP)
 │   │   └── data/            dados estáticos (tabela TACO, coordenadas de municípios)
 │   ├── alembic/             migrations do banco
-│   ├── scripts/             scripts de apoio (dados de demonstração, comparação de modelos de IA)
+│   ├── tests/               testes do backend (unittest, contra um Postgres descartável)
+│   ├── scripts/             scripts de apoio (comparação de modelos de IA)
 │   ├── Procfile             comandos de release e de execução no Railway
 │   └── requirements.txt
 ├── mobile/                  app Expo / React Native
@@ -127,16 +127,15 @@ A documentação interativa (Swagger) fica em `http://localhost:8000/docs`.
 |---|---|
 | `DATABASE_URL` | conexão com o PostgreSQL |
 | `SECRET_KEY` | assinatura dos tokens JWT |
-| `APP_BASE_URL` | URL pública da API (retornos do Stripe Checkout) |
 | `ANTHROPIC_API_KEY` | análise de refeições e geração de treino |
 | `OPENAI_API_KEY` | insights e avatar por IA |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID` | assinaturas e webhooks |
+| `REVENUECAT_WEBHOOK_AUTH`, `REVENUECAT_PRO_ENTITLEMENT`, `REVENUECAT_API_SECRET` | RevenueCat: segredo compartilhado do webhook, nome do entitlement Pro e chave secreta da API REST (usada só para pedir a exclusão do assinante ao excluir uma conta; vazia = etapa pulada) |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, `AWS_S3_REGION` | upload de imagens no S3 |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | e-mail de recuperação de senha |
 
-Opcionais, com valor padrão no código: `APP_TIMEZONE`, `AVATAR_IMAGE_MODEL`, `AVATAR_GENERATION_LIMIT`, `AVATAR_LIMIT_WINDOW_DAYS`, `DEFAULT_SHOE_LIFESPAN_KM`, `DEFAULT_BIKE_MAINTENANCE_KM`.
+Todas as variáveis têm valor padrão no código. Além das acima, o código lê (opcionais): `APP_NAME`, `APP_TIMEZONE`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `LOGIN_MAX_FAILED_ATTEMPTS`, `LOGIN_WINDOW_MINUTES`, `LOGIN_MAX_FAILED_ATTEMPTS_PER_IP`, `IMAGE_MODERATION_MODEL`, `IMAGE_MODERATION_SIMULATED`, `IMAGE_MODERATION_DAILY_CAP`, `IMAGE_MODERATION_ALERT_RATIO`, `POST_MEDIA_REQUIRES_APPROVAL`, `EXPLORE_FEED_ENABLED`, `AVATAR_IMAGE_MODEL`, `AVATAR_GENERATION_LIMIT`, `AVATAR_LIMIT_WINDOW_DAYS`, `AVATAR_DAILY_ATTEMPT_LIMIT`, `PRIVATE_IMAGE_URL_EXPIRES_SECONDS`, `DEFAULT_SHOE_LIFESPAN_KM` e `DEFAULT_BIKE_MAINTENANCE_KM`.
 
-Cada integração (IA, Stripe, S3, e-mail) só funciona com a sua respectiva chave.
+Cada integração (IA, RevenueCat, S3, e-mail) só funciona com a sua respectiva chave.
 
 ---
 
@@ -148,12 +147,12 @@ npm install
 
 # aponte o app para a sua API (use o IP da máquina na rede Wi-Fi, não "localhost")
 cp .env.example .env.local        # Windows: copy .env.example .env.local
-# edite .env.local e defina EXPO_PUBLIC_API_URL
+# edite .env.local e defina EXPO_PUBLIC_API_URL e, para a assinatura, EXPO_PUBLIC_REVENUECAT_IOS_KEY (chave pública do SDK; sem ela a tela de assinatura mostra "indisponível")
 
 npx expo start
 ```
 
-Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como o Health Connect e a extensão de widget do iOS, exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
+Depois é só abrir pelo Expo Go (a maior parte do app roda assim) ou por um emulador. Recursos nativos, como a extensão de widget do iOS e a compra no app (RevenueCat), exigem um *development build* (`eas build --profile development`), pois não funcionam no Expo Go.
 
 ---
 
@@ -179,16 +178,14 @@ _Em breve._
 Projeto em desenvolvimento ativo, em fase de pré-lançamento.
 
 **Funcionando (implementado no código):**
-- API com mais de 130 endpoints e 29 migrations, em produção no Railway.
-- Autenticação, nutrição, treinos, atividades por GPS, painel, equipamentos, XP, squads, ranking, desafios, feed social e assinatura Pro via Stripe.
+- API com mais de 130 endpoints e 42 migrations, configurada para deploy no Railway (as migrations rodam antes de cada deploy, pelo `release` do `backend/Procfile`).
+- Autenticação, nutrição, treinos, atividades por GPS, painel, equipamentos, XP, squads, ranking, desafios, feed social e assinatura Pro por compra no app (Apple IAP via RevenueCat; implementada, ainda não testada em iPhone).
 - Integração com IA (Claude e OpenAI) e armazenamento de imagens no S3.
 
 **Em desenvolvimento ou com limitações:**
-- **Apple Health (iPhone): em breve.** A integração está desativada enquanto o build iOS é corrigido (a biblioteca causava falha no build e foi substituída por um módulo vazio). O **Health Connect (Android) já está disponível**.
-- **Marketplace de professores**: o backend está pronto (cadastro, onboarding no Stripe Connect e assinatura), mas a área está desativada no app até o lançamento.
+- **Apple Health (iPhone)**: a integração (`@appeeky/expo-healthkit`, versão fixa 0.4.1, somente leitura) está no código, mas **ainda não foi compilada nem testada em iPhone**.
 - **Catálogo de tênis**: a tabela e a busca existem, mas ainda sem dados carregados; por enquanto o cadastro usa o modelo digitado à mão.
-- **Tela "Treinar"** (menu de modalidades): o endpoint de estatísticas já existe no backend (`GET /dashboard/modalities`); a tela no app ainda não foi construída.
-- **Testes automatizados**: o repositório ainda não tem suíte de testes versionada nem integração contínua.
+- **Testes automatizados**: o backend tem 65 testes (`backend/tests`: assinatura e webhook do RevenueCat, exclusão de conta, selos e desafios oficiais), que só rodam contra um Postgres descartável em localhost (variável `TRYV_TEST_DATABASE_URL`, ver `backend/README.md`). O app mobile não tem testes (só a checagem de tipos com `tsc`) e não há integração contínua.
 - **Documentos legais**: a política de privacidade e os termos de uso são rascunhos, com campos a preencher e sem revisão jurídica.
 
 ---

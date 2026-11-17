@@ -63,7 +63,7 @@ export default function RegisterCaloriesScreen() {
     setError(null);
     const value = Number(calorieGoal.replace(',', '.'));
     if (!calorieGoal.trim() || Number.isNaN(value) || value <= 0) {
-      setError('Informe uma meta calorica valida.');
+      setError('Informe uma meta calórica válida.');
       return;
     }
 
@@ -95,7 +95,7 @@ export default function RegisterCaloriesScreen() {
         router.dismissTo('/(auth)/register');
         return;
       }
-      setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
+      setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Não foi possível concluir o cadastro, tente novamente.'));
       setLoading(false);
     }
   };
@@ -105,21 +105,21 @@ export default function RegisterCaloriesScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv Fit</Text>
-          <Text style={styles.title}>Sua meta calorica diaria</Text>
+          <Text style={styles.title}>Sua meta calórica diária</Text>
           <Text style={styles.subtitle}>
             {suggestion.isGeneric
-              ? 'Nao temos dados suficientes pra calcular com precisao, entao sugerimos um valor generico'
-              : 'Calculamos uma sugestao com base no seu corpo, rotina e objetivo'}
+              ? 'Não temos dados suficientes pra calcular com precisão, então sugerimos um valor genérico'
+              : 'Calculamos uma sugestão com base no seu corpo, rotina e objetivo'}
           </Text>
 
           <View style={styles.progressWrap}>
-            <ProgressSteps2 variant="light" current={6} total={getOnboardingTotalSteps(draft)} label="Meta calorica" />
+            <ProgressSteps2 variant="light" current={6} total={getOnboardingTotalSteps(draft)} label="Meta calórica" />
           </View>
         </View>
 
         <TextField2
           variant="light"
-          label="Meta calorica diaria (kcal)"
+          label="Meta calórica diária (kcal)"
           keyboardType="number-pad"
           value={calorieGoal}
           onChangeText={setCalorieGoal}
@@ -127,8 +127,8 @@ export default function RegisterCaloriesScreen() {
         />
         <Text style={styles.hint}>
           {suggestion.isGeneric
-            ? 'Estimativa generica de 2000 kcal, ja que faltou algum dado do seu corpo ou voce preferiu nao informar o sexo biologico. Ajuste como preferir -- voce pode mudar isso a qualquer momento em Configuracoes.'
-            : 'Isso e so um ponto de partida -- edite como quiser. Voce pode mudar essa meta depois em Configuracoes.'}
+            ? 'Estimativa genérica de 2000 kcal, já que faltou algum dado do seu corpo ou você preferiu não informar o sexo biológico. Ajuste como preferir -- você pode mudar isso a qualquer momento em Configurações.'
+            : 'Isso é só um ponto de partida -- edite como quiser. Você pode mudar essa meta depois em Configurações.'}
         </Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}

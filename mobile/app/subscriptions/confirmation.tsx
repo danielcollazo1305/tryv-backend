@@ -15,20 +15,20 @@ const FEATURE_CHIPS: { icon: React.ComponentProps<typeof Ionicons>['name']; labe
   { icon: 'speedometer', label: 'Prontidao' },
   { icon: 'bar-chart', label: 'Comparacoes' },
   { icon: 'ribbon', label: 'PRs' },
-  { icon: 'heart', label: 'Relatorio de FC' },
-  { icon: 'document-text', label: 'Exportacao PDF' },
+  { icon: 'heart', label: 'Relatório de FC' },
+  { icon: 'document-text', label: 'Exportação PDF' },
 ];
 
 /**
  * So mostra o visual de sucesso quando o servidor confirmou o Pro (isPro === true no AuthContext;
- * a verificacao em checkout.tsx so navega pra ca nesse caso). Quem NAO e Pro (isPro === false)
- * e devolvido pro checkout; isPro null (ainda carregando/falha de rede) nao mostra nada.
+ * pro.tsx so navega pra ca depois de confirmar a compra com o servidor). Quem NAO e Pro (isPro === false)
+ * e devolvido pra tela de assinatura (/subscriptions/pro); isPro null (ainda carregando/falha de rede) nao mostra nada.
  */
 export default function SubscriptionConfirmationScreen() {
   const { isPro } = useAuth();
 
   useEffect(() => {
-    if (isPro === false) router.replace('/subscriptions/checkout');
+    if (isPro === false) router.replace('/subscriptions/pro');
   }, [isPro]);
 
   if (isPro !== true) return <ScreenBackground2 style={styles.flex}><View /></ScreenBackground2>;
@@ -47,8 +47,8 @@ export default function SubscriptionConfirmationScreen() {
         </View>
 
         <View style={styles.texts}>
-          <Text style={styles.title}>Parabens! Voce agora e Tryv Fit Pro</Text>
-          <Text style={styles.subtitle}>Todos os recursos avancados ja estao liberados na sua conta.</Text>
+          <Text style={styles.title}>Parabéns! Você agora é Tryv Fit Pro</Text>
+          <Text style={styles.subtitle}>Todos os recursos avançados já estão liberados na sua conta.</Text>
         </View>
 
         <LiquiglassCard style={styles.chipsCard}>

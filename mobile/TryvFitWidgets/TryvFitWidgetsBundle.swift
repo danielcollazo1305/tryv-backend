@@ -5,5 +5,6 @@ import SwiftUI
 struct TryvFitWidgetsBundle: WidgetBundle {
     var body: some Widget {
         FreeWorkoutLiveActivity()
+        TryvFitSummaryWidget()
     }
 }

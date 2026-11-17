@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 
 import { EditorialCard } from '@/components/EditorialCardV2';
+import { useAuth } from '@/context/AuthContext';
 import { isWorkoutPlanExpired, listWorkoutPlans } from '@/services/workouts';
 
 /**
@@ -14,6 +15,7 @@ import { isWorkoutPlanExpired, listWorkoutPlans } from '@/services/workouts';
  * card so ajusta o convite.
  */
 export function AiWorkoutCard() {
+  const { isPro } = useAuth();
   const [hasPlan, setHasPlan] = useState<boolean | null>(null);
 
   useFocusEffect(
@@ -46,6 +48,7 @@ export function AiWorkoutCard() {
       accessibilityLabel="Pessoa treinando com halteres em uma academia"
       onPress={() => router.push('/(tabs)/workout')}
       ctaLabel={hasPlan ? 'Ver treino' : 'Saiba mais'}
+      proBadge={isPro === false}
     />
   );
 }

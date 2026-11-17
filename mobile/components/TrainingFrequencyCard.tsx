@@ -104,7 +104,7 @@ export function TrainingFrequencyCard({ userId }: { userId?: string } = {}) {
   } else if (days.length === 0) {
     content = (
       <Text style={styles.emptyText}>
-        {userId ? 'Ainda sem atividades registradas.' : 'Sem dados neste mes ainda.'}
+        {userId ? 'Ainda sem atividades registradas.' : 'Sem dados neste mês ainda.'}
       </Text>
     );
   } else {

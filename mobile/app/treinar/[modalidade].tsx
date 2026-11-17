@@ -10,7 +10,6 @@ import { MODALITY_META } from '@/constants/treinarModalities';
 import { useAuth } from '@/context/AuthContext';
 import { FIGHT_STYLE_OPTIONS } from '@/services/activities';
 import { ModalityId } from '@/services/modalities';
-import { getUserBadges } from '@/services/user';
 import { isWorkoutPlanExpired, listWorkoutPlans } from '@/services/workouts';
 
 interface Subtopic {
@@ -49,25 +48,22 @@ function ModalityMenu({ id }: { id: Exclude<ModalityId, 'bike'> }) {
   const insets = useSafeAreaInsets();
   const meta = MODALITY_META[id];
 
-  // Halter: o que existe depende do plano de IA ativo e do personal vinculado.
+  // Halter: o que existe depende do plano de IA ativo.
   const [hasAiPlan, setHasAiPlan] = useState(false);
-  const [hasTrainerLink, setHasTrainerLink] = useState(false);
   const [halterLoading, setHalterLoading] = useState(id === 'halter');
 
   useFocusEffect(
     useCallback(() => {
       if (id !== 'halter' || !user) return;
       let active = true;
-      Promise.allSettled([listWorkoutPlans(), getUserBadges(user.id)]).then(([plans, badges]) => {
-        if (!active) return;
-        if (plans.status === 'fulfilled') {
-          setHasAiPlan(plans.value.some((p) => !p.trainer_id && !isWorkoutPlanExpired(p)));
-        }
-        if (badges.status === 'fulfilled') {
-          setHasTrainerLink(badges.value.teams.some((t) => t.professional_type === 'personal_trainer'));
-        }
-        setHalterLoading(false);
-      });
+      listWorkoutPlans()
+        .then((plans) => {
+          if (active) setHasAiPlan(plans.some((p) => !p.trainer_id && !isWorkoutPlanExpired(p)));
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setHalterLoading(false);
+        });
       return () => {
         active = false;
       };
@@ -88,15 +84,12 @@ function ModalityMenu({ id }: { id: Exclude<ModalityId, 'bike'> }) {
         href: { pathname: '/activity/new', params: { type: 'fight', fight_style: o.value } } as Href,
       }));
     }
-    // halter: as rotas reais ja existentes (o plano do dia e o do personal ficam na aba Treino).
+    // halter: as rotas reais ja existentes (o plano do dia fica na aba Treino).
     const list: Subtopic[] = [];
     if (hasAiPlan) list.push({ key: 'dia', label: 'Treino do dia', hint: 'Seu plano de IA', href: '/(tabs)/workout' });
     list.push(FREE_WORKOUT);
-    if (hasTrainerLink) {
-      list.push({ key: 'personal', label: 'Plano do Personal', hint: 'Treino do seu personal', href: '/(tabs)/workout' });
-    }
     return list;
-  }, [id, hasAiPlan, hasTrainerLink]);
+  }, [id, hasAiPlan]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   useEffect(() => {

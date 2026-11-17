@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 
 import { GlassCard } from '@/components/GlassCard';
+import { MealPhoto } from '@/components/MealPhoto';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { Meal, formatMealDateTime, listMeals } from '@/services/meals';
@@ -41,7 +42,7 @@ export default function MealPhotosScreen() {
     try {
       setMeals(await listMeals());
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar o historico de fotos.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar o histórico de fotos.'));
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export default function MealPhotosScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Ionicons name="arrow-back" size={22} color={colors3.onSurface} />
         </Pressable>
-        <Text style={styles.headerTitle}>Historico de fotos</Text>
+        <Text style={styles.headerTitle}>Histórico de fotos</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -72,7 +73,7 @@ export default function MealPhotosScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <GlassCard variant="card" style={styles.photoCard} padding={0}>
-            <Image source={{ uri: item.photo_url! }} style={styles.photo} />
+            <MealPhoto uri={item.photo_url!} borderRadius={0} />
             <View style={styles.info}>
               <Text style={styles.description} numberOfLines={1}>
                 {item.description ?? 'Refeicao'}
@@ -90,7 +91,7 @@ export default function MealPhotosScreen() {
             <View style={styles.empty}>
               <Ionicons name="images-outline" size={32} color={colors3.onSurfaceVariant} />
               <Text style={styles.emptyText}>
-                {error ?? 'Nenhuma refeicao com foto registrada ainda.'}
+                {error ?? 'Nenhuma refeição com foto registrada ainda.'}
               </Text>
             </View>
           ) : null
@@ -115,7 +116,6 @@ const styles = StyleSheet.create({
   listContent: { padding: spacing3.containerMargin, paddingTop: 0, paddingBottom: spacing3.xl },
 
   photoCard: { overflow: 'hidden' },
-  photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors3.surfaceContainerHigh },
   info: { padding: spacing3.md, gap: spacing3.xs },
   description: { ...typography3.bodyMd, fontWeight: '600', fontSize: 16 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },

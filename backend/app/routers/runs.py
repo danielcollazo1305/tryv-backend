@@ -348,7 +348,7 @@ def get_run_insight(
     }
 
     try:
-        return generate_activity_insight(activity_data)
+        return generate_activity_insight(activity_data, user_id=current_user.id)
     except (anthropic.APIError, openai.APIError, ValueError) as e:
         logger.error("Falha ao gerar insight de corrida (run_id=%s): %s", run.id, e)
         raise HTTPException(

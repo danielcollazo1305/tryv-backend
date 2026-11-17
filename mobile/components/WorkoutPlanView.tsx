@@ -10,13 +10,13 @@ import { colors2, colors3, radius2, radius3, spacing2, spacing3, typography2, ty
 
 interface WorkoutPlanViewProps {
   planData: WorkoutPlanData;
-  /** So a secao de IA passa isso — "gerar novo plano" nao faz sentido pra um plano montado pelo Personal Trainer. */
+  /** So a secao de IA passa isso — e o plano de IA que pode ser gerado de novo. */
   onGenerateNew?: () => void;
   /**
    * "Concluir esse treino" leva pra tela de compartilhamento — nao faz
    * sentido pra um plano ainda nao salvo (etapa de revisao do formulario
    * de geracao). Default true (comportamento que ja existia) pros usos
-   * normais em AiWorkoutSection/TrainerWorkoutSection.
+   * normais em AiWorkoutSection.
    */
   showCompleteAction?: boolean;
   /**
@@ -31,7 +31,7 @@ interface WorkoutPlanViewProps {
   /**
    * 'dark' (padrao) = colors2/Button2, usado hoje pela etapa de revisao do
    * gerador de treino (workout-plan/generate.tsx, ainda escuro). 'light' =
-   * colors3/Button3/GlassCard, so via AiWorkoutSection/TrainerWorkoutSection
+   * colors3/Button3/GlassCard, so via AiWorkoutSection
    * (aba Treino, ja migrada) — mesmo padrao de variant ja usado em
    * WorkoutDayCard/TextField2/ProfileBadges2 nesta sessao.
    */
@@ -41,7 +41,7 @@ interface WorkoutPlanViewProps {
 /**
  * Renderizacao de um plano de treino (dias + exercicios do dia
  * selecionado) — extraida do antigo (tabs)/workout.tsx pra ser
- * reaproveitada pelo plano de IA, pelo plano do Personal Trainer, e agora
+ * reaproveitada pelo plano de IA e agora
  * tambem pela etapa de revisao do formulario de geracao (workout-plan/
  * generate.tsx), que so tem o WorkoutPlanData cru (plano ainda nao salvo,
  * sem id) — por isso recebe planData direto em vez do WorkoutPlan
@@ -102,8 +102,8 @@ export function WorkoutPlanView({
         });
       } catch {
         Alert.alert(
-          'Nao foi possivel salvar o registro',
-          'O treino vai continuar pro compartilhamento, mas o peso/reps registrados nesta sessao nao foram salvos. Tente novamente mais tarde.'
+          'Não foi possível salvar o registro',
+          'O treino vai continuar pro compartilhamento, mas o peso/reps registrados nesta sessão não foram salvos. Tente novamente mais tarde.'
         );
       } finally {
         setSaving(false);

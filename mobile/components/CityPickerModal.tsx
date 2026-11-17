@@ -48,7 +48,7 @@ export function CityPickerModal({ visible, onClose, onSelect }: CityPickerModalP
     setStatesError(null);
     listIbgeStates()
       .then(setStates)
-      .catch(() => setStatesError('Nao foi possivel carregar os estados. Tente novamente.'))
+      .catch(() => setStatesError('Não foi possível carregar os estados. Tente novamente.'))
       .finally(() => setStatesLoading(false));
   }, [visible, states.length, statesLoading]);
 
@@ -60,7 +60,7 @@ export function CityPickerModal({ visible, onClose, onSelect }: CityPickerModalP
     setCitiesError(null);
     listIbgeCitiesByState(state.sigla)
       .then(setCities)
-      .catch(() => setCitiesError('Nao foi possivel carregar os municipios. Tente novamente.'))
+      .catch(() => setCitiesError('Não foi possível carregar os municípios. Tente novamente.'))
       .finally(() => setCitiesLoading(false));
   };
 

@@ -21,6 +21,7 @@ import {
 } from '@/services/health';
 import { syncRecentHeartRate } from '@/services/heartRateSync';
 import { colors2, colors3, metricColors, radius2, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { formatSleepDuration } from '@/utils/sleepFormat';
 
 // Definicao real agora em services/health.ts (um service nao devia
 // importar de um componente, e ensureHealthAuthorized la precisa dessa
@@ -152,7 +153,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
             <Text style={s.connectTitle}>Conectar {HEALTH_SOURCE_LABEL}</Text>
             <Text style={s.connectSubtitle}>
               {Platform.OS === 'ios'
-                ? 'Veja passos, distancia, frequencia cardiaca, calorias e sono aqui.'
+                ? 'Veja passos, distância, frequência cardíaca, calorias e sono aqui.'
                 : 'Veja seus passos e calorias ativas aqui.'}
             </Text>
           </View>
@@ -182,7 +183,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
             <Ionicons name="refresh" size={20} color={accentColor} />
           </View>
           <View style={s.connectInfo}>
-            <Text style={s.connectTitle}>Nao foi possivel carregar o {HEALTH_SOURCE_LABEL}</Text>
+            <Text style={s.connectTitle}>Não foi possível carregar o {HEALTH_SOURCE_LABEL}</Text>
             <Text style={s.connectSubtitle}>Toque para tentar novamente.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={mutedColor} />
@@ -236,7 +237,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
         <HealthMetricRow
           icon="heart"
           color={metricColors.heartRate}
-          label="Frequencia cardiaca"
+          label="Frequência cardíaca"
           subLabel={
             summary.heartRate.mostRecentAt ? formatHeartRateDate(summary.heartRate.mostRecentAt) : undefined
           }
@@ -244,7 +245,7 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
           variant={variant}
         >
           <Pressable onPress={() => router.push('/heart-rate-report')} style={s.reportLink} hitSlop={8}>
-            <Text style={s.reportLinkText}>Ver relatorio completo de FC</Text>
+            <Text style={s.reportLinkText}>Ver relatório completo de FC</Text>
             <Ionicons name="chevron-forward" size={14} color={accentColor} />
           </Pressable>
         </HealthMetricRow>
@@ -255,8 +256,8 @@ export function HealthSummaryCard({ variant = 'dark' }: { variant?: 'dark' | 'li
           icon="moon"
           color={metricColors.sleep}
           label="Sono"
-          subLabel="ultima noite"
-          value={summary.sleepLastNightHours != null ? `${summary.sleepLastNightHours.toFixed(1)}h` : '--'}
+          subLabel="última noite"
+          value={summary.sleepLastNightHours != null ? formatSleepDuration(summary.sleepLastNightHours) : '--'}
           variant={variant}
         />
       )}

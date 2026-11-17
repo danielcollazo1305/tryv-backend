@@ -89,7 +89,7 @@ export default function RegisterEstimateScreen() {
         router.dismissTo('/(auth)/register');
         return;
       }
-      setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Nao foi possivel concluir o cadastro, tente novamente.'));
+      setError(err instanceof Error && err.message ? err.message : getApiErrorMessage(err, 'Não foi possível concluir o cadastro, tente novamente.'));
       setLoading(false);
     }
   };
@@ -100,7 +100,7 @@ export default function RegisterEstimateScreen() {
         <View style={styles.header}>
           <Text style={styles.logo}>Tryv Fit</Text>
           <Text style={styles.title}>Estimativa de tempo</Text>
-          <Text style={styles.subtitle}>Uma projecao pra sua meta, com base no seu ritmo atual</Text>
+          <Text style={styles.subtitle}>Uma projeção pra sua meta, com base no seu ritmo atual</Text>
 
           <View style={styles.progressWrap}>
             <ProgressSteps2 variant="light" current={7} total={getOnboardingTotalSteps(draft)} label="Estimativa" />
@@ -120,12 +120,12 @@ export default function RegisterEstimateScreen() {
             </>
           ) : (
             <Text style={styles.resultDetail}>
-              Nao temos dados suficientes pra estimar um prazo confiavel agora. Isso nao afeta o resto do seu
-              cadastro -- voce pode acompanhar seu progresso real depois pelo app.
+              Não temos dados suficientes pra estimar um prazo confiável agora. Isso não afeta o resto do seu
+              cadastro -- você pode acompanhar seu progresso real depois pelo app.
             </Text>
           )}
           <Text style={styles.disclaimer}>
-            Isso e uma estimativa baseada em calculo calorico, nao uma garantia. Ritmo real varia de pessoa pra
+            Isso é uma estimativa baseada em cálculo calórico, não uma garantia. Ritmo real varia de pessoa pra
             pessoa e pode mudar conforme seu progresso.
           </Text>
         </View>

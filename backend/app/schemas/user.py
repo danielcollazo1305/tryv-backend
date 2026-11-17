@@ -53,6 +53,8 @@ class UserOut(BaseModel):
     avatar_url: str | None = None
     # Miniatura 256x256 WebP (null em avatares antigos: use a imagem grande).
     avatar_thumb_url: str | None = None
+    # 'photo' | 'avatar': qual imagem esta em avatar_url (so o dono recebe este schema).
+    avatar_source: str | None = None
     # Perfil (E7), so leitura aqui: gravados por PATCH /users/me/profile. null = nao definido.
     username: str | None = None
     bio: str | None = None
@@ -93,6 +95,29 @@ class AvatarOut(BaseModel):
     avatar_url: str
     # Aditivo: null se a miniatura nao pode ser gerada.
     avatar_thumb_url: str | None = None
+    # Aditivo: 'photo' | 'avatar' (qual das duas imagens esta sendo exibida).
+    avatar_source: str | None = None
+
+
+class AvatarSourceIn(BaseModel):
+    source: Literal["photo", "avatar"]
+
+
+class AvatarOptionsOut(BaseModel):
+    """So para o DONO (GET /users/me/avatar-options). As URLs de pre-visualizacao sao ASSINADAS e expiram; nunca saem chaves do S3."""
+    avatar_source: str | None = None
+    has_photo: bool = False
+    has_avatar: bool = False
+    photo_preview_url: str | None = None
+    avatar_preview_url: str | None = None
+    generations_limit: int
+    generations_remaining: int
+    window_days: int
+    # False para menores de 18 e quem nao informou a data de nascimento (envio e geracao desabilitados ate revisao juridica).
+    can_manage: bool
+    restriction_message: str | None = None
+    consent_version: str
+    consented: bool
 
 
 class PublicProfileOut(BaseModel):

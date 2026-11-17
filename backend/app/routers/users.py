@@ -3,14 +3,15 @@ import math
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core import timezone as tz
 from app.core.age_policy import require_valid_birth_date
-from app.core.avatar_visibility import avatar_fields, can_show_stats
+from app.core.avatar_visibility import avatar_fields, can_show_stats, is_adult
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.login_throttle import client_ip, login_throttle
@@ -34,29 +35,29 @@ from app.core.profile_rules import (
     username_filter_texts,
 )
 from app.core.rate_limit import SlidingWindowLimiter, enforce
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, has_active_pro_subscription
 from app.core.security import verify_password
+from app.models.avatar_attempt import AvatarAttempt
 from app.models.avatar_generation import AvatarGeneration
 from app.models.social import Follow
-from app.models.subscription import Subscription
-from app.models.trainer import Trainer
 from app.models.user import User
 from app.routers.dashboard import _compute_training_streaks
-from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES
+from app.routers.media import MAX_IMAGE_FILE_SIZE_BYTES, _moderate_post_image
 from app.routers.overall import compute_overall
-from app.schemas.subscription import TeamBadge, UserBadgesOut
+from app.schemas.subscription import UserBadgesOut
 from app.services.account_deletion import (
     CONFIRMATION_WORD,
     AccountAlreadyGone,
     AccountDeletionBlocked,
-    AccountDeletionStripeError,
     delete_user_account,
 )
 from app.services.content_filter_guard import enforce_text_filter, ensure_max_length
 from app.services.moderation import has_blocked, is_blocked_between, not_blocked
 from app.schemas.user import (
     AccountDeleteRequest,
+    AvatarOptionsOut,
     AvatarOut,
+    AvatarSourceIn,
     ContactsMatchRequest,
     MatchedContact,
     ProfileUpdate,
@@ -66,8 +67,9 @@ from app.schemas.user import (
     UserSearchResult,
     UserUpdate,
 )
-from app.services.avatar_generation import AvatarGenerationError, AvatarServiceUnavailableError, generate_ps1_avatar
-from app.services.storage import StorageError, delete_object_by_url, upload_avatar_images
+from app.services import avatar_profile
+from app.services.avatar_generation import AvatarGenerationError, AvatarServiceUnavailableError, generate_avatar
+from app.services.storage import StorageError, delete_object_by_url, make_profile_photo_copy, upload_private_profile_images
 
 router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -211,35 +213,82 @@ def username_available(
 
 
 def remove_user_avatar(db: Session, user: User) -> int:
-    """Zera avatar_url/avatar_thumb_url e apaga os objetos antigos (usado pelo usuario e pelo admin). Devolve
-    quantos objetos que EXISTIAM (URL preenchida) nao puderam ser apagados do S3 (0 = tudo certo); o banco fica
-    zerado de qualquer forma."""
+    """Remove foto, avatar e a escolha: zera as colunas e apaga TODOS os objetos (copia publica exibida e chaves privadas), usado pela pessoa
+    e pelo admin. Mantem o registro de consentimento. Devolve quantos objetos que EXISTIAM nao puderam ser apagados do S3 (0 = tudo certo); o
+    banco fica zerado de qualquer forma."""
     old_urls = (user.avatar_url, user.avatar_thumb_url)
+    old_keys = avatar_profile.stored_keys(user)
     user.avatar_url = None
     user.avatar_thumb_url = None
+    user.profile_photo_key = None
+    user.profile_photo_thumb_key = None
+    user.generated_avatar_key = None
+    user.generated_avatar_thumb_key = None
+    user.avatar_source = None
     db.commit()
-    return sum(1 for old in old_urls if old and not delete_object_by_url(old))
+    failed = sum(1 for old in old_urls if old and not delete_object_by_url(old))
+    failed += sum(1 for key in old_keys if not avatar_profile.delete_stored_key(key))
+    return failed
+
+
+def _require_adult_for_avatar(user: User) -> None:
+    if not is_adult(user.date_of_birth):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=avatar_profile.MINOR_RESTRICTION_MESSAGE)
+
+
+@router.get("/me/avatar-options", response_model=AvatarOptionsOut)
+def get_my_avatar_options(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """So para o dono: as duas imagens guardadas (URLs ASSINADAS com prazo), qual esta em uso, cota restante e consentimento. Nunca devolve
+    chaves do S3. Menores de 18 e quem nao informou a data de nascimento: can_manage=False (envio e geracao desabilitados)."""
+    limit = max(1, settings.avatar_generation_limit)
+    used = len(avatar_profile.generations_in_window(db, current_user.id))
+    adult = is_adult(current_user.date_of_birth)
+    photo_key = current_user.profile_photo_thumb_key or current_user.profile_photo_key
+    avatar_key = current_user.generated_avatar_thumb_key or current_user.generated_avatar_key
+    return AvatarOptionsOut(
+        avatar_source=current_user.avatar_source,
+        has_photo=bool(current_user.profile_photo_key),
+        has_avatar=bool(current_user.generated_avatar_key),
+        photo_preview_url=avatar_profile.preview_url(photo_key),
+        avatar_preview_url=avatar_profile.preview_url(avatar_key),
+        generations_limit=limit,
+        generations_remaining=max(0, limit - used),
+        window_days=max(1, settings.avatar_limit_window_days),
+        can_manage=adult,
+        restriction_message=None if adult else avatar_profile.MINOR_RESTRICTION_MESSAGE,
+        consent_version=avatar_profile.AVATAR_CONSENT_VERSION,
+        consented=current_user.avatar_consent_version == avatar_profile.AVATAR_CONSENT_VERSION,
+    )
 
 
 @router.post("/me/avatar", response_model=AvatarOut, status_code=status.HTTP_201_CREATED)
 async def generate_avatar(
     file: UploadFile = File(...),
+    # Opcional so na assinatura: app antigo (sem a tela de consentimento) nao manda o campo e receberia o 422 padrao do FastAPI ("Field required",
+    # em ingles). O consentimento continua OBRIGATORIO: sem o campo -> 400 com a mensagem abaixo; com versao diferente da atual -> 400.
+    consent_version: str | None = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Gera um avatar estilizado (estetica PS1, ver services/avatar_generation.py)
-    a partir de uma selfie enviada pelo usuario. A foto original NUNCA e
-    persistida (nem disco, nem S3, nem banco) -- os bytes ficam so em
-    memoria entre a leitura do upload e a chamada a IA, descartados junto
-    com o fim desta funcao. So o resultado estilizado (retorno da propria
-    IA) e salvo, via upload_image() ja existente (pasta 'profiles', mesmo
-    bucket S3 de fotos de refeicao/feed).
-
-    Endpoint dedicado, nao reaproveita POST /media/upload generico -- esse
-    fluxo tem logica propria (chama IA, descarta o original, so entao sobe
-    o resultado), diferente do upload direto que esse outro endpoint faz.
+    Envia a foto de perfil e gera UM avatar em estilo anime a partir dela (services/avatar_generation.py). Ordem das barreiras, todas ANTES de
+    gastar com a OpenAI: maioridade (menor ou sem data de nascimento: 403), consentimento na versao atual (400), imagem valida e tamanho,
+    teto diario de TENTATIVAS (429), cota de geracoes (429) e moderacao automatica da foto (422). So depois chama a OpenAI; so uma resposta com
+    sucesso consome a cota. A foto (copia reduzida, sem EXIF) e o avatar ficam em chaves PRIVADAS do S3; a copia publica so e criada para a imagem
+    que esta em uso (a pessoa escolhe; na primeira vez, o avatar).
     """
+    _require_adult_for_avatar(current_user)
+    if consent_version is None or not consent_version.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=avatar_profile.APP_UPDATE_REQUIRED_MESSAGE)
+    if consent_version != avatar_profile.AVATAR_CONSENT_VERSION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voce precisa aceitar o aviso de uso da sua foto para continuar.",
+        )
+
     content_type = file.content_type or ""
     if not content_type.startswith("image/"):
         raise HTTPException(
@@ -254,27 +303,27 @@ async def generate_avatar(
             detail=f"Arquivo excede o tamanho maximo permitido ({MAX_IMAGE_FILE_SIZE_BYTES // (1024 * 1024)}MB)",
         )
 
-    # Limite de geracoes (settings.avatar_generation_limit a cada
-    # settings.avatar_limit_window_days dias, janela deslizante), ANTES de gastar com a
-    # OpenAI. Duas requisicoes simultaneas podem passar juntas pela checagem e estourar o
-    # limite por 1 (aceito: nao ha lock, e o custo extra e de uma geracao).
-    # max(1, ...): um valor invalido na env (0, negativo) nao pode travar nem bloquear tudo.
+    # Teto diario de tentativas (com ou sem sucesso): falha que nao consome a cota de geracoes nao pode virar gasto ilimitado.
+    attempts_limit = max(1, settings.avatar_daily_attempt_limit)
+    if avatar_profile.attempts_last_24h(db, current_user.id) >= attempts_limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Voce fez muitas tentativas de avatar hoje. Tente novamente amanha.",
+        )
+    db.add(AvatarAttempt(user_id=current_user.id))
+    db.commit()
+
+    # Limite de geracoes (settings.avatar_generation_limit a cada settings.avatar_limit_window_days dias, janela deslizante), ANTES de gastar com a
+    # OpenAI. Duas requisicoes simultaneas podem passar juntas pela checagem e estourar o limite por 1 (aceito: nao ha lock, e o custo extra e de uma
+    # geracao). max(1, ...): um valor invalido na env (0, negativo) nao pode travar nem bloquear tudo.
     limit = max(1, settings.avatar_generation_limit)
     window_days = max(1, settings.avatar_limit_window_days)
     window = timedelta(days=window_days)
     now = datetime.utcnow()
-    recent_times = [
-        row[0]
-        for row in db.query(AvatarGeneration.created_at)
-        .filter(AvatarGeneration.user_id == current_user.id, AvatarGeneration.created_at >= now - window)
-        .order_by(AvatarGeneration.created_at.asc())
-        .all()
-    ]
+    recent_times = avatar_profile.generations_in_window(db, current_user.id)
     if len(recent_times) >= limit:
-        # A vaga que abre primeiro e a da geracao de indice (count - limite) na ordem
-        # crescente: depois que ela sai da janela, sobram limite-1 dentro dela. (Se por
-        # corrida count passar do limite, so esse indice libera de verdade.) Abre em
-        # created_at + janela; arredonda pra cima, minimo 1 dia.
+        # A vaga que abre primeiro e a da geracao de indice (count - limite) na ordem crescente. Abre em created_at + janela; arredonda pra cima,
+        # minimo 1 dia.
         opens_at = recent_times[len(recent_times) - limit] + window
         days_left = max(1, math.ceil((opens_at - now).total_seconds() / 86400))
         raise HTTPException(
@@ -282,20 +331,27 @@ async def generate_avatar(
             detail=f"Voce atingiu o limite de {limit} avatares a cada {window_days} dias. Tente novamente em {days_left} dia(s).",
         )
 
+    # Moderacao automatica da foto ANTES do S3 e da OpenAI (mesma analise das fotos de post). Reprovada: 422, sem cota consumida.
+    await _moderate_post_image(db, current_user, file_bytes)
+
     try:
-        result_bytes = generate_ps1_avatar(file_bytes, content_type, user_id=current_user.id)
+        photo_copy = await run_in_threadpool(make_profile_photo_copy, file_bytes)
+    except Exception:  # noqa: BLE001 -- arquivo que o Pillow nao abre (ex: HEIC, corrompido)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nao foi possivel ler a foto. Use uma foto JPEG ou PNG.")
+
+    try:
+        result_bytes = await run_in_threadpool(generate_avatar, photo_copy, "image/jpeg", current_user.id)
     except AvatarServiceUnavailableError as e:
-        # Saldo/cota ou chave da OpenAI (o servico ja logou o marcador em nivel ERROR).
-        # 503, nao 429: nao pode parecer o limite de geracoes. Nao consome a cota do usuario.
+        # Saldo/cota ou chave da OpenAI (o servico ja logou o marcador em nivel ERROR). 503, nao 429: nao pode parecer o limite de geracoes. Nao
+        # consome a cota do usuario.
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     except AvatarGenerationError as e:
-        # Falha comum (moderacao, timeout, rede, resposta vazia): 502, nao consome a cota.
+        # Recusa da OpenAI, foto sem rosto, timeout, rede ou resposta vazia: 502, nao consome a cota.
         logger.error("Falha ao gerar avatar (user_id=%s): %s", current_user.id, e)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
-    # Registra a geracao logo apos a OpenAI responder com sucesso e ANTES do S3: o
-    # custo ja foi incorrido mesmo se o upload falhar. Falha em gravar o registro
-    # nao bloqueia o usuario (so loga).
+    # Registra a geracao logo apos a OpenAI responder com sucesso e ANTES do S3: o custo ja foi incorrido mesmo se o upload falhar. Falha em gravar o
+    # registro nao bloqueia o usuario (so loga).
     try:
         db.add(AvatarGeneration(user_id=current_user.id))
         db.commit()
@@ -303,24 +359,67 @@ async def generate_avatar(
         db.rollback()
         logger.error("Falha ao registrar geracao de avatar (user_id=%s)", current_user.id, exc_info=True)
 
-    # Imagem grande + miniatura 256 WebP (mesmo uuid). A miniatura e best-effort: se falhar, thumb_url fica
-    # None (WARNING no log) e o avatar segue normalmente, sem afetar a cota (ja registrada acima).
+    new_keys: list[str] = []
     try:
-        url, thumb_url = upload_avatar_images(result_bytes)
+        photo_key, photo_thumb_key = upload_private_profile_images(photo_copy, "jpg")
+        new_keys += [k for k in (photo_key, photo_thumb_key) if k]
+        avatar_key, avatar_thumb_key = upload_private_profile_images(result_bytes, "png")
+        new_keys += [k for k in (avatar_key, avatar_thumb_key) if k]
+        # Mantem a escolha atual (foto ou avatar); na primeira vez, o avatar recem criado. A copia publica da escolhida e recriada porque a
+        # imagem em uso mudou.
+        source = current_user.avatar_source or avatar_profile.SOURCE_AVATAR
+        display_key, display_thumb = (photo_key, photo_thumb_key) if source == avatar_profile.SOURCE_PHOTO else (avatar_key, avatar_thumb_key)
+        url, thumb_url = avatar_profile.resolve_display(display_key, display_thumb)
     except StorageError as e:
-        logger.error("Falha no upload do avatar gerado (user_id=%s): %s", current_user.id, e)
+        logger.error("Falha no armazenamento do avatar (user_id=%s): %s", current_user.id, e)
+        for key in new_keys:
+            avatar_profile.delete_stored_key(key)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
 
     old_urls = (current_user.avatar_url, current_user.avatar_thumb_url)
-    current_user.avatar_url = url
-    current_user.avatar_thumb_url = thumb_url  # as duas colunas na MESMA transacao
+    old_keys = avatar_profile.stored_keys(current_user)
+    current_user.profile_photo_key, current_user.profile_photo_thumb_key = photo_key, photo_thumb_key
+    current_user.generated_avatar_key, current_user.generated_avatar_thumb_key = avatar_key, avatar_thumb_key
+    current_user.avatar_url, current_user.avatar_thumb_url = url, thumb_url  # as duas colunas na MESMA transacao
+    current_user.avatar_source = source
+    current_user.avatar_consent_at = datetime.utcnow()
+    current_user.avatar_consent_version = avatar_profile.AVATAR_CONSENT_VERSION
     db.commit()
     db.refresh(current_user)
 
-    # So depois de gravar as novas: apaga os objetos anteriores (best-effort, erros so logados).
+    # So depois de gravar: apaga o que foi substituido (best-effort, erros so logados): copia publica anterior e chaves antigas.
     for old in old_urls:
         delete_object_by_url(old)
-    return AvatarOut(avatar_url=url, avatar_thumb_url=thumb_url)
+    for key in old_keys:
+        avatar_profile.delete_stored_key(key)
+    return AvatarOut(avatar_url=url, avatar_thumb_url=thumb_url, avatar_source=source)
+
+
+@router.put("/me/avatar-source", response_model=AvatarOut)
+def set_my_avatar_source(
+    payload: AvatarSourceIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Alterna entre usar a foto ou o avatar (sem gerar nada e sem consumir cota). A imagem escolhida ganha a copia publica; a anterior perde a dela
+    (a original continua guardada em privado, so o dono a ve)."""
+    _require_adult_for_avatar(current_user)
+    key, thumb_key = avatar_profile.keys_for(current_user, payload.source)
+    if not key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voce ainda nao tem essa imagem.")
+    if current_user.avatar_source == payload.source and current_user.avatar_url:
+        return AvatarOut(avatar_url=current_user.avatar_url, avatar_thumb_url=current_user.avatar_thumb_url, avatar_source=payload.source)
+    try:
+        url, thumb_url = avatar_profile.resolve_display(key, thumb_key)
+    except StorageError as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+    old_urls = (current_user.avatar_url, current_user.avatar_thumb_url)
+    current_user.avatar_url, current_user.avatar_thumb_url = url, thumb_url
+    current_user.avatar_source = payload.source
+    db.commit()
+    db.refresh(current_user)
+    avatar_profile.delete_previous_public_copies(current_user, old_urls)
+    return AvatarOut(avatar_url=url, avatar_thumb_url=thumb_url, avatar_source=payload.source)
 
 
 @router.delete("/me/avatar", status_code=status.HTTP_204_NO_CONTENT)
@@ -328,8 +427,7 @@ def delete_my_avatar(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Remove o proprio avatar (zera as 2 colunas e apaga os objetos do S3, best-effort). Idempotente: sem avatar,
-    tambem responde 204."""
+    """Remove foto e avatar (zera as colunas e apaga TODOS os objetos do S3, best-effort). Idempotente: sem nada, tambem responde 204."""
     remove_user_avatar(db, current_user)
 
 
@@ -343,8 +441,8 @@ def delete_my_account(
     """
     Exclusao de conta IMEDIATA e irreversivel (Apple 5.1.1(v)): apaga a conta e os dados da pessoa. Exige a senha atual e
     a palavra EXCLUIR. 422 confirmacao diferente de EXCLUIR; 429 muitas tentativas; 401 senha incorreta (conta no mesmo
-    limite do login); 409 pendencia (ultimo admin; profissional com alunos/desafios ativos ou conta Stripe Connect);
-    502 falha ao cancelar a assinatura no Stripe (nada e apagado); 204 em sucesso. Ver services/account_deletion.py.
+    limite do login); 409 pendencia (ultimo admin; perfil de profissional antigo com alunos/desafios ativos);
+    204 em sucesso (nenhuma chamada a provedor de pagamento: a assinatura do app se cancela na App Store). Ver services/account_deletion.py.
     """
     if payload.confirmation.strip() != CONFIRMATION_WORD:
         raise HTTPException(
@@ -369,11 +467,6 @@ def delete_my_account(
         delete_user_account(db, current_user)
     except AccountDeletionBlocked as blocked:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(blocked))
-    except AccountDeletionStripeError:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Nao foi possivel cancelar sua assinatura agora. Tente novamente em instantes.",
-        )
     except AccountAlreadyGone:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -558,36 +651,9 @@ def get_public_profile(
 
 
 def compute_user_badges(db: Session, user_id: uuid.UUID) -> UserBadgesOut:
-    """Selo Pro (assinatura base ativa) e selos Team (um por professor com trainer_addon ativo). 2 consultas."""
-    is_pro = (
-        db.query(Subscription)
-        .filter(
-            Subscription.user_id == user_id,
-            Subscription.type == "base",
-            Subscription.status == "active",
-        )
-        .first()
-        is not None
-    )
-
-    team_rows = (
-        db.query(Trainer.professional_type, User.name)
-        .select_from(Subscription)
-        .join(Trainer, Subscription.trainer_id == Trainer.id)
-        .join(User, Trainer.user_id == User.id)
-        .filter(
-            Subscription.user_id == user_id,
-            Subscription.type == "trainer_addon",
-            Subscription.status == "active",
-        )
-        .all()
-    )
-    teams = [
-        TeamBadge(trainer_name=name, professional_type=professional_type)
-        for professional_type, name in team_rows
-    ]
-
-    return UserBadgesOut(is_pro=is_pro, teams=teams)
+    """Selo Pro (assinatura base ativa). `teams` continua na resposta, sempre vazio: o selo Team (modo professor) saiu do
+    produto, e o campo fica so para o app antigo nao quebrar ate ele deixar de le-lo."""
+    return UserBadgesOut(is_pro=has_active_pro_subscription(db, user_id), teams=[])
 
 
 @router.get("/{user_id}/badges", response_model=UserBadgesOut)
@@ -597,9 +663,8 @@ def get_user_badges(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Selo Pro (assinatura da plataforma) e selos "Team [Professor]" (um por
-    professor/nutricionista com assinatura ativa — sem prioridade unica entre
-    eles, um aluno pode ter Team Personal e Team Nutri ao mesmo tempo).
+    Selo Pro (assinatura da plataforma). `teams` vem sempre vazio (selo Team removido com o modo professor; o campo
+    fica so para compatibilidade com o app antigo).
     Publico pra qualquer usuario autenticado ver, tanto no proprio perfil
     quanto no perfil de terceiros — e informacao que faz sentido como prova
     social.

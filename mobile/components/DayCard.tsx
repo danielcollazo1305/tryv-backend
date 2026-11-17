@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { MealCoverArt } from '@/components/MealCoverArt';
+import { MealCover } from '@/components/MealCover';
+import { dayCoverFor } from '@/utils/mealCoverPick';
 import { MealDay } from '@/services/meals';
 import { dayAccessibilityLabel, dayShortLabel, dayTabLabel, formatKcal } from '@/utils/mealDays';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
@@ -11,7 +12,9 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 export const DAY_CARD_WIDTH = 112;
 const CARD_PADDING = 5;
 /** Altura do bloco do icone (pt). O esqueleto e o cartao tracejado "Ver todas" usam as mesmas medidas. */
-const ICON_BOX_HEIGHT = 56;
+const ICON_BOX_HEIGHT = 72;
+/** Largura interna do corpo (card - 2x(padding + borda de 1 pt); hoje: borda 2 + padding 4 da o mesmo). A capa quadrada tem esse lado e a caixa mostra so a faixa central. */
+const COVER_SIZE = DAY_CARD_WIDTH - 2 * (CARD_PADDING + 1);
 /** Altura do corpo: borda+padding (6 por lado) + icone + gap + kcal (20) + gap + meta (16). */
 const BODY_HEIGHT = 12 + ICON_BOX_HEIGHT + spacing3.xs + 20 + spacing3.xs + 16;
 
@@ -48,8 +51,8 @@ export function DayCard({ day, index, onPress }: DayCardProps) {
 
       <View style={[styles.body, isToday && styles.bodyToday]}>
         <View style={[styles.iconBox, isEmpty ? styles.iconBoxEmpty : styles.iconBoxFilled]}>
-          {/* capa ilustrada (prato roxo): o cartao do dia nunca mostra foto; dia sem refeicao usa a versao esmaecida */}
-          <MealCoverArt size={ICON_BOX_HEIGHT - 4} faded={isEmpty} />
+          {/* capa anime escolhida pela DATA (o cartao do dia nao tem descricao): sempre a mesma para o mesmo dia; nunca mostra foto; dia sem refeicao usa a versao esmaecida */}
+          <MealCover cover={dayCoverFor(day.date)} size={COVER_SIZE} zoom={1} faded={isEmpty} />
         </View>
         <Text style={styles.kcal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {formatKcal(day.total_calories)}
@@ -125,6 +128,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: ICON_BOX_HEIGHT,
     borderRadius: radius3.md,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },

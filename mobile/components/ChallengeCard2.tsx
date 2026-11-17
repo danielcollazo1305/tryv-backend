@@ -20,9 +20,6 @@ function daysRemainingLabel(endDateIso: string): string {
 
 interface ChallengeCard2Props {
   challenge: Challenge;
-  /** So exibido quando fornecido (ex: numa listagem que mistura varios profissionais). Omitido quando o contexto ja deixa claro quem criou (ex: dentro do perfil do proprio profissional). */
-  creatorName?: string;
-  creatorCredential?: string;
   /**
    * 'dark' (padrao) = colors2/LiquiglassCard, usado hoje em
    * trainers/[id].tsx (ainda escura, fora desta migracao). 'light' =
@@ -35,18 +32,15 @@ interface ChallengeCard2Props {
 }
 
 /**
- * Equivalente do ChallengeCard.tsx pro design novo — API estendida com
- * creatorName/creatorCredential (opcionais) pra cobrir o card da listagem
- * global de desafios, que mistura profissionais diferentes. ChallengeCard
- * original continua em uso em trainers/me.tsx, fora desta migracao — por
- * isso versao nova em vez de editar a antiga.
+ * Equivalente do ChallengeCard.tsx pro design novo — por isso versao nova
+ * em vez de editar a antiga.
  *
  * Lacunas de dado (nao inventadas): o mockup social-desafios.html mostra
  * uma tag de categoria (ex: "Resistência") e uma barra de "Progresso da
  * Comunidade" (%). O tipo Challenge nao tem nenhum dos dois campos hoje —
  * omitidos aqui.
  */
-export function ChallengeCard2({ challenge, creatorName, creatorCredential, variant = 'dark' }: ChallengeCard2Props) {
+export function ChallengeCard2({ challenge, variant = 'dark' }: ChallengeCard2Props) {
   const isLight = variant === 'light';
   const s = isLight ? stylesLight : styles;
   const Card = isLight ? GlassCard : LiquiglassCard;
@@ -62,15 +56,6 @@ export function ChallengeCard2({ challenge, creatorName, creatorCredential, vari
 
       <View style={s.headerBlock}>
         <Text style={s.title}>{challenge.title}</Text>
-        {!!creatorName && (
-          <View style={s.creatorRow}>
-            <Ionicons name="checkmark-circle" size={13} color={primaryColor} />
-            <Text style={s.creatorText} numberOfLines={1}>
-              Criado por: {creatorName}
-              {creatorCredential ? ` — ${creatorCredential}` : ''}
-            </Text>
-          </View>
-        )}
       </View>
 
       {!!challenge.description && (
@@ -104,8 +89,6 @@ const styles = StyleSheet.create({
   iconWatermark: { position: 'absolute', top: spacing2.sm, right: spacing2.sm, opacity: 0.08 },
   headerBlock: { gap: spacing2.xs },
   title: { ...typography2.headlineMd, fontSize: 18 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  creatorText: { ...typography2.labelCaps, textTransform: 'none', color: colors2.primary, flexShrink: 1 },
   description: { ...typography2.bodyMd, fontSize: 14, color: colors2.onSurfaceVariant },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing2.sm },
   chip: {
@@ -125,8 +108,6 @@ const stylesLight = StyleSheet.create({
   iconWatermark: { position: 'absolute', top: spacing3.sm, right: spacing3.sm, opacity: 0.08 },
   headerBlock: { gap: spacing3.xs },
   title: { ...typography3.headlineMd, fontSize: 18 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  creatorText: { ...typography3.labelSm, textTransform: 'none', color: colors3.primary, flexShrink: 1 },
   description: { ...typography3.bodyMd, fontSize: 14, color: colors3.onSurfaceVariant },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
   chip: {

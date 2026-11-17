@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -27,6 +28,7 @@ import {
   DELETE_CONFIRMATION_WORD,
   type DeleteAccountError,
 } from '@/services/account';
+import { MANAGE_SUBSCRIPTIONS_URL } from '@/constants/legal';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /**
@@ -143,14 +145,21 @@ export default function DeleteAccountScreen() {
                 Vamos apagar sua conta e seus dados: perfil, treinos, corridas, refeições, fotos, posts, comentários,
                 curtidas e seguidores. Isso não pode ser desfeito.
               </Text>
-              <Text style={styles.paragraph}>
-                Se você tem assinatura Pro ou de um professor, ela será cancelada agora, sem reembolso do período já
-                pago.
-              </Text>
-              <Text style={styles.paragraph}>
-                Se você é professor ou nutricionista, encerre seus alunos e desafios antes; o app avisará se algo estiver
-                pendente.
-              </Text>
+              <View style={styles.subscriptionNotice}>
+                <Text style={styles.noticeTitle}>Sua assinatura não é cancelada por aqui</Text>
+                <Text style={styles.paragraph}>
+                  Excluir a conta não cancela a assinatura do Tryv Fit Pro na Apple, e o app não consegue cancelá-la por
+                  você. Se você assina, cancele em Ajustes &gt; Apple ID &gt; Assinaturas para não continuar sendo
+                  cobrado. Não há reembolso do período já pago.
+                </Text>
+                <Pressable
+                  onPress={() => void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL).catch(() => {})}
+                  accessibilityRole="link"
+                  accessibilityLabel="Abrir as assinaturas do Apple ID"
+                >
+                  <Text style={styles.noticeLink}>Abrir minhas assinaturas na Apple</Text>
+                </Pressable>
+              </View>
               <View style={styles.actions}>
                 <Pressable
                   onPress={() => setStep(2)}
@@ -256,6 +265,9 @@ const styles = StyleSheet.create({
   },
   title: { ...typography3.headlineMd, textAlign: 'center' },
   paragraph: { ...typography3.bodyMd, color: colors3.onSurface },
+  subscriptionNotice: { gap: spacing3.xs },
+  noticeTitle: { ...typography3.bodyMd, fontWeight: '700', color: colors3.onSurface },
+  noticeLink: { ...typography3.bodyMd, color: colors3.primary, textDecorationLine: 'underline' },
   actions: { gap: spacing3.sm, marginTop: spacing3.sm },
   dangerButton: {
     minHeight: 52,

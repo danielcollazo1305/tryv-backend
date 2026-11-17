@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Linking, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,6 +8,8 @@ import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/Avatar';
+import { AvatarConsentModal } from '@/components/AvatarConsentModal';
+import { AvatarSourceToggle } from '@/components/AvatarSourceToggle';
 import { GlassCard } from '@/components/GlassCard';
 import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
 import { HeatmapDay, HeatmapGrid, todayKey } from '@/components/HeatmapGrid';
@@ -27,6 +29,8 @@ import { ProfileBadges2 } from '@/components/ProfileBadges2';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { getApiErrorMessage } from '@/services/api';
 import { requestHealthPermissions } from '@/services/health';
+import { PurchaseError, isPurchasesAvailable, restorePurchases, syncProAfterPurchase } from '@/services/purchases';
+import { MANAGE_SUBSCRIPTIONS_URL } from '@/constants/legal';
 import {
   getGrantedHealthConnectPermissions,
   initializeHealthConnect,
@@ -64,11 +68,11 @@ import {
   markVisited,
 } from '@/services/profileFeedState';
 import { Post, listFollowers, listFollowing, listUserPosts } from '@/services/social';
-import { TrainerPublic, getMyTrainerProfile, getTrainer } from '@/services/trainers';
+import { AVATAR_CONSENT_VERSION, AVATAR_LOADING_TEXT, AVATAR_MINOR_MESSAGE, isAvatarRestricted } from '@/services/avatarFlow';
 import { UserBadges, deleteMyAvatar, getUserBadges, uploadAvatarSelfie } from '@/services/user';
 import { shareInvite } from '@/utils/invite';
 import { getInitials } from '@/utils/text';
-import { colors2, colors3, radius3, spacing2, spacing3, typography2, typography3 } from '@/constants/theme';
+import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
 /** "2026-08" — mesmo formato/convencao ja usado em TrainingFrequencyCard.tsx (mes civil atual). */
 function currentMonthParam(): string {
@@ -100,12 +104,6 @@ function GridIcon({ name, tone = 'primary' }: { name: React.ComponentProps<typeo
   );
 }
 
-interface PersonalChallengeProgress {
-  challenge: Challenge;
-  trainer: TrainerPublic | null;
-  heatmapDays: HeatmapDay[];
-}
-
 /**
  * Migrado pro tema claro "prism-glass" (colors3/GlassCard/ScreenBackground3)
  * — segunda migracao visual desta tela (a primeira foi liquiglass/colors2,
@@ -126,7 +124,32 @@ const historyKey = (item: HistoryItem) => item.id;
 const galleryKey = (item: GalleryItem) => item.post_id;
 
 export default function ProfileScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, refreshIsPro } = useAuth();
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+  // "Restaurar compras" (exigencia da Apple): restaura no SDK e pergunta ao servidor; so o servidor diz se e Pro.
+  const handleRestorePurchases = async () => {
+    if (!user || restoringPurchases) return;
+    if (!isPurchasesAvailable()) {
+      Alert.alert('Compras indisponíveis', 'Não foi possível acessar as compras neste momento. Tente novamente mais tarde.');
+      return;
+    }
+    setRestoringPurchases(true);
+    try {
+      await restorePurchases(user.id);
+      const result = await syncProAfterPurchase(refreshIsPro);
+      if (result.isPro) Alert.alert('Compras restauradas', 'Sua assinatura Tryv Fit Pro está ativa.');
+      else if (result.pending) Alert.alert('Ainda confirmando', 'Estamos confirmando sua assinatura. Tente novamente em instantes.');
+      else Alert.alert('Nada para restaurar', 'Não encontramos uma assinatura ativa nesta conta Apple.');
+    } catch (error) {
+      Alert.alert(
+        'Não foi possível restaurar',
+        error instanceof PurchaseError ? error.message : 'Verifique sua conexão e tente novamente.'
+      );
+    } finally {
+      setRestoringPurchases(false);
+    }
+  };
   // Abas (E4): cada uma busca so quando aberta pela 1a vez e guarda o resultado; trocar de aba nao refaz a chamada.
   const [tab, setTab] = useState<ProfileTab>('history');
   const [visited, setVisited] = useState(INITIAL_VISITED);
@@ -177,7 +200,7 @@ export default function ProfileScreen() {
     invitingRef.current = true;
     try {
       if ((await shareInvite()) === 'failed') {
-        Alert.alert('Nao foi possivel convidar', 'Nao foi possivel abrir o compartilhamento agora. Tente de novo em instantes.');
+        Alert.alert('Não foi possível convidar', 'Não foi possível abrir o compartilhamento agora. Tente de novo em instantes.');
       }
     } finally {
       invitingRef.current = false;
@@ -200,6 +223,12 @@ export default function ProfileScreen() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarRemoving, setAvatarRemoving] = useState(false);
+  // Consentimento ANTES de enviar a foto (OpenAI + imagem escolhida visivel a outros); menores/sem data de nascimento nao enviam foto.
+  const [consentVisible, setConsentVisible] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [pendingPick, setPendingPick] = useState<'camera' | 'library' | null>(null);
+  const [avatarToggleKey, setAvatarToggleKey] = useState(0);
+  const avatarRestricted = isAvatarRestricted(user?.date_of_birth);
 
   // Grid de consistencia (6 cards) — dados reais:
   // - Sequencia atual / Melhor sequencia: GET /dashboard/training-streaks
@@ -336,11 +365,12 @@ export default function ProfileScreen() {
     setAvatarUploading(true);
     setAvatarError(null);
     try {
-      await uploadAvatarSelfie(uri);
+      await uploadAvatarSelfie(uri, AVATAR_CONSENT_VERSION);
       await refreshUser();
+      setAvatarToggleKey((key) => key + 1);
       setAvatarPickerVisible(false);
     } catch (err) {
-      setAvatarError(getApiErrorMessage(err, 'Nao foi possivel gerar seu avatar, tente novamente.'));
+      setAvatarError(getApiErrorMessage(err, 'Não foi possível gerar seu avatar, tente novamente.'));
     } finally {
       setAvatarUploading(false);
     }
@@ -349,7 +379,7 @@ export default function ProfileScreen() {
   // "Remover avatar": so aparece com avatar. Confirma, chama DELETE /users/me/avatar e atualiza o usuario (as
   // iniciais voltam em todo o app). Um novo avatar pode ser gerado depois, como antes.
   const handleRemoveAvatar = () => {
-    Alert.alert('Remover avatar', 'Seu avatar será removido e suas iniciais aparecerão no lugar. Você pode gerar outro depois.', [
+    Alert.alert('Remover foto e avatar', 'Sua foto e seu avatar serão apagados e suas iniciais aparecerão no lugar. Você pode enviar outra foto depois.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Remover',
@@ -362,7 +392,7 @@ export default function ProfileScreen() {
             await refreshUser();
             setAvatarPickerVisible(false);
           } catch (err) {
-            setAvatarError(getApiErrorMessage(err, 'Nao foi possivel remover seu avatar, tente novamente.'));
+            setAvatarError(getApiErrorMessage(err, 'Não foi possível remover seu avatar, tente novamente.'));
           } finally {
             setAvatarRemoving(false);
           }
@@ -371,11 +401,37 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // Nada e enviado antes do aceite: o toque em "Tirar foto"/"Escolher da galeria" abre o aviso primeiro (uma vez por abertura da tela).
+  const requestAvatarPick = (kind: 'camera' | 'library') => {
+    setAvatarError(null);
+    if (consentAccepted) {
+      if (kind === 'camera') handleTakeAvatarPhoto();
+      else handlePickAvatarFromLibrary();
+      return;
+    }
+    setPendingPick(kind);
+    setConsentVisible(true);
+  };
+
+  const handleConsentAccept = () => {
+    const kind = pendingPick;
+    setConsentAccepted(true);
+    setConsentVisible(false);
+    setPendingPick(null);
+    if (kind === 'camera') handleTakeAvatarPhoto();
+    else if (kind === 'library') handlePickAvatarFromLibrary();
+  };
+
+  const handleConsentDecline = () => {
+    setConsentVisible(false);
+    setPendingPick(null);
+  };
+
   const handleTakeAvatarPhoto = async () => {
     setAvatarError(null);
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      setAvatarError('Permissao de camera negada. Habilite nas configuracoes do celular.');
+      setAvatarError('Permissão de câmera negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: [1, 1] });
@@ -388,7 +444,7 @@ export default function ProfileScreen() {
     setAvatarError(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      setAvatarError('Permissao de galeria negada. Habilite nas configuracoes do celular.');
+      setAvatarError('Permissão de galeria negada. Habilite nas configurações do celular.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -410,7 +466,7 @@ export default function ProfileScreen() {
 
   const handleDebugSeedHealthConnectData = async () => {
     if (Platform.OS !== 'android') {
-      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      Alert.alert('Só Android', 'Health Connect só existe no Android -- este teste não se aplica a este device.');
       return;
     }
     if (seedingHealthConnectRef.current) return;
@@ -443,7 +499,7 @@ export default function ProfileScreen() {
 
   const handleDebugSeedHealthConnectFcSonoTreino = async () => {
     if (Platform.OS !== 'android') {
-      Alert.alert('So Android', 'Health Connect so existe no Android -- este teste nao se aplica a este device.');
+      Alert.alert('Só Android', 'Health Connect só existe no Android -- este teste não se aplica a este device.');
       return;
     }
     if (seedingHealthConnectRef.current) return;
@@ -454,7 +510,7 @@ export default function ProfileScreen() {
       console.log('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() ->', result);
       Alert.alert(
         'Dado de teste inserido',
-        `${result.heartRateSamples} amostras de FC, ~${result.sleepHours.toFixed(1)}h de sono (ultima noite) e 1 corrida de ${result.workoutMinutes}min com rota GPS. Confira FC/Sono na Home e "Importar treinos" em Atividades.`
+        `${result.heartRateSamples} amostras de FC, ~${result.sleepHours.toFixed(1)}h de sono (última noite) e 1 corrida de ${result.workoutMinutes}min com rota GPS. Confira FC/Sono na Home e "Importar treinos" em Atividades.`
       );
     } catch (err) {
       console.error('[DEBUG healthConnect] insertHealthConnectDebugFcSonoTreino() falhou:', err);
@@ -464,29 +520,6 @@ export default function ProfileScreen() {
       setSeedingHealthConnectFcSonoTreino(false);
     }
   };
-
-  /*
-   * Marketplace desativado pre-lancamento — este fetch (isTrainer) so
-   * alimentava a opcao "Tornar-se profissional parceiro" / "Meu painel
-   * profissional" mais abaixo, tambem comentada. Nao apagar: reativar os 2
-   * blocos juntos no relancamento do marketplace de profissionais.
-   *
-   * useFocusEffect(
-   *   useCallback(() => {
-   *     let active = true;
-   *     getMyTrainerProfile()
-   *       .then(() => {
-   *         if (active) setIsTrainer(true);
-   *       })
-   *       .catch(() => {
-   *         if (active) setIsTrainer(false);
-   *       });
-   *     return () => {
-   *       active = false;
-   *     };
-   *   }, [])
-   * );
-   */
 
   useFocusEffect(
     useCallback(() => {
@@ -521,7 +554,7 @@ export default function ProfileScreen() {
     }, [user])
   );
 
-  // Selo Pro / Team sao so exibicao — qualquer falha (ex: rede) simplesmente
+  // O selo Pro e so exibicao — qualquer falha (ex: rede) simplesmente
   // nao mostra nada, sem bloquear o resto do perfil.
   useFocusEffect(
     useCallback(() => {
@@ -595,38 +628,6 @@ export default function ProfileScreen() {
       };
     }, [])
   );
-
-  /*
-   * Marketplace desativado pre-lancamento — secao "Desafios de
-   * profissionais" comentada mais abaixo (junto com este fetch, exclusivo
-   * dela). Nao apagar: reativar os 2 blocos juntos no relancamento.
-   *
-   * useFocusEffect(
-   *   useCallback(() => {
-   *     let active = true;
-   *     listMyActiveChallenges({ is_official: false })
-   *       .then(async (challenges) => {
-   *         const withDetails = await Promise.all(
-   *           challenges.map(async (challenge) => ({
-   *             challenge,
-   *             trainer: challenge.trainer_id ? await getTrainer(challenge.trainer_id).catch(() => null) : null,
-   *             heatmapDays: await (challenge.goal_type === 'manual'
-   *               ? listMyChallengeCheckins(challenge.id).then((checkins) => buildChallengeHeatmapDays(challenge, checkins))
-   *               : getChallengeProgress(challenge.id).then((progress) => buildAutomaticChallengeHeatmapDays(challenge, progress))
-   *             ).catch(() => []),
-   *           }))
-   *         );
-   *         if (active) setPersonalChallenges(withDetails);
-   *       })
-   *       .catch(() => {
-   *         if (active) setPersonalChallenges([]);
-   *       });
-   *     return () => {
-   *       active = false;
-   *     };
-   *   }, [])
-   * );
-   */
 
   // ---- Perfil com abas (E4): cabecalho + abas (Historico, Galeria, Progresso, Conquistas) numa FlatList so; "Configuracoes" e "Meus posts" no rodape.
   const consistencyTiles = (
@@ -807,6 +808,36 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.gridCellFull}>
+            <Pressable onPress={() => void handleRestorePurchases()} disabled={restoringPurchases} accessibilityRole="button" accessibilityLabel="Restaurar compras">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="refresh-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Restaurar compras</Text>
+                  <Text style={styles.tileFullSubtitle}>Recupere o Tryv Fit Pro neste aparelho</Text>
+                </View>
+                {restoringPurchases ? (
+                  <ActivityIndicator color={colors3.primary} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={colors3.outline} />
+                )}
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
+            <Pressable onPress={() => void Linking.openURL(MANAGE_SUBSCRIPTIONS_URL).catch(() => {})} accessibilityRole="link" accessibilityLabel="Gerenciar assinatura">
+              <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
+                <GridIcon name="card-outline" />
+                <View style={styles.tileFullTexts}>
+                  <Text style={styles.tileFullTitle}>Gerenciar assinatura</Text>
+                  <Text style={styles.tileFullSubtitle}>Cancele ou altere em Ajustes da Apple</Text>
+                </View>
+                <Ionicons name="open-outline" size={18} color={colors3.outline} />
+              </GlassCard>
+            </Pressable>
+          </View>
+
+          <View style={styles.gridCellFull}>
             <Pressable onPress={() => openSupportEmail('Contato e denúncias no Tryv')} accessibilityRole="button">
               <GlassCard variant="card" style={[styles.tile, styles.tileFullRow]} padding={spacing3.md}>
                 <GridIcon name="mail-outline" />
@@ -832,89 +863,6 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
       </View>
-
-        {/*
-          Marketplace desativado pre-lancamento — secao "Desafios de
-          profissionais" escondida (card com heatmap de desafio vinculado a
-          um profissional). Nao apagar: reativar junto com o fetch de
-          personalChallenges comentado acima.
-
-          {personalChallenges.length > 0 && (
-            <View style={styles.challengesSection}>
-              <Text style={styles.sectionTitle}>Desafios de profissionais</Text>
-              {personalChallenges.map(({ challenge, trainer, heatmapDays }) => (
-                <Pressable
-                  key={challenge.id}
-                  onPress={() => router.push({ pathname: '/challenges/[id]', params: { id: challenge.id } })}
-                >
-                  <LiquiglassCard style={styles.challengeCard} padding={spacing2.md}>
-                    <View style={styles.challengeCardHeader}>
-                      <Ionicons name="trophy" size={16} color={colors2.primary} />
-                      <View style={styles.challengeCardTexts}>
-                        <Text style={styles.challengeCardTitle}>{challenge.title}</Text>
-                        {!!trainer && <Text style={styles.challengeCardTrainer}>{trainer.user_name}</Text>}
-                      </View>
-                    </View>
-                    <HeatmapGrid
-                      days={heatmapDays}
-                      todayKey={todayKey()}
-                      cellSize={10}
-                      showDayNumbers={false}
-                      showWeekdayHeaders={false}
-                    />
-                  </LiquiglassCard>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        */}
-
-        {/*
-          Marketplace desativado pre-lancamento — 2 opcoes de navegacao
-          escondidas: "Profissionais" (lista de descoberta) e "Tornar-se
-          profissional parceiro" / "Meu painel profissional" (cadastro de
-          profissional, junto com o fetch de isTrainer comentado acima). Nao
-          apagar: reativar no relancamento do marketplace de profissionais.
-
-          <Pressable style={styles.optionWrap} onPress={() => router.push('/trainers')}>
-            <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
-              <View style={styles.optionRow}>
-                <View style={styles.optionIconWrap}>
-                  <Ionicons name="people" size={20} color={colors2.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>Profissionais</Text>
-                  <Text style={styles.optionSubtitle}>Encontre um profissional certificado</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-              </View>
-            </LiquiglassCard>
-          </Pressable>
-
-          <Pressable
-            style={styles.optionWrap}
-            onPress={() => router.push(isTrainer ? '/trainers/me' : '/trainers/register')}
-          >
-            <LiquiglassCard style={styles.optionCard} padding={spacing2.md}>
-              <View style={styles.optionRow}>
-                <View style={styles.optionIconWrap}>
-                  <Ionicons name={isTrainer ? 'clipboard' : 'ribbon'} size={20} color={colors2.primary} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={styles.optionTitle}>
-                    {isTrainer ? 'Meu painel profissional' : 'Tornar-se profissional parceiro'}
-                  </Text>
-                  <Text style={styles.optionSubtitle}>
-                    {isTrainer
-                      ? 'Status, edição de perfil e pagamentos'
-                      : 'Cadastre seu registro profissional e comece a atender'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors2.onSurfaceVariant} />
-              </View>
-            </LiquiglassCard>
-          </Pressable>
-        */}
 
         {/*
           debug de HealthKit, escondido pre-lancamento — reativar
@@ -984,7 +932,7 @@ export default function ProfileScreen() {
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>[DEBUG] Inserir dado de teste (Health Connect)</Text>
                   <Text style={styles.optionSubtitle}>
-                    {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (so Android)'}
+                    {seedingHealthConnectData ? 'Inserindo...' : '8.500 passos + 320 kcal cobrindo hoje (só Android)'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
@@ -1015,7 +963,7 @@ export default function ProfileScreen() {
                 <View style={styles.optionInfo}>
                   <Text style={styles.optionTitle}>[DEBUG] Inserir FC/Sono/Treino de teste (Health Connect)</Text>
                   <Text style={styles.optionSubtitle}>
-                    {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (so Android)'}
+                    {seedingHealthConnectFcSonoTreino ? 'Inserindo...' : 'Amostras de FC + noite de sono + corrida com rota (só Android)'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors3.onSurfaceVariant} />
@@ -1083,19 +1031,12 @@ export default function ProfileScreen() {
 
         <View style={styles.badgesWrap}>
           {/*
-            Marketplace desativado pre-lancamento — badge "TEAM {profissional}"
-            escondida aqui (so no Perfil, sem tocar em ProfileBadges2.tsx, que
-            e compartilhado com social/[userId].tsx e settings/badges.tsx e
-            continua mostrando TEAM normalmente nesses 2 lugares). PRO
-            continua visivel normalmente. Nao apagar: so tirar o `teams: []`
-            no relancamento.
-
             variant="light" — ProfileBadges2 ainda e escuro por padrao (os 2
             outros usos acima seguem sem migrar), mesmo padrao de prop
             variant ja usado em EmptyFollowingState/ObscuredCard/TextField2
             nesta sessao pra nao afetar quem ainda nao migrou.
           */}
-          <ProfileBadges2 badges={badges ? { ...badges, teams: [] } : badges} variant="light" />
+          <ProfileBadges2 badges={badges} variant="light" />
         </View>
 
         <ProfileIdentity
@@ -1205,7 +1146,7 @@ export default function ProfileScreen() {
         <View style={styles.avatarModalBackdrop}>
           <View style={styles.avatarModalSheet}>
             <View style={styles.avatarModalHeader}>
-              <Text style={styles.avatarModalTitle}>Avatar por IA</Text>
+              <Text style={styles.avatarModalTitle}>Foto e avatar</Text>
               <Pressable onPress={handleCloseAvatarPicker} hitSlop={12} disabled={avatarUploading || avatarRemoving}>
                 <Ionicons name="close" size={24} color={colors3.onSurface} />
               </Pressable>
@@ -1216,27 +1157,37 @@ export default function ProfileScreen() {
             {avatarUploading || avatarRemoving ? (
               <View style={styles.avatarModalLoading}>
                 <ActivityIndicator size="large" color={colors3.primary} />
-                <Text style={styles.avatarModalLoadingText}>{avatarRemoving ? 'Removendo seu avatar...' : 'Gerando seu avatar...'}</Text>
+                <Text style={styles.avatarModalLoadingText}>{avatarRemoving ? 'Removendo sua foto e seu avatar...' : AVATAR_LOADING_TEXT}</Text>
               </View>
             ) : (
               <View style={styles.avatarPickButtons}>
-                <Pressable style={styles.avatarPickButton} onPress={handleTakeAvatarPhoto}>
-                  <Ionicons name="camera" size={28} color={colors3.primary} />
-                  <Text style={styles.avatarPickButtonText}>Tirar foto</Text>
-                </Pressable>
-                <Pressable style={styles.avatarPickButton} onPress={handlePickAvatarFromLibrary}>
-                  <Ionicons name="images" size={28} color={colors3.primary} />
-                  <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
-                </Pressable>
+                {!avatarRestricted && <AvatarSourceToggle onChanged={refreshUser} refreshKey={avatarToggleKey} />}
+                {avatarRestricted && (
+                  <Text style={styles.avatarModalError} accessibilityRole="alert">
+                    {AVATAR_MINOR_MESSAGE}
+                  </Text>
+                )}
+                {!avatarRestricted && (
+                  <>
+                    <Pressable style={styles.avatarPickButton} onPress={() => requestAvatarPick('camera')}>
+                      <Ionicons name="camera" size={28} color={colors3.primary} />
+                      <Text style={styles.avatarPickButtonText}>Tirar foto</Text>
+                    </Pressable>
+                    <Pressable style={styles.avatarPickButton} onPress={() => requestAvatarPick('library')}>
+                      <Ionicons name="images" size={28} color={colors3.primary} />
+                      <Text style={styles.avatarPickButtonText}>Escolher da galeria</Text>
+                    </Pressable>
+                  </>
+                )}
                 {!!user?.avatar_url && (
                   <Pressable
                     style={styles.avatarPickButton}
                     onPress={handleRemoveAvatar}
                     accessibilityRole="button"
-                    accessibilityLabel="Remover avatar"
+                    accessibilityLabel="Remover foto e avatar"
                   >
                     <Ionicons name="trash-outline" size={28} color={colors3.error} />
-                    <Text style={[styles.avatarPickButtonText, { color: colors3.error }]}>Remover avatar</Text>
+                    <Text style={[styles.avatarPickButtonText, { color: colors3.error }]}>Remover foto e avatar</Text>
                   </Pressable>
                 )}
               </View>
@@ -1244,18 +1195,13 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <AvatarConsentModal visible={consentVisible} onAccept={handleConsentAccept} onDecline={handleConsentDecline} />
     </ScreenBackground3>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: {
-    alignItems: 'center',
-    paddingTop: spacing3.xl,
-    padding: spacing3.containerMargin,
-    paddingBottom: spacing3.xl,
-  },
   logo: { ...typography3.displayLg, fontSize: 36, fontWeight: '800', color: colors3.primary, marginBottom: spacing3.lg },
   // Borda do avatar sobre o card escuro do Overall.
   avatarRing: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.25)' },
@@ -1390,12 +1336,6 @@ const styles = StyleSheet.create({
   // challengesSection/challengeCard* — usados so pelo bloco "Desafios de
   // profissionais" comentado (marketplace escondido pre-lancamento, ver
   // acima). Deixados como estavam (colors2), inertes, ate o relancamento.
-  challengesSection: { width: '100%', gap: spacing2.sm, marginBottom: spacing2.lg },
-  challengeCard: { gap: spacing2.sm },
-  challengeCardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing2.sm },
-  challengeCardTexts: { flex: 1, gap: 2 },
-  challengeCardTitle: { ...typography2.bodyMd, fontWeight: '700', fontSize: 14 },
-  challengeCardTrainer: { ...typography2.labelCaps, textTransform: 'none', color: colors2.onSurfaceVariant },
 
   optionWrap: { width: '100%', marginBottom: spacing3.sm },
   optionCard: { width: '100%' },

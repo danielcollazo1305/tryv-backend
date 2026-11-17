@@ -11,7 +11,12 @@ import { ActiveWorkoutBanner } from '@/components/ActiveWorkoutBanner';
 // incondicionalmente no boot do app — ver comentario em backgroundLocation.ts pra explicacao.
 import '@/services/backgroundLocation';
 import { runAutoImport, startBackgroundImportTrigger } from '@/services/workoutAutoImport';
+import { syncWidgetSummary } from '@/services/widgetSummary';
+import { configurePurchases } from '@/services/purchases';
 import { colors, colors3, fontsToLoad2 } from '@/constants/theme';
+
+// Assinatura por compra no app (RevenueCat): configura o SDK uma vez, ao abrir o app (sem chave ou fora do iOS, nao faz nada).
+configurePurchases();
 
 export default function RootLayout() {
   // Fontes do design novo (liquiglass) — telas ainda no sistema antigo nao
@@ -74,8 +79,13 @@ function RootNavigator() {
     if (!token) return;
 
     runAutoImport('foreground');
+    // Widget de tela inicial (services/widgetSummary.ts): nunca lanca erro e limita a 1 gravacao a cada 5 min.
+    syncWidgetSummary();
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') runAutoImport('foreground');
+      if (nextState === 'active') {
+        runAutoImport('foreground');
+        syncWidgetSummary();
+      }
     });
 
     let cancelled = false;
@@ -125,14 +135,6 @@ function RootNavigator() {
         <Stack.Screen name="activity/[id]" />
         <Stack.Screen name="activity/healthkit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="health/[metric]" />
-        <Stack.Screen name="trainers/index" />
-        <Stack.Screen name="trainers/select-type" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/register" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/me" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/students" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/students/[studentId]/workout-plan" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="trainers/live/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/discover" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/follows" options={{ presentation: 'modal' }} />
@@ -140,7 +142,6 @@ function RootNavigator() {
         <Stack.Screen name="social/post/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="social/comments/[postId]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="challenges/new" options={{ presentation: 'modal' }} />
         <Stack.Screen name="challenges/category/[category]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weight/index" />
         <Stack.Screen name="weight/new" options={{ presentation: 'modal' }} />

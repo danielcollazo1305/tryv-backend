@@ -80,7 +80,7 @@ export default function ActivityDetailScreen() {
           setManual(await getManualActivity(id));
         }
       } catch (err) {
-        setError(getApiErrorMessage(err, 'Nao foi possivel carregar esta atividade.'));
+        setError(getApiErrorMessage(err, 'Não foi possível carregar esta atividade.'));
       } finally {
         setLoading(false);
       }
@@ -94,7 +94,7 @@ export default function ActivityDetailScreen() {
     try {
       setInsight(isRun ? await getRunInsight(id) : await getManualActivityInsight(id));
     } catch (err) {
-      setInsightError(getApiErrorMessage(err, 'Nao foi possivel gerar a analise desta atividade.'));
+      setInsightError(getApiErrorMessage(err, 'Não foi possível gerar a análise desta atividade.'));
     } finally {
       setInsightLoading(false);
     }
@@ -167,7 +167,7 @@ export default function ActivityDetailScreen() {
               {run.heart_rate_avg != null && (
                 <View style={styles.stat}>
                   <Text style={styles.statNumber}>{Math.round(run.heart_rate_avg)}</Text>
-                  <Text style={styles.statLabel}>fc media</Text>
+                  <Text style={styles.statLabel}>fc média</Text>
                 </View>
               )}
               {run.heart_rate_max != null && (
@@ -254,7 +254,7 @@ export default function ActivityDetailScreen() {
               <>
                 {!!insightError && <Text style={styles.error}>{insightError}</Text>}
                 <Button2
-                  label="Ver analise da IA"
+                  label="Ver análise da IA"
                   variant="secondary"
                   onPress={handleFetchInsight}
                   loading={insightLoading}

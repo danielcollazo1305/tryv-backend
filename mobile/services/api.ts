@@ -6,7 +6,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 if (!API_URL) {
   console.warn(
     'EXPO_PUBLIC_API_URL nao esta definida. Configure mobile/.env.local (veja .env.example) ' +
-      'com o IP da sua maquina na rede Wi-Fi — o celular fisico nao alcanca "localhost".'
+      'com o IP da sua máquina na rede Wi-Fi — o celular físico não alcança "localhost".'
   );
 }
 
@@ -85,7 +85,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Algo deu errado. 
       return data.detail.map((item) => item.msg).join('\n');
     }
     if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
-      return 'Nao foi possivel conectar ao servidor. Verifique sua conexao e o IP configurado.';
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão e o IP configurado.';
     }
   }
   return fallback;

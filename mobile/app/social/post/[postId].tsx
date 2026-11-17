@@ -26,7 +26,7 @@ export default function PostDetailScreen() {
     try {
       setPost(await getPost(postId));
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel carregar este post.'));
+      setError(getApiErrorMessage(err, 'Não foi possível carregar este post.'));
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function PostDetailScreen() {
       await deletePost(id);
       router.back();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Nao foi possivel excluir o post.'));
+      setError(getApiErrorMessage(err, 'Não foi possível excluir o post.'));
       setDeleting(false);
     }
   };
