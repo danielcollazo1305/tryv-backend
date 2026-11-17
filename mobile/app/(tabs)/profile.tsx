@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +32,8 @@ import { getApiErrorMessage } from '@/services/api';
 import { requestHealthPermissions } from '@/services/health';
 import { PurchaseError, isPurchasesAvailable, restorePurchases, syncProAfterPurchase } from '@/services/purchases';
 import { MANAGE_SUBSCRIPTIONS_URL } from '@/constants/legal';
+import { isDevModeEnabled, setDevModeEnabled } from '@/services/devMode';
+import { TapState, nextTap } from '@/services/devTaps';
 import {
   getGrantedHealthConnectPermissions,
   initializeHealthConnect,
@@ -126,6 +129,25 @@ const galleryKey = (item: GalleryItem) => item.post_id;
 export default function ProfileScreen() {
   const { user, refreshUser, refreshIsPro } = useAuth();
   const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+  // Modo desenvolvedor (depuracao da Vitalidade): escondido; 7 toques seguidos na linha de versao, em Configuracoes, o liga (e, de novo, o desliga).
+  const [devMode, setDevMode] = useState(false);
+  const devTapsRef = useRef<TapState | null>(null);
+  useEffect(() => {
+    void isDevModeEnabled().then(setDevMode);
+  }, []);
+  const handleVersionTap = () => {
+    const { state, triggered } = nextTap(devTapsRef.current, Date.now());
+    devTapsRef.current = state;
+    if (!triggered) return;
+    const next = !devMode;
+    setDevMode(next);
+    void setDevModeEnabled(next);
+    Alert.alert(next ? 'Modo desenvolvedor ativado' : 'Modo desenvolvedor desativado');
+  };
+  const versionLabel = `Versão ${Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? '—'}${
+    Constants.nativeBuildVersion ? ` (${Constants.nativeBuildVersion})` : ''
+  }`;
 
   // "Restaurar compras" (exigencia da Apple): restaura no SDK e pergunta ao servidor; so o servidor diz se e Pro.
   const handleRestorePurchases = async () => {
@@ -864,6 +886,15 @@ export default function ProfileScreen() {
           </View>
       </View>
 
+        {devMode && (
+          <Pressable onPress={() => router.push('/dev-vitality' as never) /* rota nova: os tipos de rotas (.expo/types) so se atualizam no proximo expo start */} accessibilityRole="button" style={styles.versionRow}>
+            <Text style={styles.devLink}>Depuração da Vitalidade</Text>
+          </Pressable>
+        )}
+        <Pressable onPress={handleVersionTap} style={styles.versionRow} accessibilityLabel={versionLabel}>
+          <Text style={styles.versionText}>{versionLabel}</Text>
+        </Pressable>
+
         {/*
           debug de HealthKit, escondido pre-lancamento — reativar
           manualmente durante desenvolvimento se necessario. Ver
@@ -1331,6 +1362,9 @@ const styles = StyleSheet.create({
   tileFullTexts: { flex: 1, gap: 2 },
   tileFullTitle: { ...typography3.bodyMd, fontWeight: '700', fontSize: 15 },
   dangerText: { color: colors3.error },
+  versionRow: { alignItems: 'center', paddingVertical: spacing3.md },
+  versionText: { ...typography3.labelSm, textTransform: 'none', color: colors3.outline },
+  devLink: { ...typography3.bodyMd, fontSize: 14, fontWeight: '700', color: colors3.primary, textDecorationLine: 'underline' },
   tileFullSubtitle: { ...typography3.bodyMd, fontSize: 12.5, color: colors3.onSurfaceVariant },
 
   // challengesSection/challengeCard* — usados so pelo bloco "Desafios de

@@ -148,6 +148,7 @@ function RootNavigator() {
         <Stack.Screen name="territory-map" />
         <Stack.Screen name="inventory" />
         <Stack.Screen name="treinar" />
+        <Stack.Screen name="dev-vitality" />
         <Stack.Screen name="export-pdf" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!token || onboardingInProgress}>
