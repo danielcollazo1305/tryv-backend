@@ -6,7 +6,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { GlassCard } from '@/components/GlassCard';
 import { useVitality } from '@/hooks/useVitality';
 import { VITALITY_LABELS, VITALITY_NO_DATA_MESSAGE, scoreToColor } from '@/services/vitality';
-import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
+import { VITALITY_DISCLAIMER, vitalityAccessibilityLabel, vitalityEstimatedNote, vitalityRecommendation } from '@/services/vitalityView';
 import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 const RING_SIZE = 64;
@@ -60,7 +60,7 @@ export function ReadinessCard() {
 
   return (
     <GlassCard style={styles.card}>
-      <View style={styles.row} accessible accessibilityLabel={vitalityAccessibilityLabel(state, score, vitality?.indicators, vitality?.provisional)}>
+      <View style={styles.row} accessible accessibilityLabel={vitalityAccessibilityLabel(state, score, vitality?.indicators, vitality?.estimated)}>
         <View style={styles.ringWrap}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
             <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS} stroke={colors3.surfaceContainerHigh} strokeWidth={RING_STROKE} fill="none" />
@@ -86,8 +86,8 @@ export function ReadinessCard() {
           <Text style={styles.recommendation}>{vitalityRecommendation(state)}</Text>
         </View>
       </View>
-      {!!vitality?.provisional && <Text style={styles.hint}>{VITALITY_PROVISIONAL_NOTE}</Text>}
-      {vitality?.indicators.sleep == null && !vitality?.provisional && (
+      {!!vitality?.estimated && <Text style={styles.hint}>{vitalityEstimatedNote(vitality.estimatedReasons)}</Text>}
+      {vitality?.indicators.sleep == null && !vitality?.estimated && (
         <Text style={styles.hint}>Conecte o Apple Health na aba Atividades para incluir seu sono nessa pontuação.</Text>
       )}
       <Text style={styles.hint}>{VITALITY_DISCLAIMER}</Text>

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { DEV_TAPS_NEEDED, DEV_TAP_WINDOW_MS, nextTap } from '../services/devTaps.ts';
-import { formatVitalityDebug } from '../services/vitalityDebugView.ts';
+import { formatHoursMinutes, formatInstant, formatVitalityDebug } from '../services/vitalityDebugView.ts';
 import { runVitalityEngine } from '../services/vitalityEngine.ts';
 
 test('7 toques seguidos ativam; antes do 7o nada acontece', () => {
@@ -58,10 +58,11 @@ test('toque unico configuravel', () => {
 
 // ------------------------------------------------------------------------------------------------ formatacao da depuracao
 const NOW = new Date(2026, 10, 17, 15, 30);
+const WAKE = new Date(2026, 10, 17, 6, 40);
 const debugFor = (over = {}) =>
   runVitalityEngine({
-    now: NOW, todayKey: '2026-11-17', yesterdayKey: '2026-11-16',
-    sleep: { quality: 88, confidence: 1, parts: { duration: 95.4, debt: 100 }, isToday: true },
+    now: NOW, todayKey: '2026-11-17',
+    sleep: { quality: 88, confidence: 1, parts: { duration: 95.4, debt: 100 }, wakeAt: WAKE.toISOString(), asleepMin: 550 },
     readiness: { load_score: 80, load_score_prior: 100, hr_score: 90 },
     day: { steps: 8000, activeKcal: 400, workouts: [{ minutes: 40, avgHr: 150, steps: 3000, activeKcal: 300 }], awakeHrElevation: 9, restHours: 3, napMinutes: 20 },
     history: Array.from({ length: 7 }, () => ({ steps: 5000, activeKcal: 250, workouts: [] })), restHr: 58, stored: null, ...over,
@@ -69,43 +70,61 @@ const debugFor = (over = {}) =>
 
 const flat = (sections) => Object.fromEntries(sections.flatMap((s) => s.rows.map((r) => [r.label, r.value])));
 
-test('depuracao mostra base e componentes, desgastes, recuperacao, resultado, referencias, congelamento e hora', () => {
+test('depuracao mostra ciclo, base e componentes, desgastes (inclusive tempo), recuperacao, resultado, referencias e hora', () => {
   const sections = formatVitalityDebug(debugFor());
-  assert.deepEqual(sections.map((s) => s.title), ['Base da manhã', 'Desgaste do dia', 'Resultado', 'Referências pessoais (14 dias)', 'Hoje (ao vivo)', 'Atualização']);
+  assert.deepEqual(sections.map((s) => s.title), ['Ciclo (começa ao acordar)', 'Base da manhã', 'Desgaste do ciclo', 'Resultado', 'Referências pessoais (14 dias)', 'Desde a âncora (ao vivo)', 'Atualização']);
   const v = flat(sections);
-  assert.equal(v['Congelada hoje'], 'sim');
+  assert.equal(v['Âncora (acordou em)'], '17/11 06:40');
+  assert.equal(v['Origem da âncora'], 'noite lida agora');
+  assert.equal(v['Tempo acordado contado'], '8h 20m'); // 8h50 desde 06:40 menos 30 min (20 min de soneca x 1,5)
+  assert.equal(v['Valor estimado'], 'não');
+  assert.equal(v['Congelada neste ciclo'], 'sim');
   assert.equal(v['Qualidade do sono (0,65)'], '88');
   assert.match(v['Componentes do sono'], /duração 95/);
   assert.equal(v['Carga 7 dias anteriores (0,20)'], '100');
   assert.equal(v['Carga com hoje (só backend)'], '80');
   assert.equal(v['FC do backend (0,15)'], '90');
+  assert.ok(Number.isFinite(Number(v['Tempo acordado (2,5/h, máx. 40)'])));
   assert.match(v['Movimento (fora de treino)'], /^\d+\.\d \(razão /);
   assert.match(v['Treino'], /unidades/);
   assert.ok(Number.isFinite(Number(v['Desgaste total (máx. 55)'])));
-  assert.ok(Number.isFinite(Number(v['Recuperação'])));
   assert.equal(v['Passos típicos (fora de treino)'], '5000');
   assert.equal(v['FC de repouso'], '58');
   assert.equal(v['Passos'], '8000');
   assert.equal(v['Treinos'], '1');
   assert.equal(v['Última atualização'], 'Atualizado às 15:30');
-  assert.equal(v['Dia'], '2026-11-17');
+  assert.equal(v['Dia do calendário'], '2026-11-17');
   assert.match(v['Rótulo'], /Em forma|Atenção|Recuperar/);
 });
 
-test('depuracao marca referencias padrao e valores ausentes com tracos, sem lancar', () => {
-  const v = flat(formatVitalityDebug(debugFor({ history: null, day: null, sleep: null, readiness: null, restHr: null })));
+test('depuracao: sem sono e sem ancora aparece como estimado/sem sono, sem tempo acordado, e com valores ausentes em tracos', () => {
+  const v = flat(formatVitalityDebug(debugFor({ sleep: null, history: null, day: null, restHr: null })));
+  assert.equal(v['Âncora (acordou em)'], '—');
+  assert.match(v['Origem da âncora'], /nenhuma/);
+  assert.equal(v['Tempo acordado contado'], '—');
+  assert.match(v['Valor estimado'], /^sim \(.*sem sono/);
   assert.match(v['Passos típicos (fora de treino)'], /\(padrão\)/);
   assert.equal(v['FC de repouso'], '—');
   assert.equal(v['Passos'], '—');
   assert.equal(v['Treinos'], '0');
-  assert.equal(v['Valor mostrado'], '—');
-  assert.equal(v['Movimento (fora de treino)'], '—');
+  assert.equal(v['Tempo acordado (2,5/h, máx. 40)'], '0.0');
 });
 
-test('depuracao antes de acordar: provisoria, noite de ontem e sem desgaste calculado', () => {
-  const v = flat(formatVitalityDebug(debugFor({ now: new Date(2026, 10, 17, 6, 0), sleep: { quality: 70, confidence: 0.8, parts: {}, isToday: false } })));
-  assert.equal(v['Provisória (antes de acordar)'], 'sim');
-  assert.match(v['Qualidade do sono (0,65)'], /\(noite de ontem\)/);
-  assert.equal(v['Congelada hoje'], 'não');
-  assert.equal(v['Desgaste total (máx. 55)'], '—');
+test('depuracao: valor travado para nao subir por falta de dado aparece', () => {
+  const first = runVitalityEngine({
+    now: NOW, todayKey: '2026-11-17', sleep: { quality: 88, confidence: 1, parts: {}, wakeAt: WAKE.toISOString() }, readiness: { load_score_prior: 100, hr_score: 90 },
+    day: { steps: 9000, activeKcal: 420, workouts: [] }, history: null, restHr: 60, stored: null,
+  });
+  const later = new Date(NOW.getTime() + 26 * 3600000);
+  const capped = runVitalityEngine({ now: later, todayKey: '2026-11-18', sleep: null, readiness: { load_score_prior: 100, hr_score: 90 }, day: { steps: 9000, activeKcal: 420, workouts: [] }, history: null, restHr: 60, stored: { ...first.next, updatedAt: later.getTime() - 3600000 } });
+  const v = flat(formatVitalityDebug(capped.debug));
+  assert.match(v['Travado para não subir por falta de dado'], /^sim \(≤ \d+\)$/);
+});
+
+test('formatadores: instante e horas/minutos', () => {
+  assert.equal(formatInstant(new Date(2026, 10, 7, 9, 5).toISOString()), '07/11 09:05');
+  for (const bad of [null, undefined, '', 'x']) assert.equal(formatInstant(bad), '—');
+  assert.equal(formatHoursMinutes(548), '9h 08m');
+  assert.equal(formatHoursMinutes(0), '0h 00m');
+  for (const bad of [null, undefined, NaN, -1]) assert.equal(formatHoursMinutes(bad), '—');
 });

@@ -17,7 +17,7 @@ import {
   SleepStage,
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
-import { formatSleepMinutes } from '@/utils/sleepFormat';
+import { formatNightLabel, formatSleepMinutes } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
 // consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
@@ -60,11 +60,6 @@ const formatDuration = formatSleepMinutes;
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatTodayLabel(): string {
-  const label = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
-  return `Noite de ${label.replace('.', '')}`;
 }
 
 function minutesForStage(breakdown: SleepSessionDetail['breakdown'], stage: SleepStage): number {
@@ -122,7 +117,8 @@ interface SelectedSegment {
  * (mais abaixo), que usa o card generico HealthHistoryCard com
  * fetchHealthMetricHistory('sleep', ...) — la as setas funcionam.
  */
-function SleepNightView() {
+/** `onNightEnded` informa o horario de acordar da noite mostrada (para o titulo da navegacao usar a data de ACORDAR, nao a de hoje). */
+function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string | null) => void }) {
   const [status, setStatus] = useState<Status>('checking');
   const [detail, setDetail] = useState<SleepSessionDetail | null>(null);
   const [selected, setSelected] = useState<SelectedSegment | null>(null);
@@ -147,16 +143,18 @@ function SleepNightView() {
       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
       const result = await fetchSleepSessionDetail();
       if (!result) {
+        onNightEnded?.(null);
         setStatus('empty');
         return;
       }
+      onNightEnded?.(result.endedAt);
       setDetail(result);
       setStatus('ready');
     } catch (err) {
       console.error('[SleepDetailView] falha ao buscar detalhe de sono:', err);
       setStatus('error');
     }
-  }, []);
+  }, [onNightEnded]);
 
   useFocusEffect(
     useCallback(() => {
@@ -338,6 +336,7 @@ const SLEEP_PERIOD_OPTIONS = HEALTH_PERIOD_OPTIONS.filter((option) => option.val
  */
 export function SleepDetailView() {
   const [period, setPeriod] = useState<HealthHistoryPeriod>('1d');
+  const [nightEndedAt, setNightEndedAt] = useState<string | null>(null);
   const historyState = useHealthHistory('sleep', period, period !== '1d');
 
   const handleChangePeriod = (value: HealthHistoryPeriod) => {
@@ -377,7 +376,7 @@ export function SleepDetailView() {
             >
               <Ionicons name="chevron-back" size={20} color={colors3.outlineVariant} />
             </View>
-            <Text style={styles.navLabel}>{formatTodayLabel()}</Text>
+            <Text style={styles.navLabel}>{formatNightLabel(nightEndedAt)}</Text>
             <View
               accessible
               accessibilityRole="button"
@@ -388,7 +387,7 @@ export function SleepDetailView() {
               <Ionicons name="chevron-forward" size={20} color={colors3.outlineVariant} />
             </View>
           </View>
-          <SleepNightView />
+          <SleepNightView onNightEnded={setNightEndedAt} />
         </>
       ) : historyState.status === 'unavailable' ? (
         <Text style={styles.emptyText}>

@@ -6,8 +6,29 @@ import type { VitalityState } from '@/services/vitality';
 /** Aviso curto que acompanha o numero da Vitalidade em toda tela. */
 export const VITALITY_DISCLAIMER = 'Estimativa de bem-estar, não uma medida médica.';
 
-/** Aviso quando ainda nao ha o sono de hoje (o valor e o de ontem a noite). */
-export const VITALITY_PROVISIONAL_NOTE = 'Valor provisório: atualiza quando você acordar.';
+/** Avisos quando o valor e ESTIMADO (faltam dados): sem sono recente (sem ancora de acordar, sem desgaste por tempo) ou sem leitura de passos/calorias agora. */
+export const VITALITY_ESTIMATED_NOTE_NO_SLEEP = 'Estimado: sem dados de sono recentes.';
+export const VITALITY_ESTIMATED_NOTE_NO_MOVEMENT = 'Estimado: sem leitura de passos e calorias agora.';
+export const VITALITY_ESTIMATED_NOTE = 'Valor estimado: faltam dados recentes.';
+
+/** Aviso de estimado conforme o motivo (sem_sono tem prioridade). Sem motivos = sem aviso. */
+export function vitalityEstimatedNote(reasons: readonly string[] | null | undefined): string {
+  if (!reasons || reasons.length === 0) return '';
+  if (reasons.includes('sem_sono')) return VITALITY_ESTIMATED_NOTE_NO_SLEEP;
+  if (reasons.includes('sem_movimento')) return VITALITY_ESTIMATED_NOTE_NO_MOVEMENT;
+  return VITALITY_ESTIMATED_NOTE;
+}
+
+/**
+ * Campos de Vitalidade que o WIDGET recebe: SEMPRE derivados do mesmo valor do app (rotulo e numero iguais ao "Em forma · 84" das telas). Sem valor ou sem dados = nulls.
+ * Existe como funcao pura para o teste provar que widget e app nao divergem.
+ */
+export function widgetVitalityFields(
+  vitality: { state: VitalityState; score: number | null } | null | undefined
+): { vitalityLabel: string | null; vitalityScore: number | null } {
+  if (!vitality || vitality.state === 'nodata' || typeof vitality.score !== 'number' || !Number.isFinite(vitality.score)) return { vitalityLabel: null, vitalityScore: null };
+  return { vitalityLabel: VITALITY_LABELS[vitality.state], vitalityScore: Math.round(vitality.score) };
+}
 
 /** Frase de orientacao do estado (substitui o texto de prontidao do backend, que era calculado sem o esforco do dia). */
 export function vitalityRecommendation(state: VitalityState): string {
@@ -31,11 +52,11 @@ export function vitalityAccessibilityLabel(
   state: VitalityState,
   score: number | null | undefined,
   indicators: { sleep: number | null; load: number | null; hr: number | null } | null | undefined,
-  provisional = false
+  estimated = false
 ): string {
   if (state === 'nodata' || typeof score !== 'number' || !Number.isFinite(score)) return 'Vitalidade: sem dados. Conecte o Apple Health.';
   const base = `${part('Sono', indicators?.sleep)} ${part('Carga', indicators?.load)} ${part('Frequência cardíaca', indicators?.hr)}`;
-  return `Vitalidade: ${VITALITY_LABELS[state]}. Pontuação ${Math.round(score)} de 100. ${base}${provisional ? ` ${VITALITY_PROVISIONAL_NOTE}` : ''} ${VITALITY_DISCLAIMER}`;
+  return `Vitalidade: ${VITALITY_LABELS[state]}. Pontuação ${Math.round(score)} de 100. ${base}${estimated ? ` ${VITALITY_ESTIMATED_NOTE}` : ''} ${VITALITY_DISCLAIMER}`;
 }
 
 /** "Atualizado às HH:mm" (horario local); sem horario valido = vazio. */

@@ -134,8 +134,8 @@ export function fetchSleepQualityReading(): Promise<SleepQualityReading | null> 
 }
 
 // Vitalidade dinamica (so iOS; no Android do app, descontinuado, devolvem null). Ver healthkit.ts.
-export function fetchVitalityToday(now: Date, awakeStart: Date): ReturnType<typeof healthkit.fetchVitalityToday> {
-  return isIOS ? healthkit.fetchVitalityToday(now, awakeStart) : Promise.resolve(null);
+export function fetchVitalityToday(now: Date, windowStart: Date): ReturnType<typeof healthkit.fetchVitalityToday> {
+  return isIOS ? healthkit.fetchVitalityToday(now, windowStart) : Promise.resolve(null);
 }
 
 export function fetchVitalityHistory(now?: Date, days?: number): ReturnType<typeof healthkit.fetchVitalityHistory> {

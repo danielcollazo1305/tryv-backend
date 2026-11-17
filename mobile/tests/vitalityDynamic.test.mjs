@@ -472,3 +472,70 @@ test('dia tipico: base 88, passos e calorias na referencia, sem treino, da 77 a 
   near(out.score, 88 - 10.55 * (0.6 + 0.4 * 0.88), 0.01);
   assert.ok(out.score > 77 && out.score < 79);
 });
+
+// ------------------------------------------------------------------------------------------------------------ desgaste por TEMPO acordado
+import { TIME_WEAR, awakeMinutesSince, timeWear } from '../services/vitalityDynamic.ts';
+
+test('constantes do desgaste por tempo: 2,5 pontos/hora, teto 40, cochilo 1 + 0,5', () => {
+  assert.deepEqual({ ...TIME_WEAR }, { ratePerHour: 2.5, cap: 40, napSleepNotAwake: 1, napRestorativeCredit: 0.5 });
+});
+
+test('desgaste por tempo: 2,5 por hora, teto 40; ausente, zero ou negativo = 0 (sem ancora nao se inventa)', () => {
+  assert.equal(timeWear(60), 2.5);
+  assert.equal(timeWear(12 * 60), 30);
+  assert.equal(timeWear(16 * 60), 40);
+  assert.equal(timeWear(40 * 60), 40);
+  assert.equal(timeWear(30), 1.25);
+  for (const none of [0, -5, NaN, null, undefined]) assert.equal(timeWear(none), 0);
+});
+
+test('minutos acordado desde a ancora: atravessa a meia-noite e o cochilo abate 1,5 minuto por minuto dormido', () => {
+  const anchor = new Date(2026, 10, 17, 12, 0).getTime();
+  const midnightPlus = new Date(2026, 10, 18, 0, 30).getTime();
+  assert.equal(awakeMinutesSince(anchor, midnightPlus, 0), 12 * 60 + 30); // a meia-noite nao reinicia
+  assert.equal(awakeMinutesSince(anchor, midnightPlus, 30), 12 * 60 + 30 - 45);
+  assert.equal(awakeMinutesSince(anchor, anchor, 0), 0);
+  assert.equal(awakeMinutesSince(anchor, anchor - 1000, 0), 0); // ancora no futuro
+  assert.equal(awakeMinutesSince(anchor, anchor + 20 * 60000, 600), 0); // cochilo maior que o tempo: nunca negativo
+  assert.equal(awakeMinutesSince(null, midnightPlus, 0), 0);
+  assert.equal(awakeMinutesSince(undefined, midnightPlus, 0), 0);
+  assert.equal(awakeMinutesSince(anchor, NaN, 0), 0);
+  assert.equal(awakeMinutesSince(anchor, midnightPlus, null), 12 * 60 + 30);
+  assert.equal(awakeMinutesSince(anchor, midnightPlus, -10), 12 * 60 + 30);
+});
+
+test('o desgaste total soma o tempo (parcela propria) e continua limitado a 55', () => {
+  const refs = { steps: 6000, kcal: 300, eref: 60, fromHistory: { steps: true, kcal: true, eref: true } };
+  const sitting = dayWear({ steps: 0, activeKcal: 0, workouts: [], awakeMinutes: 12 * 60 }, refs, 60, 190);
+  assert.equal(sitting.time, 30);
+  assert.equal(sitting.total, 30);
+  const noAnchor = dayWear({ steps: 0, activeKcal: 0, workouts: [], awakeMinutes: null }, refs, 60, 190);
+  assert.equal(noAnchor.time, 0);
+  const huge = dayWear({ steps: 90000, activeKcal: 9000, awakeHrElevation: 80, workouts: [{ minutes: 600, avgHr: 190 }], awakeMinutes: 20 * 60 }, refs, 60, 190);
+  assert.equal(huge.total, 55);
+  assert.equal(huge.time, 40);
+});
+
+test('recuperar por descanso so abate o desgaste FISICO: sentar 12 h nao devolve as horas acordado', () => {
+  const refs = { steps: 6000, kcal: 300, eref: 60, fromHistory: { steps: true, kcal: true, eref: true } };
+  const out = vitalityNow(90, { steps: 1000, activeKcal: 50, workouts: [], restHours: 12, awakeMinutes: 12 * 60 }, refs, 60);
+  assert.ok(out.recovery <= 0.35 * (out.wear.movement + out.wear.training + out.wear.heartRate) + 1e-9);
+  assert.ok(out.recovery < 2);
+  assert.ok(out.score < 90 - 25); // o tempo pesou quase inteiro
+});
+
+test('com o tempo acordado a Vitalidade continua entre 0 e 100, nunca passa da base e nunca cai mais que 55', () => {
+  const refs = { steps: 6000, kcal: 300, eref: 60, fromHistory: { steps: true, kcal: true, eref: true } };
+  const r = rng(99);
+  for (let i = 0; i < 1500; i += 1) {
+    const base = r() * 100;
+    const out = vitalityNow(base, {
+      steps: r() < 0.1 ? null : r() * 40000, activeKcal: r() * 3000, workouts: [{ minutes: r() * 150, avgHr: 90 + r() * 100 }],
+      awakeMinutes: r() < 0.1 ? null : r() * 60 * 60, restHours: Math.floor(r() * 20), napMinutes: r() * 120, awakeHrElevation: r() * 50,
+    }, refs, 60);
+    assert.ok(out.score >= 0 && out.score <= 100);
+    assert.ok(out.score <= base + 1e-9);
+    assert.ok(out.score >= Math.max(0, base - 55) - 1e-9);
+    assert.ok(out.wear.total <= 55 + 1e-9);
+  }
+});

@@ -15,7 +15,7 @@ import {
   scoreToPillColor,
   waveformPath,
 } from '@/services/vitality';
-import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
+import { VITALITY_DISCLAIMER, vitalityAccessibilityLabel, vitalityEstimatedNote, vitalityRecommendation } from '@/services/vitalityView';
 import { getInitials } from '@/utils/text';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -102,7 +102,7 @@ export function VitalityMonitor() {
     );
   }
 
-  const label = vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.provisional);
+  const label = vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.estimated);
   const score = vitality && hasColor && vitality.score !== null ? Math.round(vitality.score) : null;
   const indicators: { name: string; value: number | null | undefined }[] = [
     { name: 'Sono', value: vitality?.indicators.sleep },
@@ -140,7 +140,7 @@ export function VitalityMonitor() {
       {hasColor ? (
         <View style={styles.notes}>
           <Text style={[styles.message, { color: TEXT_ON_PANEL }]}>{vitalityRecommendation(state)}</Text>
-          {!!vitality?.provisional && <Text style={[styles.note, { color: TEXT_ON_PANEL }]}>{VITALITY_PROVISIONAL_NOTE}</Text>}
+          {!!vitality?.estimated && <Text style={[styles.note, { color: TEXT_ON_PANEL }]}>{vitalityEstimatedNote(vitality.estimatedReasons)}</Text>}
           <Text style={[styles.note, { color: TEXT_ON_PANEL }]}>{VITALITY_DISCLAIMER}</Text>
         </View>
       ) : (

@@ -5,11 +5,12 @@
 // pouco com descanso. Nunca passa da base, nunca cai mais que MAX_DROP no dia, sempre fica entre 0 e 100.
 //
 //   base     B = 0,65·sono + 0,20·carga + 0,15·FC   (sono ausente = 70 neutro, base marcada como parcial; carga/FC ausentes: peso redistribuido)
-//   desgaste D = min(MAX_DROP, movimento + treino + FC do dia)
+//   desgaste D = min(MAX_DROP, tempo acordado + movimento + treino + FC do dia)
+//     tempo     = min(40, 2,5 · horas_acordado),  horas_acordado = horas desde a ANCORA (quando acordou) menos o cochilo (ver TIME_WEAR) — o CICLO nao reinicia a meia-noite
 //     movimento = 32·(1 − e^(−0,4·M)),  M = media de (passos/ref_passos) e (kcal ativas/ref_kcal)  — SO passos e calorias FORA dos treinos
 //     treino    = 24·(1 − e^(−E/(2·Eref))),  E = Σ minutos·(0,5 + 1,5·intensidade) — o treino pesa SO aqui (nunca tambem no movimento)
 //     FC do dia = 6·clamp(elevacao_media_acordado/25, 0, 1)
-//   recuperacao R = min(8, 0,35·D, 0,8·horas_de_descanso + min(5, 2,5·min_de_soneca/30))
+//   recuperacao R = min(8, 0,35·(D sem o tempo), 0,8·horas_de_descanso + min(5, 2,5·min_de_soneca/30))   — descanso recupera o ESFORCO; so sono/soneca recuperam o tempo acordado
 //   Vitalidade V = clamp(B − (D − R)·(0,6 + 0,4·B/100),  max(0, B − MAX_DROP),  B)
 //
 // Referencia PESSOAL: mediana dos ultimos 14 dias do proprio usuario, calculada com a MESMA regra do movimento (sem os treinos de cada dia);
@@ -33,6 +34,22 @@ export const K = {
   napCap: 5,
   recoveryMax: 8,
   recoveryFraction: 0.35,
+} as const;
+
+/**
+ * DESGASTE POR TEMPO ACORDADO (um unico lugar para ajustar). O ciclo comeca quando a pessoa ACORDA (ancora) e a Vitalidade desce de forma continua com as horas.
+ *  - ratePerHour 2,5: 16 h acordado = 40 pontos (o teto); um dia comum de 12 h acordado gasta 30. Calibrado para que quem acordou as 12 h e esta sentado a meia-noite fique
+ *    na faixa de 55 a 60 (rotulo moderado).
+ *  - cap 40: teto POR CICLO; passa de 16 h acordado o tempo nao gasta mais (o esforco, que e outro termo, continua).
+ *  - napSleepNotAwake 1: os minutos dormidos na soneca NAO sao tempo acordado (a pessoa estava dormindo): saem inteiros da conta.
+ *  - napRestorativeCredit 0,5: alem disso, cada minuto de soneca abate mais 0,5 minuto acordado (sono curto devolve alerta, mas menos que uma noite: por isso metade). Uma
+ *    soneca de 30 min abate 45 min de tempo acordado (~1,9 ponto) e ainda soma a recuperacao de descanso (K.napPoints30).
+ */
+export const TIME_WEAR = {
+  ratePerHour: 2.5,
+  cap: 40,
+  napSleepNotAwake: 1,
+  napRestorativeCredit: 0.5,
 } as const;
 
 export const BASE_WEIGHTS = { sleep: 0.65, load: 0.2, hr: 0.15 } as const;
@@ -80,6 +97,8 @@ export interface DayInput {
   /** Horas acordado e em descanso (poucos passos e FC perto do repouso) e minutos de soneca. */
   restHours?: number;
   napMinutes?: number;
+  /** Minutos ACORDADO contados desde a ancora (ja sem o cochilo, ver awakeMinutesSince); null/ausente = sem ancora = sem desgaste por tempo. */
+  awakeMinutes?: number | null;
 }
 
 export interface PersonalReferences {
@@ -101,6 +120,8 @@ export interface BaseInput {
 }
 
 export interface WearBreakdown {
+  /** Desgaste pelo tempo acordado desde a ancora (0 sem ancora). */
+  time: number;
   movement: number;
   training: number;
   heartRate: number;
@@ -238,28 +259,50 @@ export function heartRateWear(awakeHrElevation: number | null | undefined): numb
   return K.hrMax * clamp(awakeHrElevation / 25, 0, 1);
 }
 
-/** Desgaste total do dia (monotonico: so cresce com passos, calorias, treino e FC) com cada parcela e o teto K.maxDrop. */
+/**
+ * Minutos ACORDADO do ciclo: tempo desde a ancora (quando acordou) menos o cochilo (minutos dormidos + credito restaurador, ver TIME_WEAR). Ancora no futuro ou ausente = 0.
+ * `anchorMs`/`nowMs` em epoch ms.
+ */
+export function awakeMinutesSince(anchorMs: number | null | undefined, nowMs: number, napMinutes: number | null | undefined): number {
+  if (!isNum(anchorMs) || !isNum(nowMs)) return 0;
+  const elapsed = Math.max(0, nowMs - anchorMs) / 60000;
+  const nap = nonNeg(napMinutes) * (TIME_WEAR.napSleepNotAwake + TIME_WEAR.napRestorativeCredit);
+  return Math.max(0, elapsed - nap);
+}
+
+/** Desgaste pelo tempo acordado: 2,5 pontos por hora, ate 40 por ciclo. Sem minutos (null/ausente/negativo) = 0: sem ancora NAO se inventa desgaste por tempo. */
+export function timeWear(awakeMinutes: number | null | undefined): number {
+  if (!isNum(awakeMinutes) || awakeMinutes <= 0) return 0;
+  return Math.min(TIME_WEAR.cap, (TIME_WEAR.ratePerHour * awakeMinutes) / 60);
+}
+
+/** Desgaste total do ciclo (monotonico: so cresce com o tempo, passos, calorias, treino e FC) com cada parcela e o teto K.maxDrop. */
 export function dayWear(day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null): WearBreakdown {
   const movement = movementWear(day, refs);
   const trainingUnits = dayTrainingUnits(day?.workouts ?? [], restHr, maxHr);
   const training = trainingWear(trainingUnits, refs.eref);
   const heartRate = heartRateWear(day?.awakeHrElevation);
+  const time = timeWear(day?.awakeMinutes);
   return {
+    time,
     movement: movement.wear,
     training,
     heartRate,
-    total: Math.min(movement.wear + training + heartRate, K.maxDrop),
+    total: Math.min(time + movement.wear + training + heartRate, K.maxDrop),
     movementRatio: movement.ratio,
     trainingUnits,
   };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------- recuperacao
-/** Recuperacao: descanso e soneca devolvem pontos, com teto (8, e no maximo 35% do desgaste: nada recupera o que nao foi gasto). */
-export function recoveryPoints(day: Pick<DayInput, 'restHours' | 'napMinutes'>, totalWear: number): number {
+/**
+ * Recuperacao: descanso e soneca devolvem pontos, com teto (8, e no maximo 35% do desgaste FISICO: nada recupera o que nao foi gasto). `physicalWear` = movimento + treino + FC,
+ * SEM o desgaste por tempo (ficar sentado nao "recupera" horas acordado; so dormir/cochilar faz isso, pelo abatimento do tempo).
+ */
+export function recoveryPoints(day: Pick<DayInput, 'restHours' | 'napMinutes'>, physicalWear: number): number {
   const rest = Math.floor(nonNeg(day?.restHours)) * K.restPoints;
   const nap = Math.min(K.napCap, (nonNeg(day?.napMinutes) / 30) * K.napPoints30);
-  return Math.max(0, Math.min(rest + nap, K.recoveryMax, K.recoveryFraction * Math.max(0, totalWear)));
+  return Math.max(0, Math.min(rest + nap, K.recoveryMax, K.recoveryFraction * Math.max(0, physicalWear)));
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------- resultado
@@ -274,7 +317,7 @@ export function applyWear(base: number, totalWear: number, recovery: number): nu
 /** Vitalidade de agora (valor bruto, sem suavizar) a partir da base da manha e dos totais de hoje. */
 export function vitalityNow(base: number, day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null): VitalityResult {
   const wear = dayWear(day, refs, restHr, maxHr);
-  const recovery = recoveryPoints(day, wear.total);
+  const recovery = recoveryPoints(day, wear.movement + wear.training + wear.heartRate);
   return { score: applyWear(base, wear.total, recovery), wear, recovery };
 }
 

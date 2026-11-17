@@ -176,3 +176,76 @@ test('sonecas de hoje: soma so as sessoes das 9h as 20h que terminam hoje', () =
   assert.equal(napMinutesToday([], NOW), 0);
   assert.equal(napMinutesToday(null, NOW), 0);
 });
+
+// ------------------------------------------------------------------------------------------------ leitura de sono do CICLO (ancora de acordar)
+import { CYCLE_LOOKBACK_HOURS, napMinutesSince, sleepCycleReading } from '../services/sleepNights.ts';
+
+// Caso real: noite 02:20-11:54 do dia 16 (offset -1 em relacao a NOW = 17/11 10:00), com estagios.
+function lateNight(dayOffset) {
+  return [
+    sample(at(dayOffset, 2, 20), at(dayOffset, 4, 0), 3),
+    sample(at(dayOffset, 4, 0), at(dayOffset, 5, 10), 4),
+    sample(at(dayOffset, 5, 10), at(dayOffset, 8, 0), 3),
+    sample(at(dayOffset, 8, 0), at(dayOffset, 8, 26), 2),
+    sample(at(dayOffset, 8, 26), at(dayOffset, 10, 0), 5),
+    sample(at(dayOffset, 10, 0), at(dayOffset, 11, 54), 3),
+    sample(at(dayOffset, 2, 10), at(dayOffset, 12, 4), 0, 'iphone'),
+  ];
+}
+
+test('ciclo: a noite 02:20-11:54 de ontem e a ancora as 00:05 de hoje (a meia-noite nao a "expira")', () => {
+  const midnightPlus = at(0, 0, 5);
+  const reading = sleepCycleReading(lateNight(-1), midnightPlus);
+  assert.equal(reading.wakeAt, at(-1, 11, 54).toISOString());
+  assert.equal(reading.wakeDate, keyOf(-1)); // dia em que ACORDOU, nao o de hoje
+  assert.equal(reading.isToday, false);
+  assert.ok(Math.abs(reading.asleepMin - (9 * 60 + 8)) < 1, String(reading.asleepMin)); // 9h34 na cama menos 26 min acordado
+  assert.ok(reading.quality != null);
+  // a regra antiga do "dia civil" trata a mesma noite como ontem (provisoria): continua assim, so nao e mais ela que ancora o ciclo
+  assert.equal(sleepQualityForToday(lateNight(-1), midnightPlus).isToday, false);
+});
+
+test('ciclo: a noite de hoje vira a ancora assim que o acordar passa; antes disso vale a anterior', () => {
+  const samples = [...wakeNight(-1), ...wakeNight(0)];
+  assert.equal(sleepCycleReading(samples, at(0, 6, 59)).wakeAt, at(-1, 7, 0).toISOString()); // ainda dormindo
+  assert.equal(sleepCycleReading(samples, at(0, 7, 1)).wakeAt, at(0, 7, 0).toISOString());
+  assert.equal(sleepCycleReading(samples, at(0, 7, 1)).isToday, true);
+});
+
+test('ciclo: soneca nao e ancora; so a noite principal', () => {
+  const nap = [sample(at(0, 14, 0), at(0, 14, 40), 1)];
+  const reading = sleepCycleReading([...wakeNight(0), ...nap], at(0, 18));
+  assert.equal(reading.wakeAt, at(0, 7, 0).toISOString());
+  assert.equal(sleepCycleReading(nap, at(0, 18)), null);
+});
+
+test('ciclo: acordou ha mais de 36 h (ou sem noite) = sem ancora', () => {
+  assert.equal(CYCLE_LOOKBACK_HOURS, 36);
+  const wake = at(-2, 7, 0).getTime();
+  const justInside = new Date(wake + 36 * 3600000);
+  const justOutside = new Date(wake + 36 * 3600000 + 60000);
+  assert.ok(sleepCycleReading(wakeNight(-2), justInside) != null);
+  assert.equal(sleepCycleReading(wakeNight(-2), justOutside), null);
+  assert.equal(sleepCycleReading([], NOW), null);
+  assert.equal(sleepCycleReading(null, NOW), null);
+});
+
+test('ciclo: noite com acordar no futuro (relogio atrasado) nao entra', () => {
+  assert.equal(sleepCycleReading(wakeNight(1), NOW), null);
+});
+
+test('ciclo: a divida e a regularidade usam as noites ate a escolhida', () => {
+  const samples = [-6, -5, -4, -3, -2, -1].flatMap((d) => lateNight(d));
+  const r = sleepCycleReading(samples, at(0, 0, 5));
+  assert.ok('debt' in r.parts && 'regularity' in r.parts);
+});
+
+test('sonecas desde a ancora: so as iniciadas depois dela e ja terminadas', () => {
+  const anchor = at(0, 6, 0).getTime();
+  const naps = [sample(at(0, 15, 0), at(0, 15, 30), 1), sample(at(-1, 14, 0), at(-1, 14, 30), 1), sample(at(0, 21, 0), at(0, 21, 20), 1)];
+  assert.equal(napMinutesSince(naps, anchor, at(0, 18, 0)), 30); // a de ontem fica de fora e a das 21h ainda nao aconteceu
+  assert.equal(napMinutesSince(naps, anchor, at(0, 23, 0)), 30); // a das 21h comeca depois de 20h: e noite, nao soneca
+  assert.equal(napMinutesSince(naps, at(-1, 0, 0).getTime(), at(0, 18, 0)), 60); // com a ancora de ontem, as duas contam
+  assert.equal(napMinutesSince([], anchor, NOW), 0);
+  assert.equal(napMinutesSince(null, anchor, NOW), 0);
+});

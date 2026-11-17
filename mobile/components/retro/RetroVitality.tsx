@@ -13,7 +13,7 @@ import {
   scoreToColorOnDark,
   waveformPath,
 } from '@/services/vitality';
-import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
+import { VITALITY_DISCLAIMER, vitalityAccessibilityLabel, vitalityEstimatedNote, vitalityRecommendation } from '@/services/vitalityView';
 
 const WAVE_HEIGHT = 36;
 const WAVE_SECONDS: Record<VitalityState, number> = { fit: 3600, attention: 5200, recover: 9000, nodata: 0 };
@@ -92,7 +92,7 @@ export function RetroVitality() {
       <View
         style={styles.header}
         accessible
-        accessibilityLabel={vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.provisional)}
+        accessibilityLabel={vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.estimated)}
       >
         <RetroText size={8} color={RETRO.textDim}>Vitalidade</RetroText>
         <RetroText size={9} color={color}>
@@ -112,7 +112,7 @@ export function RetroVitality() {
       {hasColor ? (
         <View style={styles.message}>
           <RetroText size={8} color={RETRO.textSoft} upper={false}>{vitalityRecommendation(state)}</RetroText>
-          {!!vitality?.provisional && <RetroText size={8} color={RETRO.textDim} upper={false}>{VITALITY_PROVISIONAL_NOTE}</RetroText>}
+          {!!vitality?.estimated && <RetroText size={8} color={RETRO.textDim} upper={false}>{vitalityEstimatedNote(vitality.estimatedReasons)}</RetroText>}
           <RetroText size={8} color={RETRO.textDim} upper={false}>{VITALITY_DISCLAIMER}</RetroText>
         </View>
       ) : (

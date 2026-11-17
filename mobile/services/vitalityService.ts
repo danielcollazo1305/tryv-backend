@@ -12,8 +12,8 @@ import { getTodayReadiness } from '@/services/readiness';
 import type { Readiness } from '@/services/readiness';
 import type { SleepQualityReading } from '@/services/sleepNights';
 import type { VitalityState } from '@/services/vitality';
-import { EMPTY_STORED_STATE, runVitalityEngine } from '@/services/vitalityEngine';
-import type { HistoryDay, StoredVitalityState, VitalityDebug } from '@/services/vitalityEngine';
+import { EMPTY_STORED_STATE, cycleKeyFor, resolveCycleAnchor, runVitalityEngine, storedStateForUser } from '@/services/vitalityEngine';
+import type { AnchorSource, EstimatedReason, HistoryDay, StoredVitalityState, VitalityDebug } from '@/services/vitalityEngine';
 import type { DayInput } from '@/services/vitalityDynamic';
 
 /** Chave do estado guardado (base congelada do dia, referencias, totais e ultimo valor). Limpa na exclusao de conta (services/account.ts). */
@@ -31,8 +31,17 @@ export interface DynamicVitality {
   /** 0-100 ou null (sem dados). */
   score: number | null;
   state: VitalityState;
-  /** true = ainda nao ha o sono de hoje: o valor e o de ontem a noite (ou a base provisoria). */
-  provisional: boolean;
+  /** true = valor ESTIMADO: sem dado de sono recente (sem ancora, sem desgaste por tempo) e/ou sem leitura de movimento. A tela avisa; nunca sobe por falta de dado. */
+  estimated: boolean;
+  estimatedReasons: EstimatedReason[];
+  /** Ciclo da Vitalidade: comeca quando a pessoa ACORDA (nao reinicia a meia-noite). */
+  cycle: {
+    /** Instante (ISO) em que acordou (a ancora); null = sem ancora. */
+    anchorAt: string | null;
+    anchorSource: AnchorSource;
+    /** Horas dormidas na noite que ancora o ciclo (so quando a leitura de hoje e essa noite); null = desconhecido. */
+    sleepHours: number | null;
+  };
   /** Epoch (ms) da ultima atualizacao calculada. */
   updatedAt: number;
   /** Componentes da base para as telas (sono = qualidade do aparelho, carga = 7 dias anteriores a hoje, FC = pilar do backend). */
@@ -64,9 +73,8 @@ async function saveStoredState(state: StoredVitalityState): Promise<void> {
 export async function computeDynamicVitality(): Promise<DynamicVitality> {
   const now = new Date();
   const todayKey = toDateKey(now);
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const yesterdayKey = toDateKey(yesterday);
   const stored = await loadStoredState();
+  const ownedState = storedStateForUser(stored, activeUserId);
 
   const connected = Platform.OS === 'ios' && (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
 
@@ -96,15 +104,19 @@ export async function computeDynamicVitality(): Promise<DynamicVitality> {
     readiness = null;
   }
 
-  // Dados de hoje ao vivo e historico para a referencia pessoal (so se as de hoje ainda nao foram fixadas).
+  // Ancora do CICLO (quando acordou): a noite lida agora ou a guardada (ate 24 h). Tudo conta desde ai, atravessando a meia-noite; sem ancora, desde 00:00 de hoje.
+  const anchor = resolveCycleAnchor(reading?.wakeAt, ownedState.anchor, now);
+  const cycleKey = cycleKeyFor(anchor.anchorMs, todayKey);
+  const windowStart = anchor.anchorMs != null ? new Date(anchor.anchorMs) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Dados do ciclo ao vivo e historico para a referencia pessoal (so se as do ciclo ainda nao foram fixadas).
   let day: DayInput | null = null;
   let restHr: number | null = null;
   let history: HistoryDay[] | null = null;
   if (connected) {
-    const awakeStart = reading?.isToday && reading.wakeAt ? new Date(reading.wakeAt) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const [today, hist] = await Promise.all([
-      fetchVitalityToday(now, awakeStart).catch(() => null),
-      stored.refs && stored.refs.dayKey === todayKey ? Promise.resolve(null) : fetchVitalityHistory(now, 14).catch(() => null),
+      fetchVitalityToday(now, windowStart).catch(() => null),
+      ownedState.refs && ownedState.refs.dayKey === cycleKey ? Promise.resolve(null) : fetchVitalityHistory(now, 14).catch(() => null),
     ]);
     if (today) {
       day = today.day;
@@ -116,8 +128,7 @@ export async function computeDynamicVitality(): Promise<DynamicVitality> {
   const out = runVitalityEngine({
     now,
     todayKey,
-    yesterdayKey,
-    sleep: reading ? { quality: reading.quality, confidence: reading.confidence, parts: reading.parts, isToday: reading.isToday } : null,
+    sleep: reading ? { quality: reading.quality, confidence: reading.confidence, parts: reading.parts, wakeAt: reading.wakeAt, asleepMin: reading.asleepMin } : null,
     readiness,
     day,
     history,
@@ -130,7 +141,13 @@ export async function computeDynamicVitality(): Promise<DynamicVitality> {
   return {
     score: out.display.score,
     state: out.display.state,
-    provisional: out.display.provisional,
+    estimated: out.estimated,
+    estimatedReasons: out.debug.cycle.estimatedReasons,
+    cycle: {
+      anchorAt: out.debug.cycle.anchorAt,
+      anchorSource: out.debug.cycle.anchorSource,
+      sleepHours: reading && out.debug.cycle.anchorAt && Date.parse(reading.wakeAt) === Date.parse(out.debug.cycle.anchorAt) ? Math.round((reading.asleepMin / 60) * 1000) / 1000 : null,
+    },
     updatedAt: now.getTime(),
     indicators: {
       sleep: out.debug.base.sleepQuality,

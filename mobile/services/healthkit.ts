@@ -61,7 +61,7 @@ import {
   toMonthKey,
   weekHeartRate,
 } from './healthkitState';
-import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesToday, sleepQualityForToday } from './sleepNights';
+import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesSince, sleepCycleReading } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
 import type { DayInput, WorkoutInput } from './vitalityDynamic';
 import { mergeOverlappingWorkouts, resolveWorkoutKcal } from './workoutWindows';
@@ -329,7 +329,7 @@ export async function fetchSleepQualityReading(): Promise<SleepQualityReading | 
   const now = new Date();
   const samples = await safe(readSleepSamples(addDays(startOfDay(now), -SLEEP_QUALITY_LOOKBACK_DAYS)));
   if (!samples) return null;
-  return sleepQualityForToday(samples, now);
+  return sleepCycleReading(samples, now);
 }
 
 /** Detalhe da ultima noite (estagios, linha do tempo, FC e respiracao durante o sono). Sem sono = null. */
@@ -567,19 +567,19 @@ export async function fetchRestingHeartRate(now: Date = new Date()): Promise<num
 /**
  * Dados de HOJE para a Vitalidade, ao vivo: passos e calorias ativas do dia, treinos de hoje (com os passos e calorias DENTRO da janela de cada treino, para
  * descontar do movimento), FC media acordado fora de treino acima da FC de repouso, horas de descanso (poucos passos e FC perto do repouso) e minutos de
- * soneca. `awakeStart` = quando acordou (limitado a hoje 00:00 .. agora). Sem HealthKit = null.
+ * soneca. `windowStart` = INICIO DO CICLO: a ancora (quando acordou; a janela pode atravessar a meia-noite) ou, sem ancora, 00:00 de hoje; tudo conta desde ai ate agora
+ * (limitado a no maximo agora). Sem HealthKit = null.
  */
-export async function fetchVitalityToday(now: Date, awakeStart: Date): Promise<{ day: DayInput; restHr: number | null } | null> {
+export async function fetchVitalityToday(now: Date, windowStart: Date): Promise<{ day: DayInput; restHr: number | null } | null> {
   const h = hk();
   if (!h || !h.isAvailable()) return null;
-  const dayStart = startOfDay(now);
-  const awakeFrom = awakeStart.getTime() > now.getTime() || awakeStart.getTime() < dayStart.getTime() ? dayStart : awakeStart;
+  const awakeFrom = windowStart.getTime() > now.getTime() ? now : windowStart;
   const [steps, activeKcal, windows, restHr, sleepSamples] = await Promise.all([
-    safe(sumSince(T_STEPS, 'count', dayStart)),
-    safe(sumSince(T_ENERGY, 'kcal', dayStart)),
-    readWorkoutWindows(dayStart, now),
+    safe(sumSince(T_STEPS, 'count', awakeFrom)),
+    safe(sumSince(T_ENERGY, 'kcal', awakeFrom)),
+    readWorkoutWindows(awakeFrom, now),
     fetchRestingHeartRate(now),
-    safe(readSleepSamples(dayStart)),
+    safe(readSleepSamples(awakeFrom)),
   ]);
 
   // FC media acordado FORA de treino: media (ponderada pela duracao) das lacunas entre os treinos, dentro de [awakeFrom, agora].
@@ -636,7 +636,7 @@ export async function fetchVitalityToday(now: Date, awakeStart: Date): Promise<{
       workouts: windows.map((w) => w.workout),
       awakeHrElevation,
       restHours,
-      napMinutes: sleepSamples ? napMinutesToday(sleepSamples, now) : 0,
+      napMinutes: sleepSamples ? napMinutesSince(sleepSamples, awakeFrom.getTime(), now) : 0,
     },
   };
 }

@@ -4,8 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 
 import { HEALTHKIT_CONNECTED_KEY, fetchHealthSummary, fetchSleepHoursWokenToday } from '@/services/healthkit';
 import { hasBasalEnergy } from '@/services/healthkitState';
-import { VITALITY_LABELS } from '@/services/vitality';
 import { refreshVitality } from '@/services/vitalityService';
+import { widgetVitalityFields } from '@/services/vitalityView';
 
 /**
  * Resumo do dia para o widget de TELA INICIAL (mobile/TryvFitWidgets/TryvFitSummaryWidget.swift). O app monta este JSON, o modulo nativo
@@ -28,7 +28,7 @@ export interface WidgetSummaryPayload {
   updatedAt: number;
   steps: number | null;
   stepGoal: number;
-  /** Horas da noite que terminou HOJE (dia em que acordou), via sleepHoursByWakeDay. */
+  /** Horas da noite que ANCORA o ciclo da Vitalidade (a ultima noite principal; atravessa a meia-noite), a mesma do app; sem ela, as horas da noite que terminou hoje. */
   sleepHours: number | null;
   activeKcal: number | null;
   /** So vem preenchida se ha basal de verdade (> 0); sem ela o widget mostra "Calorias ativas", nunca "total". */
@@ -74,22 +74,23 @@ async function buildPayload(): Promise<WidgetSummaryPayload> {
   const connected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
   if (!connected) return payload;
 
-  const [summary, sleepHours] = await Promise.all([fetchHealthSummary(), fetchSleepHoursWokenToday().catch(() => null)]);
-  payload.steps = roundOrNull(summary.stepsToday);
+  const [summary, wokenTodayHours] = await Promise.all([fetchHealthSummary(), fetchSleepHoursWokenToday().catch(() => null)]);
+  payload.steps = roundOrNull(summary.stepsToday); // contador do DIA do calendario (sem leitura desde 00:00 = null = "—": dado ausente continua ausente)
   payload.activeKcal = roundOrNull(summary.activeEnergyTodayKcal);
   payload.basalKcal = hasBasalEnergy(summary.basalEnergyTodayKcal) ? roundOrNull(summary.basalEnergyTodayKcal) : null;
-  payload.sleepHours = typeof sleepHours === 'number' && Number.isFinite(sleepHours) ? Math.round(sleepHours * 1000) / 1000 : null;
 
-  // Vitalidade: o MESMO valor dinamico do app (services/vitalityService.ts, o das telas), nunca um calculo proprio. Falha ou sem dados = sem vitalidade, o resto segue.
+  // Vitalidade: o MESMO valor dinamico do app (services/vitalityService.ts, o das telas), nunca um calculo proprio (widgetVitalityFields garante rotulo e numero iguais).
+  // O sono mostrado e o da noite que ANCORA o ciclo (a mesma que a Vitalidade usa; atravessa a meia-noite), e so na falta dela, o da noite que terminou hoje.
+  let cycleSleepHours: number | null = null;
   try {
     const vitality = await refreshVitality();
-    if (vitality && vitality.state !== 'nodata' && vitality.score !== null) {
-      payload.vitalityLabel = VITALITY_LABELS[vitality.state];
-      payload.vitalityScore = roundOrNull(vitality.score);
-    }
+    Object.assign(payload, widgetVitalityFields(vitality));
+    cycleSleepHours = vitality?.cycle.sleepHours ?? null;
   } catch {
     // mantem null
   }
+  const sleepHours = cycleSleepHours ?? wokenTodayHours;
+  payload.sleepHours = typeof sleepHours === 'number' && Number.isFinite(sleepHours) ? Math.round(sleepHours * 1000) / 1000 : null;
   return payload;
 }
 

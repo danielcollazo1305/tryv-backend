@@ -37,7 +37,12 @@ export interface SleepQualityReading {
   isToday: boolean;
   /** Instante (ISO) em que acordou nessa noite. */
   wakeAt: string;
+  /** Minutos dormidos da noite (uniao dos intervalos). */
+  asleepMin: number;
 }
+
+/** A noite que ancora o ciclo da Vitalidade so vale se a pessoa acordou ha no maximo isto (acordado ha mais tempo sem registrar outra noite = sem ancora). */
+export const CYCLE_LOOKBACK_HOURS = 36;
 
 const valid = (s: SleepSample): boolean =>
   s?.startDate instanceof Date && s?.endDate instanceof Date && !Number.isNaN(s.startDate.getTime()) && !Number.isNaN(s.endDate.getTime()) && s.endDate.getTime() > s.startDate.getTime();
@@ -145,7 +150,48 @@ export function sleepQualityForToday(samples: readonly SleepSample[], now: Date 
     wakeDate: chosen.wakeDate,
     isToday: chosen.wakeDate === todayKey,
     wakeAt: chosen.wakeAt,
+    asleepMin: chosen.asleepMin as number,
   };
+}
+
+/**
+ * Leitura de sono para o CICLO da Vitalidade: a noite PRINCIPAL mais recente (cochilo = sessao iniciada entre 9h e 20h fica de fora) cujo acordar ja passou, de QUALQUER
+ * dia do calendario (a noite 02:20-11:54 de segunda continua sendo a ancora a 00:05 de terca). So vale se acordou ha ate CYCLE_LOOKBACK_HOURS h; senao null (sem ancora).
+ * `isToday` so informa se o acordar foi no dia do calendario de `now`. A divida e a regularidade usam as noites ate a escolhida.
+ */
+export function sleepCycleReading(samples: readonly SleepSample[], now: Date = new Date(), needHours?: number): SleepQualityReading | null {
+  const todayKey = toDateKey(now);
+  const nights = buildSleepNightsForQuality(samples).filter((n) => Date.parse(n.wakeAt) <= now.getTime());
+  if (nights.length === 0) return null;
+  const chosen = nights[nights.length - 1];
+  if (now.getTime() - Date.parse(chosen.wakeAt) > CYCLE_LOOKBACK_HOURS * 3600000) return null;
+  const result = needHours == null ? computeSleepQuality(nights) : computeSleepQuality(nights, needHours);
+  return {
+    quality: result.quality,
+    confidence: result.confidence,
+    parts: result.parts,
+    wakeDate: chosen.wakeDate,
+    isToday: chosen.wakeDate === todayKey,
+    wakeAt: chosen.wakeAt,
+    asleepMin: chosen.asleepMin as number,
+  };
+}
+
+/**
+ * Minutos de SONECA desde `fromMs` (a ancora do ciclo): sessoes que comecam entre 9h e 20h, iniciadas depois de `fromMs` e ja terminadas em `now`, pela uniao dos intervalos de
+ * sono. Sem soneca = 0.
+ */
+export function napMinutesSince(samples: readonly SleepSample[], fromMs: number, now: Date = new Date()): number {
+  let total = 0;
+  for (const session of groupSleepSessions(samples ?? [])) {
+    const asleepSamples = session.filter((s) => valid(s) && isAsleep(s));
+    if (asleepSamples.length === 0) continue;
+    const start = new Date(Math.min(...asleepSamples.map((s) => s.startDate.getTime())));
+    const end = Math.max(...asleepSamples.map((s) => s.endDate.getTime()));
+    const startHour = start.getHours() + start.getMinutes() / 60;
+    if (startHour >= NAP_START_HOUR_MIN && startHour < NAP_START_HOUR_MAX && start.getTime() >= fromMs && end <= now.getTime()) total += asleepMinutes(session);
+  }
+  return Math.round(total);
 }
 
 /**

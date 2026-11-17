@@ -1,5 +1,5 @@
 // Formata o "porque" de uma atualizacao da Vitalidade para a tela de depuracao (modo desenvolvedor). Logica PURA, testada no Node
-// (mobile/tests/vitalityDebugView.test.mjs). Nada aqui sai do aparelho.
+// (mobile/tests/devMode.test.mjs). Nada aqui sai do aparelho.
 import { dynamicScoreToState } from '@/services/vitalityDynamic';
 import type { VitalityDebug } from '@/services/vitalityEngine';
 import { VITALITY_LABELS } from '@/services/vitality';
@@ -13,6 +13,29 @@ export interface DebugSection {
 const num = (v: number | null | undefined, digits = 1): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '—');
 const int = (v: number | null | undefined): string => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v)) : '—');
 const yesNo = (v: boolean | null | undefined): string => (v === null || v === undefined ? '—' : v ? 'sim' : 'não');
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** "dd/mm HH:mm" em horario local de um instante ISO; invalido/ausente = "—". */
+export function formatInstant(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** "9h 08m" a partir de minutos; ausente = "—". */
+export function formatHoursMinutes(minutes: number | null | undefined): string {
+  if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 0) return '—';
+  const total = Math.round(minutes);
+  return `${Math.floor(total / 60)}h ${pad2(total % 60)}m`;
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  sleep: 'noite lida agora',
+  persisted: 'guardada (até 24 h)',
+  none: 'nenhuma (estimado, sem sono)',
+};
+const REASON_LABELS: Record<string, string> = { sem_sono: 'sem sono', sem_movimento: 'sem passos/calorias' };
 
 const PART_LABELS: Record<string, string> = {
   duration: 'duração',
@@ -26,6 +49,7 @@ const PART_LABELS: Record<string, string> = {
 /** Seções (titulo + linhas "rotulo: valor") com tudo o que entrou no calculo da Vitalidade desta atualizacao. */
 export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
   const b = debug.base;
+  const c = debug.cycle;
   const r = debug.result;
   const refs = debug.refs;
   const day = debug.day;
@@ -37,15 +61,25 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
 
   return [
     {
+      title: 'Ciclo (começa ao acordar)',
+      rows: [
+        { label: 'Âncora (acordou em)', value: formatInstant(c.anchorAt) },
+        { label: 'Origem da âncora', value: SOURCE_LABELS[c.anchorSource] ?? c.anchorSource },
+        { label: 'Tempo acordado contado', value: formatHoursMinutes(c.awakeMinutes) },
+        { label: 'Valor estimado', value: c.estimated ? `sim (${c.estimatedReasons.map((x) => REASON_LABELS[x] ?? x).join(', ')})` : 'não' },
+        { label: 'Travado para não subir por falta de dado', value: c.cappedBy != null ? `sim (≤ ${num(c.cappedBy, 0)})` : 'não' },
+      ],
+    },
+    {
       title: 'Base da manhã',
       rows: [
         { label: 'Base usada', value: num(b.used) },
         { label: 'Base calculada agora', value: num(b.candidate) },
-        { label: 'Congelada hoje', value: yesNo(b.frozen) },
-        { label: 'Base final (com o sono de hoje)', value: yesNo(b.final) },
-        { label: 'Provisória (antes de acordar)', value: yesNo(b.provisional) },
+        { label: 'Congelada neste ciclo', value: yesNo(b.frozen) },
+        { label: 'Base final (com a noite da âncora)', value: yesNo(b.final) },
         { label: 'Sono ausente (usa 70 neutro)', value: yesNo(b.partialSleep) },
-        { label: 'Qualidade do sono (0,65)', value: `${int(b.sleepQuality)}${b.sleepIsToday === false ? ' (noite de ontem)' : ''}` },
+        { label: 'Qualidade do sono (0,65)', value: int(b.sleepQuality) },
+        { label: 'Última noite lida acordou em', value: formatInstant(b.sleepWakeAt) },
         { label: 'Confiança do sono', value: num(b.sleepQualityConfidence, 2) },
         { label: 'Componentes do sono', value: parts || '—' },
         { label: 'Carga 7 dias anteriores (0,20)', value: int(b.loadPrior) },
@@ -54,8 +88,9 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
       ],
     },
     {
-      title: 'Desgaste do dia',
+      title: 'Desgaste do ciclo',
       rows: [
+        { label: 'Tempo acordado (2,5/h, máx. 40)', value: r ? num(r.wear.time) : '—' },
         { label: 'Movimento (fora de treino)', value: r ? `${num(r.wear.movement)} (razão ${num(r.wear.movementRatio, 2)})` : '—' },
         { label: 'Treino', value: r ? `${num(r.wear.training)} (${num(r.wear.trainingUnits, 0)} unidades)` : '—' },
         { label: 'FC acima do repouso', value: r ? num(r.wear.heartRate) : '—' },
@@ -69,7 +104,6 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
         { label: 'Valor calculado', value: num(debug.raw) },
         { label: 'Valor mostrado', value: int(debug.shown) },
         { label: 'Rótulo', value: VITALITY_LABELS[shownState] },
-        { label: 'Valor de ontem à noite', value: int(debug.yesterdayFinal) },
       ],
     },
     {
@@ -79,11 +113,11 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
         { label: 'Calorias ativas típicas', value: `${int(refs.kcal)}${refs.fromHistory.kcal ? '' : ' (padrão)'}` },
         { label: 'Treino típico (unidades)', value: `${int(refs.eref)}${refs.fromHistory.eref ? '' : ' (padrão)'}` },
         { label: 'FC de repouso', value: int(debug.restHr) },
-        { label: 'Fixadas hoje (guardadas)', value: yesNo(debug.refsFromStorage) },
+        { label: 'Fixadas neste ciclo (guardadas)', value: yesNo(debug.refsFromStorage) },
       ],
     },
     {
-      title: 'Hoje (ao vivo)',
+      title: 'Desde a âncora (ao vivo)',
       rows: [
         { label: 'Passos', value: int(day?.steps) },
         { label: 'Calorias ativas', value: int(day?.activeKcal) },
@@ -97,7 +131,7 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
       title: 'Atualização',
       rows: [
         { label: 'Última atualização', value: formatUpdatedAt(debug.updatedAt) || '—' },
-        { label: 'Dia', value: debug.todayKey },
+        { label: 'Dia do calendário', value: debug.todayKey },
       ],
     },
   ];
