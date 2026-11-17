@@ -18,6 +18,12 @@ import {
   isHealthAuthorizedWithoutPrompting,
   setupBackgroundWorkoutDelivery,
 } from '@/services/health';
+import {
+  AUTO_IMPORT_ANCHOR_KEY,
+  AUTO_IMPORT_LAST_RUN_KEY,
+  getSyncMarkersGeneration,
+  setAsyncMarkerIfCurrent,
+} from '@/services/syncMarkers';
 
 /**
  * Importacao de treinos do hub de saude do celular (Apple Health / Health
@@ -57,9 +63,9 @@ const FIRST_RUN_LOOKBACK_DAYS = 7;
 const DUPLICATE_TOLERANCE_MS = 5 * 60 * 1000;
 
 /** Anchor da consulta ancorada do HealthKit (iOS). Nunca usado no Android — ver fetchWorkoutsSinceAnchor em healthConnect.ts. */
-export const ANCHOR_KEY ='workout_auto_import_anchor_v1';
+export const ANCHOR_KEY = AUTO_IMPORT_ANCHOR_KEY; // definida em utils/syncMarkers.ts (logout e exclusao de conta limpam por la)
 /** Diagnostico da ultima execucao — existe pra dar pra investigar no aparelho real, sem Xcode. */
-export const LAST_RUN_KEY ='workout_auto_import_last_run_v1';
+export const LAST_RUN_KEY = AUTO_IMPORT_LAST_RUN_KEY;
 /** Ligado/desligado pelo usuario nas configuracoes. Ausente = ligado. */
 const ENABLED_KEY = 'workout_auto_import_enabled_v1';
 
@@ -159,11 +165,12 @@ function isAlreadyImported(
   );
 }
 
-async function persistLastRun(trigger: AutoImportTrigger, result: AutoImportResult): Promise<void> {
+async function persistLastRun(trigger: AutoImportTrigger, result: AutoImportResult, generation: number): Promise<void> {
   try {
-    await AsyncStorage.setItem(
+    await setAsyncMarkerIfCurrent(
       LAST_RUN_KEY,
-      JSON.stringify({ lastRunAt: new Date().toISOString(), trigger, lastResult: result })
+      JSON.stringify({ lastRunAt: new Date().toISOString(), trigger, lastResult: result }),
+      generation
     );
   } catch {
     // Diagnostico e melhor-esforco — nunca deve derrubar a importacao.
@@ -261,6 +268,8 @@ async function runAutoImportUnsafe(trigger: AutoImportTrigger): Promise<AutoImpo
 
   return withImportLock(async () => {
     const source = currentSource();
+    // Logout durante a importacao: ancora e diagnostico nao sao gravados de volta (ver setAsyncMarkerIfCurrent).
+    const generation = getSyncMarkersGeneration();
     const result: AutoImportResult = { ...EMPTY_RESULT };
 
     try {
@@ -279,8 +288,8 @@ async function runAutoImportUnsafe(trigger: AutoImportTrigger): Promise<AutoImpo
       if (candidates.length === 0) {
         // Nada novo: nem vale as 2 chamadas de API pra montar a lista do que
         // ja existe. O anchor ainda avanca — nao ha nada pendente pra reter.
-        if (newAnchor) await AsyncStorage.setItem(ANCHOR_KEY, newAnchor);
-        await persistLastRun(trigger, result);
+        if (newAnchor) await setAsyncMarkerIfCurrent(ANCHOR_KEY, newAnchor, generation);
+        await persistLastRun(trigger, result, generation);
         console.log(`[autoImport] ${trigger}: nenhum treino novo`, result);
         return result;
       }
@@ -304,12 +313,12 @@ async function runAutoImportUnsafe(trigger: AutoImportTrigger): Promise<AutoImpo
       // Anchor so avanca DEPOIS que o lote inteiro entrou. Se algo falhar no
       // meio, o anchor antigo fica e o proximo disparo tenta de novo — o que
       // ja entrou nao duplica, porque o backend e idempotente por external_id.
-      if (newAnchor) await AsyncStorage.setItem(ANCHOR_KEY, newAnchor);
+      if (newAnchor) await setAsyncMarkerIfCurrent(ANCHOR_KEY, newAnchor, generation);
     } catch (error) {
       result.error = error instanceof Error ? error.message : 'erro desconhecido';
     }
 
-    await persistLastRun(trigger, result);
+    await persistLastRun(trigger, result, generation);
     console.log(`[autoImport] ${trigger}:`, result);
     return result;
   });

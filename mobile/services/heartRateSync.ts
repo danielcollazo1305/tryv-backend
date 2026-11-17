@@ -2,12 +2,18 @@ import * as SecureStore from 'expo-secure-store';
 
 import { fetchHeartRateSamplesSince } from '@/services/health';
 import { syncHeartRateSamples } from '@/services/heartRate';
+import {
+  HEART_RATE_LAST_RUN_KEY,
+  HEART_RATE_LAST_SYNC_KEY,
+  getSyncMarkersGeneration,
+  setSecureMarkerIfCurrent,
+} from '@/services/syncMarkers';
 
 /** CURSOR da sincronizacao: instante (ISO) da ultima amostra de FC que o backend ja aceitou. Chave mantida (era o "ultimo sync" antigo): quem ja tem
- * valor salvo continua dali, e a exclusao de conta (services/account.ts) segue limpando. */
-export const LAST_SYNC_KEY = 'heart_rate_last_synced_at';
+ * valor salvo continua dali. Definida em utils/syncMarkers.ts: logout e exclusao de conta limpam por la (clearSyncMarkers). */
+export const LAST_SYNC_KEY = HEART_RATE_LAST_SYNC_KEY;
 /** Quando a ultima execucao TERMINOU de esgotar as amostras pendentes (so serve ao intervalo minimo abaixo; separado do cursor). */
-export const LAST_RUN_KEY = 'heart_rate_last_sync_run_at';
+export const LAST_RUN_KEY = HEART_RATE_LAST_RUN_KEY;
 // Nao tenta de novo antes disso — evita bater no backend toda vez que a tela
 // de Atividades ganha foco (ela remonta a cada navegacao, nao so uma vez).
 const MIN_SYNC_INTERVAL_MS = 15 * 60 * 1000;
@@ -31,6 +37,8 @@ const MAX_BATCHES_PER_RUN = 20;
  * e pro Live Activity, nunca deve aparecer como erro pro usuario.
  */
 export async function syncRecentHeartRate(options?: { force?: boolean }): Promise<void> {
+  // Logout durante a execucao: cursor e intervalo nao sao gravados de volta (ver setSecureMarkerIfCurrent).
+  const generation = getSyncMarkersGeneration();
   const lastRunRaw = await SecureStore.getItemAsync(LAST_RUN_KEY);
   const lastRunAt = lastRunRaw ? new Date(lastRunRaw) : null;
   // force (botao/gesto de atualizar): ignora o intervalo de 15 min; o cursor continua protegendo contra reenvio.
@@ -68,7 +76,8 @@ export async function syncRecentHeartRate(options?: { force?: boolean }): Promis
     if (Number.isNaN(lastAt.getTime())) break; // horario ilegivel: nao avanca, tenta de novo depois
     // Sem progresso (lote cheio inteiro no mesmo instante do cursor): anda 1 ms para nao repetir o mesmo lote para sempre.
     cursor = lastAt.getTime() > cursor.getTime() ? lastAt : new Date(cursor.getTime() + 1);
-    await SecureStore.setItemAsync(LAST_SYNC_KEY, cursor.toISOString());
+    // Limpo por logout no meio da execucao: para aqui (o resto das amostras era da conta que saiu).
+    if (!(await setSecureMarkerIfCurrent(LAST_SYNC_KEY, cursor.toISOString(), generation))) return;
 
     if (samples.length < BATCH_SIZE) {
       drained = true;
@@ -78,6 +87,6 @@ export async function syncRecentHeartRate(options?: { force?: boolean }): Promis
 
   // Intervalo de 15 min so conta quando esgotou; se parou no teto de lotes, a proxima chamada continua de onde parou.
   if (drained) {
-    await SecureStore.setItemAsync(LAST_RUN_KEY, runStartedAt.toISOString());
+    await setSecureMarkerIfCurrent(LAST_RUN_KEY, runStartedAt.toISOString(), generation);
   }
 }

@@ -6,6 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
 import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
 import { identifyPurchasesUser, resetPurchasesUser } from '@/services/purchases';
+import { clearSyncMarkers } from '@/services/syncMarkers';
 import { clearVitalityLocalState, setVitalityUserId } from '@/services/vitalityService';
 import { clearWidgetSummary } from '@/services/widgetSummary';
 import { getUserBadges } from '@/services/user';
@@ -251,8 +252,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isProKnownRef.current = false;
     clearIsProRetry();
     void resetPurchasesUser();
-    // Dados do usuario que saiu: estado da Vitalidade (aparelho e memoria) e o resumo do widget (App Group). Nunca lancam.
-    await Promise.all([clearVitalityLocalState(), clearWidgetSummary()]);
+    // Dados do usuario que saiu: estado da Vitalidade (aparelho e memoria), o resumo do widget (App Group) e os marcadores de sincronizacao
+    // (ancora da importacao de treinos, cursor dos batimentos). Nunca lancam; clearSyncMarkers tambem invalida sincronizacoes em andamento.
+    await Promise.all([clearVitalityLocalState(), clearWidgetSummary(), clearSyncMarkers().catch(() => [])]);
   }, [clearIsProRetry]);
 
   return (

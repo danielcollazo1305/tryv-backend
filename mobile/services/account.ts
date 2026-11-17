@@ -1,11 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 
 import { FREE_DRAFT_STORAGE_KEY } from '@/context/WorkoutSessionDraftContext';
 import { api } from '@/services/api';
-import { LAST_RUN_KEY as HEART_RATE_LAST_RUN_KEY, LAST_SYNC_KEY as HEART_RATE_LAST_SYNC_KEY } from '@/services/heartRateSync';
+import { clearSyncMarkers } from '@/services/syncMarkers';
 import { VITALITY_STATE_KEY } from '@/services/vitalityService';
-import { ANCHOR_KEY as AUTO_IMPORT_ANCHOR_KEY, LAST_RUN_KEY as AUTO_IMPORT_LAST_RUN_KEY } from '@/services/workoutAutoImport';
 
 export * from '@/services/accountErrors';
 
@@ -36,8 +34,7 @@ export async function deleteMyAccount(password: string, confirmation: string): P
  */
 export async function clearLocalAccountData(): Promise<string[]> {
   const removed: string[] = [];
-  const asyncKeys = [FREE_DRAFT_STORAGE_KEY, AUTO_IMPORT_ANCHOR_KEY, AUTO_IMPORT_LAST_RUN_KEY, VITALITY_STATE_KEY];
-  for (const key of asyncKeys) {
+  for (const key of [FREE_DRAFT_STORAGE_KEY, VITALITY_STATE_KEY]) {
     try {
       await AsyncStorage.removeItem(key);
       removed.push(key);
@@ -45,13 +42,7 @@ export async function clearLocalAccountData(): Promise<string[]> {
       // best-effort: a conta ja foi apagada no servidor
     }
   }
-  for (const key of [HEART_RATE_LAST_SYNC_KEY, HEART_RATE_LAST_RUN_KEY]) {
-    try {
-      await SecureStore.deleteItemAsync(key);
-      removed.push(key);
-    } catch {
-      // idem
-    }
-  }
+  // As 4 chaves de sincronizacao (ancora/diagnostico da importacao, cursor/intervalo dos batimentos): lista unica, a mesma do logout.
+  removed.push(...(await clearSyncMarkers()));
   return removed;
 }
