@@ -64,7 +64,7 @@ import {
 import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesToday, sleepQualityForToday } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
 import type { DayInput, WorkoutInput } from './vitalityDynamic';
-import { mergeOverlappingWorkouts } from './workoutWindows';
+import { mergeOverlappingWorkouts, resolveWorkoutKcal } from './workoutWindows';
 import type { HistoryDay } from './vitalityEngine';
 
 export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
@@ -529,9 +529,11 @@ async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]
     done.map(async (w) => {
       const windowStart = new Date(Math.max(w.startDate.getTime(), from.getTime()));
       const clipped = windowStart.getTime() > w.startDate.getTime();
-      const [stepStats, hrStats] = await Promise.all([
+      const [stepStats, hrStats, energyStats] = await Promise.all([
         safe(h.queryStatistics({ type: T_STEPS, unit: 'count', from: windowStart, to: w.endDate, options: h.StatisticsOption.cumulativeSum })),
         safe(h.queryStatistics({ type: T_HEART_RATE, unit: 'count/min', from: windowStart, to: w.endDate, options: h.StatisticsOption.discreteAverage })),
+        // Energia ativa (kcal, cumulativa) DENTRO da janela do treino: a fonte principal das calorias do treino (o totalEnergyBurned do HKWorkout e so o plano B).
+        safe(h.queryStatistics({ type: T_ENERGY, unit: 'kcal', from: windowStart, to: w.endDate, options: h.StatisticsOption.cumulativeSum })),
       ]);
       const wallMinutes = (w.endDate.getTime() - windowStart.getTime()) / 60000;
       const reported = typeof w.duration === 'number' && Number.isFinite(w.duration) && w.duration > 0 ? w.duration / 60 : null;
@@ -543,7 +545,11 @@ async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]
           minutes,
           avgHr: roundBpm(hrStats?.average),
           steps: typeof stepStats?.sum === 'number' ? stepStats.sum : null,
-          activeKcal: typeof w.totalEnergyBurned === 'number' && w.totalEnergyBurned > 0 ? w.totalEnergyBurned : null,
+          activeKcal: resolveWorkoutKcal(
+            typeof energyStats?.sum === 'number' ? energyStats.sum : null,
+            w.totalEnergyBurned,
+            (w.endDate.getTime() - windowStart.getTime()) / Math.max(1, w.endDate.getTime() - w.startDate.getTime())
+          ),
         },
       };
     })

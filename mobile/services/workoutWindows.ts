@@ -37,3 +37,22 @@ export function mergeOverlappingWorkouts<T>(items: readonly T[], range: (item: T
   }
   return kept.sort((x, y) => x.r.start - y.r.start || x.index - y.index).map(({ item }) => item);
 }
+
+/**
+ * Calorias ativas de UM treino, por ordem de confianca: (1) a energia ativa cumulativa (kcal) do Apple Saude DENTRO da janela do treino; (2) se vier vazia ou
+ * zero, o totalEnergyBurned do proprio treino (proporcional quando a janela foi recortada pela meia-noite: `fractionInWindow` = parte do treino que cai na
+ * janela, 0 a 1); (3) se tambem faltar, null (quem usa aplica a estimativa de 7 kcal/min, ver vitalityDynamic.workoutKcal).
+ */
+export function resolveWorkoutKcal(
+  windowEnergyKcal: number | null | undefined,
+  reportedTotalKcal: number | null | undefined,
+  fractionInWindow: number = 1
+): number | null {
+  if (typeof windowEnergyKcal === 'number' && Number.isFinite(windowEnergyKcal) && windowEnergyKcal > 0) return windowEnergyKcal;
+  if (typeof reportedTotalKcal === 'number' && Number.isFinite(reportedTotalKcal) && reportedTotalKcal > 0) {
+    const fraction = Number.isFinite(fractionInWindow) ? Math.min(1, Math.max(0, fractionInWindow)) : 1;
+    const prorated = reportedTotalKcal * fraction;
+    return prorated > 0 ? prorated : null;
+  }
+  return null;
+}

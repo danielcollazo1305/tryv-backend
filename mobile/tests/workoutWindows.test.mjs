@@ -77,3 +77,27 @@ test('nao altera a lista de entrada', () => {
   merge(input);
   assert.equal(JSON.stringify(input), snapshot);
 });
+
+// ------------------------------------------------------------------------------------------------ calorias ativas do treino
+import { resolveWorkoutKcal } from '../services/workoutWindows.ts';
+
+test('calorias do treino: a energia ativa DENTRO da janela tem prioridade', () => {
+  assert.equal(resolveWorkoutKcal(420, 500), 420);
+  assert.equal(resolveWorkoutKcal(0.5, 500), 0.5);
+});
+
+test('calorias do treino: sem energia na janela (null, 0, negativa, NaN) usa o totalEnergyBurned do treino', () => {
+  for (const empty of [null, undefined, 0, -3, NaN]) assert.equal(resolveWorkoutKcal(empty, 500), 500, String(empty));
+});
+
+test('calorias do treino: janela recortada pela meia-noite proporcionaliza o totalEnergyBurned', () => {
+  assert.equal(resolveWorkoutKcal(null, 600, 0.25), 150);
+  assert.equal(resolveWorkoutKcal(null, 600, 1.5), 600); // fracao limitada a 1
+  assert.equal(resolveWorkoutKcal(null, 600, -1), null); // fracao <= 0 nao gera caloria
+  assert.equal(resolveWorkoutKcal(null, 600, NaN), 600);
+  assert.equal(resolveWorkoutKcal(300, 600, 0.25), 300); // a medida na janela nao e proporcionalizada
+});
+
+test('calorias do treino: sem nada, null (a estimativa de 7 kcal/min fica com quem usa)', () => {
+  for (const total of [null, undefined, 0, -1, NaN]) assert.equal(resolveWorkoutKcal(null, total), null, String(total));
+});
