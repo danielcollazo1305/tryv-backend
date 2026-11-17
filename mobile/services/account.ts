@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { FREE_DRAFT_STORAGE_KEY } from '@/context/WorkoutSessionDraftContext';
 import { api } from '@/services/api';
 import { LAST_RUN_KEY as HEART_RATE_LAST_RUN_KEY, LAST_SYNC_KEY as HEART_RATE_LAST_SYNC_KEY } from '@/services/heartRateSync';
+import { VITALITY_STATE_KEY } from '@/services/vitalityService';
 import { ANCHOR_KEY as AUTO_IMPORT_ANCHOR_KEY, LAST_RUN_KEY as AUTO_IMPORT_LAST_RUN_KEY } from '@/services/workoutAutoImport';
 
 export * from '@/services/accountErrors';
@@ -25,6 +26,7 @@ export async function deleteMyAccount(password: string, confirmation: string): P
  *  - AsyncStorage 'workout-session-draft-free-v1': rascunho do treino livre em andamento (dados da pessoa).
  *  - AsyncStorage 'workout_auto_import_anchor_v1' / '..._last_run_v1': ancora e diagnostico da importacao automatica de
  *    treinos; se ficassem, uma conta nova no mesmo aparelho NAO reimportaria os treinos anteriores a ancora.
+ *  - AsyncStorage 'vitality_state_v1': base congelada, referencias e totais do dia da Vitalidade dinamica (dado da pessoa).
  *  - SecureStore 'heart_rate_last_synced_at' (cursor da sincronizacao de batimentos) e 'heart_rate_last_sync_run_at'
  *    (intervalo minimo entre execucoes): mesmo motivo.
  *
@@ -34,7 +36,7 @@ export async function deleteMyAccount(password: string, confirmation: string): P
  */
 export async function clearLocalAccountData(): Promise<string[]> {
   const removed: string[] = [];
-  const asyncKeys = [FREE_DRAFT_STORAGE_KEY, AUTO_IMPORT_ANCHOR_KEY, AUTO_IMPORT_LAST_RUN_KEY];
+  const asyncKeys = [FREE_DRAFT_STORAGE_KEY, AUTO_IMPORT_ANCHOR_KEY, AUTO_IMPORT_LAST_RUN_KEY, VITALITY_STATE_KEY];
   for (const key of asyncKeys) {
     try {
       await AsyncStorage.removeItem(key);

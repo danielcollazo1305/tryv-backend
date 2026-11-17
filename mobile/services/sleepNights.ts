@@ -22,6 +22,8 @@ export const SLEEP_QUALITY_LOOKBACK_DAYS = 9;
 export interface SleepNightForQuality extends SleepNightInput {
   /** Dia local (YYYY-MM-DD) em que a pessoa ACORDOU. */
   wakeDate: string;
+  /** Instante (ISO) em que acordou: o fim do ultimo trecho de sono da noite. */
+  wakeAt: string;
 }
 
 export interface SleepQualityReading {
@@ -33,6 +35,8 @@ export interface SleepQualityReading {
   wakeDate: string;
   /** true = a noite termina HOJE; false = e a de ontem (hoje a pessoa ainda nao acordou ou nao sincronizou): valor PROVISORIO. */
   isToday: boolean;
+  /** Instante (ISO) em que acordou nessa noite. */
+  wakeAt: string;
 }
 
 const valid = (s: SleepSample): boolean =>
@@ -109,6 +113,7 @@ export function buildSleepNightsForQuality(samples: readonly SleepSample[], coun
 
     nights.push({
       wakeDate,
+      wakeAt: new Date(lastEnd).toISOString(),
       asleepMin,
       inBedMin: inBedMin > 0 ? inBedMin : null,
       awakeAfterOnsetMin: hasStages ? unionMinutes(staged, (s) => s.value === AWAKE, firstStart, lastEnd) : null,
@@ -133,5 +138,30 @@ export function sleepQualityForToday(samples: readonly SleepSample[], now: Date 
   const chosen = nights[nights.length - 1];
   if (chosen.wakeDate !== todayKey && chosen.wakeDate !== yesterdayKey) return null;
   const result = needHours == null ? computeSleepQuality(nights) : computeSleepQuality(nights, needHours);
-  return { quality: result.quality, confidence: result.confidence, parts: result.parts, wakeDate: chosen.wakeDate, isToday: chosen.wakeDate === todayKey };
+  return {
+    quality: result.quality,
+    confidence: result.confidence,
+    parts: result.parts,
+    wakeDate: chosen.wakeDate,
+    isToday: chosen.wakeDate === todayKey,
+    wakeAt: chosen.wakeAt,
+  };
+}
+
+/**
+ * Minutos de SONECA de hoje: sessoes que comecam entre 9h e 20h (mesma regra que tira a soneca das noites) e terminam hoje, pela uniao dos intervalos de
+ * sono. Alimenta a recuperacao da Vitalidade (a soneca devolve um pouco). Sem soneca = 0.
+ */
+export function napMinutesToday(samples: readonly SleepSample[], now: Date = new Date()): number {
+  const dayStart = startOfDay(now).getTime();
+  let total = 0;
+  for (const session of groupSleepSessions(samples ?? [])) {
+    const asleepSamples = session.filter((s) => valid(s) && isAsleep(s));
+    if (asleepSamples.length === 0) continue;
+    const start = new Date(Math.min(...asleepSamples.map((s) => s.startDate.getTime())));
+    const end = Math.max(...asleepSamples.map((s) => s.endDate.getTime()));
+    const startHour = start.getHours() + start.getMinutes() / 60;
+    if (startHour >= NAP_START_HOUR_MIN && startHour < NAP_START_HOUR_MAX && end >= dayStart && end <= now.getTime()) total += asleepMinutes(session);
+  }
+  return Math.round(total);
 }

@@ -61,8 +61,10 @@ import {
   toMonthKey,
   weekHeartRate,
 } from './healthkitState';
-import { SLEEP_QUALITY_LOOKBACK_DAYS, sleepQualityForToday } from './sleepNights';
+import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesToday, sleepQualityForToday } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
+import type { DayInput, WorkoutInput } from './vitalityDynamic';
+import type { HistoryDay } from './vitalityEngine';
 
 export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
 
@@ -494,4 +496,156 @@ export async function fetchWeekHeartRateDetail(weekOffset = 0): Promise<WeekHear
     safe(statsBuckets(T_HEART_RATE, 'count/min', start, endOfDay(end), h.StatisticsOption.discreteMax, { day: 1 })),
   ]);
   return weekHeartRate(bucketMap(resting ?? [], 'average', toDateKey), bucketMap(peak ?? [], 'max', toDateKey), start);
+}
+
+// ------------------------------------------------------------------------------------------------------- Vitalidade dinamica (hoje e historico)
+// So LEITURA do Apple Saude; nada sai do aparelho. Cada leitura falha sozinha (fica null/0) e nunca derruba a Vitalidade. A logica de calculo e pura (vitalityDynamic.ts).
+const HOUR_MS = 60 * 60 * 1000;
+/** Lacunas de FC menores que isto nao valem uma consulta (poucos minutos entre dois treinos). */
+const MIN_HR_GAP_MS = 15 * 60 * 1000;
+
+interface WorkoutWindow {
+  workout: WorkoutInput;
+  start: Date;
+  end: Date;
+}
+
+/** Treinos concluidos em [from, to] SEM rota (leve), cada um com os passos e a FC media DENTRO da janela do treino e a energia do proprio treino. */
+async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return [];
+  const samples = await safe(h.queryWorkouts({ from, ascending: true, limit: 0 }));
+  if (!samples) return [];
+  const done = samples.filter((w) => w.endDate.getTime() <= to.getTime() && w.endDate.getTime() > w.startDate.getTime());
+  return Promise.all(
+    done.map(async (w) => {
+      const [stepStats, hrStats] = await Promise.all([
+        safe(h.queryStatistics({ type: T_STEPS, unit: 'count', from: w.startDate, to: w.endDate, options: h.StatisticsOption.cumulativeSum })),
+        safe(h.queryStatistics({ type: T_HEART_RATE, unit: 'count/min', from: w.startDate, to: w.endDate, options: h.StatisticsOption.discreteAverage })),
+      ]);
+      const wallMinutes = (w.endDate.getTime() - w.startDate.getTime()) / 60000;
+      const minutes = typeof w.duration === 'number' && Number.isFinite(w.duration) && w.duration > 0 ? w.duration / 60 : wallMinutes;
+      return {
+        start: w.startDate,
+        end: w.endDate,
+        workout: {
+          minutes,
+          avgHr: roundBpm(hrStats?.average),
+          steps: typeof stepStats?.sum === 'number' ? stepStats.sum : null,
+          activeKcal: typeof w.totalEnergyBurned === 'number' && w.totalEnergyBurned > 0 ? w.totalEnergyBurned : null,
+        },
+      };
+    })
+  );
+}
+
+/** FC de repouso do Apple Saude (media dos ultimos 14 dias); sem o tipo ou sem dado = null (a intensidade dos treinos vira desconhecida, nao zero). */
+export async function fetchRestingHeartRate(now: Date = new Date()): Promise<number | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const stats = await safe(h.queryStatistics({ type: T_RESTING_HR, unit: 'count/min', from: addDays(startOfDay(now), -14), to: now, options: h.StatisticsOption.discreteAverage }));
+  return roundBpm(stats?.average);
+}
+
+/**
+ * Dados de HOJE para a Vitalidade, ao vivo: passos e calorias ativas do dia, treinos de hoje (com os passos e calorias DENTRO da janela de cada treino, para
+ * descontar do movimento), FC media acordado fora de treino acima da FC de repouso, horas de descanso (poucos passos e FC perto do repouso) e minutos de
+ * soneca. `awakeStart` = quando acordou (limitado a hoje 00:00 .. agora). Sem HealthKit = null.
+ */
+export async function fetchVitalityToday(now: Date, awakeStart: Date): Promise<{ day: DayInput; restHr: number | null } | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const dayStart = startOfDay(now);
+  const awakeFrom = awakeStart.getTime() > now.getTime() || awakeStart.getTime() < dayStart.getTime() ? dayStart : awakeStart;
+  const [steps, activeKcal, windows, restHr, sleepSamples] = await Promise.all([
+    safe(sumSince(T_STEPS, 'count', dayStart)),
+    safe(sumSince(T_ENERGY, 'kcal', dayStart)),
+    readWorkoutWindows(dayStart, now),
+    fetchRestingHeartRate(now),
+    safe(readSleepSamples(dayStart)),
+  ]);
+
+  // FC media acordado FORA de treino: media (ponderada pela duracao) das lacunas entre os treinos, dentro de [awakeFrom, agora].
+  const gaps: [number, number][] = [];
+  let cursor = awakeFrom.getTime();
+  for (const w of windows.slice().sort((a, b) => a.start.getTime() - b.start.getTime())) {
+    if (w.start.getTime() > cursor) gaps.push([cursor, Math.min(w.start.getTime(), now.getTime())]);
+    cursor = Math.max(cursor, w.end.getTime());
+  }
+  if (cursor < now.getTime()) gaps.push([cursor, now.getTime()]);
+  let weighted = 0;
+  let weight = 0;
+  await Promise.all(
+    gaps
+      .filter(([a, b]) => b - a >= MIN_HR_GAP_MS)
+      .map(async ([a, b]) => {
+        const stats = await safe(h.queryStatistics({ type: T_HEART_RATE, unit: 'count/min', from: new Date(a), to: new Date(b), options: h.StatisticsOption.discreteAverage }));
+        if (typeof stats?.average === 'number' && Number.isFinite(stats.average)) {
+          weighted += stats.average * (b - a);
+          weight += b - a;
+        }
+      })
+  );
+  const awakeAvgHr = weight > 0 ? weighted / weight : null;
+  const awakeHrElevation = awakeAvgHr != null && restHr != null ? Math.max(0, awakeAvgHr - restHr) : null;
+
+  // Horas de descanso: horas inteiras acordado, sem treino, com menos de 150 passos e FC media ate 10 bpm acima do repouso (sem FC, so os passos).
+  const firstHour = Math.ceil(awakeFrom.getTime() / HOUR_MS) * HOUR_MS;
+  const lastHour = Math.floor(now.getTime() / HOUR_MS) * HOUR_MS;
+  let restHours = 0;
+  if (lastHour > firstHour) {
+    const [stepBuckets, hrBuckets] = await Promise.all([
+      safe(statsBuckets(T_STEPS, 'count', new Date(firstHour), new Date(lastHour), h.StatisticsOption.cumulativeSum, { minute: 60 })),
+      safe(statsBuckets(T_HEART_RATE, 'count/min', new Date(firstHour), new Date(lastHour), h.StatisticsOption.discreteAverage, { minute: 60 })),
+    ]);
+    const stepsByHour = new Map<number, number>();
+    for (const b of stepBuckets ?? []) if (typeof b.sum === 'number') stepsByHour.set(Math.round(b.startDate.getTime() / HOUR_MS), b.sum);
+    const hrByHour = new Map<number, number>();
+    for (const b of hrBuckets ?? []) if (typeof b.average === 'number') hrByHour.set(Math.round(b.startDate.getTime() / HOUR_MS), b.average);
+    for (let t = firstHour; t < lastHour; t += HOUR_MS) {
+      if (windows.some((w) => w.start.getTime() < t + HOUR_MS && w.end.getTime() > t)) continue;
+      const key = Math.round(t / HOUR_MS);
+      const hourSteps = stepsByHour.get(key) ?? 0;
+      const hourHr = hrByHour.get(key);
+      if (hourSteps < 150 && (hourHr == null || restHr == null || hourHr <= restHr + 10)) restHours += 1;
+    }
+  }
+
+  return {
+    restHr,
+    day: {
+      steps,
+      activeKcal,
+      workouts: windows.map((w) => w.workout),
+      awakeHrElevation,
+      restHours,
+      napMinutes: sleepSamples ? napMinutesToday(sleepSamples, now) : 0,
+    },
+  };
+}
+
+/** Ultimos `days` dias (sem hoje) para a referencia pessoal: passos e calorias ativas por dia e os treinos de cada dia. Sem HealthKit ou sem nenhum dado = null. */
+export async function fetchVitalityHistory(now: Date = new Date(), days = 14): Promise<HistoryDay[] | null> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return null;
+  const end = startOfDay(now);
+  const start = addDays(end, -days);
+  const [stepBuckets, kcalBuckets, windows] = await Promise.all([
+    safe(statsBuckets(T_STEPS, 'count', start, end, h.StatisticsOption.cumulativeSum, { day: 1 })),
+    safe(statsBuckets(T_ENERGY, 'kcal', start, end, h.StatisticsOption.cumulativeSum, { day: 1 })),
+    readWorkoutWindows(start, end),
+  ]);
+  if (stepBuckets == null && kcalBuckets == null) return null;
+  const stepsByDay = bucketMap(stepBuckets ?? [], 'sum', toDateKey);
+  const kcalByDay = bucketMap(kcalBuckets ?? [], 'sum', toDateKey);
+  const out: HistoryDay[] = [];
+  for (let i = 0; i < days; i += 1) {
+    const key = toDateKey(addDays(start, i));
+    out.push({
+      steps: stepsByDay.get(key) ?? null,
+      activeKcal: kcalByDay.get(key) ?? null,
+      workouts: windows.filter((w) => toDateKey(w.start) === key).map((w) => w.workout),
+    });
+  }
+  return out;
 }

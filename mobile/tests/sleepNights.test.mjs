@@ -156,3 +156,23 @@ test('sono de amanha (relogio adiantado) nunca entra', () => {
   const r = sleepQualityForToday([...wakeNight(1), ...wakeNight(-1)], NOW);
   assert.equal(r.wakeDate, keyOf(-1));
 });
+
+// ------------------------------------------------------------------------------------------------ wakeAt e sonecas de hoje
+import { napMinutesToday } from '../services/sleepNights.ts';
+
+test('a noite devolve o instante em que acordou (fim do ultimo trecho de sono)', () => {
+  const nights = buildSleepNightsForQuality(wakeNight(0));
+  assert.equal(nights[0].wakeAt, at(0, 7, 0).toISOString());
+  assert.equal(sleepQualityForToday(wakeNight(0), NOW).wakeAt, at(0, 7, 0).toISOString());
+});
+
+test('sonecas de hoje: soma so as sessoes das 9h as 20h que terminam hoje', () => {
+  const nap = [sample(at(0, 9, 10), at(0, 9, 40), 1)];
+  assert.equal(napMinutesToday(nap, NOW), 30);
+  assert.equal(napMinutesToday([...nap, sample(at(0, 9, 55), at(0, 10, 0), 1)], at(0, 18, 0)), 35); // 9:10-9:40 e 9:55-10:00: a pausa e curta (mesma sessao) e a soma e 30 + 5
+  assert.equal(napMinutesToday(wakeNight(0), NOW), 0); // a noite nao e soneca
+  assert.equal(napMinutesToday([sample(at(-1, 14, 0), at(-1, 14, 30), 1)], NOW), 0); // soneca de ontem
+  assert.equal(napMinutesToday([sample(at(0, 14, 0), at(0, 14, 40), 1)], at(0, 10, 0)), 0); // ainda nao aconteceu
+  assert.equal(napMinutesToday([], NOW), 0);
+  assert.equal(napMinutesToday(null, NOW), 0);
+});
