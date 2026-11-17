@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSyncExternalStore } from 'react';
 
@@ -14,16 +14,18 @@ export function useRefreshState() {
 }
 
 /**
+ * (minTouch = area de toque minima em pontos, ex.: 44 na barra da Home; sem ele so ha o hitSlop de sempre, como na aba Treino.)
  * Icone de atualizar: importa treinos do Apple Saude, sincroniza a FC, recalcula a Vitalidade e grava o resumo do widget (services/refreshAll.ts).
  * Mostra um spinner enquanto atualiza e nao deixa disparar duas vezes. (O "Importar treinos" de Atividades e outra coisa: selecao manual treino a treino.)
  */
-export function RefreshButton({ size = 20 }: { size?: number }) {
+export function RefreshButton({ size = 20, minTouch, style }: { size?: number; minTouch?: number; style?: StyleProp<ViewStyle> }) {
   const { refreshing } = useRefreshState();
   return (
     <Pressable
       onPress={() => void refreshEverything()}
       disabled={refreshing}
       hitSlop={12}
+      style={[minTouch ? { width: minTouch, height: minTouch, alignItems: 'center', justifyContent: 'center' } : null, style]}
       accessibilityRole="button"
       accessibilityLabel={refreshing ? 'Atualizando' : 'Atualizar'}
       accessibilityState={{ busy: refreshing, disabled: refreshing }}

@@ -213,9 +213,12 @@ export default function HomeScreen() {
       */}
       <View style={styles.headerBlock}>
         <View style={styles.brandRow}>
-          <Text style={styles.logo}>Tryv Fit</Text>
+          <Text style={styles.logo} numberOfLines={1}>
+            Tryv Fit
+          </Text>
           <View style={styles.headerActions}>
-            <RefreshButton />
+            {/* Imediatamente ao lado da foto (a esquerda dela), mesma linha, area de toque de 44x44; a margem negativa aproxima o icone do avatar. */}
+            <RefreshButton minTouch={44} style={styles.refreshNextToAvatar} />
             <ProfileAvatarButton size={32} />
             <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
               <Ionicons name="log-out-outline" size={20} color={colors3.onSurfaceVariant} />
@@ -224,7 +227,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.greeting}>Olá, {firstName}</Text>
+          <Text style={styles.greeting} numberOfLines={2}>
+            Olá, {firstName}
+          </Text>
           <Text style={styles.dateLabel}>{todayLabel()}</Text>
           <UpdatedAtText />
         </View>
@@ -400,7 +405,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  // Em telas estreitas (320 pt) quem encolhe e o titulo "Tryv Fit"; as acoes (atualizar, foto, sair) nunca encolhem nem somem.
+  refreshNextToAvatar: { marginRight: -6 },
   logo: {
+    flexShrink: 1,
     ...typography3.displayLg,
     fontSize: 24,
     lineHeight: 24,
@@ -408,9 +416,9 @@ const styles = StyleSheet.create({
     color: colors3.primary,
   },
   header: { gap: spacing3.sm },
-  greeting: { ...typography3.headlineLgMobile },
+  greeting: { ...typography3.headlineLgMobile, flexShrink: 1 },
   dateLabel: { ...typography3.labelSm, color: colors3.onSurfaceVariant, textTransform: 'uppercase' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm, flexShrink: 0 },
   logoutButton: {
     width: 32,
     height: 32,
