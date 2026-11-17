@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import { MonthComparisonCard } from '@/components/MonthComparisonCard';
 import { PersonalRecordsCard } from '@/components/PersonalRecordsCard';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
 import { ReadinessCard } from '@/components/ReadinessCard';
+import { RefreshButton, UpdatedAtText } from '@/components/RefreshControls';
+import { refreshEverything } from '@/services/refreshAll';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { ProUpsellCard } from '@/components/ProUpsellCard';
 import { TrainingFrequencyCard } from '@/components/TrainingFrequencyCard';
@@ -95,6 +97,17 @@ export default function HomeScreen() {
     }
   }, [viewMode, isPro]);
 
+  // Puxar para atualizar: importa treinos, sincroniza FC, recalcula a Vitalidade e grava o widget (services/refreshAll.ts) e recarrega o resumo da Home.
+  const [pulling, setPulling] = useState(false);
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true);
+    try {
+      await Promise.all([refreshEverything(), fetchSummary()]);
+    } finally {
+      setPulling(false);
+    }
+  }, [fetchSummary]);
+
   const goToPreviousMonth = () => {
     if (viewMode.type === 'rolling') {
       const now = new Date();
@@ -171,6 +184,7 @@ export default function HomeScreen() {
     <ScreenBackground3>
     <ScrollView
       style={styles.flex}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={colors3.primary} />}
       contentContainerStyle={[
         styles.container,
         {
@@ -201,6 +215,7 @@ export default function HomeScreen() {
         <View style={styles.brandRow}>
           <Text style={styles.logo}>Tryv Fit</Text>
           <View style={styles.headerActions}>
+            <RefreshButton />
             <ProfileAvatarButton size={32} />
             <Pressable onPress={logout} style={styles.logoutButton} hitSlop={12}>
               <Ionicons name="log-out-outline" size={20} color={colors3.onSurfaceVariant} />
@@ -211,6 +226,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.greeting}>Olá, {firstName}</Text>
           <Text style={styles.dateLabel}>{todayLabel()}</Text>
+          <UpdatedAtText />
         </View>
       </View>
 

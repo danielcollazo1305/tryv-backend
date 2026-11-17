@@ -30,10 +30,11 @@ const MAX_BATCHES_PER_RUN = 20;
  * de Atividades carrega — falha em silencio, e um bonus pro Score de Prontidao
  * e pro Live Activity, nunca deve aparecer como erro pro usuario.
  */
-export async function syncRecentHeartRate(): Promise<void> {
+export async function syncRecentHeartRate(options?: { force?: boolean }): Promise<void> {
   const lastRunRaw = await SecureStore.getItemAsync(LAST_RUN_KEY);
   const lastRunAt = lastRunRaw ? new Date(lastRunRaw) : null;
-  if (lastRunAt && Date.now() - lastRunAt.getTime() < MIN_SYNC_INTERVAL_MS) {
+  // force (botao/gesto de atualizar): ignora o intervalo de 15 min; o cursor continua protegendo contra reenvio.
+  if (!options?.force && lastRunAt && Date.now() - lastRunAt.getTime() < MIN_SYNC_INTERVAL_MS) {
     return;
   }
 

@@ -7,6 +7,7 @@ import { AiWorkoutSection } from '@/components/AiWorkoutSection';
 import { GlassCard } from '@/components/GlassCard';
 import { ProGate } from '@/components/ProGate';
 import { ProfileAvatarButton } from '@/components/ProfileAvatarButton';
+import { RefreshButton } from '@/components/RefreshControls';
 import { ScreenBackground3 } from '@/components/ScreenBackground3';
 import { VitalityMonitor } from '@/components/VitalityMonitor';
 import { useAuth } from '@/context/AuthContext';
@@ -88,6 +89,7 @@ export default function WorkoutScreen() {
                   na aba Treino -- antes so era alcancavel via "Veja mais do
                   seu progresso" (ActivityProgressCard, Home), que continua
                   existindo tambem (nao concorrente, so mais um caminho). */}
+              <RefreshButton />
               <Pressable onPress={() => router.push('/activity')} hitSlop={12} accessibilityLabel="Histórico de atividades">
                 <Ionicons name="time-outline" size={22} color={colors3.onSurfaceVariant} />
               </Pressable>
