@@ -64,6 +64,7 @@ import {
 import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesToday, sleepQualityForToday } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
 import type { DayInput, WorkoutInput } from './vitalityDynamic';
+import { mergeOverlappingWorkouts } from './workoutWindows';
 import type { HistoryDay } from './vitalityEngine';
 
 export const HEALTHKIT_CONNECTED_KEY = 'healthkit_connected';
@@ -518,9 +519,12 @@ async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]
   // fora. Volta 12 h e mantem so os que TERMINAM depois de `from`; abaixo, as consultas de passos/FC e os minutos sao recortados em max(inicio, from).
   const samples = await safe(h.queryWorkouts({ from: new Date(from.getTime() - 12 * HOUR_MS), ascending: true, limit: 0 }));
   if (!samples) return [];
-  const done = samples.filter(
+  const inRange = samples.filter(
     (w) => w.endDate.getTime() <= to.getTime() && w.endDate.getTime() > from.getTime() && w.endDate.getTime() > w.startDate.getTime()
   );
+  // O mesmo treino gravado duas vezes (relogio + copia de outro app) nao pode dobrar o desgaste: junta os que se sobrepoem a 80% ou mais e fica com o mais longo
+  // (antes das consultas por treino, para nao gastar consulta com duplicata).
+  const done = mergeOverlappingWorkouts(inRange, (w) => ({ start: Math.max(w.startDate.getTime(), from.getTime()), end: w.endDate.getTime() }));
   return Promise.all(
     done.map(async (w) => {
       const windowStart = new Date(Math.max(w.startDate.getTime(), from.getTime()));
