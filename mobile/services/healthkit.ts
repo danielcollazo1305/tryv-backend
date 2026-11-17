@@ -514,19 +514,26 @@ interface WorkoutWindow {
 async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]> {
   const h = hk();
   if (!h || !h.isAvailable()) return [];
-  const samples = await safe(h.queryWorkouts({ from, ascending: true, limit: 0 }));
+  // `from` do HealthKit filtra pelo INICIO do treino (strictStartDate): um treino que comecou antes de `from` e terminou depois (ex.: 23:40 a 00:30) ficaria de
+  // fora. Volta 12 h e mantem so os que TERMINAM depois de `from`; abaixo, as consultas de passos/FC e os minutos sao recortados em max(inicio, from).
+  const samples = await safe(h.queryWorkouts({ from: new Date(from.getTime() - 12 * HOUR_MS), ascending: true, limit: 0 }));
   if (!samples) return [];
-  const done = samples.filter((w) => w.endDate.getTime() <= to.getTime() && w.endDate.getTime() > w.startDate.getTime());
+  const done = samples.filter(
+    (w) => w.endDate.getTime() <= to.getTime() && w.endDate.getTime() > from.getTime() && w.endDate.getTime() > w.startDate.getTime()
+  );
   return Promise.all(
     done.map(async (w) => {
+      const windowStart = new Date(Math.max(w.startDate.getTime(), from.getTime()));
+      const clipped = windowStart.getTime() > w.startDate.getTime();
       const [stepStats, hrStats] = await Promise.all([
-        safe(h.queryStatistics({ type: T_STEPS, unit: 'count', from: w.startDate, to: w.endDate, options: h.StatisticsOption.cumulativeSum })),
-        safe(h.queryStatistics({ type: T_HEART_RATE, unit: 'count/min', from: w.startDate, to: w.endDate, options: h.StatisticsOption.discreteAverage })),
+        safe(h.queryStatistics({ type: T_STEPS, unit: 'count', from: windowStart, to: w.endDate, options: h.StatisticsOption.cumulativeSum })),
+        safe(h.queryStatistics({ type: T_HEART_RATE, unit: 'count/min', from: windowStart, to: w.endDate, options: h.StatisticsOption.discreteAverage })),
       ]);
-      const wallMinutes = (w.endDate.getTime() - w.startDate.getTime()) / 60000;
-      const minutes = typeof w.duration === 'number' && Number.isFinite(w.duration) && w.duration > 0 ? w.duration / 60 : wallMinutes;
+      const wallMinutes = (w.endDate.getTime() - windowStart.getTime()) / 60000;
+      const reported = typeof w.duration === 'number' && Number.isFinite(w.duration) && w.duration > 0 ? w.duration / 60 : null;
+      const minutes = clipped || reported == null ? wallMinutes : reported;
       return {
-        start: w.startDate,
+        start: windowStart,
         end: w.endDate,
         workout: {
           minutes,
