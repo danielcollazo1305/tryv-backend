@@ -228,3 +228,48 @@ test('storedStateForUser: bordas', () => {
   assert.equal(storedStateForUser(legacy, 'B'), legacy); // sem dono gravado: aceito
   for (const bad of [null, undefined, {}, { v: 2 }]) assert.equal(storedStateForUser(bad, 'A'), EMPTY_STORED_STATE);
 });
+
+// ------------------------------------------------------------------------------------------------------------ referencias: so fixa as do historico
+const emptyDays = (n) => Array.from({ length: n }, () => ({ steps: null, activeKcal: null, workouts: [] }));
+const days = (n, over = {}) => Array.from({ length: n }, () => ({ steps: 5000, activeKcal: 250, workouts: [], ...over }));
+
+test('historico lido mas SEM dados (fallback): nao fixa as referencias do dia e tenta de novo na proxima atualizacao', () => {
+  const first = runVitalityEngine(input({ history: emptyDays(14) }));
+  assert.equal(first.debug.refs.steps, 6000);
+  assert.deepEqual(first.debug.refs.fromHistory, { steps: false, kcal: false, eref: false });
+  assert.equal(first.next.refs, null);
+  const second = runVitalityEngine(input({ stored: first.next, history: days(7) }));
+  assert.equal(second.debug.refs.steps, 5000);
+  assert.equal(second.debug.refsFromStorage, false);
+  assert.equal(second.next.refs.dayKey, TODAY);
+  const third = runVitalityEngine(input({ stored: second.next, history: emptyDays(14) }));
+  assert.equal(third.debug.refs.steps, 5000); // agora fixa: nao volta ao fallback
+  assert.equal(third.debug.refsFromStorage, true);
+});
+
+test('menos de 5 dias com dado tambem e fallback e nao fixa', () => {
+  const out = runVitalityEngine(input({ history: days(4) }));
+  assert.equal(out.next.refs, null);
+});
+
+test('so passos OU so calorias do historico ja bastam para fixar', () => {
+  const stepsOnly = runVitalityEngine(input({ history: days(6, { activeKcal: null }) }));
+  assert.deepEqual({ s: stepsOnly.debug.refs.fromHistory.steps, k: stepsOnly.debug.refs.fromHistory.kcal }, { s: true, k: false });
+  assert.equal(stepsOnly.next.refs.dayKey, TODAY);
+  const kcalOnly = runVitalityEngine(input({ history: days(6, { steps: null }) }));
+  assert.deepEqual({ s: kcalOnly.debug.refs.fromHistory.steps, k: kcalOnly.debug.refs.fromHistory.kcal }, { s: false, k: true });
+  assert.equal(kcalOnly.next.refs.dayKey, TODAY);
+});
+
+test('so treino do historico (Eref) sem passos nem calorias NAO fixa', () => {
+  const out = runVitalityEngine(input({ history: days(6, { steps: null, activeKcal: null, workouts: [{ minutes: 60 }] }) }));
+  assert.equal(out.debug.refs.fromHistory.eref, true);
+  assert.equal(out.next.refs, null);
+});
+
+test('referencias de ontem guardadas nao impedem o calculo de hoje', () => {
+  const stored = { ...EMPTY_STORED_STATE, refs: { dayKey: YESTERDAY, value: { steps: 9999, kcal: 999, eref: 99, fromHistory: { steps: true, kcal: true, eref: true } }, restHr: 50 } };
+  const out = runVitalityEngine(input({ stored, history: emptyDays(14) }));
+  assert.equal(out.debug.refs.steps, 6000); // fallback de hoje, nao as de ontem
+  assert.equal(out.next.refs.dayKey, YESTERDAY); // continua com as de ontem guardadas (nada novo para fixar)
+});

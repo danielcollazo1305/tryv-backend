@@ -164,7 +164,8 @@ export function runVitalityEngine(input: EngineInput): EngineOutput {
     refsFromStorage = true;
   } else if (input.history) {
     refs = personalReferences(input.history, restHr, input.maxHr);
-    refsToStore = { dayKey: todayKey, value: refs, restHr };
+    // So fixa as referencias do dia se vieram do HISTORICO (passos ou calorias); se vieram do fallback (historico vazio ou sem permissao), tenta de novo na proxima atualizacao.
+    if (refs.fromHistory.steps || refs.fromHistory.kcal) refsToStore = { dayKey: todayKey, value: refs, restHr };
   } else {
     refs = personalReferences([], restHr, input.maxHr);
   }
