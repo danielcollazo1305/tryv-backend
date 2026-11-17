@@ -18,6 +18,8 @@ export type HistoryDay = Pick<DayInput, 'steps' | 'activeKcal' | 'workouts'>;
 
 export interface StoredVitalityState {
   v: 1;
+  /** Dono do estado (id do usuario no Tryv). Estado de OUTRO usuario e ignorado (storedStateForUser); ausente = estado antigo, aceito e carimbado. */
+  userId?: string | null;
   /** Base da manha congelada (um por dia). */
   frozenBase: FrozenBase | null;
   /** Referencias pessoais fixadas uma vez por dia (e a FC de repouso usada com elas). */
@@ -29,7 +31,18 @@ export interface StoredVitalityState {
   updatedAt: number | null;
 }
 
-export const EMPTY_STORED_STATE: StoredVitalityState = { v: 1, frozenBase: null, refs: null, day: null, lastShown: null, updatedAt: null };
+export const EMPTY_STORED_STATE: StoredVitalityState = { v: 1, userId: null, frozenBase: null, refs: null, day: null, lastShown: null, updatedAt: null };
+
+/**
+ * Estado guardado que PODE ser usado por `userId`: invalido ou de outra versao = vazio; de OUTRO usuario (os dois ids conhecidos e diferentes) = vazio (a
+ * base congelada, as referencias e o ultimo valor de uma pessoa nunca valem para outra no mesmo aparelho); sem dono gravado (estado antigo) ou sem usuario
+ * conhecido agora = aceito.
+ */
+export function storedStateForUser(stored: StoredVitalityState | null | undefined, userId: string | null | undefined): StoredVitalityState {
+  if (!stored || (stored as { v?: unknown }).v !== 1) return EMPTY_STORED_STATE;
+  if (stored.userId && userId && stored.userId !== userId) return EMPTY_STORED_STATE;
+  return stored;
+}
 
 export interface EngineSleep {
   quality: number | null;
@@ -62,6 +75,8 @@ export interface EngineInput {
   restHr: number | null;
   maxHr?: number | null;
   stored: StoredVitalityState | null | undefined;
+  /** Usuario atual (id no Tryv); estado guardado de outro usuario e ignorado. */
+  userId?: string | null;
 }
 
 export interface VitalityDebug {
@@ -126,7 +141,7 @@ export function candidateBase(sleep: EngineSleep | null, readiness: EngineReadin
 
 /** Roda uma atualizacao: calcula o que mostrar e o novo estado a guardar. Nunca lanca. */
 export function runVitalityEngine(input: EngineInput): EngineOutput {
-  const stored = input.stored && input.stored.v === 1 ? input.stored : EMPTY_STORED_STATE;
+  const stored = storedStateForUser(input.stored, input.userId);
   const { todayKey, yesterdayKey } = input;
 
   // Valor de ontem a noite (so o do dia anterior): mostrado, provisoriamente, ate haver o sono de hoje.
@@ -174,6 +189,7 @@ export function runVitalityEngine(input: EngineInput): EngineOutput {
   const nextFrozen = frozen.persist ?? stored.frozenBase;
   const next: StoredVitalityState = {
     v: 1,
+    userId: input.userId ?? stored.userId ?? null,
     frozenBase: nextFrozen,
     refs: refsToStore,
     day: day ? { dayKey: todayKey, value: day } : stored.day && stored.day.dayKey === todayKey ? stored.day : null,

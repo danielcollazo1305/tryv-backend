@@ -185,3 +185,46 @@ test('um dia inteiro de atualizacoes: o valor mostrado nunca sobe mais de 2 e nu
     prev = out.display.score;
   }
 });
+
+// ------------------------------------------------------------------------------------------------------------ dono do estado (logout / troca de usuario)
+import { storedStateForUser } from '../services/vitalityEngine.ts';
+
+test('estado guardado de OUTRO usuario e ignorado: base congelada, referencias e ultimo valor nao passam para a outra pessoa', () => {
+  const a = runVitalityEngine(input({ userId: 'user-A', history: Array.from({ length: 7 }, () => ({ steps: 5000, activeKcal: 250, workouts: [] })) }));
+  assert.equal(a.next.userId, 'user-A');
+  assert.ok(a.next.frozenBase);
+  const b = runVitalityEngine(input({ userId: 'user-B', stored: a.next, sleep: sleepToday(40), readiness: readiness({ load_score_prior: 30, hr_score: 20 }) }));
+  assert.notEqual(b.debug.base.used, a.debug.base.used); // recalcula a base de B, nao reaproveita a de A
+  assert.equal(b.debug.refsFromStorage, false);
+  assert.equal(b.next.userId, 'user-B');
+  assert.equal(b.next.frozenBase.dayKey, TODAY);
+  assert.equal(b.debug.yesterdayFinal, null);
+});
+
+test('estado do MESMO usuario continua valendo (base congelada reaproveitada)', () => {
+  const first = runVitalityEngine(input({ userId: 'user-A' }));
+  const again = runVitalityEngine(input({ userId: 'user-A', stored: first.next, sleep: sleepToday(10) }));
+  assert.equal(again.debug.base.used, first.debug.base.used);
+  assert.equal(again.next.userId, 'user-A');
+});
+
+test('estado antigo sem dono (builds anteriores) e aceito e passa a ser carimbado; sem usuario conhecido nao descarta nada', () => {
+  const legacy = runVitalityEngine(input({ userId: null })).next; // userId null
+  assert.equal(legacy.userId, null);
+  const stamped = runVitalityEngine(input({ userId: 'user-A', stored: legacy }));
+  assert.equal(stamped.debug.base.used, runVitalityEngine(input({ userId: null })).debug.base.used);
+  assert.equal(stamped.next.userId, 'user-A');
+  const noUser = runVitalityEngine(input({ userId: null, stored: stamped.next }));
+  assert.equal(noUser.next.userId, 'user-A'); // nao perde o dono
+  assert.equal(noUser.debug.base.used, stamped.debug.base.used);
+});
+
+test('storedStateForUser: bordas', () => {
+  const s = { ...EMPTY_STORED_STATE, userId: 'A', frozenBase: { dayKey: TODAY, base: 80 } };
+  assert.equal(storedStateForUser(s, 'A'), s);
+  assert.equal(storedStateForUser(s, 'B'), EMPTY_STORED_STATE);
+  assert.equal(storedStateForUser(s, null), s);
+  const legacy = { ...s, userId: null };
+  assert.equal(storedStateForUser(legacy, 'B'), legacy); // sem dono gravado: aceito
+  for (const bad of [null, undefined, {}, { v: 2 }]) assert.equal(storedStateForUser(bad, 'A'), EMPTY_STORED_STATE);
+});

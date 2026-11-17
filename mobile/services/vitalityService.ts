@@ -123,6 +123,7 @@ export async function computeDynamicVitality(): Promise<DynamicVitality> {
     history,
     restHr,
     stored,
+    userId: activeUserId,
   });
   await saveStoredState(out.next);
 
@@ -148,6 +149,37 @@ let current: DynamicVitality | null = null;
 let failed = false;
 let inFlight: Promise<DynamicVitality | null> | null = null;
 let lastRunAt = 0;
+/** Muda a cada reset: uma atualizacao que comecou ANTES do reset (outro usuario) nao pode depositar o resultado dela no cache de depois. */
+let generation = 0;
+/** Usuario atual (id no Tryv), informado pelo AuthContext; estado guardado de outro usuario e ignorado pelo motor. */
+let activeUserId: string | null = null;
+
+/** Informa quem esta logado. Se mudou de uma pessoa para outra, o cache em memoria da anterior e descartado. */
+export function setVitalityUserId(userId: string | null): void {
+  const changed = activeUserId != null && userId != null && activeUserId !== userId;
+  activeUserId = userId;
+  if (changed) resetVitalityCache();
+}
+
+/** Descarta o cache em memoria: valor, erro, intervalo minimo e (via generation) qualquer atualizacao em andamento. Avisa quem esta ouvindo. */
+export function resetVitalityCache(): void {
+  generation += 1;
+  current = null;
+  failed = false;
+  lastRunAt = 0;
+  publish();
+}
+
+/** Logout: apaga o estado guardado no aparelho (base congelada, referencias, totais, ultimo valor) e o cache em memoria. Nunca lanca. */
+export async function clearVitalityLocalState(): Promise<void> {
+  activeUserId = null;
+  resetVitalityCache();
+  try {
+    await AsyncStorage.removeItem(VITALITY_STATE_KEY);
+  } catch {
+    // sem armazenamento
+  }
+}
 
 function notify(): void {
   listeners.forEach((listener) => listener());
@@ -183,9 +215,11 @@ export function subscribeVitality(listener: Listener): () => void {
 export function refreshVitality(options?: { force?: boolean }): Promise<DynamicVitality | null> {
   if (inFlight) return inFlight;
   if (!options?.force && current && Date.now() - lastRunAt < VITALITY_MIN_AUTO_INTERVAL_MS) return Promise.resolve(current);
+  const startedIn = generation;
   inFlight = (async () => {
     try {
       const result = await computeDynamicVitality();
+      if (startedIn !== generation) return null; // houve logout/troca de usuario no meio: descarta
       current = result;
       failed = false;
       lastRunAt = Date.now();

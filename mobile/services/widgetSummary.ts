@@ -97,6 +97,21 @@ let inFlight: Promise<void> | null = null;
 let lastWriteAt = 0;
 
 /**
+ * Limpa o widget (logout): grava o resumo VAZIO (tudo null), entao ele volta a mostrar "Abra o Tryv para sincronizar" em vez dos dados da pessoa que saiu. Espera
+ * uma gravacao em andamento terminar antes (senao ela poderia reescrever os dados antigos depois). Nunca lanca; so iOS.
+ */
+export async function clearWidgetSummary(): Promise<void> {
+  if (Platform.OS !== 'ios' || !nativeModule) return;
+  try {
+    if (inFlight) await inFlight.catch(() => undefined);
+    lastWriteAt = 0;
+    await nativeModule.writeDailySummary(JSON.stringify(emptyPayload()));
+  } catch (error) {
+    console.error('[widgetSummary] falha ao limpar o resumo do widget', error);
+  }
+}
+
+/**
  * Atualiza o widget com os dados de agora. Seguro chamar a vontade ("fire and forget"): so iOS, nunca lanca erro, ignora chamadas enquanto
  * outra esta em andamento e grava no maximo 1 vez a cada 5 min (o reload do widget conta no orcamento diario do iOS). Com { manual: true } (botao/gesto
  * de atualizar) a pausa minima e de 60 s.

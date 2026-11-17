@@ -6,6 +6,8 @@ import * as SecureStore from 'expo-secure-store';
 import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@/services/api';
 import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
 import { identifyPurchasesUser, resetPurchasesUser } from '@/services/purchases';
+import { clearVitalityLocalState, setVitalityUserId } from '@/services/vitalityService';
+import { clearWidgetSummary } from '@/services/widgetSummary';
 import { getUserBadges } from '@/services/user';
 
 // Reexportado de services/api.ts — a chave mora la porque a importacao
@@ -161,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await api.get<User>('/users/me');
     currentUserIdRef.current = response.data.id;
     setUser(response.data);
+    setVitalityUserId(response.data.id); // a Vitalidade guardada no aparelho so vale para este usuario
     // Compras por RevenueCat: o app_user_id e o id do usuario no Tryv (o webhook do backend mapeia por ele). Nao bloqueia nem lanca.
     void identifyPurchasesUser(response.data.id);
     // Sem await de proposito: nao atrasa o boot/login (isLoading) por causa
@@ -248,6 +251,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isProKnownRef.current = false;
     clearIsProRetry();
     void resetPurchasesUser();
+    // Dados do usuario que saiu: estado da Vitalidade (aparelho e memoria) e o resumo do widget (App Group). Nunca lancam.
+    await Promise.all([clearVitalityLocalState(), clearWidgetSummary()]);
   }, [clearIsProRetry]);
 
   return (
