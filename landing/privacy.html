@@ -22,7 +22,7 @@
     </a>
 
     <h1>Política de Privacidade — Tryv Fit</h1>
-    <p class="doc-updated"><strong>Última atualização:</strong> 14/10/2026</p>
+    <p class="doc-updated"><strong>Última atualização:</strong> [DATA A DEFINIR]</p>
 
     <div class="doc-warning">
       ⚠️ <strong>AVISO IMPORTANTE:</strong> Este documento é um rascunho inicial, criado como ponto de partida. Não
@@ -38,7 +38,7 @@
       <p><strong>Responsável pelo tratamento de dados (Controlador):</strong><br>
       [NOME COMPLETO OU RAZÃO SOCIAL A DEFINIR]<br>
       [CPF/CNPJ A DEFINIR]<br>
-      contato@tryv.com.br</p>
+      [E-MAIL DE CONTATO A DEFINIR]</p>
 
       <hr class="doc-hr">
 
@@ -60,14 +60,22 @@
         <li><strong>Treinos:</strong> treinos gerados por IA e o histórico de treinos realizados</li>
         <li><strong>Atividades físicas:</strong> dados de GPS durante corridas e pedaladas (localização, rota, distância, velocidade, tempo), além de atividades registradas manualmente (natação, lutas, outras modalidades)</li>
         <li><strong>Peso corporal:</strong> registros de peso ao longo do tempo, quando fornecidos por você</li>
-        <li><strong>Dados do Apple Health (HealthKit):</strong> mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, energia em repouso (basal, as calorias que o corpo gasta em repouso), frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.</li>
-        <li><strong>Frequência cardíaca:</strong> quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e. Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.</li>
+        <li><strong>Dados do Apple Health (HealthKit):</strong> mediante sua autorização explícita, podemos ler dados como passos, distância percorrida, calorias ativas, frequência cardíaca e dados de sono já existentes no aplicativo Saúde do seu iPhone. Esses dados podem ter origem no próprio iPhone ou em aplicativos de terceiros (como aplicativos de smartwatch) que você tenha autorizado a escrever no Apple Health.</li>
+        <li><strong>Frequência cardíaca:</strong> quando disponível via HealthKit, sincronizamos amostras de frequência cardíaca para calcular métricas como o Score de Prontidão para Treino e, durante uma atividade com GPS em andamento, para exibição a um professor autorizado (ver seção 4.1). Na prática, essa leitura só está disponível para usuários com Apple Watch ou outro dispositivo compatível conectado ao Apple Health — o iPhone sozinho não possui sensor de frequência cardíaca.</li>
       </ul>
 
       <h3>2.3 Dados de Pagamento</h3>
-      <p>Processamos pagamentos de assinaturas através da <strong>Apple (App Store)</strong>: a compra é feita dentro do aplicativo, na sua conta Apple, e o Tryv Fit <strong>não recebe nem armazena</strong> números de cartão de crédito ou dados financeiros — eles ficam com a Apple. Para saber se sua assinatura está ativa, usamos o <strong>RevenueCat</strong>, que recebe o identificador do seu usuário no Tryv e dados da compra (produto, datas do período, ambiente e situação da assinatura) e nos avisa quando ela muda.</p>
+      <p>Processamos pagamentos de assinaturas através do <strong>Stripe</strong>, um processador de pagamentos terceirizado. O Tryv Fit <strong>não armazena</strong> números completos de cartão de crédito ou dados financeiros sensíveis — esses dados são tratados diretamente pelo Stripe, conforme os padrões de segurança PCI-DSS.</p>
 
-      <h3>2.4 Dados de Uso da Rede Social</h3>
+      <h3>2.4 Dados de Professores (Marketplace)</h3>
+      <p>Para usuários que se cadastram como professores de educação física, coletamos adicionalmente:</p>
+      <ul>
+        <li>Número de registro profissional (CREF) para fins de verificação</li>
+        <li>Dados de conta bancária/Stripe Connect para processamento de repasses</li>
+        <li>Informações de perfil profissional exibidas publicamente no marketplace</li>
+      </ul>
+
+      <h3>2.5 Dados de Uso da Rede Social</h3>
       <ul>
         <li>Posts, comentários, curtidas e conexões de "seguir" realizadas dentro do aplicativo</li>
         <li>Fotos e mídias enviadas para publicações</li>
@@ -78,11 +86,12 @@
       <h2>3. Como Usamos Seus Dados</h2>
       <p>Utilizamos os dados coletados para:</p>
       <ul>
-        <li>Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social)</li>
+        <li>Fornecer as funcionalidades principais do aplicativo (nutrição, treino, atividades, rede social, marketplace)</li>
         <li>Gerar análises nutricionais automatizadas a partir de fotos de refeições, utilizando serviços de inteligência artificial (ver seção 5)</li>
         <li>Gerar treinos personalizados através de inteligência artificial</li>
         <li>Calcular métricas de saúde e desempenho, como o Dashboard de Evolução, Score de Prontidão para Treino e Insights personalizados</li>
-        <li>Processar pagamentos de assinaturas</li>
+        <li>Processar pagamentos de assinaturas e repasses a professores</li>
+        <li>Permitir que professores autorizados (mediante assinatura ativa) vejam quando um aluno está treinando no momento e acompanhem, em tempo real, a localização e as métricas (distância, ritmo, tempo e frequência cardíaca quando disponível) de uma atividade com GPS enquanto ela estiver em andamento</li>
         <li>Viabilizar a rede social do aplicativo (feed, seguir, curtir, comentar)</li>
         <li>Melhorar e manter a segurança do aplicativo</li>
       </ul>
@@ -92,7 +101,15 @@
 
       <h2>4. Compartilhamento de Dados</h2>
 
-      <h3>4.1 Com Prestadores de Serviço (Subprocessadores)</h3>
+      <h3>4.1 Com Professores</h3>
+      <p>Se você contratar um professor através do marketplace do Tryv Fit, dois tipos de informação passam a ficar visíveis para esse professor, exclusivamente enquanto sua assinatura estiver ativa:</p>
+      <ul>
+        <li>Se você está com uma atividade (corrida ou pedalada com GPS) em andamento neste exato momento;</li>
+        <li>Enquanto essa atividade estiver em andamento, sua localização, distância percorrida, ritmo, tempo decorrido e frequência cardíaca (quando disponível).</li>
+      </ul>
+      <p>Essa visibilidade é limitada à atividade acontecendo ao vivo. O professor <strong>não</strong> tem acesso ao seu histórico de treinos, refeições, peso ou outros dados além do que está descrito acima.</p>
+
+      <h3>4.2 Com Prestadores de Serviço (Subprocessadores)</h3>
       <p>Utilizamos os seguintes serviços de terceiros para operar o Tryv Fit:</p>
       <table>
         <thead>
@@ -101,14 +118,13 @@
         <tbody>
           <tr><td><strong>Anthropic (Claude API)</strong></td><td>Análise de fotos de refeições, geração de treinos personalizados, geração de insights</td></tr>
           <tr><td><strong>Amazon Web Services (S3)</strong></td><td>Armazenamento de mídias (fotos de refeições, posts, perfis)</td></tr>
-          <tr><td><strong>Apple (App Store)</strong></td><td>Processamento do pagamento e da assinatura (compra dentro do aplicativo)</td></tr>
-          <tr><td><strong>RevenueCat</strong></td><td>Validação e status da compra da assinatura: recebe o identificador do seu usuário no Tryv e dados da compra</td></tr>
+          <tr><td><strong>Stripe / Stripe Connect</strong></td><td>Processamento de pagamentos e repasses a professores</td></tr>
           <tr><td><strong>Apple (HealthKit)</strong></td><td>Leitura de dados de saúde, mediante sua autorização</td></tr>
         </tbody>
       </table>
       <p>Esses serviços processam dados em nosso nome, sob suas próprias políticas de privacidade e segurança.</p>
 
-      <h3>4.2 Por Obrigação Legal</h3>
+      <h3>4.3 Por Obrigação Legal</h3>
       <p>Poderemos divulgar dados se exigido por lei, ordem judicial ou para proteger direitos, segurança ou propriedade do Tryv Fit ou de terceiros.</p>
 
       <hr class="doc-hr">
@@ -131,33 +147,15 @@
         <li>Você pode revogar essa autorização a qualquer momento em <strong>Ajustes do iPhone → Privacidade e Segurança → Saúde → Tryv Fit</strong></li>
         <li><strong>Nunca utilizamos dados de saúde para fins de publicidade</strong></li>
         <li>Dados de saúde não são compartilhados com terceiros para fins de marketing ou venda de dados</li>
-        <li>Os dados de saúde são apagados junto com sua conta, no aplicativo, em <strong>Perfil &gt; Excluir conta</strong> (ver seção 7). Você também pode solicitar por e-mail, conforme a seção 8, a exclusão apenas dos dados de saúde sincronizados com o Tryv, sem excluir a conta</li>
+        <li>Você pode solicitar a exclusão dos dados de saúde sincronizados com o Tryv Fit a qualquer momento, entrando em contato conforme a seção 8 — essa exclusão é processada manualmente mediante solicitação, e não há hoje uma ferramenta de autoatendimento no aplicativo para isso</li>
       </ul>
 
       <hr class="doc-hr">
 
       <h2>7. Retenção de Dados</h2>
-      <p>Mantemos seus dados pessoais enquanto sua conta estiver ativa.</p>
+      <p>Mantemos seus dados pessoais enquanto sua conta estiver ativa. Após a exclusão da conta, seus dados serão removidos ou anonimizados dentro de [PRAZO A DEFINIR — recomenda-se consultar um advogado sobre prazos legais aplicáveis, especialmente para dados fiscais/financeiros que podem exigir retenção mínima por lei].</p>
+      <p>O aplicativo não possui hoje uma função de autoexclusão de conta; a exclusão de conta e de dados é feita mediante solicitação por e-mail (ver seção 8) e processada manualmente.</p>
 
-      <h3>7.1 Exclusão da conta</h3>
-      <p>Você pode excluir sua conta no próprio aplicativo, em <strong>Perfil &gt; Excluir conta</strong> (o aplicativo pede sua senha e a palavra EXCLUIR). A exclusão é <strong>imediata e irreversível</strong>:</p>
-      <ul>
-        <li>Seus dados — perfil, treinos, corridas e atividades, refeições, dados de saúde, posts, comentários, curtidas, seguidores, bloqueios e demais dados da conta — são apagados do nosso banco de dados na hora.</li>
-        <li>Suas imagens (foto de perfil, fotos de refeições, de posts e de desafios) são removidas do nosso armazenamento de mídia.</li>
-        <li>Os registros técnicos do filtro automático ligados à sua conta (bloqueios e fotos aprovadas) são apagados junto com a conta.</li>
-        <li><strong>Excluir a conta não cancela a assinatura da Apple.</strong> Se você assina o Tryv Fit Pro, cancele em <strong>Ajustes &gt; Apple ID &gt; Assinaturas</strong> para não continuar sendo cobrado; o aplicativo não consegue cancelá-la por você.</li>
-      </ul>
-
-      <h3>7.2 O que pode permanecer</h3>
-      <ul>
-        <li><strong>Cópias de segurança:</strong> as cópias de segurança do banco de dados podem permanecer por até 90 dias depois da exclusão, até serem substituídas pela rotação normal, e não são usadas para outro fim.</li>
-        <li><strong>Denúncias de moderação:</strong> o registro de uma denúncia (motivo, estado da análise e datas) é mantido como registro de segurança, sem vínculo com a conta excluída: quem denunciou e o autor denunciado deixam de ser identificáveis, e o trecho do conteúdo do autor excluído que estava guardado na denúncia é descartado.</li>
-        <li><strong>Tentativas de cadastro barradas pelo filtro de nomes:</strong> quando um nome é barrado no cadastro ainda não existe conta; o registro técnico (tipo de lugar, categoria geral e data) não tem o texto nem identifica uma pessoa e, por isso, não é apagado junto com nenhuma conta. [CONFIRMAR COM ADVOGADO: prazo de guarda desses registros]</li>
-        <li><strong>Pagamentos (Apple e RevenueCat):</strong> a Apple, como processadora do pagamento, mantém os registros financeiros da compra por obrigação própria. Ao excluir sua conta, pedimos ao RevenueCat a exclusão do seu cadastro de assinante, em melhor esforço: se o pedido falhar, a exclusão da sua conta no Tryv não é bloqueada, e o RevenueCat pode manter o registro da compra sob a política dele. [CONFIRMAR COM ADVOGADO: prazo de retenção dos dados no RevenueCat e na Apple]</li>
-      </ul>
-
-      <h3>7.3 Pendências que impedem a exclusão</h3>
-      <p>O único administrador precisa transferir a administração antes de excluir a conta.</p>
       <hr class="doc-hr">
 
       <h2>8. Seus Direitos (LGPD)</h2>
@@ -172,7 +170,7 @@
         <li>Revogar o consentimento a qualquer momento</li>
         <li>Obter informações sobre entidades com as quais compartilhamos seus dados</li>
       </ul>
-      <p>O acesso, a correção e a exclusão dos seus dados podem ser feitos diretamente no aplicativo (editando seu perfil e seus registros e, para excluir tudo, em <strong>Perfil &gt; Excluir conta</strong> — ver seção 7). Para os demais pedidos relacionados a esses direitos, ou se não conseguir usar o aplicativo, entre em contato através de: contato@tryv.com.br.</p>
+      <p>Para exercer esses direitos, entre em contato através de: [E-MAIL DE CONTATO A DEFINIR]. Essas solicitações são atendidas manualmente pela nossa equipe.</p>
 
       <hr class="doc-hr">
 
@@ -202,7 +200,7 @@
 
       <h2>12. Contato</h2>
       <p>Para dúvidas sobre esta Política de Privacidade ou sobre o tratamento de seus dados pessoais, entre em contato:</p>
-      <p><strong>E-mail:</strong> contato@tryv.com.br<br>
+      <p><strong>E-mail:</strong> [A DEFINIR]<br>
       <strong>Endereço:</strong> [A DEFINIR, SE APLICÁVEL]</p>
 
       <hr class="doc-hr">
