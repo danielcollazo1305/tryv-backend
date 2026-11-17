@@ -13,9 +13,9 @@ import {
   scoreToColor,
   scoreToPanelTint,
   scoreToPillColor,
-  vitalityAccessibilityLabel,
   waveformPath,
 } from '@/services/vitality';
+import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
 import { getInitials } from '@/utils/text';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 
@@ -34,11 +34,11 @@ export function VitalityMonitor() {
   const { user } = useAuth();
   const [width, setWidth] = useState(0);
   const shift = useRef(new Animated.Value(0)).current;
-  const { load, fetchData, reduceMotion, readiness, state } = useVitality();
+  const { load, fetchData, reduceMotion, vitality, state } = useVitality();
   const hasColor = state !== 'nodata';
-  const lineColor = (hasColor ? scoreToColor(readiness?.final_score) : null) ?? colors3.onSurfaceVariant;
-  const panelColor = (hasColor ? scoreToPanelTint(readiness?.final_score) : null) ?? colors3.surfaceContainerHigh;
-  const pillColor = hasColor ? scoreToPillColor(readiness?.final_score) : null;
+  const lineColor = (hasColor ? scoreToColor(vitality?.score) : null) ?? colors3.onSurfaceVariant;
+  const panelColor = (hasColor ? scoreToPanelTint(vitality?.score) : null) ?? colors3.surfaceContainerHigh;
+  const pillColor = hasColor ? scoreToPillColor(vitality?.score) : null;
   const duration = WAVE_SECONDS[state];
   const animate = hasColor && !reduceMotion && width > 0 && load.kind === 'ok';
 
@@ -102,12 +102,12 @@ export function VitalityMonitor() {
     );
   }
 
-  const label = vitalityAccessibilityLabel(state, readiness);
-  const score = readiness && hasColor ? Math.round(readiness.final_score) : null;
+  const label = vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.provisional);
+  const score = vitality && hasColor && vitality.score !== null ? Math.round(vitality.score) : null;
   const indicators: { name: string; value: number | null | undefined }[] = [
-    { name: 'Sono', value: readiness?.sleep_score },
-    { name: 'Carga', value: readiness?.load_score },
-    { name: 'FC', value: readiness?.hr_score },
+    { name: 'Sono', value: vitality?.indicators.sleep },
+    { name: 'Carga', value: vitality?.indicators.load },
+    { name: 'FC', value: vitality?.indicators.hr },
   ];
 
   return (
@@ -138,7 +138,11 @@ export function VitalityMonitor() {
         ))}
       </View>
       {hasColor ? (
-        <Text style={[styles.message, { color: TEXT_ON_PANEL }]}>{readiness?.recommendation_text ?? ''}</Text>
+        <View style={styles.notes}>
+          <Text style={[styles.message, { color: TEXT_ON_PANEL }]}>{vitalityRecommendation(state)}</Text>
+          {!!vitality?.provisional && <Text style={[styles.note, { color: TEXT_ON_PANEL }]}>{VITALITY_PROVISIONAL_NOTE}</Text>}
+          <Text style={[styles.note, { color: TEXT_ON_PANEL }]}>{VITALITY_DISCLAIMER}</Text>
+        </View>
       ) : (
         <Pressable onPress={() => router.push('/activity')} accessibilityRole="button" accessibilityLabel={`${VITALITY_NO_DATA_MESSAGE}. Abre a tela de conexão.`} hitSlop={8}>
           <Text style={[styles.message, styles.messageLink, { color: TEXT_ON_PANEL }]}>{VITALITY_NO_DATA_MESSAGE}</Text>
@@ -167,6 +171,8 @@ const styles = StyleSheet.create({
   indicatorValue: { ...typography3.headlineMd, fontSize: 18 },
   messageLink: { textDecorationLine: 'underline', fontWeight: '700' },
   message: { ...typography3.bodyMd, fontSize: 14, lineHeight: 20 },
+  notes: { gap: 2 },
+  note: { ...typography3.labelSm, textTransform: 'none', fontSize: 12, lineHeight: 16 },
   retry: { borderRadius: radius3.pill, borderWidth: 1, borderColor: colors3.primary, paddingHorizontal: spacing3.md, paddingVertical: 6 },
   retryText: { ...typography3.bodyMd, fontSize: 14, fontWeight: '700', color: colors3.primary },
 });

@@ -11,9 +11,9 @@ import {
   VITALITY_NO_DATA_MESSAGE,
   VitalityState,
   scoreToColorOnDark,
-  vitalityAccessibilityLabel,
   waveformPath,
 } from '@/services/vitality';
+import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
 
 const WAVE_HEIGHT = 36;
 const WAVE_SECONDS: Record<VitalityState, number> = { fit: 3600, attention: 5200, recover: 9000, nodata: 0 };
@@ -24,12 +24,12 @@ const WAVE_SECONDS: Record<VitalityState, number> = { fit: 3600, attention: 5200
  * "reduzir movimento". Sem dados, a mensagem "Conecte o Apple Health" leva ao card de conexao (/activity).
  */
 export function RetroVitality() {
-  const { load, fetchData, reduceMotion, readiness, state } = useVitality();
+  const { load, fetchData, reduceMotion, vitality, state } = useVitality();
   const [width, setWidth] = useState(0);
   const shift = useRef(new Animated.Value(0)).current;
 
   const hasColor = state !== 'nodata';
-  const color = (hasColor ? scoreToColorOnDark(readiness?.final_score) : null) ?? RETRO.textDim;
+  const color = (hasColor ? scoreToColorOnDark(vitality?.score) : null) ?? RETRO.textDim;
   const animate = hasColor && !reduceMotion && width > 0 && load.kind === 'ok';
   const duration = WAVE_SECONDS[state];
 
@@ -80,11 +80,11 @@ export function RetroVitality() {
     );
   }
 
-  const score = readiness && hasColor ? Math.round(readiness.final_score) : null;
+  const score = vitality && hasColor && vitality.score !== null ? Math.round(vitality.score) : null;
   const rows: { name: string; value: number | null | undefined }[] = [
-    { name: 'Sono', value: readiness?.sleep_score },
-    { name: 'Carga', value: readiness?.load_score },
-    { name: 'FC', value: readiness?.hr_score },
+    { name: 'Sono', value: vitality?.indicators.sleep },
+    { name: 'Carga', value: vitality?.indicators.load },
+    { name: 'FC', value: vitality?.indicators.hr },
   ];
 
   return (
@@ -92,7 +92,7 @@ export function RetroVitality() {
       <View
         style={styles.header}
         accessible
-        accessibilityLabel={vitalityAccessibilityLabel(state, readiness)}
+        accessibilityLabel={vitalityAccessibilityLabel(state, vitality?.score, vitality?.indicators, vitality?.provisional)}
       >
         <RetroText size={8} color={RETRO.textDim}>Vitalidade</RetroText>
         <RetroText size={9} color={color}>
@@ -110,11 +110,11 @@ export function RetroVitality() {
           </View>
         ))}
       {hasColor ? (
-        !!readiness?.recommendation_text && (
-          <RetroText size={8} color={RETRO.textSoft} upper={false} style={styles.message}>
-            {readiness.recommendation_text}
-          </RetroText>
-        )
+        <View style={styles.message}>
+          <RetroText size={8} color={RETRO.textSoft} upper={false}>{vitalityRecommendation(state)}</RetroText>
+          {!!vitality?.provisional && <RetroText size={8} color={RETRO.textDim} upper={false}>{VITALITY_PROVISIONAL_NOTE}</RetroText>}
+          <RetroText size={8} color={RETRO.textDim} upper={false}>{VITALITY_DISCLAIMER}</RetroText>
+        </View>
       ) : (
         <Pressable
           onPress={() => router.push('/activity')}
@@ -135,6 +135,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   waveBox: { height: WAVE_HEIGHT, overflow: 'hidden' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  message: { paddingTop: 4, borderTopWidth: 2, borderTopColor: RETRO.slotBorder },
+  message: { paddingTop: 4, borderTopWidth: 2, borderTopColor: RETRO.slotBorder, gap: 4 },
   link: { minHeight: 44, justifyContent: 'center' },
 });

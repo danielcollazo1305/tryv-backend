@@ -1,13 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import React from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
 
 import { GlassCard } from '@/components/GlassCard';
-import { HEALTHKIT_CONNECTED_KEY } from '@/components/HealthSummaryCard';
-import { fetchLastNightSleepHours } from '@/services/health';
-import { getTodayReadiness, Readiness } from '@/services/readiness';
+import { useVitality } from '@/hooks/useVitality';
+import { VITALITY_LABELS, VITALITY_NO_DATA_MESSAGE, scoreToColor } from '@/services/vitality';
+import { VITALITY_DISCLAIMER, VITALITY_PROVISIONAL_NOTE, vitalityAccessibilityLabel, vitalityRecommendation } from '@/services/vitalityView';
 import { colors3, spacing3, typography3 } from '@/constants/theme';
 
 const RING_SIZE = 64;
@@ -15,63 +14,15 @@ const RING_STROKE = 6;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-// colors3 nao tem tokens semanticos de success/danger — resolvido caso a
-// caso com hex literal, mesmo padrao ja usado em MonthComparisonCard
-// (isUp/isDown) e Profile (streak).
-const SCORE_COLOR_SUCCESS = '#15803d';
-
-function scoreColor(score: number): string {
-  if (score >= 70) return SCORE_COLOR_SUCCESS;
-  if (score >= 40) return colors3.primary;
-  return colors3.error;
-}
-
 /**
- * Score de prontidao pra treino. Sempre mostra alguma pontuacao — o pilar de
- * carga de treino (backend) esta disponivel mesmo sem Apple Health, entao em
- * vez de bloquear o card atras de "conecte o Health primeiro" (como faz o
- * HealthSummaryCard, que nao tem nada sem HealthKit), aqui mostramos o score
- * parcial e so avisamos que falta o sono — mesmo espirito do fallback do
- * daily_insight no backend (nunca "sem dado nenhum", sempre algo util).
- *
- * Migrado pro tema claro "prism-glass" nesta tarefa (LiquiglassCard ->
- * GlassCard, colors2 -> colors3) — exclusivo da Home (confirmado, nenhum
- * outro import real do componente), migracao direta sem prop variant. So
- * recoloracao, nenhuma logica de calculo de prontidao alterada.
+ * Vitalidade na Home (so Pro): o MESMO valor dinamico das demais telas (hook useVitality, servico vitalityService), nunca o final_score do backend. Anel com o
+ * numero, rotulo do estado (Em forma / Atencao / Recuperar, limiares 65/40), orientacao curta e o aviso de que e uma estimativa de bem-estar, nao medida
+ * medica. Antes de acordar mostra o valor de ontem a noite marcado como provisorio.
  */
 export function ReadinessCard() {
-  const [readiness, setReadiness] = useState<Readiness | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { load, vitality, state, fetchData } = useVitality();
 
-  const fetchReadiness = useCallback(async () => {
-    setLoading(true);
-    try {
-      let sleepHours: number | null = null;
-      if (Platform.OS === 'ios') {
-        const connected = (await SecureStore.getItemAsync(HEALTHKIT_CONNECTED_KEY)) === 'true';
-        if (connected) {
-          try {
-            sleepHours = await fetchLastNightSleepHours();
-          } catch {
-            sleepHours = null;
-          }
-        }
-      }
-      setReadiness(await getTodayReadiness(sleepHours));
-    } catch {
-      setReadiness(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchReadiness();
-    }, [fetchReadiness])
-  );
-
-  if (loading) {
+  if (load.kind === 'loading') {
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator size="small" color={colors3.primary} />
@@ -79,24 +30,40 @@ export function ReadinessCard() {
     );
   }
 
-  if (!readiness) return null;
+  if (load.kind === 'error') {
+    return (
+      <GlassCard style={styles.card}>
+        <Text style={styles.title}>Vitalidade</Text>
+        <Text style={styles.recommendation}>Não foi possível carregar.</Text>
+        <Pressable onPress={fetchData} accessibilityRole="button" accessibilityLabel="Tentar de novo" hitSlop={8}>
+          <Text style={styles.link}>Tentar de novo</Text>
+        </Pressable>
+      </GlassCard>
+    );
+  }
 
-  const color = scoreColor(readiness.final_score);
-  const progress = Math.max(0, Math.min(1, readiness.final_score / 100));
+  const score = vitality && vitality.score !== null ? vitality.score : null;
+  if (state === 'nodata' || score === null) {
+    return (
+      <GlassCard style={styles.card}>
+        <Text style={styles.title}>Vitalidade</Text>
+        <Pressable onPress={() => router.push('/activity')} accessibilityRole="button" accessibilityLabel={`${VITALITY_NO_DATA_MESSAGE}. Abre a tela de conexão.`} hitSlop={8}>
+          <Text style={styles.link}>{VITALITY_NO_DATA_MESSAGE}</Text>
+        </Pressable>
+        <Text style={styles.hint}>{VITALITY_DISCLAIMER}</Text>
+      </GlassCard>
+    );
+  }
+
+  const color = scoreToColor(score) ?? colors3.primary;
+  const progress = Math.max(0, Math.min(1, score / 100));
 
   return (
     <GlassCard style={styles.card}>
-      <View style={styles.row}>
+      <View style={styles.row} accessible accessibilityLabel={vitalityAccessibilityLabel(state, score, vitality?.indicators, vitality?.provisional)}>
         <View style={styles.ringWrap}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RING_RADIUS}
-              stroke={colors3.surfaceContainerHigh}
-              strokeWidth={RING_STROKE}
-              fill="none"
-            />
+            <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS} stroke={colors3.surfaceContainerHigh} strokeWidth={RING_STROKE} fill="none" />
             <Circle
               cx={RING_SIZE / 2}
               cy={RING_SIZE / 2}
@@ -112,18 +79,18 @@ export function ReadinessCard() {
               originY={RING_SIZE / 2}
             />
           </Svg>
-          <Text style={[styles.ringNumber, { color }]}>{Math.round(readiness.final_score)}</Text>
+          <Text style={[styles.ringNumber, { color }]}>{Math.round(score)}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.title}>Prontidão para treino</Text>
-          <Text style={styles.recommendation}>{readiness.recommendation_text}</Text>
+          <Text style={styles.title}>Vitalidade · {VITALITY_LABELS[state]}</Text>
+          <Text style={styles.recommendation}>{vitalityRecommendation(state)}</Text>
         </View>
       </View>
-      {readiness.sleep_score == null && (
-        <Text style={styles.hint}>
-          Conecte o Apple Health na aba Atividades para incluir seu sono nessa pontuação.
-        </Text>
+      {!!vitality?.provisional && <Text style={styles.hint}>{VITALITY_PROVISIONAL_NOTE}</Text>}
+      {vitality?.indicators.sleep == null && !vitality?.provisional && (
+        <Text style={styles.hint}>Conecte o Apple Health na aba Atividades para incluir seu sono nessa pontuação.</Text>
       )}
+      <Text style={styles.hint}>{VITALITY_DISCLAIMER}</Text>
     </GlassCard>
   );
 }
@@ -138,4 +105,5 @@ const styles = StyleSheet.create({
   title: { ...typography3.headlineMd, fontSize: 16, lineHeight: 20 },
   recommendation: { ...typography3.bodyMd, fontSize: 14, lineHeight: 20, color: colors3.onSurfaceVariant },
   hint: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
+  link: { ...typography3.bodyMd, fontSize: 14, fontWeight: '700', color: colors3.primary, textDecorationLine: 'underline' },
 });
