@@ -46,16 +46,23 @@ def _sleep_score(hours: float) -> float:
     return round(max(70.0, 100 - (hours - 9) * 10), 1)
 
 
-def _load_score(db: Session, user_id, today: date) -> float:
+def _load_score(db: Session, user_id, today: date, include_today: bool = True) -> float:
     """Baseado no volume total treinado (Run + ManualActivity + musculacao,
     esta em minutos equivalentes, ver services/training_load.py) nos ultimos
     7 dias: pouco volume recente = bem descansado (score alto); muito
     volume = fadiga acumulada (score baixo). Sem nenhum treino nos ultimos
     7 dias, entende-se como "sem fadiga acumulada" (score maximo) — o que
     faz sentido pra esse pilar especifico, mesmo que nao reflita
-    condicionamento fisico geral."""
+    condicionamento fisico geral.
+
+    include_today=False (usado por load_score_prior): a janela e dos 7 dias ANTERIORES a hoje (hoje - 7 ate ontem), sem nada do dia de hoje. E a
+    carga que o app usa na base da manha da Vitalidade dinamica, para o treino de hoje nao contar duas vezes (na base e no desgaste do dia).
+    """
     # `today` e o dia LOCAL; janela de SEVEN_DAYS dias locais -> limites UTC (fim exclusivo).
-    start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS - 1), today)
+    if include_today:
+        start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS - 1), today)
+    else:
+        start, end = local_range_bounds(today - timedelta(days=SEVEN_DAYS), today - timedelta(days=1))
 
     run_seconds = (
         db.query(func.sum(Run.duration_seconds))
@@ -194,6 +201,7 @@ def get_today_readiness(
 
     sleep_score = _resolve_sleep_score(sleep_hours, sleep_quality)
     load_score = _load_score(db, current_user.id, today)
+    load_score_prior = _load_score(db, current_user.id, today, include_today=False)
     hr_score = _hr_score(db, current_user.id, today)
     final_score = _combine_scores(sleep_score, load_score, hr_score)
     recommendation = _recommendation_text(final_score)
@@ -223,4 +231,6 @@ def get_today_readiness(
 
     db.commit()
     db.refresh(record)
-    return record
+    out = ReadinessOut.model_validate(record)
+    out.load_score_prior = load_score_prior  # so na resposta (nao e coluna): a base da manha do app usa este valor
+    return out

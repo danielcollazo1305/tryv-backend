@@ -206,5 +206,69 @@ class LoadWithStrengthTests(unittest.TestCase):
         self.assertEqual(body["final_score"], round((80 * 0.4 + 93.3 * 0.4) / 0.8, 1))  # 86.7 (sem FC suficiente)
 
 
+    # ------------------------------------------------------------------------------------------------ load_score_prior (7 dias ANTERIORES a hoje)
+    def prior(self, user_id=None) -> float:
+        self.db.expire_all()
+        return readiness._load_score(self.db, user_id or self.uid, local_today(), include_today=False)
+
+    def test_prior_sem_nada_e_maximo(self):
+        self.assertEqual(self.prior(), 100.0)
+
+    def test_treino_de_hoje_entra_na_carga_mas_nao_no_prior(self):
+        self.add_session(sets=(20, 0), when=self.now)
+        self.assertEqual(self.load(), 93.3)
+        self.assertEqual(self.prior(), 100.0)
+
+    def test_treino_de_ontem_entra_nos_dois(self):
+        self.add_session(sets=(20, 0), when=self.now - timedelta(days=1))
+        self.assertEqual(self.load(), 93.3)
+        self.assertEqual(self.prior(), 93.3)
+
+    def test_janela_do_prior_vai_de_hoje_menos_7_ate_ontem(self):
+        self.add_session(sets=(12, 0), when=self.now - timedelta(days=7))  # 30 min, 7 dias atras: so no prior
+        self.assertEqual(self.load(), 100.0)
+        self.assertEqual(self.prior(), 96.0)
+        self.add_session(sets=(12, 0), when=self.now - timedelta(days=8))  # 8 dias atras: em nenhuma
+        self.assertEqual(self.prior(), 96.0)
+        self.assertEqual(self.load(), 100.0)
+
+    def test_prior_soma_corrida_manual_e_musculacao_de_dias_anteriores(self):
+        self.db.add(
+            Run(user_id=self.uid, route_points=[], distance_meters=5000.0, duration_seconds=1800,
+                started_at=self.now - timedelta(days=2), finished_at=self.now - timedelta(days=2, minutes=-30))
+        )
+        self.db.add(ManualActivity(user_id=self.uid, activity_type="swim", duration_minutes=20, performed_at=self.now - timedelta(days=3)))
+        self.db.commit()
+        self.add_session(sets=(20, 0), when=self.now - timedelta(days=1))
+        self.assertEqual(self.prior(), round(100 - 100 / 600 * 80, 1))  # 30 + 20 + 50 min
+
+    def test_prior_de_outra_pessoa_nao_conta(self):
+        self.add_session(sets=(40, 0), when=self.now - timedelta(days=1), user_id=self.other_id)
+        self.assertEqual(self.prior(), 100.0)
+        self.assertEqual(self.prior(self.other_id), round(100 - 100 / 600 * 80, 1))
+
+    def test_endpoint_devolve_load_score_prior_e_mantem_todos_os_campos_atuais(self):
+        self.add_session(sets=(20, 0), when=self.now)  # hoje
+        self.add_session(sets=(12, 0), when=self.now - timedelta(days=2))  # anteontem
+        r = self.client.get("/readiness/today", params={"sleep_quality": 80}, headers=self.headers)
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        for key in ("date", "sleep_score", "load_score", "hr_score", "final_score", "recommendation_text"):  # compatibilidade com o app antigo
+            self.assertIn(key, body)
+        self.assertEqual(body["load_score_prior"], 96.0)  # so os 30 min de anteontem
+        self.assertEqual(body["load_score"], round(100 - 80 / 600 * 80, 1))  # 30 + 50 min = 89.3
+        self.assertEqual(body["final_score"], round((80 * 0.4 + body["load_score"] * 0.4) / 0.8, 1))  # o final continua usando a carga COM hoje
+
+    def test_o_valor_gravado_continua_sendo_a_carga_com_hoje(self):
+        from app.models.readiness_score import ReadinessScore as RS
+
+        self.add_session(sets=(20, 0), when=self.now)
+        self.client.get("/readiness/today", headers=self.headers)
+        self.db.expire_all()
+        row = self.db.query(RS).filter(RS.user_id == self.uid).one()
+        self.assertEqual(row.load_score, 93.3)  # prior nao e coluna: nada novo no banco
+
+
+
 if __name__ == "__main__":
     unittest.main()
