@@ -4,8 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 
 import { HEALTHKIT_CONNECTED_KEY, fetchHealthSummary, fetchSleepHoursWokenToday } from '@/services/healthkit';
 import { hasBasalEnergy } from '@/services/healthkitState';
-import { getTodayReadiness } from '@/services/readiness';
-import { VITALITY_LABELS, readinessToState } from '@/services/vitality';
+import { VITALITY_LABELS } from '@/services/vitality';
+import { refreshVitality } from '@/services/vitalityService';
 
 /**
  * Resumo do dia para o widget de TELA INICIAL (mobile/TryvFitWidgets/TryvFitSummaryWidget.swift). O app monta este JSON, o modulo nativo
@@ -16,8 +16,10 @@ import { VITALITY_LABELS, readinessToState } from '@/services/vitality';
 /** Meta diaria de passos mostrada no widget. Constante unica: troque aqui (o Swift usa o valor do JSON). */
 export const WIDGET_STEP_GOAL = 10000;
 
-/** Intervalo minimo entre gravacoes: cada gravacao pede reload do widget, e o iOS limita quantos reloads por dia ele concede. */
+/** Intervalo minimo entre gravacoes automaticas (abrir o app, voltar ao primeiro plano): cada gravacao pede reload do widget, e o iOS limita quantos reloads por dia ele concede. */
 const MIN_INTERVAL_MS = 5 * 60 * 1000;
+/** Pausa minima entre gravacoes quando a pessoa pede (botao/gesto de atualizar): menor, mas nunca sem limite. */
+export const MANUAL_MIN_INTERVAL_MS = 60 * 1000;
 
 /** Formato lido pelo Swift (SummaryPayload). v = versao do formato; campo sem dado vai como null. */
 export interface WidgetSummaryPayload {
@@ -78,13 +80,12 @@ async function buildPayload(): Promise<WidgetSummaryPayload> {
   payload.basalKcal = hasBasalEnergy(summary.basalEnergyTodayKcal) ? roundOrNull(summary.basalEnergyTodayKcal) : null;
   payload.sleepHours = typeof sleepHours === 'number' && Number.isFinite(sleepHours) ? Math.round(sleepHours * 1000) / 1000 : null;
 
-  // Vitalidade: mesmo calculo do card da tela Treino (readiness do backend com o sono do mesmo fetch). Falha = sem vitalidade, o resto segue.
+  // Vitalidade: o MESMO valor dinamico do app (services/vitalityService.ts, o das telas), nunca um calculo proprio. Falha ou sem dados = sem vitalidade, o resto segue.
   try {
-    const readiness = await getTodayReadiness(summary.sleepLastNightHours);
-    const state = readinessToState(readiness);
-    if (state !== 'nodata') {
-      payload.vitalityLabel = VITALITY_LABELS[state];
-      payload.vitalityScore = roundOrNull(readiness.final_score);
+    const vitality = await refreshVitality();
+    if (vitality && vitality.state !== 'nodata' && vitality.score !== null) {
+      payload.vitalityLabel = VITALITY_LABELS[vitality.state];
+      payload.vitalityScore = roundOrNull(vitality.score);
     }
   } catch {
     // mantem null
@@ -97,12 +98,14 @@ let lastWriteAt = 0;
 
 /**
  * Atualiza o widget com os dados de agora. Seguro chamar a vontade ("fire and forget"): so iOS, nunca lanca erro, ignora chamadas enquanto
- * outra esta em andamento e grava no maximo 1 vez a cada 5 min (o reload do widget conta no orcamento diario do iOS).
+ * outra esta em andamento e grava no maximo 1 vez a cada 5 min (o reload do widget conta no orcamento diario do iOS). Com { manual: true } (botao/gesto
+ * de atualizar) a pausa minima e de 60 s.
  */
-export function syncWidgetSummary(): Promise<void> {
+export function syncWidgetSummary(options?: { manual?: boolean }): Promise<void> {
   if (Platform.OS !== 'ios' || !nativeModule) return Promise.resolve();
   if (inFlight) return inFlight;
-  if (Date.now() - lastWriteAt < MIN_INTERVAL_MS) return Promise.resolve();
+  const minInterval = options?.manual ? MANUAL_MIN_INTERVAL_MS : MIN_INTERVAL_MS;
+  if (Date.now() - lastWriteAt < minInterval) return Promise.resolve();
 
   const module = nativeModule;
   inFlight = (async () => {
