@@ -22,3 +22,22 @@ export function formatNightLabel(endedAtIso: string | null | undefined, fallback
 export function formatSleepDuration(hours: number): string {
   return formatSleepMinutes(hours * 60);
 }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** "HH:MM" local de um instante ISO; invalido = "--:--". */
+export function formatClock(iso: string | null | undefined): string {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '--:--';
+}
+
+/** Titulo do estado "aguardando" da tela de Sono (so ha um trecho parcial, nenhuma noite completa). */
+export const SLEEP_WAITING_TITLE = 'Aguardando a noite completa.';
+
+/**
+ * Faixa de aviso do trecho parcial: "Recebemos só um trecho (09:52–11:54, 2h 02m). Abra o app do seu relógio para sincronizar a noite completa." A duracao e a do trecho
+ * (fim − início), no mesmo formato da tela ("2h 02m").
+ */
+export function formatPartialSleepNote(startedAtIso: string, endedAtIso: string, spanMinutes: number): string {
+  return `Recebemos só um trecho (${formatClock(startedAtIso)}–${formatClock(endedAtIso)}, ${formatSleepMinutes(spanMinutes)}). Abra o app do seu relógio para sincronizar a noite completa.`;
+}

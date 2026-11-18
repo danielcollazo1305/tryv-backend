@@ -8,16 +8,17 @@ import { GlassCard } from '@/components/GlassCard';
 import { HEALTH_METRIC_CONFIG, HEALTH_PERIOD_OPTIONS, HealthHistoryCard, useHealthHistory } from '@/components/HealthHistoryCard';
 import {
   ensureHealthAuthorized,
-  fetchSleepSessionDetail,
+  fetchSleepScreenData,
   HEALTH_SOURCE_LABEL,
   HEALTHKIT_CONNECTED_KEY,
   HealthHistoryPeriod,
   isHealthAvailable,
+  SleepFragmentInfo,
   SleepSessionDetail,
   SleepStage,
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
-import { formatNightLabel, formatSleepMinutes } from '@/utils/sleepFormat';
+import { SLEEP_WAITING_TITLE, formatNightLabel, formatPartialSleepNote, formatSleepMinutes } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
 // consistencia com o resto do app (o mockup aprovado, Tryv FC e Sono.dc.html,
@@ -29,7 +30,7 @@ import { formatNightLabel, formatSleepMinutes } from '@/utils/sleepFormat';
 const INTER_MEDIUM = 'Inter_600SemiBold';
 const INTER_BOLD = 'Inter_700Bold';
 
-type Status = 'checking' | 'unavailable' | 'disconnected' | 'empty' | 'ready' | 'error';
+type Status = 'checking' | 'unavailable' | 'disconnected' | 'empty' | 'waiting' | 'ready' | 'error';
 
 // So os 4 estagios reais mostrados no resumo (nao 'inBed', que e so um
 // detalhe de fonte sem estagio — ver comentario em fetchSleepSessionDetail).
@@ -121,6 +122,8 @@ interface SelectedSegment {
 function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string | null) => void }) {
   const [status, setStatus] = useState<Status>('checking');
   const [detail, setDetail] = useState<SleepSessionDetail | null>(null);
+  /** Trecho parcial mais novo que a ultima noite completa (sincronizacao incompleta): faixa de aviso ou estado "aguardando". */
+  const [partial, setPartial] = useState<SleepFragmentInfo | null>(null);
   const [selected, setSelected] = useState<SelectedSegment | null>(null);
 
   const load = useCallback(async () => {
@@ -141,14 +144,15 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
         return;
       }
       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
-      const result = await fetchSleepSessionDetail();
-      if (!result) {
+      const result = await fetchSleepScreenData();
+      setPartial(result.partial);
+      if (!result.detail) {
         onNightEnded?.(null);
-        setStatus('empty');
+        setStatus(result.partial ? 'waiting' : 'empty');
         return;
       }
-      onNightEnded?.(result.endedAt);
-      setDetail(result);
+      onNightEnded?.(result.detail.endedAt);
+      setDetail(result.detail);
       setStatus('ready');
     } catch (err) {
       console.error('[SleepDetailView] falha ao buscar detalhe de sono:', err);
@@ -189,6 +193,15 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
     return <Text style={styles.error}>Não foi possível carregar o sono.</Text>;
   }
 
+  if (status === 'waiting' && partial) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.emptyText}>{SLEEP_WAITING_TITLE}</Text>
+        <Text style={styles.partialBanner}>{formatPartialSleepNote(partial.startedAt, partial.endedAt, partial.spanMinutes)}</Text>
+      </View>
+    );
+  }
+
   if (status === 'empty' || !detail) {
     return <Text style={styles.emptyText}>Nenhum registro de sono na última noite.</Text>;
   }
@@ -200,6 +213,7 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
 
   return (
     <View style={styles.container}>
+      {!!partial && <Text style={styles.partialBanner}>{formatPartialSleepNote(partial.startedAt, partial.endedAt, partial.spanMinutes)}</Text>}
       <GlassCard variant="glass" style={styles.card}>
         <Text style={styles.eyebrow}>Sono total</Text>
         <Text style={styles.totalValue}>{formatDuration(detail.breakdown.totalAsleepMinutes)}</Text>
@@ -419,6 +433,7 @@ export function SleepDetailView() {
 const styles = StyleSheet.create({
   loading:{ marginVertical: spacing3.lg },
   error: { color: colors3.error, textAlign: 'center', marginTop: spacing3.xl },
+  partialBanner: { ...typography3.labelSm, textTransform: 'none', color: colors3.onSurfaceVariant },
   emptyText: { ...typography3.bodyMd, color: colors3.onSurfaceVariant, textAlign: 'center', marginTop: spacing3.xl },
   connectHint: {
     flexDirection: 'row',

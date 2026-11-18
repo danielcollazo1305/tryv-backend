@@ -25,18 +25,19 @@ import type {
   HealthMetricKey,
   HealthSummary,
   HeartRateSamplePoint,
+  SleepScreenData,
   SleepSessionDetail,
   WeekHeartRateDetail,
 } from './health.types';
 import {
   HealthDataState,
-  SLEEP_LOOKBACK_HOURS,
   SleepSample,
   StatBucket,
   addDays,
   bucketMap,
   buildCaloriesHistory,
   buildHistory,
+  buildSleepNight,
   classifyHealthAccess,
   dailyPoints,
   dayHeartRate,
@@ -46,7 +47,6 @@ import {
   incrementalWindowStart,
   intradayPoints,
   isAuthorizationError,
-  lastSleepNight,
   nextWorkoutAnchor,
   resolveHistoryWindow,
   roundBpm,
@@ -61,7 +61,17 @@ import {
   toMonthKey,
   weekHeartRate,
 } from './healthkitState';
-import { SLEEP_QUALITY_LOOKBACK_DAYS, napMinutesSince, sleepCycleReading } from './sleepNights';
+import {
+  SLEEP_QUALITY_LOOKBACK_DAYS,
+  SLEEP_SCREEN_LOOKBACK_HOURS,
+  describeSleepSessions,
+  lastNightSleepHoursFromSamples,
+  napMinutesSince,
+  selectSleepNightForScreen,
+  sleepCycleReading,
+  sleepHoursWokenTodayFromSamples,
+} from './sleepNights';
+import type { SleepSessionInfo } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
 import type { DayInput, WorkoutInput } from './vitalityDynamic';
 import { mergeOverlappingWorkouts, resolveWorkoutKcal } from './workoutWindows';
@@ -288,10 +298,9 @@ async function readSleepSamples(from: Date, to?: Date): Promise<SleepSample[]> {
 }
 
 /**
- * Horas de sono da "ultima noite" pela regra do DIA DE DESPERTAR (a mesma de sleepHoursByWakeDay e do widget): soma as sessoes que terminam HOJE, entao
- * um cochilo nao vira "a noite" e uma noite partida por uma pausa de mais de SLEEP_SESSION_GAP_MINUTES (90 min) soma as duas partes. Se ainda nao ha
- * sono que termine hoje (antes de acordar ou sem sincronizar), cai para o dia anterior pela mesma regra (so ontem, nunca mais antigo). Sem dado = null.
- * Usada pela Home, pela Vitalidade e pela prontidao (sleepLastNightHours); o widget usa fetchSleepHoursWokenToday, sem esse fallback.
+ * Horas de sono da "ultima noite": a noite COMPLETA que a tela de Sono mostra (noite principal, sem soneca e sem trecho parcial; uma noite quebrada por pausa de mais de
+ * 90 min continua sendo uma noite) cujo acordar foi HOJE; se ainda nao ha, a de ONTEM (so ontem, nunca mais antiga). Mesmos minutos da tela de Sono para a mesma noite
+ * (sleepNights.ts:lastNightSleepHoursFromSamples). Sem dado = null. Usada pela Home, pela Vitalidade e pela prontidao (sleepLastNightHours).
  */
 export async function fetchLastNightSleepHours(): Promise<number | null> {
   const h = hk();
@@ -300,14 +309,12 @@ export async function fetchLastNightSleepHours(): Promise<number | null> {
   // Comeca 2 dias antes de hoje 00:00: uma noite que termina ontem pode ter comecado na noite anterior a ontem.
   const samples = await safe(readSleepSamples(addDays(startOfDay(now), -2)));
   if (!samples) return null;
-  const byDay = sleepHoursByWakeDay(samples, 'day');
-  return byDay.get(toDateKey(now)) ?? byDay.get(toDateKey(addDays(startOfDay(now), -1))) ?? null;
+  return lastNightSleepHoursFromSamples(samples, now);
 }
 
 /**
- * Horas dormidas atribuidas a HOJE (o dia em que a pessoa ACORDOU, mesma regra de sleepHoursByWakeDay no historico), somando todas as sessoes que
- * terminam hoje. Sem sono que termine hoje = null (antes de acordar nao mostra a noite de ontem). Usada pelo widget; fetchLastNightSleepHours
- * (Home/Vitalidade) usa a mesma regra, mas com fallback para ontem quando ainda nao ha sono hoje.
+ * Horas da noite COMPLETA que terminou HOJE (mesma selecao da tela de Sono: sem soneca e sem trecho parcial). Sem ela = null (antes de acordar nao mostra a noite de
+ * ontem). Usada pelo widget so como reserva; fetchLastNightSleepHours (Home/Vitalidade) usa a mesma selecao, com fallback para ontem.
  */
 export async function fetchSleepHoursWokenToday(): Promise<number | null> {
   const h = hk();
@@ -315,7 +322,7 @@ export async function fetchSleepHoursWokenToday(): Promise<number | null> {
   const now = new Date();
   const samples = await safe(readSleepSamples(addDays(startOfDay(now), -1)));
   if (!samples) return null;
-  return sleepHoursByWakeDay(samples, 'day').get(toDateKey(now)) ?? null;
+  return sleepHoursWokenTodayFromSamples(samples, now);
 }
 
 /**
@@ -332,13 +339,22 @@ export async function fetchSleepQualityReading(): Promise<SleepQualityReading | 
   return sleepCycleReading(samples, now);
 }
 
-/** Detalhe da ultima noite (estagios, linha do tempo, FC e respiracao durante o sono). Sem sono = null. */
-export async function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
+/**
+ * Dados da tela de Sono: o detalhe da ultima noite COMPLETA (estagios, linha do tempo, FC e respiracao durante o sono) e, se houver, o trecho parcial mais novo que ela
+ * (sincronizacao incompleta). Le SLEEP_SCREEN_LOOKBACK_HOURS (72 h, antes 32 h): o HealthKit filtra por INICIO de amostra, e uma janela curta deixava so a cauda de uma
+ * noite. A selecao (noite principal, nao parcial) e pura e compartilhada com a Home e a Vitalidade (sleepNights.ts). Sem sono = { detail: null, partial: null }.
+ */
+export async function fetchSleepScreenData(): Promise<SleepScreenData> {
+  const empty: SleepScreenData = { detail: null, partial: null };
   const h = hk();
-  if (!h || !h.isAvailable()) return null;
-  const samples = await safe(readSleepSamples(new Date(Date.now() - (SLEEP_LOOKBACK_HOURS / 24) * dayMs)));
-  const night = samples ? lastSleepNight(samples) : null;
-  if (!night) return null;
+  if (!h || !h.isAvailable()) return empty;
+  const now = new Date();
+  const samples = await safe(readSleepSamples(new Date(now.getTime() - SLEEP_SCREEN_LOOKBACK_HOURS * 60 * 60 * 1000)));
+  if (!samples) return empty;
+  const { night: group, partial } = selectSleepNightForScreen(samples, now);
+  const partialInfo = partial ? { startedAt: partial.startAt, endedAt: partial.endAt, spanMinutes: partial.spanMin, asleepMinutes: partial.asleepMin } : null;
+  const night = group ? buildSleepNight(group.samples) : null;
+  if (!night) return { detail: null, partial: partialInfo };
   const from = new Date(night.startedAt);
   const to = new Date(night.endedAt);
   const [hr, resp] = await Promise.all([
@@ -346,21 +362,37 @@ export async function fetchSleepSessionDetail(): Promise<SleepSessionDetail | nu
     safe(h.queryStatistics({ type: T_RESPIRATORY, unit: 'count/min', from, to, options: h.StatisticsOption.discreteAverage | h.StatisticsOption.discreteMin })),
   ]);
   return {
-    date: night.date,
-    startedAt: night.startedAt,
-    endedAt: night.endedAt,
-    breakdown: night.breakdown,
-    segments: night.segments,
-    heartRate: { average: roundBpm(hr?.average), lowest: roundBpm(hr?.min) },
-    respiratoryRate: { average: round1(resp?.average), lowest: round1(resp?.min) },
+    detail: {
+      date: night.date,
+      startedAt: night.startedAt,
+      endedAt: night.endedAt,
+      breakdown: night.breakdown,
+      segments: night.segments,
+      heartRate: { average: roundBpm(hr?.average), lowest: roundBpm(hr?.min) },
+      respiratoryRate: { average: round1(resp?.average), lowest: round1(resp?.min) },
+    },
+    partial: partialInfo,
   };
+}
+
+/** Detalhe da ultima noite completa (so o detalhe; ver fetchSleepScreenData). Sem noite completa = null. */
+export async function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
+  return (await fetchSleepScreenData()).detail;
+}
+
+/** Diagnostico (modo desenvolvedor): as sessoes de sono lidas na janela da tela, cada uma classificada como noite, soneca ou trecho parcial. */
+export async function fetchSleepSessionsDebug(): Promise<SleepSessionInfo[]> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return [];
+  const samples = await safe(readSleepSamples(new Date(Date.now() - SLEEP_SCREEN_LOOKBACK_HOURS * 60 * 60 * 1000)));
+  return samples ? describeSleepSessions(samples) : [];
 }
 
 /** Rotulo informativo da fonte do sono mais recente ("Garmin Connect", "Apple Watch"...); null se nao ha. Nada depende disso. */
 export async function fetchSleepSourceLabel(): Promise<string | null> {
   const h = hk();
   if (!h || !h.isAvailable()) return null;
-  const samples = await safe(readSleepSamples(new Date(Date.now() - (SLEEP_LOOKBACK_HOURS / 24) * dayMs)));
+  const samples = await safe(readSleepSamples(new Date(Date.now() - SLEEP_SCREEN_LOOKBACK_HOURS * 60 * 60 * 1000)));
   const last = samples && samples.length > 0 ? samples[samples.length - 1] : null;
   return last ? sourceLabel(last.sourceId, last.sourceName) : null;
 }

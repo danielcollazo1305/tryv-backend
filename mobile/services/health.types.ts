@@ -96,6 +96,21 @@ export interface SleepSessionDetail {
   respiratoryRate: { average: number | null; lowest: number | null };
 }
 
+/** Trecho parcial de sono (sincronizacao incompleta): mais novo que a ultima noite completa. */
+export interface SleepFragmentInfo {
+  startedAt: string;
+  endedAt: string;
+  /** Fim - inicio, em minutos (a mesma conta de "na cama" da tela). */
+  spanMinutes: number;
+  asleepMinutes: number;
+}
+
+/** O que a tela de Sono mostra: a ultima noite COMPLETA (ou null) e, se houver, o trecho parcial mais novo que ela (faixa de aviso / estado "aguardando"). */
+export interface SleepScreenData {
+  detail: SleepSessionDetail | null;
+  partial: SleepFragmentInfo | null;
+}
+
 export interface DailyQuantityPoint {
   /** 'YYYY-MM-DD' em horario local. */
   date: string;

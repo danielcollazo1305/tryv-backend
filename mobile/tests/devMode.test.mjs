@@ -128,3 +128,32 @@ test('formatadores: instante e horas/minutos', () => {
   assert.equal(formatHoursMinutes(0), '0h 00m');
   for (const bad of [null, undefined, NaN, -1]) assert.equal(formatHoursMinutes(bad), '—');
 });
+
+import { describeSleepSessions } from '../services/sleepNights.ts';
+import { formatSleepSessionsDebug } from '../services/vitalityDebugView.ts';
+import { formatPartialSleepNote, SLEEP_WAITING_TITLE } from '../utils/sleepFormat.ts';
+
+test('depuracao: sessoes de sono lidas listam inicio, fim, fonte, valores e a classificacao', () => {
+  const s = (a, b, value, id = 'Garmin Connect') => ({ startDate: a, endDate: b, value, sourceId: id, sourceName: id });
+  const samples = [
+    s(new Date(2026, 10, 15, 23, 0), new Date(2026, 10, 16, 6, 30), 3),
+    s(new Date(2026, 10, 16, 14, 0), new Date(2026, 10, 16, 14, 30), 1),
+    s(new Date(2026, 10, 17, 2, 0), new Date(2026, 10, 17, 4, 2), 1, 'iPhone'),
+  ];
+  const section = formatSleepSessionsDebug(describeSleepSessions(samples));
+  assert.equal(section.title, 'Sessões de sono lidas');
+  assert.equal(section.rows.length, 3);
+  const text = section.rows.map((r) => `${r.label} ${r.value}`).join('\n');
+  assert.match(text, /soneca/);
+  assert.match(text, /trecho parcial/);
+  assert.match(text, /noite · dormiu 7h 30m · com estágios · valores 3 · Garmin Connect/);
+  assert.deepEqual(formatSleepSessionsDebug([]).rows, [{ label: 'Sessões', value: 'nenhuma na janela lida' }]);
+});
+
+test('texto do trecho parcial e do estado aguardando', () => {
+  assert.equal(
+    formatPartialSleepNote(new Date(2026, 10, 16, 9, 52).toISOString(), new Date(2026, 10, 16, 11, 54).toISOString(), 122),
+    'Recebemos só um trecho (09:52–11:54, 2h 02m). Abra o app do seu relógio para sincronizar a noite completa.'
+  );
+  assert.equal(SLEEP_WAITING_TITLE, 'Aguardando a noite completa.');
+});

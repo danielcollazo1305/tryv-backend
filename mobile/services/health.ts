@@ -31,6 +31,7 @@ import type {
   HealthMetricKey,
   HealthSummary,
   HeartRateSamplePoint,
+  SleepScreenData,
   SleepSessionDetail,
   WeekHeartRateDetail,
 } from './health.types';
@@ -142,6 +143,16 @@ export function fetchVitalityHistory(now?: Date, days?: number): ReturnType<type
   return isIOS ? healthkit.fetchVitalityHistory(now, days) : Promise.resolve(null);
 }
 
+/** O que a tela de Sono mostra (ultima noite completa + trecho parcial mais novo). Android: so o detalhe, sem trecho parcial. */
+export function fetchSleepScreenData(): Promise<SleepScreenData> {
+  return isIOS ? healthkit.fetchSleepScreenData() : healthConnect.fetchSleepSessionDetail().then((detail) => ({ detail, partial: null }));
+}
+
+/** Diagnostico do modo desenvolvedor: sessoes de sono lidas e classificadas (so iOS). */
+export function fetchSleepSessionsDebug(): ReturnType<typeof healthkit.fetchSleepSessionsDebug> {
+  return isIOS ? healthkit.fetchSleepSessionsDebug() : Promise.resolve([]);
+}
+
 export function fetchSleepSessionDetail(): Promise<SleepSessionDetail | null> {
   return isIOS ? healthkit.fetchSleepSessionDetail() : healthConnect.fetchSleepSessionDetail();
 }
@@ -203,6 +214,8 @@ export type {
   SleepStageSegment,
   SleepStageBreakdown,
   SleepSessionDetail,
+  SleepScreenData,
+  SleepFragmentInfo,
   DailyQuantityPoint,
   HealthHistoryPeriod,
   HealthHistoryGranularity,

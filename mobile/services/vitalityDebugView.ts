@@ -2,6 +2,7 @@
 // (mobile/tests/devMode.test.mjs). Nada aqui sai do aparelho.
 import { dynamicScoreToState } from '@/services/vitalityDynamic';
 import type { VitalityDebug } from '@/services/vitalityEngine';
+import type { SleepSessionInfo } from '@/services/sleepNights';
 import { VITALITY_LABELS } from '@/services/vitality';
 import { formatUpdatedAt } from '@/services/vitalityView';
 
@@ -135,4 +136,15 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
       ],
     },
   ];
+}
+
+const KIND_LABELS: Record<SleepSessionInfo['kind'], string> = { night: 'noite', nap: 'soneca', partial: 'trecho parcial' };
+
+/** Sessões de sono lidas (janela da tela de Sono), uma seção com uma linha por sessão: início → fim, fonte, valores e classificação. Sem sessões = linha avisando. */
+export function formatSleepSessionsDebug(sessions: readonly SleepSessionInfo[]): DebugSection {
+  const rows = sessions.map((s) => ({
+    label: `${formatInstant(s.startAt)} → ${formatInstant(s.endAt)}`,
+    value: `${KIND_LABELS[s.kind]} · dormiu ${formatHoursMinutes(s.asleepMin)} · ${s.hasStages ? 'com estágios' : 'sem estágios'} · valores ${s.values.join(',') || '—'} · ${s.sources.join(', ') || '—'}`,
+  }));
+  return { title: 'Sessões de sono lidas', rows: rows.length > 0 ? rows : [{ label: 'Sessões', value: 'nenhuma na janela lida' }] };
 }

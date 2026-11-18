@@ -10,7 +10,9 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { useVitality } from '@/hooks/useVitality';
 import { isDevModeEnabled, setDevModeEnabled } from '@/services/devMode';
 import { VITALITY_STATE_KEY } from '@/services/vitalityService';
-import { formatVitalityDebug } from '@/services/vitalityDebugView';
+import { fetchSleepSessionsDebug } from '@/services/health';
+import type { SleepSessionInfo } from '@/services/sleepNights';
+import { formatSleepSessionsDebug, formatVitalityDebug } from '@/services/vitalityDebugView';
 
 /**
  * Depuracao da Vitalidade (MODO DESENVOLVEDOR): tudo o que entrou no calculo da ultima atualizacao. Fica escondido: so abre com o modo ligado (7 toques na linha de
@@ -20,6 +22,15 @@ export default function DevVitalityScreen() {
   const insets = useSafeAreaInsets();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const { vitality, load, fetchData, refreshing } = useVitality();
+  const [sleepSessions, setSleepSessions] = useState<SleepSessionInfo[] | null>(null);
+
+  const readSleepSessions = async () => {
+    try {
+      setSleepSessions(await fetchSleepSessionsDebug());
+    } catch {
+      setSleepSessions([]);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -43,7 +54,7 @@ export default function DevVitalityScreen() {
     );
   }
 
-  const sections = vitality ? formatVitalityDebug(vitality.debug) : [];
+  const sections = [...(vitality ? formatVitalityDebug(vitality.debug) : []), ...(sleepSessions ? [formatSleepSessionsDebug(sleepSessions)] : [])];
 
   const disable = async () => {
     await setDevModeEnabled(false);
@@ -85,6 +96,9 @@ export default function DevVitalityScreen() {
           </Pressable>
           <Pressable style={[styles.button, styles.buttonGhost]} onPress={clearState} accessibilityRole="button">
             <Text style={[styles.buttonText, styles.buttonGhostText]}>Limpar estado do dia</Text>
+          </Pressable>
+          <Pressable style={[styles.button, styles.buttonGhost]} onPress={() => void readSleepSessions()} accessibilityRole="button">
+            <Text style={[styles.buttonText, styles.buttonGhostText]}>Ler sessões de sono</Text>
           </Pressable>
         </View>
 

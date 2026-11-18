@@ -64,7 +64,7 @@ test('soneca (comeca entre 9h e 20h) fica de fora; so a soneca = nenhuma noite',
 test('bordas da soneca: 08:59 e 20:00 sao noite; 09:00 e 19:59 sao soneca', () => {
   const len = (h, m) => {
     const start = at(0, h, m);
-    return buildSleepNightsForQuality([sample(start, new Date(start.getTime() + 30 * 60000), 1)]).length;
+    return buildSleepNightsForQuality([sample(start, new Date(start.getTime() + 240 * 60000), 1)]).length; // 4 h: acima do limite de trecho parcial (180 min)
   };
   assert.equal(len(8, 59), 1); // 08:59 e noite
   assert.equal(len(9, 0), 0);
@@ -248,4 +248,104 @@ test('sonecas desde a ancora: so as iniciadas depois dela e ja terminadas', () =
   assert.equal(napMinutesSince(naps, at(-1, 0, 0).getTime(), at(0, 18, 0)), 60); // com a ancora de ontem, as duas contam
   assert.equal(napMinutesSince([], anchor, NOW), 0);
   assert.equal(napMinutesSince(null, anchor, NOW), 0);
+});
+
+// ------------------------------------------------------------------------------------------------ selecao da noite da tela (ignora trecho parcial)
+import { PARTIAL_SLEEP_MAX_MINUTES, SLEEP_SCREEN_LOOKBACK_HOURS, describeSleepSessions, lastNightSleepHoursFromSamples, selectSleepNightForScreen, sleepHoursWokenTodayFromSamples } from '../services/sleepNights.ts';
+import { buildSleepNight } from '../services/healthkitState.ts';
+
+const HOUR = 3600 * 1000;
+
+test('janela da tela: 72 h (antes 32 h) e limite de trecho parcial de 180 min', () => {
+  assert.equal(SLEEP_SCREEN_LOOKBACK_HOURS, 72);
+  assert.equal(PARTIAL_SLEEP_MAX_MINUTES, 180);
+});
+
+test('so um trecho parcial (sem estagios, < 3 h): nao ha noite, a tela fica "aguardando" com o trecho', () => {
+  const fragment = [sample(at(0, 2, 0), at(0, 4, 2), 1)]; // 2h02 sem estagios, comeca de madrugada (nao e soneca)
+  const r = selectSleepNightForScreen(fragment, NOW);
+  assert.equal(r.night, null);
+  assert.equal(r.partial.spanMin, 122);
+  assert.equal(r.partial.startAt, at(0, 2, 0).toISOString());
+  assert.equal(lastNightSleepHoursFromSamples(fragment, NOW), null);
+  assert.deepEqual(buildSleepNightsForQuality(fragment), []);
+});
+
+test('trecho parcial mais novo que a ultima noite completa: mostra a noite completa e devolve o trecho para a faixa de aviso', () => {
+  const samples = [...wakeNight(-1), sample(at(0, 2, 0), at(0, 4, 2), 1)];
+  const r = selectSleepNightForScreen(samples, NOW);
+  assert.equal(r.night.wakeDate, keyOf(-1));
+  assert.equal(r.partial.endAt, at(0, 4, 2).toISOString());
+  assert.equal(r.partial.spanMin, 122);
+  // Home: continua sendo a noite completa de ontem, nao o trecho de hoje
+  assert.ok(Math.abs(lastNightSleepHoursFromSamples(samples, NOW) * 60 - r.night.asleepMin) < 1e-6);
+  assert.equal(sleepHoursWokenTodayFromSamples(samples, NOW), null);
+});
+
+test('trecho parcial MAIS ANTIGO que a noite completa nao gera aviso', () => {
+  const samples = [sample(at(-2, 2, 0), at(-2, 4, 0), 1), ...wakeNight(0)];
+  const r = selectSleepNightForScreen(samples, NOW);
+  assert.equal(r.night.wakeDate, keyOf(0));
+  assert.equal(r.partial, null);
+});
+
+test('noite curta COM estagios continua valida (nao e trecho parcial)', () => {
+  const short = [sample(at(0, 3, 0), at(0, 4, 0), 3), sample(at(0, 4, 0), at(0, 5, 0), 4)]; // 2 h com estagios
+  const r = selectSleepNightForScreen(short, NOW);
+  assert.ok(r.night);
+  assert.equal(r.night.asleepMin, 120);
+  assert.equal(r.partial, null);
+  assert.equal(lastNightSleepHoursFromSamples(short, NOW), 2);
+});
+
+test('sono curto SEM estagios mas de 3 h ou mais e noite', () => {
+  const r = selectSleepNightForScreen([sample(at(0, 1, 0), at(0, 4, 0), 1)], NOW);
+  assert.ok(r.night);
+  assert.equal(r.night.asleepMin, 180);
+});
+
+test('trecho que comeca fora de 9h-20h e curto sem estagios nao vira noite principal (nem ancora)', () => {
+  const samples = [...wakeNight(-1), sample(at(0, 0, 10), at(0, 1, 40), 1)]; // 00:10-01:40: noite, mas parcial
+  assert.equal(buildSleepNightsForQuality(samples).length, 1);
+  assert.equal(selectSleepNightForScreen(samples, NOW).night.wakeDate, keyOf(-1));
+  const reading = sleepCycleReading(samples, NOW);
+  assert.equal(reading.wakeAt, at(-1, 7, 0).toISOString()); // o ciclo segue ancorado na noite completa
+});
+
+test('cauda de uma noite cortada pelo inicio da janela: janela longa devolve a noite inteira, a curta nao devolve noite', () => {
+  const full = lateNight(-1); // 16/11 02:20-11:54
+  const nowMid = NOW; // 17/11 10:00
+  const cut = (hours) => full.filter((s) => s.startDate.getTime() >= nowMid.getTime() - hours * HOUR);
+  // 32 h: a janela comeca em 16/11 02:00, entao ainda pega tudo; o corte de 22 h (16/11 12:00) deixa so... nada; o de 24,1 h pega so a cauda
+  const tail = full.filter((s) => s.startDate.getTime() >= at(-1, 9, 52).getTime());
+  assert.equal(selectSleepNightForScreen(tail, NOW).night, null); // cauda 10:00-11:54 comeca na faixa de soneca: nao e "a noite"
+  const whole = selectSleepNightForScreen(cut(SLEEP_SCREEN_LOOKBACK_HOURS), NOW);
+  assert.equal(whole.night.wakeDate, keyOf(-1));
+  assert.ok(Math.abs(whole.night.asleepMin - (9 * 60 + 8)) < 1, String(whole.night.asleepMin));
+  assert.equal(whole.partial, null);
+});
+
+test('a tela e a Home mostram o MESMO total para a mesma noite (uniao dos intervalos do mesmo grupo)', () => {
+  const samples = [...lateNight(-1), ...wakeNight(-2)];
+  const { night } = selectSleepNightForScreen(samples, NOW);
+  const detail = buildSleepNight(night.samples);
+  assert.equal(Math.round(detail.breakdown.totalAsleepMinutes), Math.round(night.asleepMin));
+  assert.ok(Math.abs(lastNightSleepHoursFromSamples(samples, NOW) * 60 - detail.breakdown.totalAsleepMinutes) < 1e-6);
+});
+
+test('diagnostico: cada sessao vem classificada (noite, soneca, parcial)', () => {
+  const samples = [...wakeNight(-1), sample(at(-1, 14, 0), at(-1, 14, 40), 1), sample(at(0, 2, 0), at(0, 4, 2), 1)];
+  const kinds = describeSleepSessions(samples).map((s) => s.kind);
+  assert.deepEqual(kinds, ['night', 'nap', 'partial']);
+  const night = describeSleepSessions(samples)[0];
+  assert.equal(night.hasStages, true);
+  assert.ok(night.values.includes(3) && night.sources.includes('watch'));
+});
+
+test('ciclo: so um trecho parcial nao ancora (sem ancora/estimado); uma noite completa antiga dentro de 36 h segue valendo', () => {
+  const fragment = [sample(at(0, 2, 0), at(0, 4, 2), 1)];
+  assert.equal(sleepCycleReading(fragment, NOW), null);
+  const withNight = [...wakeNight(-1), ...fragment];
+  assert.equal(sleepCycleReading(withNight, NOW).wakeAt, at(-1, 7, 0).toISOString());
+  assert.equal(sleepCycleReading(withNight, at(0, 4, 3)).wakeAt, at(-1, 7, 0).toISOString());
 });
