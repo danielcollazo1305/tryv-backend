@@ -2,6 +2,8 @@
 // (mobile/tests/vitalityView.test.mjs, `npm test`). Rotulos de estado: os de VITALITY_LABELS (services/vitality.ts); limiares 65/40 em vitalityDynamic.ts.
 import { VITALITY_LABELS } from '@/services/vitality';
 import type { VitalityState } from '@/services/vitality';
+import { isGarminSource } from '@/services/sleepNights';
+import type { SleepFreshness } from '@/services/sleepNights';
 
 /** Aviso curto que acompanha o numero da Vitalidade em toda tela. */
 export const VITALITY_DISCLAIMER = 'Estimativa de bem-estar, não uma medida médica.';
@@ -71,4 +73,20 @@ export function formatUpdatedAt(epochMs: number | null | undefined): string {
 export function vitalityHeadline(state: VitalityState, score: number | null | undefined): string {
   if (state === 'nodata' || typeof score !== 'number' || !Number.isFinite(score)) return VITALITY_LABELS.nodata;
   return `${VITALITY_LABELS[state]} · ${Math.round(score)}`;
+}
+
+/**
+ * Rótulo de frescor do sono. Fresco: "Dados do Apple Saúde de hoje às 07:12". Velho (nenhum sono terminou hoje e já passou das 10h): "Último dado de sono: ontem às 11:54.
+ * Abra o Garmin Connect para sincronizar." (cita o Garmin só se a fonte da última amostra é o Garmin; senão "o app do seu relógio"; mais antigo que ontem: "em dd/mm").
+ * Desconhecido (sem amostra, ou cedo demais) = vazio.
+ */
+export function sleepFreshnessText(freshness: SleepFreshness, source?: string | null): string {
+  if (freshness.kind === 'unknown') return '';
+  const d = new Date(freshness.endedAt);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const clock = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (freshness.kind === 'fresh') return `Dados do Apple Saúde de hoje às ${clock}`;
+  const when = freshness.daysAgo === 1 ? 'ontem' : `em ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+  const app = isGarminSource(source) ? 'o Garmin Connect' : 'o app do seu relógio';
+  return `Último dado de sono: ${when} às ${clock}. Abra ${app} para sincronizar.`;
 }

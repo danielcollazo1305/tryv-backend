@@ -39,6 +39,10 @@ export interface SleepQualityReading {
   wakeAt: string;
   /** Minutos dormidos da noite (uniao dos intervalos). */
   asleepMin: number;
+  /** Fim (ISO) da amostra de sono mais recente lida (qualquer noite, soneca ou trecho; ver latestSleepSampleEnd); null se nao ha. Alimenta o rotulo de frescor. */
+  latestSampleEndAt: string | null;
+  /** Fonte (nome) dessa amostra mais recente, para o rotulo citar o Garmin Connect so quando e ele. */
+  latestSampleSource: string | null;
 }
 
 /** A noite que ancora o ciclo da Vitalidade so vale se a pessoa acordou ha no maximo isto (acordado ha mais tempo sem registrar outra noite = sem ancora). */
@@ -265,6 +269,12 @@ export function sleepHoursWokenTodayFromSamples(samples: readonly SleepSample[] 
   return pick ? pick.asleepMin / 60 : null;
 }
 
+/** Campos de frescor do sono (fim e fonte da amostra de sono mais recente) para a leitura. */
+function latestSampleFields(samples: readonly SleepSample[] | null | undefined, now: Date): { latestSampleEndAt: string | null; latestSampleSource: string | null } {
+  const latest = latestSleepSample(samples, now);
+  return { latestSampleEndAt: latest?.endAt ?? null, latestSampleSource: latest?.source ?? null };
+}
+
 /**
  * Qualidade do sono para a prontidao de HOJE: a noite que terminou hoje; se ainda nao ha (antes de acordar ou sem sincronizar), a de ONTEM marcada
  * como provisoria (isToday = false); nada mais antigo que ontem. Sem noite = null. A divida e a regularidade usam as noites ate a escolhida.
@@ -285,6 +295,7 @@ export function sleepQualityForToday(samples: readonly SleepSample[], now: Date 
     isToday: chosen.wakeDate === todayKey,
     wakeAt: chosen.wakeAt,
     asleepMin: chosen.asleepMin as number,
+    ...latestSampleFields(samples, now),
   };
 }
 
@@ -308,7 +319,48 @@ export function sleepCycleReading(samples: readonly SleepSample[], now: Date = n
     isToday: chosen.wakeDate === todayKey,
     wakeAt: chosen.wakeAt,
     asleepMin: chosen.asleepMin as number,
+    ...latestSampleFields(samples, now),
   };
+}
+
+/** Fim (ISO) e fonte da amostra de DORMINDO mais recente (qualquer sessao: noite, soneca ou trecho). "Na cama" sozinho nao conta (o iPhone grava isso sem o relogio ter sincronizado). Amostras que terminam no futuro (relogio errado) sao ignoradas quando `now` e dado. */
+export function latestSleepSample(samples: readonly SleepSample[] | null | undefined, now?: Date): { endAt: string; source: string | null } | null {
+  let best: SleepSample | null = null;
+  for (const s of samples ?? []) {
+    if (!valid(s) || !isAsleep(s)) continue;
+    if (now && s.endDate.getTime() > now.getTime()) continue;
+    if (!best || s.endDate.getTime() > best.endDate.getTime()) best = s;
+  }
+  return best ? { endAt: best.endDate.toISOString(), source: best.sourceName ?? best.sourceId ?? null } : null;
+}
+
+/** Fim (ISO) da amostra de sono mais recente; sem amostra = null. */
+export function latestSleepSampleEnd(samples: readonly SleepSample[] | null | undefined, now?: Date): string | null {
+  return latestSleepSample(samples, now)?.endAt ?? null;
+}
+
+/** A fonte e o Garmin Connect? (o nome da fonte do HealthKit contem "garmin") */
+export function isGarminSource(source: string | null | undefined): boolean {
+  return typeof source === 'string' && /garmin/i.test(source);
+}
+
+/** Depois desta hora (local) sem nenhum sono terminado hoje, o dado esta "velho" (antes dela a pessoa pode simplesmente ainda estar dormindo). */
+export const SLEEP_STALE_AFTER_HOUR = 10;
+
+export type SleepFreshness = { kind: 'fresh'; endedAt: string } | { kind: 'stale'; endedAt: string; daysAgo: number } | { kind: 'unknown' };
+
+/**
+ * Frescor do dado de sono: FRESCO se alguma amostra de sono terminou HOJE; VELHO se nenhuma terminou hoje e ja sao SLEEP_STALE_AFTER_HOUR (10h) ou mais (daysAgo = dias do
+ * calendario desde o fim, 1 = ontem); DESCONHECIDO sem amostra, antes das 10h sem sono de hoje, ou data invalida (nao mostra rotulo).
+ */
+export function sleepFreshness(latestEndAt: string | null | undefined, now: Date = new Date()): SleepFreshness {
+  if (!latestEndAt) return { kind: 'unknown' };
+  const end = new Date(latestEndAt);
+  if (Number.isNaN(end.getTime())) return { kind: 'unknown' };
+  if (toDateKey(end) === toDateKey(now)) return { kind: 'fresh', endedAt: end.toISOString() };
+  if (now.getHours() < SLEEP_STALE_AFTER_HOUR) return { kind: 'unknown' };
+  const daysAgo = Math.round((startOfDay(now).getTime() - startOfDay(end).getTime()) / 86400000);
+  return { kind: 'stale', endedAt: end.toISOString(), daysAgo: Math.max(1, daysAgo) };
 }
 
 /**

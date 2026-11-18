@@ -118,6 +118,9 @@ export async function clearWidgetSummary(): Promise<void> {
  * de atualizar) a pausa minima e de 60 s.
  */
 export function syncWidgetSummary(options?: { manual?: boolean }): Promise<void> {
+  // A Vitalidade das telas atualiza SEMPRE que o app chama isto (volta ao primeiro plano), mesmo quando a gravacao do widget esta em pausa: o proprio refreshVitality tem a sua
+  // pausa de 60 s e e unico em andamento, e nunca lanca.
+  void refreshVitality();
   if (Platform.OS !== 'ios' || !nativeModule) return Promise.resolve();
   if (inFlight) return inFlight;
   const minInterval = options?.manual ? MANUAL_MIN_INTERVAL_MS : MIN_INTERVAL_MS;

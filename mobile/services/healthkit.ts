@@ -65,6 +65,7 @@ import {
   SLEEP_QUALITY_LOOKBACK_DAYS,
   SLEEP_SCREEN_LOOKBACK_HOURS,
   describeSleepSessions,
+  latestSleepSample,
   lastNightSleepHoursFromSamples,
   napMinutesSince,
   selectSleepNightForScreen,
@@ -345,16 +346,18 @@ export async function fetchSleepQualityReading(): Promise<SleepQualityReading | 
  * noite. A selecao (noite principal, nao parcial) e pura e compartilhada com a Home e a Vitalidade (sleepNights.ts). Sem sono = { detail: null, partial: null }.
  */
 export async function fetchSleepScreenData(): Promise<SleepScreenData> {
-  const empty: SleepScreenData = { detail: null, partial: null };
+  const empty: SleepScreenData = { detail: null, partial: null, latestSampleEndAt: null, latestSampleSource: null };
   const h = hk();
   if (!h || !h.isAvailable()) return empty;
   const now = new Date();
   const samples = await safe(readSleepSamples(new Date(now.getTime() - SLEEP_SCREEN_LOOKBACK_HOURS * 60 * 60 * 1000)));
   if (!samples) return empty;
   const { night: group, partial } = selectSleepNightForScreen(samples, now);
+  const latest = latestSleepSample(samples, now);
+  const latestFields = { latestSampleEndAt: latest?.endAt ?? null, latestSampleSource: latest?.source ?? null };
   const partialInfo = partial ? { startedAt: partial.startAt, endedAt: partial.endAt, spanMinutes: partial.spanMin, asleepMinutes: partial.asleepMin } : null;
   const night = group ? buildSleepNight(group.samples) : null;
-  if (!night) return { detail: null, partial: partialInfo };
+  if (!night) return { detail: null, partial: partialInfo, ...latestFields };
   const from = new Date(night.startedAt);
   const to = new Date(night.endedAt);
   const [hr, resp] = await Promise.all([
@@ -372,6 +375,7 @@ export async function fetchSleepScreenData(): Promise<SleepScreenData> {
       respiratoryRate: { average: round1(resp?.average), lowest: round1(resp?.min) },
     },
     partial: partialInfo,
+    ...latestFields,
   };
 }
 

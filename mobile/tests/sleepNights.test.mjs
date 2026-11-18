@@ -349,3 +349,53 @@ test('ciclo: so um trecho parcial nao ancora (sem ancora/estimado); uma noite co
   assert.equal(sleepCycleReading(withNight, NOW).wakeAt, at(-1, 7, 0).toISOString());
   assert.equal(sleepCycleReading(withNight, at(0, 4, 3)).wakeAt, at(-1, 7, 0).toISOString());
 });
+
+// ------------------------------------------------------------------------------------------------ frescor do dado de sono
+import { isGarminSource, latestSleepSample, latestSleepSampleEnd, sleepFreshness, SLEEP_STALE_AFTER_HOUR } from '../services/sleepNights.ts';
+
+test('latestSleepSampleEnd: fim da amostra de DORMINDO mais recente (na cama sozinho e futuro nao contam)', () => {
+  const samples = [
+    sample(at(-1, 23, 0), at(0, 6, 40), 3, 'Garmin Connect'),
+    sample(at(0, 6, 40), at(0, 7, 12), 2, 'Garmin Connect'), // acordado conta como "dormindo"? nao: so 1,3,4,5
+    sample(at(-1, 22, 50), at(0, 9, 30), 0, 'iPhone'), // na cama: ignorado
+    sample(at(0, 11, 0), at(0, 12, 0), 1, 'Futuro'), // termina depois de NOW (10:00): ignorado
+  ];
+  assert.equal(latestSleepSampleEnd(samples, NOW), at(0, 6, 40).toISOString());
+  assert.equal(latestSleepSample(samples, NOW).source, 'Garmin Connect');
+  assert.equal(latestSleepSampleEnd([], NOW), null);
+  assert.equal(latestSleepSampleEnd(null, NOW), null);
+  assert.equal(latestSleepSampleEnd([sample(at(0, 1, 0), at(0, 2, 0), 0)], NOW), null);
+});
+
+test('leitura do ciclo traz latestSampleEndAt e a fonte', () => {
+  const reading = sleepCycleReading(wakeNight(0, { source: 'Garmin Connect' }), NOW);
+  assert.equal(reading.latestSampleEndAt, at(0, 7, 0).toISOString());
+  assert.equal(reading.latestSampleSource, 'Garmin Connect');
+  assert.equal(sleepQualityForToday(wakeNight(-1), NOW).latestSampleEndAt, at(-1, 7, 0).toISOString());
+});
+
+test('frescor: terminou hoje = fresco (a qualquer hora)', () => {
+  assert.deepEqual(sleepFreshness(at(0, 7, 12).toISOString(), at(0, 8, 0)), { kind: 'fresh', endedAt: at(0, 7, 12).toISOString() });
+  assert.equal(sleepFreshness(at(0, 0, 30).toISOString(), at(0, 23, 0)).kind, 'fresh');
+});
+
+test('frescor: nada terminou hoje — antes das 10h e desconhecido, a partir das 10h e velho', () => {
+  assert.equal(SLEEP_STALE_AFTER_HOUR, 10);
+  const end = at(-1, 11, 54).toISOString();
+  assert.deepEqual(sleepFreshness(end, at(0, 9, 59)), { kind: 'unknown' });
+  assert.deepEqual(sleepFreshness(end, at(0, 10, 0)), { kind: 'stale', endedAt: end, daysAgo: 1 });
+  assert.equal(sleepFreshness(at(-3, 8, 0).toISOString(), at(0, 15, 0)).daysAgo, 3);
+});
+
+test('frescor: sem amostra ou data invalida = desconhecido', () => {
+  assert.deepEqual(sleepFreshness(null, NOW), { kind: 'unknown' });
+  assert.deepEqual(sleepFreshness(undefined, NOW), { kind: 'unknown' });
+  assert.deepEqual(sleepFreshness('lixo', NOW), { kind: 'unknown' });
+});
+
+test('fonte Garmin e reconhecida pelo nome (qualquer caixa)', () => {
+  assert.equal(isGarminSource('Garmin Connect'), true);
+  assert.equal(isGarminSource('com.garmin.connect.mobile'), true);
+  assert.equal(isGarminSource('iPhone de Daniel'), false);
+  assert.equal(isGarminSource(null), false);
+});

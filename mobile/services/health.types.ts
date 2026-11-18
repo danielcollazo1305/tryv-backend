@@ -109,6 +109,9 @@ export interface SleepFragmentInfo {
 export interface SleepScreenData {
   detail: SleepSessionDetail | null;
   partial: SleepFragmentInfo | null;
+  /** Fim (ISO) da amostra de sono mais recente lida e sua fonte: base do rotulo de frescor ("Dados do Apple Saúde de hoje às ..."). Null sem amostra. */
+  latestSampleEndAt?: string | null;
+  latestSampleSource?: string | null;
 }
 
 export interface DailyQuantityPoint {

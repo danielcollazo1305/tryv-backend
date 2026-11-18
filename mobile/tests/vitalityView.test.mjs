@@ -102,3 +102,19 @@ test('uma unica saida do motor alimenta app e widget: mesmo valor, mesmo rotulo,
     assert.notEqual(out.display.score, null);
   }
 });
+
+import { sleepFreshness } from '../services/sleepNights.ts';
+import { sleepFreshnessText } from '../services/vitalityView.ts';
+
+test('rotulo de frescor do sono: fresco, velho com Garmin, velho com outra fonte, mais antigo que ontem e sem rotulo', () => {
+  const at = (day, h, m = 0) => new Date(2026, 10, day, h, m, 0);
+  const now = at(17, 10, 30);
+  assert.equal(sleepFreshnessText(sleepFreshness(at(17, 7, 12).toISOString(), now)), 'Dados do Apple Saúde de hoje às 07:12');
+  const old = sleepFreshness(at(16, 11, 54).toISOString(), now);
+  assert.equal(sleepFreshnessText(old, 'Garmin Connect'), 'Último dado de sono: ontem às 11:54. Abra o Garmin Connect para sincronizar.');
+  assert.equal(sleepFreshnessText(old, 'iPhone'), 'Último dado de sono: ontem às 11:54. Abra o app do seu relógio para sincronizar.');
+  assert.equal(sleepFreshnessText(old, null), 'Último dado de sono: ontem às 11:54. Abra o app do seu relógio para sincronizar.');
+  assert.equal(sleepFreshnessText(sleepFreshness(at(14, 8, 5).toISOString(), now), 'Garmin Connect'), 'Último dado de sono: em 14/11 às 08:05. Abra o Garmin Connect para sincronizar.');
+  assert.equal(sleepFreshnessText(sleepFreshness(at(16, 11, 54).toISOString(), at(17, 9, 0))), ''); // cedo demais: sem rotulo
+  assert.equal(sleepFreshnessText(sleepFreshness(null, now)), '');
+});

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { useOnAppActive } from '@/hooks/useOnAppActive';
 import { DynamicVitality, getVitalitySnapshot, refreshVitality, subscribeVitality } from '@/services/vitalityService';
 import { VitalityState } from '@/services/vitality';
 
@@ -21,6 +22,9 @@ export function useVitality() {
       void refreshVitality();
     }, [])
   );
+
+  // Voltou ao app: o relogio pode ter sincronizado o sono com o Apple Saude. refreshVitality tem pausa de 60 s e nunca roda duas em paralelo.
+  useOnAppActive(() => void refreshVitality());
 
   const fetchData = useCallback(() => refreshVitality({ force: true }), []);
 

@@ -18,6 +18,10 @@ import {
   SleepStage,
 } from '@/services/health';
 import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
+import { useOnAppActive } from '@/hooks/useOnAppActive';
+import { sleepFreshness } from '@/services/sleepNights';
+import { sleepFreshnessText } from '@/services/vitalityView';
+import { SLEEP_REREAD_MIN_INTERVAL_MS } from '@/utils/appActive';
 import { SLEEP_WAITING_TITLE, formatNightLabel, formatPartialSleepNote, formatSleepMinutes } from '@/utils/sleepFormat';
 
 // Migrado de JetBrains Mono pra Inter nesta tarefa -- decisao deliberada de
@@ -124,6 +128,8 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
   const [detail, setDetail] = useState<SleepSessionDetail | null>(null);
   /** Trecho parcial mais novo que a ultima noite completa (sincronizacao incompleta): faixa de aviso ou estado "aguardando". */
   const [partial, setPartial] = useState<SleepFragmentInfo | null>(null);
+  /** Rotulo de frescor ("Dados do Apple Saude de hoje as 07:12" / "Ultimo dado de sono: ontem ..."); vazio = nao mostra. */
+  const [freshnessNote, setFreshnessNote] = useState('');
   const [selected, setSelected] = useState<SelectedSegment | null>(null);
 
   const load = useCallback(async () => {
@@ -146,6 +152,7 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
       await SecureStore.setItemAsync(HEALTHKIT_CONNECTED_KEY, 'true');
       const result = await fetchSleepScreenData();
       setPartial(result.partial);
+      setFreshnessNote(sleepFreshnessText(sleepFreshness(result.latestSampleEndAt, new Date()), result.latestSampleSource));
       if (!result.detail) {
         onNightEnded?.(null);
         setStatus(result.partial ? 'waiting' : 'empty');
@@ -165,6 +172,9 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
       load();
     }, [load])
   );
+
+  // Voltou ao app (o relogio pode ter sincronizado enquanto estava em segundo plano): le de novo, sem spinner, com pausa curta.
+  useOnAppActive(() => void load(), SLEEP_REREAD_MIN_INTERVAL_MS);
 
   if (status === 'checking') {
     return <ActivityIndicator color={colors3.primary} style={styles.loading} />;
@@ -197,6 +207,7 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
     return (
       <View style={styles.container}>
         <Text style={styles.emptyText}>{SLEEP_WAITING_TITLE}</Text>
+        {!!freshnessNote && <Text style={styles.partialBanner}>{freshnessNote}</Text>}
         <Text style={styles.partialBanner}>{formatPartialSleepNote(partial.startedAt, partial.endedAt, partial.spanMinutes)}</Text>
       </View>
     );
@@ -213,6 +224,7 @@ function SleepNightView({ onNightEnded }: { onNightEnded?: (endedAtIso: string |
 
   return (
     <View style={styles.container}>
+      {!!freshnessNote && <Text style={styles.partialBanner}>{freshnessNote}</Text>}
       {!!partial && <Text style={styles.partialBanner}>{formatPartialSleepNote(partial.startedAt, partial.endedAt, partial.spanMinutes)}</Text>}
       <GlassCard variant="glass" style={styles.card}>
         <Text style={styles.eyebrow}>Sono total</Text>
