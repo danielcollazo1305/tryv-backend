@@ -360,3 +360,29 @@ test('um ciclo inteiro de atualizacoes cruzando a meia-noite: nunca sobe mais de
     prev = out.display.score;
   }
 });
+
+// ----------------------------------------------------------------------------------------------------------------------------------- estado salvo antigo
+test('estado salvo ANTIGO (sem hrEffort, sem heartRateCurrent/Shadow) e lido sem erro: campo ausente = 0 / padrao', () => {
+  const first = runVitalityEngine(input({ now: at(0, 12) }));
+  // Reproduz o JSON gravado por um build anterior: sem o campo hrEffort no dia guardado.
+  const old = JSON.parse(JSON.stringify(first.next));
+  assert.ok(old.day, 'o estado guardado tem o dia');
+  delete old.day.value.hrEffort;
+  assert.equal('hrEffort' in old.day.value, false);
+  // 1) leitura nova SEM esforco (a leitura do esforco falhou ou o build antigo ainda nao o calcula)
+  const again = runVitalityEngine(input({ now: at(0, 15), stored: old, day: day({ steps: 4000, activeKcal: 200 }) }));
+  assert.ok(Number.isFinite(again.display.shown ?? again.display.result?.score ?? 0));
+  assert.equal(again.debug.day.hrEffort ?? null, null);
+  assert.equal(again.debug.result.wear.heartRateShadow, 0);
+  assert.equal(again.debug.result.wear.heartRate, again.debug.result.wear.heartRateCurrent);
+  // 2) leitura nova COM esforco sobre estado antigo: aceita e o guarda
+  const effort = { hours: [{ startMs: at(0, 8).getTime(), avgHr: 120, status: 'ok', reserve: 0.46, effort: 12 }], total: 12, excludedWorkout: 0, excludedSleep: 0, noData: 0 };
+  const withEffort = runVitalityEngine(input({ now: at(0, 15), stored: old, day: day({ steps: 4000, activeKcal: 200, hrEffort: effort }) }));
+  assert.equal(withEffort.debug.day.hrEffort.total, 12);
+  assert.equal(withEffort.next.day.value.hrEffort.total, 12);
+  // 3) o resultado e o mesmo do estado novo sem esforco (modo sombra desligado)
+  assert.equal(withEffort.debug.shown, again.debug.shown);
+  // 4) estado antigo completo (sem o dia guardado tambem) tambem entra
+  const older = { ...old, day: null };
+  assert.doesNotThrow(() => runVitalityEngine(input({ now: at(0, 15), stored: older })));
+});
