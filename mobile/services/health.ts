@@ -135,8 +135,8 @@ export function fetchSleepQualityReading(): Promise<SleepQualityReading | null> 
 }
 
 // Vitalidade dinamica (so iOS; no Android do app, descontinuado, devolvem null). Ver healthkit.ts.
-export function fetchVitalityToday(now: Date, windowStart: Date): ReturnType<typeof healthkit.fetchVitalityToday> {
-  return isIOS ? healthkit.fetchVitalityToday(now, windowStart) : Promise.resolve(null);
+export function fetchVitalityToday(now: Date, windowStart: Date, effortMaxHr?: number | null): ReturnType<typeof healthkit.fetchVitalityToday> {
+  return isIOS ? healthkit.fetchVitalityToday(now, windowStart, effortMaxHr) : Promise.resolve(null);
 }
 
 export function fetchVitalityHistory(now?: Date, days?: number): ReturnType<typeof healthkit.fetchVitalityHistory> {
@@ -149,6 +149,11 @@ export function fetchSleepScreenData(): Promise<SleepScreenData> {
 }
 
 /** Diagnostico do modo desenvolvedor: sessoes de sono lidas e classificadas (so iOS). */
+/** Diagnostico do modo desenvolvedor: amostras brutas de FC de hoje (so iOS). */
+export function fetchHeartRateSamplesTodayDebug(): ReturnType<typeof healthkit.fetchHeartRateSamplesTodayDebug> {
+  return isIOS ? healthkit.fetchHeartRateSamplesTodayDebug() : Promise.resolve([]);
+}
+
 export function fetchSleepSessionsDebug(): ReturnType<typeof healthkit.fetchSleepSessionsDebug> {
   return isIOS ? healthkit.fetchSleepSessionsDebug() : Promise.resolve([]);
 }

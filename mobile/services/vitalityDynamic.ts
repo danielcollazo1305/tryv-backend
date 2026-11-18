@@ -65,6 +65,119 @@ export const REF_LIMITS = { steps: [3000, 14000], kcal: [150, 1200], eref: [40, 
 
 /** FC maxima usada quando nao se sabe a da pessoa (a intensidade do treino e relativa a ela). */
 export const DEFAULT_MAX_HR = 190;
+
+// ----------------------------------------------------------------------------------------------------------- esforco por hora da FC (MODO SOMBRA)
+/**
+ * Interruptor do esforco por hora da FC. false (padrao) = a Vitalidade usa EXATAMENTE o desgaste de FC de antes (heartRateWear, FC media acordado acima do repouso); o esforco novo
+ * e calculado e aparece so no diagnostico (modo desenvolvedor). true so em teste, ate calibrar com dados reais do iPhone.
+ */
+export const HR_EFFORT_ENABLED = false;
+
+/**
+ * TRIMP de Banister (1991), por hora: esforco = minutos x reserva x A x e^(B x reserva), com reserva = (FC da hora - FC de repouso) / (FC maxima - FC de repouso), limitada a [0, 1].
+ * A e B (0,64 e 1,92) sao os valores classicos para homens; o peso exponencial faz a hora intensa valer bem mais que varias horas leves. fullUnits = esforco do dia que gasta o teto
+ * (K.hrMax, 6 pontos): PROVISORIO, sem calibracao com dados reais.
+ */
+export const HR_EFFORT = { weightA: 0.64, weightB: 1.92, fullUnits: 150, hourMinutes: 60 } as const;
+
+/** FC maxima de Tanaka (2001): 208 - 0,7 x idade. */
+export const TANAKA_MAX_HR = { base: 208, perYear: 0.7 } as const;
+/** Idade fora desta faixa (data de nascimento errada) = usa a FC maxima padrao. */
+export const MAX_HR_AGE_RANGE = [10, 100] as const;
+
+/**
+ * FC maxima pela idade (Tanaka). Data de nascimento ausente, mal formada, no futuro ou com idade fora de 10-100 anos = DEFAULT_MAX_HR. So alimenta o esforco por hora; os treinos
+ * (workoutUnits) continuam com DEFAULT_MAX_HR para nao mudar o resultado atual.
+ */
+export function maxHrFromAge(dateOfBirth: string | null | undefined, now: Date = new Date()): number {
+  const m = typeof dateOfBirth === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(dateOfBirth) : null;
+  if (!m) return DEFAULT_MAX_HR;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!(month >= 1 && month <= 12 && day >= 1 && day <= 31)) return DEFAULT_MAX_HR;
+  let age = now.getFullYear() - year;
+  if (now.getMonth() + 1 < month || (now.getMonth() + 1 === month && now.getDate() < day)) age -= 1;
+  if (!(age >= MAX_HR_AGE_RANGE[0] && age <= MAX_HR_AGE_RANGE[1])) return DEFAULT_MAX_HR;
+  return Math.round(TANAKA_MAX_HR.base - TANAKA_MAX_HR.perYear * age);
+}
+
+export interface Interval {
+  startMs: number;
+  endMs: number;
+}
+
+/** Uma hora cheia do ciclo com a FC media dela (null = nenhuma amostra de FC nessa hora). */
+export interface HrHourInput {
+  startMs: number;
+  avgHr: number | null;
+}
+
+export type HrHourStatus = 'ok' | 'treino' | 'sono' | 'sem_dado';
+
+export interface HrHourEffort {
+  startMs: number;
+  avgHr: number | null;
+  /** ok = contou; treino/sono = hora excluida (treino ja entra em workoutUnits; sono/soneca nao e esforco); sem_dado = sem FC (ou sem repouso) = 0. */
+  status: HrHourStatus;
+  /** 0-1; null quando a hora nao contou. */
+  reserve: number | null;
+  effort: number;
+}
+
+export interface HourlyEffortResult {
+  hours: HrHourEffort[];
+  /** Soma do esforco das horas que contaram. */
+  total: number;
+  excludedWorkout: number;
+  excludedSleep: number;
+  noData: number;
+}
+
+const overlaps = (list: readonly Interval[] | undefined, a: number, b: number): boolean => (list ?? []).some((x) => x.startMs < b && x.endMs > a);
+
+/**
+ * Esforco por hora desde a ancora (TRIMP de Banister, ver HR_EFFORT). Cada hora cheia: se toca um treino ou um sono/soneca, e EXCLUIDA (treino ja conta em workoutUnits); sem FC na hora
+ * (ou sem FC de repouso, ou FC maxima abaixo do repouso) = 0; senao reserva = clamp((FC - repouso)/(max - repouso), 0, 1) e esforco = 60 x reserva x 0,64 x e^(1,92 x reserva). FC abaixo
+ * do repouso = reserva 0 = esforco 0. Dado ausente nunca soma. `maxHr` invalido usa DEFAULT_MAX_HR.
+ */
+export function hourlyEffort(
+  hours: readonly HrHourInput[],
+  restHr: number | null | undefined,
+  maxHr: number | null | undefined,
+  exclusions: { workouts?: readonly Interval[]; sleep?: readonly Interval[] }
+): HourlyEffortResult {
+  const max = isNum(maxHr) && maxHr > 0 ? maxHr : DEFAULT_MAX_HR;
+  const out: HourlyEffortResult = { hours: [], total: 0, excludedWorkout: 0, excludedSleep: 0, noData: 0 };
+  for (const h of hours ?? []) {
+    const end = h.startMs + HR_EFFORT.hourMinutes * 60000;
+    let status: HrHourStatus = 'ok';
+    let reserve: number | null = null;
+    let effort = 0;
+    if (overlaps(exclusions?.workouts, h.startMs, end)) {
+      status = 'treino';
+      out.excludedWorkout += 1;
+    } else if (overlaps(exclusions?.sleep, h.startMs, end)) {
+      status = 'sono';
+      out.excludedSleep += 1;
+    } else if (!isNum(h.avgHr) || !isNum(restHr) || max <= restHr) {
+      status = 'sem_dado';
+      out.noData += 1;
+    } else {
+      reserve = clamp((h.avgHr - restHr) / (max - restHr), 0, 1);
+      effort = HR_EFFORT.hourMinutes * reserve * HR_EFFORT.weightA * Math.exp(HR_EFFORT.weightB * reserve);
+      out.total += effort;
+    }
+    out.hours.push({ startMs: h.startMs, avgHr: isNum(h.avgHr) ? h.avgHr : null, status, reserve, effort });
+  }
+  return out;
+}
+
+/** Desgaste de FC pelo esforco do dia: cresce ate K.hrMax (o MESMO teto do desgaste atual, 6 pontos) com HR_EFFORT.fullUnits. Ausente/negativo = 0. */
+export function hrEffortWear(effortTotal: number | null | undefined): number {
+  if (!isNum(effortTotal) || effortTotal <= 0) return 0;
+  return K.hrMax * clamp(effortTotal / HR_EFFORT.fullUnits, 0, 1);
+}
 /** Calorias ativas atribuidas a um treino que nao informa a propria energia: minutos x este valor (esforco moderado). */
 export const WORKOUT_KCAL_PER_MIN_FALLBACK = 7;
 
@@ -99,6 +212,8 @@ export interface DayInput {
   napMinutes?: number;
   /** Minutos ACORDADO contados desde a ancora (ja sem o cochilo, ver awakeMinutesSince); null/ausente = sem ancora = sem desgaste por tempo. */
   awakeMinutes?: number | null;
+  /** Esforco por hora da FC (MODO SOMBRA, ver HR_EFFORT_ENABLED): so diagnostico enquanto o interruptor estiver desligado. */
+  hrEffort?: HourlyEffortResult | null;
 }
 
 export interface PersonalReferences {
@@ -125,6 +240,9 @@ export interface WearBreakdown {
   movement: number;
   training: number;
   heartRate: number;
+  /** Diagnostico: desgaste de FC pelo calculo de antes (elevacao media) e pelo esforco por hora (sombra). heartRate e um dos dois, conforme HR_EFFORT_ENABLED. */
+  heartRateCurrent: number;
+  heartRateShadow: number;
   /** Soma limitada a K.maxDrop. */
   total: number;
   /** Medidas intermediarias, uteis para depurar: razao de movimento (1 = dia tipico) e unidades de treino. */
@@ -277,17 +395,22 @@ export function timeWear(awakeMinutes: number | null | undefined): number {
 }
 
 /** Desgaste total do ciclo (monotonico: so cresce com o tempo, passos, calorias, treino e FC) com cada parcela e o teto K.maxDrop. */
-export function dayWear(day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null): WearBreakdown {
+export function dayWear(day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null, options?: { hrEffortEnabled?: boolean }): WearBreakdown {
   const movement = movementWear(day, refs);
   const trainingUnits = dayTrainingUnits(day?.workouts ?? [], restHr, maxHr);
   const training = trainingWear(trainingUnits, refs.eref);
-  const heartRate = heartRateWear(day?.awakeHrElevation);
+  const heartRateCurrent = heartRateWear(day?.awakeHrElevation);
+  const heartRateShadow = hrEffortWear(day?.hrEffort?.total);
+  // Modo sombra: so usa o esforco novo se o interruptor estiver ligado E ele existir; senao, exatamente o de antes.
+  const heartRate = (options?.hrEffortEnabled ?? HR_EFFORT_ENABLED) && day?.hrEffort ? heartRateShadow : heartRateCurrent;
   const time = timeWear(day?.awakeMinutes);
   return {
     time,
     movement: movement.wear,
     training,
     heartRate,
+    heartRateCurrent,
+    heartRateShadow,
     total: Math.min(time + movement.wear + training + heartRate, K.maxDrop),
     movementRatio: movement.ratio,
     trainingUnits,
@@ -315,8 +438,8 @@ export function applyWear(base: number, totalWear: number, recovery: number): nu
 }
 
 /** Vitalidade de agora (valor bruto, sem suavizar) a partir da base da manha e dos totais de hoje. */
-export function vitalityNow(base: number, day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null): VitalityResult {
-  const wear = dayWear(day, refs, restHr, maxHr);
+export function vitalityNow(base: number, day: DayInput, refs: PersonalReferences, restHr: number | null | undefined, maxHr?: number | null, options?: { hrEffortEnabled?: boolean }): VitalityResult {
+  const wear = dayWear(day, refs, restHr, maxHr, options);
   const recovery = recoveryPoints(day, wear.movement + wear.training + wear.heartRate);
   return { score: applyWear(base, wear.total, recovery), wear, recovery };
 }
@@ -358,6 +481,8 @@ export function monotonicDay(previous: DayInput | null | undefined, next: DayInp
     workouts: (next.workouts?.length ?? 0) >= (previous.workouts?.length ?? 0) ? next.workouts : previous.workouts,
     restHours: Math.max(nonNeg(previous.restHours), nonNeg(next.restHours)),
     napMinutes: Math.max(nonNeg(previous.napMinutes), nonNeg(next.napMinutes)),
+    // Esforco da FC so cresce (leitura que falha nao o zera): fica o de maior total.
+    hrEffort: (next.hrEffort?.total ?? -1) >= (previous.hrEffort?.total ?? -1) ? next.hrEffort : previous.hrEffort,
   };
 }
 

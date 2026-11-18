@@ -72,7 +72,7 @@ const flat = (sections) => Object.fromEntries(sections.flatMap((s) => s.rows.map
 
 test('depuracao mostra ciclo, base e componentes, desgastes (inclusive tempo), recuperacao, resultado, referencias e hora', () => {
   const sections = formatVitalityDebug(debugFor());
-  assert.deepEqual(sections.map((s) => s.title), ['Ciclo (começa ao acordar)', 'Base da manhã', 'Desgaste do ciclo', 'Resultado', 'Referências pessoais (14 dias)', 'Desde a âncora (ao vivo)', 'Atualização']);
+  assert.deepEqual(sections.map((s) => s.title), ['Ciclo (começa ao acordar)', 'Base da manhã', 'Desgaste do ciclo', 'Resultado', 'Referências pessoais (14 dias)', 'Desde a âncora (ao vivo)', 'FC: esforço por hora (sombra)', 'Atualização']);
   const v = flat(sections);
   assert.equal(v['Âncora (acordou em)'], '17/11 06:40');
   assert.equal(v['Origem da âncora'], 'noite lida agora');

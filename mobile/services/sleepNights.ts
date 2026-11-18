@@ -323,6 +323,11 @@ export function sleepCycleReading(samples: readonly SleepSample[], now: Date = n
   };
 }
 
+/** Intervalos (ms) de sono de verdade (dormindo, sem "na cama" nem acordado): usados para excluir essas horas do esforco da FC. */
+export function asleepIntervals(samples: readonly SleepSample[] | null | undefined): { startMs: number; endMs: number }[] {
+  return (samples ?? []).filter((s) => valid(s) && isAsleep(s)).map((s) => ({ startMs: s.startDate.getTime(), endMs: s.endDate.getTime() }));
+}
+
 /** Fim (ISO) e fonte da amostra de DORMINDO mais recente (qualquer sessao: noite, soneca ou trecho). "Na cama" sozinho nao conta (o iPhone grava isso sem o relogio ter sincronizado). Amostras que terminam no futuro (relogio errado) sao ignoradas quando `now` e dado. */
 export function latestSleepSample(samples: readonly SleepSample[] | null | undefined, now?: Date): { endAt: string; source: string | null } | null {
   let best: SleepSample | null = null;

@@ -1,6 +1,6 @@
 // Formata o "porque" de uma atualizacao da Vitalidade para a tela de depuracao (modo desenvolvedor). Logica PURA, testada no Node
 // (mobile/tests/devMode.test.mjs). Nada aqui sai do aparelho.
-import { dynamicScoreToState } from '@/services/vitalityDynamic';
+import { HR_EFFORT_ENABLED, dynamicScoreToState } from '@/services/vitalityDynamic';
 import type { VitalityDebug } from '@/services/vitalityEngine';
 import type { SleepSessionInfo } from '@/services/sleepNights';
 import { VITALITY_LABELS } from '@/services/vitality';
@@ -128,6 +128,7 @@ export function formatVitalityDebug(debug: VitalityDebug): DebugSection[] {
         { label: 'Soneca (min)', value: int(day?.napMinutes) },
       ],
     },
+    ...formatHrEffortDebug(debug),
     {
       title: 'Atualização',
       rows: [
@@ -147,4 +148,99 @@ export function formatSleepSessionsDebug(sessions: readonly SleepSessionInfo[]):
     value: `${KIND_LABELS[s.kind]} · dormiu ${formatHoursMinutes(s.asleepMin)} · ${s.hasStages ? 'com estágios' : 'sem estágios'} · valores ${s.values.join(',') || '—'} · ${s.sources.join(', ') || '—'}`,
   }));
   return { title: 'Sessões de sono lidas', rows: rows.length > 0 ? rows : [{ label: 'Sessões', value: 'nenhuma na janela lida' }] };
+}
+
+const HR_STATUS_LABELS: Record<string, string> = { treino: 'excluída (treino)', sono: 'excluída (sono/soneca)', sem_dado: 'sem amostra (conta 0)' };
+
+/** Esforço por hora da FC (MODO SOMBRA): uma linha por hora cheia, totais e o desgaste de FC "atual" (o que vale) contra o "sombra" (esforço novo). Sem dado = seção avisando. */
+export function formatHrEffortDebug(debug: VitalityDebug): DebugSection[] {
+  const effort = debug.day?.hrEffort;
+  const wear = debug.result?.wear;
+  const mode = HR_EFFORT_ENABLED ? 'ligado (vale o esforço novo)' : 'desligado (modo sombra: vale o cálculo de antes)';
+  const hourRows = (effort?.hours ?? []).map((h) => {
+    const clock = formatInstant(new Date(h.startMs).toISOString());
+    const value =
+      h.status === 'ok' ? `FC ${int(h.avgHr)} · reserva ${num(h.reserve, 2)} · esforço ${num(h.effort)}` : `${HR_STATUS_LABELS[h.status] ?? h.status}${h.avgHr != null ? ` · FC ${int(h.avgHr)}` : ''}`;
+    return { label: clock, value };
+  });
+  return [
+    {
+      title: 'FC: esforço por hora (sombra)',
+      rows: [
+        { label: 'Modo', value: mode },
+        { label: 'Esforço do dia (soma das horas)', value: effort ? num(effort.total) : '—' },
+        { label: 'Horas excluídas (treino / sono)', value: effort ? `${effort.excludedWorkout} / ${effort.excludedSleep}` : '—' },
+        { label: 'Horas sem amostra', value: effort ? String(effort.noData) : '—' },
+        { label: 'Desgaste de FC atual (elevação média)', value: wear ? num(wear.heartRateCurrent) : '—' },
+        { label: 'Desgaste de FC sombra (esforço)', value: wear ? num(wear.heartRateShadow) : '—' },
+        ...(hourRows.length > 0 ? hourRows : [{ label: 'Horas', value: 'nenhuma hora cheia no ciclo ainda' }]),
+      ],
+    },
+  ];
+}
+
+export interface HeartRateSampleLite {
+  startMs: number;
+  endMs: number;
+  bpm: number;
+  sourceName: string | null;
+  sourceId: string | null;
+}
+
+/** Percentil por interpolação linear (0-1) de uma lista ordenada. */
+function percentile(sorted: readonly number[], p: number): number {
+  if (sorted.length === 0) return NaN;
+  const pos = (sorted.length - 1) * p;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+/** Resolução real da FC de hoje: contagem, intervalo entre amostras consecutivas (mediana, p10, p90, em segundos), maior lacuna e as fontes. */
+export function heartRateSampleStats(samples: readonly HeartRateSampleLite[]): {
+  count: number;
+  medianSec: number | null;
+  p10Sec: number | null;
+  p90Sec: number | null;
+  maxGapSec: number | null;
+  sources: { name: string; id: string; count: number }[];
+} {
+  const list = [...(samples ?? [])].sort((a, b) => a.startMs - b.startMs);
+  const gaps: number[] = [];
+  for (let i = 1; i < list.length; i++) gaps.push((list[i].startMs - list[i - 1].startMs) / 1000);
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const bySource = new Map<string, { name: string; id: string; count: number }>();
+  for (const s of list) {
+    const key = `${s.sourceName ?? '?'}|${s.sourceId ?? '?'}`;
+    const entry = bySource.get(key) ?? { name: s.sourceName ?? '?', id: s.sourceId ?? '?', count: 0 };
+    entry.count += 1;
+    bySource.set(key, entry);
+  }
+  const has = sorted.length > 0;
+  return {
+    count: list.length,
+    medianSec: has ? percentile(sorted, 0.5) : null,
+    p10Sec: has ? percentile(sorted, 0.1) : null,
+    p90Sec: has ? percentile(sorted, 0.9) : null,
+    maxGapSec: has ? sorted[sorted.length - 1] : null,
+    sources: [...bySource.values()].sort((a, b) => b.count - a.count),
+  };
+}
+
+const secs = (v: number | null): string => (v == null ? '—' : v >= 120 ? `${num(v / 60)} min` : `${num(v, 0)} s`);
+
+/** Seção do botão "Ler FC de hoje". */
+export function formatHeartRateStats(samples: readonly HeartRateSampleLite[]): DebugSection {
+  const st = heartRateSampleStats(samples);
+  if (st.count === 0) return { title: 'FC de hoje (amostras brutas)', rows: [{ label: 'Amostras', value: 'nenhuma desde 00:00' }] };
+  return {
+    title: 'FC de hoje (amostras brutas)',
+    rows: [
+      { label: 'Amostras desde 00:00', value: String(st.count) },
+      { label: 'Intervalo mediano entre amostras', value: secs(st.medianSec) },
+      { label: 'Intervalo p10 / p90', value: `${secs(st.p10Sec)} / ${secs(st.p90Sec)}` },
+      { label: 'Maior lacuna', value: secs(st.maxGapSec) },
+      ...st.sources.map((s, i) => ({ label: `Fonte ${i + 1}`, value: `${s.name} (${s.id}) · ${s.count}` })),
+    ],
+  };
 }

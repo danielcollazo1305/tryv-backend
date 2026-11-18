@@ -7,7 +7,7 @@ import { api, AUTH_TOKEN_STORAGE_KEY, getApiErrorMessage, setAuthToken } from '@
 import { ApiMessageError, getContentFilterMessage, isContentFilterError, isContentFilterPause } from '@/services/contentFilter';
 import { identifyPurchasesUser, resetPurchasesUser } from '@/services/purchases';
 import { clearSyncMarkers } from '@/services/syncMarkers';
-import { clearVitalityLocalState, setVitalityUserId } from '@/services/vitalityService';
+import { clearVitalityLocalState, setVitalityBirthDate, setVitalityUserId } from '@/services/vitalityService';
 import { clearWidgetSummary } from '@/services/widgetSummary';
 import { getUserBadges } from '@/services/user';
 
@@ -165,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserIdRef.current = response.data.id;
     setUser(response.data);
     setVitalityUserId(response.data.id); // a Vitalidade guardada no aparelho so vale para este usuario
+    setVitalityBirthDate(response.data.date_of_birth); // FC maxima por idade (esforco por hora, modo sombra)
     // Compras por RevenueCat: o app_user_id e o id do usuario no Tryv (o webhook do backend mapeia por ele). Nao bloqueia nem lanca.
     void identifyPurchasesUser(response.data.id);
     // Sem await de proposito: nao atrasa o boot/login (isLoading) por causa

@@ -14,6 +14,7 @@ import type { SleepQualityReading } from '@/services/sleepNights';
 import type { VitalityState } from '@/services/vitality';
 import { EMPTY_STORED_STATE, cycleKeyFor, resolveCycleAnchor, runVitalityEngine, storedStateForUser } from '@/services/vitalityEngine';
 import type { AnchorSource, EstimatedReason, HistoryDay, StoredVitalityState, VitalityDebug } from '@/services/vitalityEngine';
+import { maxHrFromAge } from '@/services/vitalityDynamic';
 import type { DayInput } from '@/services/vitalityDynamic';
 
 /** Chave do estado guardado (base congelada do dia, referencias, totais e ultimo valor). Limpa na exclusao de conta (services/account.ts). */
@@ -115,7 +116,7 @@ export async function computeDynamicVitality(): Promise<DynamicVitality> {
   let history: HistoryDay[] | null = null;
   if (connected) {
     const [today, hist] = await Promise.all([
-      fetchVitalityToday(now, windowStart).catch(() => null),
+      fetchVitalityToday(now, windowStart, maxHrFromAge(activeBirthDate, now)).catch(() => null),
       ownedState.refs && ownedState.refs.dayKey === cycleKey ? Promise.resolve(null) : fetchVitalityHistory(now, 14).catch(() => null),
     ]);
     if (today) {
@@ -170,6 +171,12 @@ let lastRunAt = 0;
 let generation = 0;
 /** Usuario atual (id no Tryv), informado pelo AuthContext; estado guardado de outro usuario e ignorado pelo motor. */
 let activeUserId: string | null = null;
+/** Data de nascimento (YYYY-MM-DD) do perfil, informada pelo AuthContext: so alimenta a FC maxima do esforco por hora (modo sombra). */
+let activeBirthDate: string | null = null;
+
+export function setVitalityBirthDate(dateOfBirth: string | null | undefined): void {
+  activeBirthDate = dateOfBirth ?? null;
+}
 
 /** Informa quem esta logado. Se mudou de uma pessoa para outra, o cache em memoria da anterior e descartado. */
 export function setVitalityUserId(userId: string | null): void {
@@ -190,6 +197,7 @@ export function resetVitalityCache(): void {
 /** Logout: apaga o estado guardado no aparelho (base congelada, referencias, totais, ultimo valor) e o cache em memoria. Nunca lanca. */
 export async function clearVitalityLocalState(): Promise<void> {
   activeUserId = null;
+  activeBirthDate = null;
   resetVitalityCache();
   try {
     await AsyncStorage.removeItem(VITALITY_STATE_KEY);

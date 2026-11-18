@@ -67,6 +67,7 @@ import {
   describeSleepSessions,
   latestSleepSample,
   lastNightSleepHoursFromSamples,
+  asleepIntervals,
   napMinutesSince,
   selectSleepNightForScreen,
   sleepCycleReading,
@@ -74,7 +75,8 @@ import {
 } from './sleepNights';
 import type { SleepSessionInfo } from './sleepNights';
 import type { SleepQualityReading } from './sleepNights';
-import type { DayInput, WorkoutInput } from './vitalityDynamic';
+import { hourlyEffort } from './vitalityDynamic';
+import type { DayInput, HrHourInput, WorkoutInput } from './vitalityDynamic';
 import { mergeOverlappingWorkouts, resolveWorkoutKcal } from './workoutWindows';
 import type { HistoryDay } from './vitalityEngine';
 
@@ -592,6 +594,14 @@ async function readWorkoutWindows(from: Date, to: Date): Promise<WorkoutWindow[]
   );
 }
 
+/** Diagnostico (modo desenvolvedor): amostras BRUTAS de FC desde 00:00 de hoje, sem limite, com a fonte de cada uma. So leitura; nada sai do aparelho. */
+export async function fetchHeartRateSamplesTodayDebug(now: Date = new Date()): Promise<{ startMs: number; endMs: number; bpm: number; sourceName: string | null; sourceId: string | null }[]> {
+  const h = hk();
+  if (!h || !h.isAvailable()) return [];
+  const samples = await safe(h.queryQuantitySamples({ type: T_HEART_RATE, unit: 'count/min', from: startOfDay(now), to: now, limit: 0, ascending: true }));
+  return (samples ?? []).map((s) => ({ startMs: s.startDate.getTime(), endMs: s.endDate.getTime(), bpm: s.value, sourceName: s.sourceName ?? null, sourceId: s.sourceId ?? null }));
+}
+
 /** FC de repouso do Apple Saude (media dos ultimos 14 dias); sem o tipo ou sem dado = null (a intensidade dos treinos vira desconhecida, nao zero). */
 export async function fetchRestingHeartRate(now: Date = new Date()): Promise<number | null> {
   const h = hk();
@@ -606,7 +616,10 @@ export async function fetchRestingHeartRate(now: Date = new Date()): Promise<num
  * soneca. `windowStart` = INICIO DO CICLO: a ancora (quando acordou; a janela pode atravessar a meia-noite) ou, sem ancora, 00:00 de hoje; tudo conta desde ai ate agora
  * (limitado a no maximo agora). Sem HealthKit = null.
  */
-export async function fetchVitalityToday(now: Date, windowStart: Date): Promise<{ day: DayInput; restHr: number | null } | null> {
+/**
+ * `effortMaxHr` = FC maxima (por idade) so para o esforco por hora em MODO SOMBRA (HR_EFFORT_ENABLED); os treinos nao a usam.
+ */
+export async function fetchVitalityToday(now: Date, windowStart: Date, effortMaxHr?: number | null): Promise<{ day: DayInput; restHr: number | null } | null> {
   const h = hk();
   if (!h || !h.isAvailable()) return null;
   const awakeFrom = windowStart.getTime() > now.getTime() ? now : windowStart;
@@ -646,6 +659,7 @@ export async function fetchVitalityToday(now: Date, windowStart: Date): Promise<
   const firstHour = Math.ceil(awakeFrom.getTime() / HOUR_MS) * HOUR_MS;
   const lastHour = Math.floor(now.getTime() / HOUR_MS) * HOUR_MS;
   let restHours = 0;
+  const hrHours: HrHourInput[] = [];
   if (lastHour > firstHour) {
     const [stepBuckets, hrBuckets] = await Promise.all([
       safe(statsBuckets(T_STEPS, 'count', new Date(firstHour), new Date(lastHour), h.StatisticsOption.cumulativeSum, { minute: 60 })),
@@ -656,10 +670,11 @@ export async function fetchVitalityToday(now: Date, windowStart: Date): Promise<
     const hrByHour = new Map<number, number>();
     for (const b of hrBuckets ?? []) if (typeof b.average === 'number') hrByHour.set(Math.round(b.startDate.getTime() / HOUR_MS), b.average);
     for (let t = firstHour; t < lastHour; t += HOUR_MS) {
-      if (windows.some((w) => w.start.getTime() < t + HOUR_MS && w.end.getTime() > t)) continue;
       const key = Math.round(t / HOUR_MS);
       const hourSteps = stepsByHour.get(key) ?? 0;
       const hourHr = hrByHour.get(key);
+      hrHours.push({ startMs: t, avgHr: hourHr ?? null });
+      if (windows.some((w) => w.start.getTime() < t + HOUR_MS && w.end.getTime() > t)) continue;
       if (hourSteps < 150 && (hourHr == null || restHr == null || hourHr <= restHr + 10)) restHours += 1;
     }
   }
@@ -673,6 +688,16 @@ export async function fetchVitalityToday(now: Date, windowStart: Date): Promise<
       awakeHrElevation,
       restHours,
       napMinutes: sleepSamples ? napMinutesSince(sleepSamples, awakeFrom.getTime(), now) : 0,
+      // Esforco por hora (MODO SOMBRA): horas de treino e de sono/soneca excluidas; so diagnostico enquanto HR_EFFORT_ENABLED = false.
+      hrEffort: hourlyEffort(
+        hrHours,
+        restHr,
+        effortMaxHr,
+        {
+          workouts: windows.map((w) => ({ startMs: w.start.getTime(), endMs: w.end.getTime() })),
+          sleep: asleepIntervals(sleepSamples),
+        }
+      ),
     },
   };
 }

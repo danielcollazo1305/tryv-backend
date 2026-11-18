@@ -10,9 +10,10 @@ import { colors3, radius3, spacing3, typography3 } from '@/constants/theme';
 import { useVitality } from '@/hooks/useVitality';
 import { isDevModeEnabled, setDevModeEnabled } from '@/services/devMode';
 import { VITALITY_STATE_KEY } from '@/services/vitalityService';
-import { fetchSleepSessionsDebug } from '@/services/health';
+import { fetchHeartRateSamplesTodayDebug, fetchSleepSessionsDebug } from '@/services/health';
 import type { SleepSessionInfo } from '@/services/sleepNights';
-import { formatSleepSessionsDebug, formatVitalityDebug } from '@/services/vitalityDebugView';
+import type { HeartRateSampleLite } from '@/services/vitalityDebugView';
+import { formatHeartRateStats, formatSleepSessionsDebug, formatVitalityDebug } from '@/services/vitalityDebugView';
 
 /**
  * Depuracao da Vitalidade (MODO DESENVOLVEDOR): tudo o que entrou no calculo da ultima atualizacao. Fica escondido: so abre com o modo ligado (7 toques na linha de
@@ -23,6 +24,15 @@ export default function DevVitalityScreen() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const { vitality, load, fetchData, refreshing } = useVitality();
   const [sleepSessions, setSleepSessions] = useState<SleepSessionInfo[] | null>(null);
+  const [hrSamples, setHrSamples] = useState<HeartRateSampleLite[] | null>(null);
+
+  const readHeartRate = async () => {
+    try {
+      setHrSamples(await fetchHeartRateSamplesTodayDebug());
+    } catch {
+      setHrSamples([]);
+    }
+  };
 
   const readSleepSessions = async () => {
     try {
@@ -54,7 +64,7 @@ export default function DevVitalityScreen() {
     );
   }
 
-  const sections = [...(vitality ? formatVitalityDebug(vitality.debug) : []), ...(sleepSessions ? [formatSleepSessionsDebug(sleepSessions)] : [])];
+  const sections = [...(vitality ? formatVitalityDebug(vitality.debug) : []), ...(sleepSessions ? [formatSleepSessionsDebug(sleepSessions)] : []), ...(hrSamples ? [formatHeartRateStats(hrSamples)] : [])];
 
   const disable = async () => {
     await setDevModeEnabled(false);
@@ -100,6 +110,9 @@ export default function DevVitalityScreen() {
           <Pressable style={[styles.button, styles.buttonGhost]} onPress={() => void readSleepSessions()} accessibilityRole="button">
             <Text style={[styles.buttonText, styles.buttonGhostText]}>Ler sessões de sono</Text>
           </Pressable>
+          <Pressable style={[styles.button, styles.buttonGhost]} onPress={() => void readHeartRate()} accessibilityRole="button">
+            <Text style={[styles.buttonText, styles.buttonGhostText]}>Ler FC de hoje</Text>
+          </Pressable>
         </View>
 
         {load.kind === 'loading' && <ActivityIndicator color={colors3.primary} style={styles.loading} />}
@@ -131,8 +144,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing3.sm },
   title: { ...typography3.headlineMd, fontSize: 20, color: colors3.onSurface },
   note: { ...typography3.bodyMd, fontSize: 13, color: colors3.onSurfaceVariant },
-  actions: { flexDirection: 'row', gap: spacing3.sm },
-  button: { flex: 1, minHeight: 44, borderRadius: radius3.pill, backgroundColor: colors3.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing3.md },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing3.sm },
+  button: { flexGrow: 1, flexBasis: '45%', minHeight: 44, borderRadius: radius3.pill, backgroundColor: colors3.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing3.md },
   buttonText: { ...typography3.bodyMd, fontSize: 14, fontWeight: '700', color: colors3.onPrimary },
   buttonGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors3.primary },
   buttonGhostText: { color: colors3.primary },
